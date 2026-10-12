@@ -1,0 +1,873 @@
+crit/bludgeoning/1-10/effect	
+crit/bludgeoning/11-13/effect	injured:1
+crit/bludgeoning/11-13/armoured	weakened:1
+crit/bludgeoning/14-16/effect	
+crit/bludgeoning/14-16/armoured	
+crit/bludgeoning/17-18/effect	
+crit/bludgeoning/17-18/armoured	
+crit/bludgeoning/19-19/effect	bleeding:1
+crit/bludgeoning/20-20/effect	dazed:1
+crit/bludgeoning/20-20/armoured	stunned:1
+crit/bludgeoning/21-23/effect	stunned:1
+crit/bludgeoning/24-26/effect	injured:1
+crit/bludgeoning/24-26/armoured	weakened:1
+crit/bludgeoning/27-28/effect	stunned:2
+crit/bludgeoning/27-28/armoured	stunned:1
+crit/bludgeoning/29-29/effect	stunned:2
+crit/bludgeoning/29-29/armoured	stunned:1
+crit/bludgeoning/30-30/effect	dazed:1
+crit/bludgeoning/31-33/effect	injured:1
+crit/bludgeoning/34-36/effect	prone+stunned:1
+crit/bludgeoning/34-36/armoured	
+crit/bludgeoning/37-38/effect	stunned:2
+crit/bludgeoning/37-38/armoured	stunned:1
+crit/bludgeoning/39-39/effect	flatFooted+stunned:1
+crit/bludgeoning/39-39/armoured	
+crit/bludgeoning/40-40/effect	injured:1+stunned:1
+crit/bludgeoning/40-40/armoured	stunned:1+weakened:1
+crit/bludgeoning/41-43/effect	injured:1
+crit/bludgeoning/41-43/metal	
+crit/bludgeoning/44-46/effect	stunned:1
+crit/bludgeoning/44-46/armoured	
+crit/bludgeoning/47-48/effect	broken+injured:2+stunned:2
+crit/bludgeoning/47-48/armoured	injured:1
+crit/bludgeoning/49-49/effect	injured:1+stunned:1
+crit/bludgeoning/50-50/effect	bleeding:2+dazed:1+stunned:1
+crit/bludgeoning/50-50/metal	bleeding:1+stunned:1
+crit/bludgeoning/51-53/effect	injured:1+stunned:2
+crit/bludgeoning/51-53/metal	
+crit/bludgeoning/54-56/effect	injured:1+prone+stunned:2
+crit/bludgeoning/54-56/armoured	
+crit/bludgeoning/57-58/effect	injured:1+stunned:2
+crit/bludgeoning/57-58/rigid	
+crit/bludgeoning/59-59/effect	sickened:2+stunned:2
+crit/bludgeoning/60-60/effect	injured:1
+crit/bludgeoning/61-63/effect	bleeding:2+injured:1+stunned:1
+crit/bludgeoning/64-66/effect	injured:2+stunned:1
+crit/bludgeoning/64-66/armoured	injured:1+stunned:1
+crit/bludgeoning/67-68/effect	stunned:2
+crit/bludgeoning/69-69/effect	flatFooted+sickened:3+stunned:1
+crit/bludgeoning/69-69/armoured	
+crit/bludgeoning/70-70/effect	stunned:2
+crit/bludgeoning/70-70/armoured	stunned:1
+crit/bludgeoning/71-73/effect	broken+injured:1+stunned:2
+crit/bludgeoning/74-76/effect	injured:2+prone
+crit/bludgeoning/74-76/armoured	
+crit/bludgeoning/77-78/effect	stunned:2
+crit/bludgeoning/79-79/effect	injured:1+stunned:1
+crit/bludgeoning/79-79/armoured	injured:1
+crit/bludgeoning/80-80/effect	bleeding:2+deafened+injured:2
+crit/bludgeoning/80-80/armoured	bleeding:2+dazed:1+injured:2
+crit/bludgeoning/81-83/effect	injured:2+stunned:2
+crit/bludgeoning/81-83/armoured	injured:1+stunned:1
+crit/bludgeoning/84-86/effect	injured:3+prone+stunned:3
+crit/bludgeoning/84-86/armoured	
+crit/bludgeoning/87-88/effect	injured:2+prone+stunned:2
+crit/bludgeoning/87-88/armoured	injured:1+stunned:2
+crit/bludgeoning/89-89/effect	bleeding:6+injured:3+stunned:1
+crit/bludgeoning/89-89/armoured	
+crit/bludgeoning/90-90/effect	injured:2+stunned:1
+crit/bludgeoning/90-90/armoured	
+crit/bludgeoning/91-93/effect	
+crit/bludgeoning/94-95/effect	prone
+crit/bludgeoning/96-98/effect	
+crit/bludgeoning/99-99/effect	dead
+crit/bludgeoning/100-100/effect	
+crit/piercing/1-10/effect	
+crit/piercing/11-13/effect	bleeding:2
+crit/piercing/11-13/armoured	bleeding:1
+crit/piercing/14-16/effect	bleeding:2
+crit/piercing/14-16/armoured	bleeding:1
+crit/piercing/17-18/effect	injured:1
+crit/piercing/17-18/armoured	
+crit/piercing/19-19/effect	flatFooted
+crit/piercing/20-20/effect	bleeding:2
+crit/piercing/20-20/armoured	bleeding:1
+crit/piercing/21-23/effect	bleeding:3
+crit/piercing/21-23/armoured	bleeding:1
+crit/piercing/24-26/effect	bleeding:2+weakened:1
+crit/piercing/24-26/armoured	bleeding:2
+crit/piercing/27-28/effect	bleeding:2+flatFooted
+crit/piercing/27-28/armoured	bleeding:2
+crit/piercing/29-29/effect	stunned:1
+crit/piercing/30-30/effect	bleeding:3
+crit/piercing/30-30/armoured	bleeding:2
+crit/piercing/31-33/effect	bleeding:3
+crit/piercing/34-36/effect	bleeding:3+stunned:1
+crit/piercing/34-36/armoured	
+crit/piercing/37-38/effect	bleeding:2+stunned:1
+crit/piercing/37-38/armoured	bleeding:1+stunned:1
+crit/piercing/39-39/effect	bleeding:1+weakened:2
+crit/piercing/39-39/armoured	
+crit/piercing/40-40/effect	bleeding:3+dazzled
+crit/piercing/40-40/armoured	
+crit/piercing/41-43/effect	bleeding:2+weakened:2
+crit/piercing/41-43/armoured	
+crit/piercing/44-46/effect	weakened:1
+crit/piercing/47-48/effect	bleeding:3+injured:1
+crit/piercing/47-48/armoured	
+crit/piercing/49-49/effect	injured:2
+crit/piercing/50-50/effect	bleeding:3+stunned:1
+crit/piercing/50-50/rigid	
+crit/piercing/51-53/effect	injured:2
+crit/piercing/51-53/armoured	injured:1
+crit/piercing/54-56/effect	bleeding:2
+crit/piercing/54-56/armoured	
+crit/piercing/57-58/effect	injured:2
+crit/piercing/57-58/rigid	injured:1
+crit/piercing/59-59/effect	bleeding:2+injured:2
+crit/piercing/59-59/armoured	
+crit/piercing/60-60/effect	bleeding:3+injured:1
+crit/piercing/60-60/rigid	
+crit/piercing/61-63/effect	bleeding:3+injured:2
+crit/piercing/61-63/armoured	
+crit/piercing/64-66/effect	bleeding:1+injured:2
+crit/piercing/67-68/effect	bleeding:3+injured:2
+crit/piercing/67-68/rigid	
+crit/piercing/69-69/effect	bleeding:3+flatFooted
+crit/piercing/70-70/effect	blinded+stunned:1
+crit/piercing/70-70/rigid	
+crit/piercing/71-73/effect	bleeding:4
+crit/piercing/71-73/armoured	
+crit/piercing/74-76/effect	bleeding:5
+crit/piercing/74-76/armoured	bleeding:4
+crit/piercing/77-78/effect	bleeding:4+weakened:1
+crit/piercing/77-78/armoured	
+crit/piercing/79-79/effect	bleeding:4+sickened:3
+crit/piercing/79-79/armoured	
+crit/piercing/79-79/rigid	
+crit/piercing/80-80/effect	bleeding:3
+crit/piercing/81-83/effect	injured:2
+crit/piercing/84-86/effect	injured:2
+crit/piercing/87-88/effect	bleeding:4+stunned:2
+crit/piercing/87-88/rigid	
+crit/piercing/89-89/effect	injured:3
+crit/piercing/90-90/effect	bleeding:2+injured:1+stunned:2
+crit/piercing/90-90/armoured	
+crit/piercing/91-93/effect	bleeding:3
+crit/piercing/94-95/effect	
+crit/piercing/96-98/effect	dead
+crit/piercing/99-99/effect	dead
+crit/piercing/100-100/effect	
+crit/slashing/1-10/effect	
+crit/slashing/11-13/effect	bleeding:1+flatFooted
+crit/slashing/11-13/armoured	
+crit/slashing/14-16/effect	flatFooted
+crit/slashing/17-18/effect	bleeding:2
+crit/slashing/17-18/armoured	bleeding:1
+crit/slashing/19-19/effect	flatFooted
+crit/slashing/20-20/effect	bleeding:2
+crit/slashing/20-20/armoured	bleeding:1
+crit/slashing/20-20/rigid	
+crit/slashing/21-23/effect	bleeding:2
+crit/slashing/21-23/armoured	bleeding:1
+crit/slashing/24-26/effect	bleeding:1
+crit/slashing/27-28/effect	bleeding:2+stunned:1
+crit/slashing/27-28/rigid	
+crit/slashing/29-29/effect	bleeding:3
+crit/slashing/30-30/effect	bleeding:2+flatFooted
+crit/slashing/30-30/armoured	
+crit/slashing/31-33/effect	bleeding:1+weakened:1
+crit/slashing/31-33/armoured	
+crit/slashing/34-36/effect	bleeding:1+injured:1
+crit/slashing/37-38/effect	bleeding:3
+crit/slashing/37-38/armoured	bleeding:2
+crit/slashing/39-39/effect	bleeding:2+injured:1
+crit/slashing/40-40/effect	bleeding:2+stunned:1
+crit/slashing/40-40/armoured	
+crit/slashing/41-43/effect	bleeding:2+injured:2
+crit/slashing/44-46/effect	bleeding:2+injured:2
+crit/slashing/44-46/armoured	
+crit/slashing/47-48/effect	bleeding:3+stunned:1
+crit/slashing/47-48/armoured	
+crit/slashing/49-49/effect	bleeding:2+injured:1
+crit/slashing/49-49/armoured	
+crit/slashing/50-50/effect	bleeding:2+injured:1
+crit/slashing/50-50/armoured	
+crit/slashing/51-53/effect	bleeding:1+weakened:2
+crit/slashing/51-53/rigid	weakened:1
+crit/slashing/54-56/effect	bleeding:3+prone
+crit/slashing/54-56/armoured	
+crit/slashing/54-56/rigid	
+crit/slashing/57-58/effect	bleeding:4+injured:1
+crit/slashing/57-58/armoured	
+crit/slashing/57-58/rigid	
+crit/slashing/59-59/effect	injured:2
+crit/slashing/60-60/effect	bleeding:3+injured:1
+crit/slashing/60-60/armoured	
+crit/slashing/61-63/effect	bleeding:3+injured:2
+crit/slashing/61-63/rigid	
+crit/slashing/64-66/effect	bleeding:3+injured:2
+crit/slashing/64-66/armoured	
+crit/slashing/67-68/effect	bleeding:3
+crit/slashing/67-68/rigid	
+crit/slashing/69-69/effect	
+crit/slashing/70-70/effect	bleeding:3+injured:2
+crit/slashing/70-70/armoured	
+crit/slashing/70-70/rigid	
+crit/slashing/71-73/effect	injured:2
+crit/slashing/74-76/effect	bleeding:4
+crit/slashing/77-78/effect	bleeding:4
+crit/slashing/77-78/rigid	
+crit/slashing/79-79/effect	bleeding:4
+crit/slashing/79-79/rigid	
+crit/slashing/80-80/effect	bleeding:2
+crit/slashing/80-80/armoured	
+crit/slashing/81-83/effect	bleeding:2+injured:2
+crit/slashing/81-83/rigid	
+crit/slashing/84-86/effect	injured:2
+crit/slashing/87-88/effect	
+crit/slashing/87-88/armoured	bleeding:3
+crit/slashing/87-88/unarmoured	bleeding:4
+crit/slashing/89-89/effect	bleeding:3+injured:2
+crit/slashing/90-90/effect	bleeding:2+injured:2
+crit/slashing/91-93/effect	bleeding:5
+crit/slashing/94-95/effect	bleeding:4
+crit/slashing/96-98/effect	
+crit/slashing/99-99/effect	
+crit/slashing/100-100/effect	
+crit/subdual/1-10/effect	
+crit/subdual/11-13/effect	
+crit/subdual/14-16/effect	flatFooted+prone
+crit/subdual/17-18/effect	
+crit/subdual/19-19/effect	flatFooted
+crit/subdual/19-19/armoured	
+crit/subdual/20-20/effect	stunned:1
+crit/subdual/21-23/effect	flatFooted
+crit/subdual/21-23/armoured	
+crit/subdual/24-26/effect	prone
+crit/subdual/24-26/armoured	dazed:1
+crit/subdual/27-28/effect	fatigued:1
+crit/subdual/27-28/armoured	stunned:1
+crit/subdual/29-29/effect	sickened:1
+crit/subdual/30-30/effect	flatFooted
+crit/subdual/31-32/effect	broken+dead+injured:1
+crit/subdual/31-32/armoured	stunned:1
+crit/subdual/34-36/effect	prone+weakened:2
+crit/subdual/34-36/armoured	
+crit/subdual/37-38/effect	stunned:2
+crit/subdual/39-39/effect	dazed:2+sickened:1
+crit/subdual/39-39/armoured	
+crit/subdual/40-40/effect	dazed:2+flatFooted
+crit/subdual/41-43/effect	weakened:1
+crit/subdual/44-46/effect	injured:1+prone
+crit/subdual/47-48/effect	stunned:3
+crit/subdual/47-48/armoured	stunned:2
+crit/subdual/49-49/effect	sickened:2
+crit/subdual/49-49/armoured	stunned:2
+crit/subdual/50-50/effect	injured:1+stunned:2
+crit/subdual/50-50/armoured	
+crit/subdual/51-53/effect	bleeding:1+weakened:2
+crit/subdual/54-56/effect	flatFooted+stunned:2
+crit/subdual/57-58/effect	stunned:2
+crit/subdual/59-59/effect	flatFooted+injured:2
+crit/subdual/60-60/effect	injured:2+stunned:2
+crit/subdual/61-63/effect	injured:2+stunned:1
+crit/subdual/64-66/effect	stunned:1
+crit/subdual/67-68/effect	injured:2+stunned:2
+crit/subdual/69-69/effect	stunned:3
+crit/subdual/70-70/effect	unconscious
+crit/subdual/71-73/effect	broken
+crit/subdual/74-76/effect	prone+stunned:2
+crit/subdual/77-78/effect	immobilised+stunned:2
+crit/subdual/79-79/effect	dazed:2+prone
+crit/subdual/80-80/effect	unconscious
+crit/subdual/81-83/effect	flatFooted
+crit/subdual/84-86/effect	injured:1
+crit/subdual/87-88/effect	injured:2
+crit/subdual/89-89/effect	injured:2+sickened:2
+crit/subdual/90-90/effect	bleeding:2+unconscious
+crit/subdual/91-93/effect	paralyzed
+crit/subdual/94-95/effect	unconscious
+crit/subdual/96-98/effect	unconscious
+crit/subdual/99-99/effect	paralyzed
+crit/subdual/100-100/effect	dazed:6+unconscious
+crit/acid/1-10/effect	
+crit/acid/11-13/effect	recurring:1
+crit/acid/14-16/effect	recurring:1
+crit/acid/17-18/effect	recurring:1
+crit/acid/19-19/effect	recurring:1
+crit/acid/20-20/effect	dazzled
+crit/acid/21-23/effect	recurring:2
+crit/acid/24-26/effect	prone
+crit/acid/27-28/effect	sickened:1
+crit/acid/29-29/effect	stunned:1
+crit/acid/30-30/effect	flatFooted
+crit/acid/31-32/effect	injured:1
+crit/acid/34-36/effect	broken+recurring:3
+crit/acid/37-38/effect	flatFooted
+crit/acid/39-39/effect	bleeding:3
+crit/acid/40-40/effect	blinded+dazed:1
+crit/acid/41-43/effect	injured:2
+crit/acid/44-46/effect	prone
+crit/acid/47-48/effect	recurring:1+sickened:2
+crit/acid/49-49/effect	recurring:4
+crit/acid/49-49/metal	recurring:2
+crit/acid/50-50/effect	blinded+recurring:1
+crit/acid/51-53/effect	injured:1+stunned:1
+crit/acid/54-56/effect	injured:1
+crit/acid/57-58/effect	recurring:5
+crit/acid/57-58/armoured	recurring:3
+crit/acid/59-59/effect	recurring:5+stunned:1
+crit/acid/60-60/effect	injured:1+recurring:5
+crit/acid/61-63/effect	injured:2+recurring:2
+crit/acid/64-66/effect	prone+stunned:2
+crit/acid/67-68/effect	sickened:2+stunned:1
+crit/acid/69-69/effect	recurring:6
+crit/acid/70-70/effect	injured:2
+crit/acid/70-70/armoured	
+crit/acid/71-73/effect	flatFooted+injured:1+recurring:6
+crit/acid/74-76/effect	prone
+crit/acid/77-78/effect	injured:2
+crit/acid/79-79/effect	recurring:6
+crit/acid/80-80/effect	flatFooted+injured:2
+crit/acid/81-83/effect	sickened:1
+crit/acid/84-86/effect	injured:1+prone
+crit/acid/87-88/effect	injured:2
+crit/acid/89-89/effect	injured:3
+crit/acid/90-90/effect	blinded+stunned:1
+crit/acid/91-93/effect	
+crit/acid/94-95/effect	prone
+crit/acid/96-98/effect	unconscious
+crit/acid/99-99/effect	dead
+crit/acid/100-100/effect	
+crit/aligned/1-10/effect	
+crit/aligned/11-13/effect	
+crit/aligned/14-16/effect	flatFooted
+crit/aligned/17-18/effect	frightened:1
+crit/aligned/19-19/effect	
+crit/aligned/20-20/effect	bleeding:1
+crit/aligned/21-23/effect	weakened:1
+crit/aligned/24-26/effect	prone
+crit/aligned/27-28/effect	doomed:1
+crit/aligned/29-29/effect	sickened:1
+crit/aligned/30-30/effect	recurring:2
+crit/aligned/31-32/effect	weakened:2
+crit/aligned/34-36/effect	
+crit/aligned/37-38/effect	flatFooted+frightened:2
+crit/aligned/39-39/effect	recurring:1+stunned:1
+crit/aligned/40-40/effect	confused
+crit/aligned/41-43/effect	stunned:2
+crit/aligned/44-46/effect	prone+stunned:1
+crit/aligned/47-48/effect	weakened:1
+crit/aligned/49-49/effect	weakened:1
+crit/aligned/50-50/effect	fleeing+frightened:2
+crit/aligned/51-53/effect	stunned:1+weakened:1
+crit/aligned/54-56/effect	prone+stunned:2
+crit/aligned/57-58/effect	stunned:2
+crit/aligned/59-59/effect	paralyzed
+crit/aligned/60-60/effect	confused+dazed:1
+crit/aligned/61-63/effect	weakened:2
+crit/aligned/64-66/effect	
+crit/aligned/67-68/effect	slowed:1
+crit/aligned/69-69/effect	stunned:3
+crit/aligned/70-70/effect	blinded+frightened:1
+crit/aligned/71-73/effect	injured:1+recurring:4
+crit/aligned/74-76/effect	prone+stunned:2
+crit/aligned/77-78/effect	unconscious
+crit/aligned/79-79/effect	injured:1+sickened:2
+crit/aligned/80-80/effect	dazed:2
+crit/aligned/81-83/effect	dazzled+recurring:3
+crit/aligned/84-86/effect	prone+weakened:2
+crit/aligned/87-88/effect	soulDrain:10
+crit/aligned/89-89/effect	soulDrain:15
+crit/aligned/90-90/effect	dazed:3+soulDrain:10
+crit/aligned/91-93/effect	paralyzed
+crit/aligned/94-95/effect	unconscious
+crit/aligned/96-98/effect	
+crit/aligned/99-99/effect	
+crit/aligned/100-100/effect	
+crit/cold/1-10/effect	
+crit/cold/11-13/effect	flatFooted
+crit/cold/14-16/effect	
+crit/cold/17-18/effect	recurring:1
+crit/cold/19-19/effect	recurring:1
+crit/cold/20-20/effect	dazzled
+crit/cold/21-23/effect	weakened:1
+crit/cold/24-26/effect	prone
+crit/cold/27-28/effect	stunned:1
+crit/cold/29-29/effect	stunned:1
+crit/cold/30-30/effect	dazed:1
+crit/cold/31-32/effect	recurring:1+stunned:1
+crit/cold/34-36/effect	
+crit/cold/37-38/effect	flatFooted+stunned:1
+crit/cold/39-39/effect	stunned:1
+crit/cold/40-40/effect	injured:1
+crit/cold/41-43/effect	recurring:2
+crit/cold/41-43/armoured	
+crit/cold/44-46/effect	prone+stunned:1
+crit/cold/47-48/effect	prone
+crit/cold/49-49/effect	flatFooted+sickened:2
+crit/cold/50-50/effect	recurring:3
+crit/cold/51-53/effect	recurring:3
+crit/cold/54-56/effect	prone+stunned:2
+crit/cold/57-58/effect	injured:4
+crit/cold/59-59/effect	flatFooted+recurring:3
+crit/cold/60-60/effect	injured:1+recurring:2
+crit/cold/61-63/effect	recurring:3
+crit/cold/64-66/effect	injured:1+prone
+crit/cold/67-68/effect	fatigued:1+stunned:1
+crit/cold/69-69/effect	prone+recurring:3+stunned:1
+crit/cold/70-70/effect	stunned:2
+crit/cold/71-73/effect	fatigued:1+stunned:1
+crit/cold/74-76/effect	injured:2
+crit/cold/77-78/effect	injured:1+stunned:1
+crit/cold/79-79/effect	fatigued:2+flatFooted+stunned:1
+crit/cold/80-80/effect	flatFooted+injured:1
+crit/cold/81-83/effect	injured:3
+crit/cold/84-86/effect	injured:3
+crit/cold/87-88/effect	slowed:1
+crit/cold/89-89/effect	injured:3
+crit/cold/90-90/effect	suffocating
+crit/cold/91-93/effect	
+crit/cold/94-95/effect	
+crit/cold/96-98/effect	
+crit/cold/99-99/effect	
+crit/cold/100-100/effect	
+crit/electricity/1-10/effect	
+crit/electricity/11-13/effect	flatFooted
+crit/electricity/14-16/effect	
+crit/electricity/17-18/effect	
+crit/electricity/19-19/effect	recurring:1
+crit/electricity/20-20/effect	dazzled
+crit/electricity/21-23/effect	recurring:1
+crit/electricity/24-26/effect	prone
+crit/electricity/27-28/effect	recurring:1
+crit/electricity/29-29/effect	stunned:1
+crit/electricity/30-30/effect	dazzled+flatFooted
+crit/electricity/31-32/effect	weakened:1
+crit/electricity/34-36/effect	
+crit/electricity/37-38/effect	injured:2
+crit/electricity/39-39/effect	sickened:2
+crit/electricity/40-40/effect	dazzled
+crit/electricity/41-43/effect	recurring:2+stunned:1
+crit/electricity/44-46/effect	prone
+crit/electricity/47-48/effect	prone
+crit/electricity/49-49/effect	injured:2
+crit/electricity/50-50/effect	recurring:2+stunned:1
+crit/electricity/50-50/metal	
+crit/electricity/51-53/effect	injured:2
+crit/electricity/54-56/effect	prone+stunned:2
+crit/electricity/57-58/effect	recurring:3
+crit/electricity/59-59/effect	recurring:3+stunned:2
+crit/electricity/60-60/effect	immobilised+prone
+crit/electricity/61-63/effect	
+crit/electricity/64-66/effect	prone+stunned:3
+crit/electricity/67-68/effect	injured:1
+crit/electricity/67-68/metal	
+crit/electricity/69-69/effect	sickened:2+stunned:1
+crit/electricity/70-70/effect	injured:1
+crit/electricity/71-73/effect	injured:2
+crit/electricity/74-76/effect	injured:2+prone+stunned:3
+crit/electricity/77-78/effect	recurring:4
+crit/electricity/79-79/effect	recurring:3+slowed:1
+crit/electricity/79-79/metal	
+crit/electricity/80-80/effect	dazzled+stunned:2
+crit/electricity/81-83/effect	stunned:2
+crit/electricity/84-86/effect	injured:1+prone
+crit/electricity/87-88/effect	injured:2
+crit/electricity/89-89/effect	injured:2
+crit/electricity/89-89/metal	
+crit/electricity/90-90/effect	blinded
+crit/electricity/91-93/effect	
+crit/electricity/94-95/effect	
+crit/electricity/96-98/effect	dead
+crit/electricity/99-99/effect	
+crit/electricity/100-100/effect	
+crit/essence/1-10/effect	
+crit/essence/11-13/effect	fatigued:1
+crit/essence/14-16/effect	dazed:1
+crit/essence/17-18/effect	weakened:1
+crit/essence/19-19/effect	sickened:1
+crit/essence/20-20/effect	dazed:1
+crit/essence/21-23/effect	injured:1
+crit/essence/24-26/effect	fatigued:1
+crit/essence/27-28/effect	fatigued:2
+crit/essence/29-29/effect	recurring:1
+crit/essence/30-30/effect	dazed:1
+crit/essence/31-32/effect	injured:1+prone
+crit/essence/34-36/effect	fatigued:1
+crit/essence/37-38/effect	fatigued:1+recurring:1
+crit/essence/39-39/effect	sickened:2
+crit/essence/40-40/effect	dazed:1
+crit/essence/41-43/effect	recurring:1+weakened:1
+crit/essence/44-46/effect	fatigued:1+slowed:1
+crit/essence/47-48/effect	fatigued:1+soulDrain:5
+crit/essence/49-49/effect	injured:1+soulDrain:5
+crit/essence/50-50/effect	soulDrain:5+stunned:1
+crit/essence/51-53/effect	injured:1
+crit/essence/54-56/effect	weakened:1
+crit/essence/57-58/effect	fatigued:1+injured:1
+crit/essence/59-59/effect	confused+recurring:1
+crit/essence/60-60/effect	dazed:1+stunned:1
+crit/essence/61-63/effect	recurring:2+weakened:1
+crit/essence/64-66/effect	recurring:2
+crit/essence/67-68/effect	fatigued:1+weakened:2
+crit/essence/69-69/effect	confused+sickened:2
+crit/essence/70-70/effect	blinded
+crit/essence/71-73/effect	slowed:1+weakened:2
+crit/essence/74-76/effect	fatigued:1
+crit/essence/77-78/effect	recurring:2+stunned:1
+crit/essence/79-79/effect	injured:2+soulDrain:5
+crit/essence/80-80/effect	recurring:4
+crit/essence/81-83/effect	soulDrain:10
+crit/essence/84-86/effect	fatigued:1+soulDrain:5
+crit/essence/87-88/effect	injured:2+soulDrain:10
+crit/essence/89-89/effect	unconscious
+crit/essence/90-90/effect	paralyzed+recurring:2
+crit/essence/91-93/effect	unconscious
+crit/essence/94-95/effect	paralyzed
+crit/essence/96-98/effect	soulDrain:10
+crit/essence/99-99/effect	
+crit/essence/100-100/effect	
+crit/fire/1-10/effect	
+crit/fire/11-13/effect	
+crit/fire/14-16/effect	recurring:1
+crit/fire/17-18/effect	recurring:1
+crit/fire/19-19/effect	recurring:1
+crit/fire/20-20/effect	recurring:1
+crit/fire/21-23/effect	sickened:1
+crit/fire/24-26/effect	recurring:2
+crit/fire/27-28/effect	flatFooted
+crit/fire/29-29/effect	flatFooted
+crit/fire/30-30/effect	stunned:1
+crit/fire/31-32/effect	stunned:1
+crit/fire/34-36/effect	blinded
+crit/fire/37-38/effect	injured:1+recurring:2
+crit/fire/39-39/effect	flatFooted+stunned:1
+crit/fire/40-40/effect	recurring:1+stunned:1
+crit/fire/41-43/effect	injured:1+recurring:2
+crit/fire/44-46/effect	recurring:2
+crit/fire/47-48/effect	recurring:2+stunned:1
+crit/fire/49-49/effect	injured:1+recurring:2
+crit/fire/50-50/effect	injured:1
+crit/fire/51-53/effect	injured:2+recurring:2
+crit/fire/54-56/effect	injured:1+recurring:3
+crit/fire/57-58/effect	recurring:2+slowed:1
+crit/fire/59-59/effect	injured:2+recurring:2
+crit/fire/60-60/effect	blinded+recurring:1
+crit/fire/61-63/effect	injured:2+recurring:2
+crit/fire/64-66/effect	stunned:1
+crit/fire/67-68/effect	injured:1+recurring:2
+crit/fire/69-69/effect	recurring:1+stunned:2
+crit/fire/70-70/effect	injured:1
+crit/fire/71-73/effect	recurring:1
+crit/fire/74-76/effect	injured:1+recurring:3
+crit/fire/77-78/effect	injured:1+recurring:3
+crit/fire/79-79/effect	injured:1+recurring:4
+crit/fire/80-80/effect	injured:2+recurring:2
+crit/fire/81-83/effect	recurring:2
+crit/fire/84-86/effect	injured:1+prone
+crit/fire/87-88/effect	recurring:4+stunned:1
+crit/fire/89-89/effect	recurring:6
+crit/fire/90-90/effect	fatigued:1+recurring:3+stunned:2
+crit/fire/91-93/effect	recurring:8
+crit/fire/94-95/effect	
+crit/fire/96-98/effect	recurring:6
+crit/fire/99-99/effect	
+crit/fire/100-100/effect	
+crit/force/1-10/effect	
+crit/force/11-13/effect	
+crit/force/14-16/effect	flatFooted
+crit/force/17-18/effect	dazed:1
+crit/force/19-19/effect	fatigued:1
+crit/force/20-20/effect	dazed:1
+crit/force/21-23/effect	weakened:1
+crit/force/24-26/effect	
+crit/force/27-28/effect	stunned:1
+crit/force/29-29/effect	flatFooted
+crit/force/30-30/effect	stunned:1
+crit/force/31-32/effect	stunned:1
+crit/force/34-36/effect	flatFooted
+crit/force/37-38/effect	fatigued:1+stunned:1
+crit/force/39-39/effect	stunned:1
+crit/force/40-40/effect	confused+stunned:1
+crit/force/41-43/effect	weakened:2
+crit/force/44-46/effect	
+crit/force/47-48/effect	fatigued:2+stunned:1
+crit/force/49-49/effect	sickened:1
+crit/force/50-50/effect	stunned:1
+crit/force/51-53/effect	weakened:2
+crit/force/54-56/effect	confused
+crit/force/57-58/effect	fatigued:2+stunned:1
+crit/force/59-59/effect	sickened:2
+crit/force/60-60/effect	blinded
+crit/force/61-63/effect	weakened:2
+crit/force/64-66/effect	prone
+crit/force/67-68/effect	fatigued:2
+crit/force/69-69/effect	confused+sickened:2
+crit/force/70-70/effect	stunned:2
+crit/force/71-73/effect	weakened:2
+crit/force/74-76/effect	prone
+crit/force/77-78/effect	fatigued:1+injured:1
+crit/force/79-79/effect	injured:2
+crit/force/80-80/effect	injured:2+stunned:1
+crit/force/81-83/effect	weakened:2
+crit/force/84-86/effect	prone
+crit/force/87-88/effect	recurring:2
+crit/force/89-89/effect	soulDrain:10
+crit/force/90-90/effect	confused
+crit/force/91-93/effect	
+crit/force/94-95/effect	prone+soulDrain:5
+crit/force/96-98/effect	fatigued:2+injured:3
+crit/force/99-99/effect	
+crit/force/100-100/effect	
+crit/mental/1-10/effect	
+crit/mental/11-13/effect	
+crit/mental/14-16/effect	
+crit/mental/17-18/effect	frightened:1
+crit/mental/19-19/effect	weakened:1
+crit/mental/20-20/effect	frightened:1
+crit/mental/21-23/effect	injured:1
+crit/mental/24-26/effect	prone
+crit/mental/27-28/effect	stunned:1
+crit/mental/29-29/effect	frightened:2
+crit/mental/30-30/effect	injured:1
+crit/mental/31-32/effect	flatFooted+stunned:1
+crit/mental/34-36/effect	immobilised
+crit/mental/37-38/effect	injured:1
+crit/mental/39-39/effect	sickened:1
+crit/mental/40-40/effect	recurring:1+stunned:1
+crit/mental/41-43/effect	injured:2+stunned:1
+crit/mental/44-46/effect	injured:1
+crit/mental/47-48/effect	recurring:2+stunned:1
+crit/mental/49-49/effect	sickened:2
+crit/mental/50-50/effect	injured:1+recurring:1
+crit/mental/51-53/effect	stunned:1
+crit/mental/54-56/effect	prone+stunned:2
+crit/mental/57-58/effect	flatFooted
+crit/mental/59-59/effect	confused+injured:1
+crit/mental/60-60/effect	controlled+injured:1
+crit/mental/61-63/effect	injured:2
+crit/mental/64-66/effect	confused+fleeing
+crit/mental/67-68/effect	unconscious
+crit/mental/69-69/effect	sickened:2+stunned:1
+crit/mental/70-70/effect	controlled+recurring:1
+crit/mental/71-73/effect	flatFooted+slowed:1
+crit/mental/74-76/effect	frightened:2+prone
+crit/mental/77-78/effect	injured:2
+crit/mental/79-79/effect	injured:2
+crit/mental/80-80/effect	stunned:2+unconscious
+crit/mental/81-83/effect	flatFooted
+crit/mental/84-86/effect	
+crit/mental/87-88/effect	fixated+injured:1
+crit/mental/89-89/effect	undetected
+crit/mental/90-90/effect	confused+paralyzed
+crit/mental/91-93/effect	unconscious
+crit/mental/94-95/effect	paralyzed
+crit/mental/96-98/effect	dazed:5
+crit/mental/99-99/effect	dead
+crit/mental/100-100/effect	
+crit/poison/1-10/effect	
+crit/poison/11-13/effect	
+crit/poison/14-16/effect	
+crit/poison/17-18/effect	flatFooted
+crit/poison/19-19/effect	weakened:1
+crit/poison/20-20/effect	dazzled
+crit/poison/21-23/effect	injured:1
+crit/poison/24-26/effect	slowed:1
+crit/poison/27-28/effect	injured:1
+crit/poison/29-29/effect	fatigued:1
+crit/poison/30-30/effect	
+crit/poison/31-32/effect	
+crit/poison/34-36/effect	immobilised
+crit/poison/37-38/effect	injured:1
+crit/poison/39-39/effect	sickened:1
+crit/poison/40-40/effect	sickened:1
+crit/poison/41-43/effect	stunned:1
+crit/poison/44-46/effect	prone+stunned:1
+crit/poison/47-48/effect	weakened:2
+crit/poison/49-49/effect	recurring:1+sickened:1
+crit/poison/50-50/effect	immobilised
+crit/poison/51-53/effect	weakened:2
+crit/poison/54-56/effect	recurring:1
+crit/poison/57-58/effect	fatigued:2+recurring:1
+crit/poison/59-59/effect	sickened:2
+crit/poison/60-60/effect	blinded+dazzled
+crit/poison/61-63/effect	
+crit/poison/64-66/effect	prone
+crit/poison/67-68/effect	paralyzed+recurring:2
+crit/poison/69-69/effect	prone+stunned:1
+crit/poison/70-70/effect	recurring:1+slowed:1
+crit/poison/71-73/effect	stunned:1
+crit/poison/74-76/effect	soulDrain:5+stunned:1
+crit/poison/77-78/effect	unconscious
+crit/poison/79-79/effect	injured:1
+crit/poison/80-80/effect	blinded
+crit/poison/81-83/effect	recurring:2
+crit/poison/84-86/effect	stunned:1+weakened:2
+crit/poison/87-88/effect	injured:2+unconscious
+crit/poison/89-89/effect	recurring:4+unconscious
+crit/poison/90-90/effect	suffocating+unconscious
+crit/poison/91-93/effect	unconscious
+crit/poison/94-95/effect	paralyzed
+crit/poison/96-98/effect	blinded+deafened
+crit/poison/99-99/effect	
+crit/poison/100-100/effect	
+crit/sonic/1-10/effect	
+crit/sonic/11-13/effect	
+crit/sonic/14-16/effect	flatFooted
+crit/sonic/17-18/effect	
+crit/sonic/19-19/effect	frightened:1
+crit/sonic/20-20/effect	
+crit/sonic/21-23/effect	flatFooted
+crit/sonic/24-26/effect	prone
+crit/sonic/27-28/effect	injured:1
+crit/sonic/29-29/effect	sickened:1
+crit/sonic/30-30/effect	fleeing
+crit/sonic/31-32/effect	weakened:2
+crit/sonic/34-36/effect	injured:1+recurring:1
+crit/sonic/37-38/effect	flatFooted
+crit/sonic/39-39/effect	prone
+crit/sonic/40-40/effect	injured:1+recurring:1
+crit/sonic/41-43/effect	injured:2
+crit/sonic/44-46/effect	injured:1
+crit/sonic/47-48/effect	recurring:2+stunned:1
+crit/sonic/49-49/effect	sickened:1+stunned:1
+crit/sonic/50-50/effect	flatFooted+stunned:1
+crit/sonic/51-53/effect	stunned:2
+crit/sonic/54-56/effect	slowed:1
+crit/sonic/57-58/effect	flatFooted
+crit/sonic/59-59/effect	sickened:2
+crit/sonic/60-60/effect	bleeding:1+deafened
+crit/sonic/61-63/effect	broken
+crit/sonic/64-66/effect	prone+stunned:1
+crit/sonic/67-68/effect	stunned:2
+crit/sonic/69-69/effect	sickened:2
+crit/sonic/70-70/effect	unconscious
+crit/sonic/71-73/effect	stunned:2
+crit/sonic/74-76/effect	prone+stunned:1
+crit/sonic/77-78/effect	sickened:3
+crit/sonic/79-79/effect	injured:1
+crit/sonic/79-79/armoured	recurring:2
+crit/sonic/80-80/effect	bleeding:2+deafened
+crit/sonic/81-83/effect	injured:2+stunned:2
+crit/sonic/84-86/effect	injured:2+prone
+crit/sonic/87-88/effect	flatFooted+stunned:2
+crit/sonic/89-89/effect	recurring:3+unconscious
+crit/sonic/90-90/effect	unconscious
+crit/sonic/91-93/effect	unconscious
+crit/sonic/94-95/effect	
+crit/sonic/96-98/effect	
+crit/sonic/99-99/effect	
+crit/sonic/100-100/effect	
+fumble/melee/1-1/effect	prone
+fumble/melee/2-3/effect	
+fumble/melee/4-8/effect	bleeding:1
+fumble/melee/9-10/effect	
+fumble/melee/11-13/effect	
+fumble/melee/14-15/effect	
+fumble/melee/16-20/effect	flatFooted
+fumble/melee/21-25/effect	
+fumble/melee/26-29/effect	
+fumble/melee/30-30/effect	
+fumble/melee/31-35/effect	
+fumble/melee/36-40/effect	stunned:2
+fumble/melee/41-45/effect	weakened:1
+fumble/melee/46-50/effect	stunned:2
+fumble/melee/51-55/effect	slowed:1
+fumble/melee/56-60/effect	slowed:1
+fumble/melee/61-65/effect	
+fumble/melee/66-66/effect	
+fumble/melee/67-70/effect	fatigued:2
+fumble/melee/71-75/effect	stunned:1
+fumble/melee/76-78/effect	weakened:1
+fumble/melee/79-80/effect	weakened:2
+fumble/melee/81-85/effect	broken+stunned:2
+fumble/melee/86-90/effect	sickened:1
+fumble/melee/91-92/effect	weakened:2
+fumble/melee/93-93/effect	dazzled
+fumble/melee/94-95/effect	fatigued:2+stunned:2
+fumble/melee/96-97/effect	unconscious
+fumble/melee/98-99/effect	
+fumble/melee/100-100/effect	
+fumble/missile/1-1/effect	prone
+fumble/missile/2-3/effect	
+fumble/missile/4-8/effect	bleeding:1
+fumble/missile/9-10/effect	
+fumble/missile/11-13/effect	
+fumble/missile/14-15/effect	
+fumble/missile/16-20/effect	flatFooted
+fumble/missile/21-25/effect	broken
+fumble/missile/26-29/effect	
+fumble/missile/30-30/effect	
+fumble/missile/31-35/effect	
+fumble/missile/36-40/effect	stunned:2
+fumble/missile/41-45/effect	weakened:1
+fumble/missile/46-50/effect	stunned:2
+fumble/missile/51-55/effect	slowed:1
+fumble/missile/56-60/effect	slowed:1
+fumble/missile/61-65/effect	sickened:2
+fumble/missile/66-66/effect	
+fumble/missile/67-70/effect	fatigued:2
+fumble/missile/71-75/effect	blinded
+fumble/missile/76-78/effect	weakened:1
+fumble/missile/79-80/effect	weakened:2
+fumble/missile/81-85/effect	broken+stunned:2
+fumble/missile/86-90/effect	sickened:1
+fumble/missile/91-92/effect	injured:1
+fumble/missile/93-93/effect	dazed:2
+fumble/missile/94-95/effect	fatigued:1+stunned:2
+fumble/missile/96-97/effect	unconscious
+fumble/missile/98-99/effect	
+fumble/missile/100-100/effect	
+fumble/thrown/1-1/effect	prone
+fumble/thrown/2-3/effect	
+fumble/thrown/4-8/effect	bleeding:1
+fumble/thrown/9-10/effect	
+fumble/thrown/11-13/effect	
+fumble/thrown/14-15/effect	
+fumble/thrown/16-20/effect	flatFooted
+fumble/thrown/21-25/effect	
+fumble/thrown/26-29/effect	
+fumble/thrown/30-30/effect	
+fumble/thrown/31-35/effect	
+fumble/thrown/36-40/effect	stunned:2
+fumble/thrown/41-45/effect	weakened:1
+fumble/thrown/46-50/effect	
+fumble/thrown/51-55/effect	slowed:1
+fumble/thrown/56-60/effect	slowed:1
+fumble/thrown/61-65/effect	sickened:2
+fumble/thrown/66-66/effect	
+fumble/thrown/67-70/effect	fatigued:2
+fumble/thrown/71-75/effect	blinded
+fumble/thrown/76-78/effect	weakened:1
+fumble/thrown/79-80/effect	weakened:2
+fumble/thrown/81-85/effect	injured:2
+fumble/thrown/86-90/effect	sickened:1
+fumble/thrown/91-92/effect	injured:1
+fumble/thrown/93-93/effect	dazzled
+fumble/thrown/94-95/effect	fatigued:1+stunned:2
+fumble/thrown/96-97/effect	unconscious
+fumble/thrown/98-99/effect	
+fumble/thrown/100-100/effect	
+fumble/unarmed/1-1/effect	prone
+fumble/unarmed/2-3/effect	
+fumble/unarmed/4-8/effect	
+fumble/unarmed/9-10/effect	
+fumble/unarmed/11-13/effect	
+fumble/unarmed/14-15/effect	
+fumble/unarmed/16-20/effect	weakened:1
+fumble/unarmed/21-25/effect	
+fumble/unarmed/26-29/effect	unnoticed
+fumble/unarmed/30-30/effect	unnoticed
+fumble/unarmed/31-35/effect	stunned:1
+fumble/unarmed/36-40/effect	flatFooted+stunned:1
+fumble/unarmed/41-45/effect	weakened:1
+fumble/unarmed/46-50/effect	sickened:2
+fumble/unarmed/51-55/effect	injured:1
+fumble/unarmed/56-60/effect	slowed:1
+fumble/unarmed/61-65/effect	confused
+fumble/unarmed/66-66/effect	
+fumble/unarmed/67-70/effect	fatigued:2
+fumble/unarmed/71-75/effect	stunned:1
+fumble/unarmed/76-78/effect	weakened:1
+fumble/unarmed/79-80/effect	injured:1
+fumble/unarmed/81-85/effect	injured:2+prone
+fumble/unarmed/86-90/effect	stunned:2
+fumble/unarmed/91-92/effect	injured:2
+fumble/unarmed/93-93/effect	dazed:3
+fumble/unarmed/94-95/effect	fatigued:1+stunned:2
+fumble/unarmed/96-97/effect	unconscious
+fumble/unarmed/98-99/effect	
+fumble/unarmed/100-100/effect	

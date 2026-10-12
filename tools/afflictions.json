@@ -1,0 +1,51 @@
+{
+  "_comment": "The three example afflictions printed on page 232, transcribed. Nothing here is interpreted: the effect strings are the book's, and the conditions array beside each is the same sentence in the form the system applies. verify-afflictions holds the two against each other.",
+  "afflictions": [
+    {
+      "name": "Filth Fever",
+      "afflictionType": "disease",
+      "traits": "Disease",
+      "description": "This awful disease is spread by the bite of rats and other rodents.",
+      "level": 0,
+      "savingThrow": "fortitude",
+      "incubation": "1d4 hours",
+      "duration": "Until cured",
+      "stages": [
+        { "effect": "No effect", "interval": "1 day", "conditions": [] },
+        { "effect": "Sickened 1 (1 day)", "interval": "1 day", "conditions": [{ "key": "sickened", "value": 1 }] },
+        { "effect": "Sickened 1 & Slowed 1 (1 day)", "interval": "1 day", "conditions": [{ "key": "sickened", "value": 1 }, { "key": "slowed", "value": 1 }] },
+        { "effect": "Paralyzed (1 day)", "interval": "1 day", "conditions": [{ "key": "paralyzed", "value": null }] },
+        { "effect": "Dead", "interval": "1 day", "conditions": [{ "key": "dead", "value": null }] }
+      ]
+    },
+    {
+      "name": "Blinding Sickness",
+      "afflictionType": "disease",
+      "traits": "Disease, Ingested",
+      "description": "This nasty disease infects a target over a period of time slowly causes them to lose their sight.",
+      "level": 2,
+      "savingThrow": "fortitude",
+      "incubation": "1 day",
+      "duration": "Until cured",
+      "stages": [
+        { "effect": "Fatigued 1", "interval": "1 day", "conditions": [{ "key": "fatigued", "value": 1 }] },
+        { "effect": "Dazzled", "interval": "1 day", "conditions": [{ "key": "dazzled", "value": null }] },
+        { "effect": "Blinded", "interval": "1 day", "conditions": [{ "key": "blinded", "value": null }] },
+        { "effect": "Permanent Blindness", "interval": "1 day", "conditions": [{ "key": "blinded", "value": null }] }
+      ]
+    },
+    {
+      "name": "Lycanthropy",
+      "afflictionType": "curse",
+      "traits": "Alteration, Curse, Uncommon, Verdant",
+      "description": "Lycanthropy is a transformative condition that grants individuals both animalistic powers and uncontrollable urges, often seen as a blessing and a curse by various cultures.",
+      "level": 1,
+      "savingThrow": "fortitude",
+      "incubation": "until full moon",
+      "duration": "Until cured",
+      "stages": [
+        { "effect": "The target becomes a were-creature appropriate to the one that was responsible for infecting them.", "interval": "", "conditions": [] }
+      ]
+    }
+  ]
+}

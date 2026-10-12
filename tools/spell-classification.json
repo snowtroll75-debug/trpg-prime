@@ -1,0 +1,2798 @@
+[
+ {
+  "name": "Abjurers Strike",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "ignore components of target defence",
+  "note": "Weapon treats all targets as unarmoured and ignores magical DB bonuses; no vocabulary for suppressing parts of a target's defence."
+ },
+ {
+  "name": "Adapt Body",
+  "verdict": "NARRATIVE",
+  "mechanism": "environmental protection",
+  "note": "The half-damage-from-hazards clause would only become damage resistance if environmental damage is ever modelled."
+ },
+ {
+  "name": "Air Walk",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "grant a movement mode or speed",
+  "note": "Air-walking with a 45-degree cap and difficult-terrain ascent."
+ },
+ {
+  "name": "Alarm",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent area effect",
+  "note": "Zone must watch for entry and oppose a Stealth check against the spell DC."
+ },
+ {
+  "name": "Align Weapon",
+  "verdict": "BUILDABLE",
+  "mechanism": "grant a trait",
+  "note": "trait effect grants the deity's aligned trait; authored on the weapon/projectiles rather than a creature."
+ },
+ {
+  "name": "Alluring Caress",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "change a creature's attitude",
+  "note": "Friendly/helpful attitude shift plus inability to act hostilely; ends if caster turns hostile."
+ },
+ {
+  "name": "Animal Growth",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "change a creature's size category",
+  "note": "Carried equipment resizes and reverts when removed."
+ },
+ {
+  "name": "Animal Messenger",
+  "verdict": "NARRATIVE",
+  "mechanism": "none — printed text only",
+  "note": ""
+ },
+ {
+  "name": "Animal Sense",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "remote sensing through another creature",
+  "note": "Borrowed sense suppresses the caster's own; range/duration change for a companion or familiar."
+ },
+ {
+  "name": "Animal Spirit",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "caster-chosen mode at cast time",
+  "note": "Skill bonuses per mode are buildable; the cast-time pick is not, and modes also need swim/climb speeds, a granted Slam attack and a Natural DR bonus."
+ },
+ {
+  "name": "Animal Staff",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "summon a creature",
+  "note": "Consumes the druidstaff and requires a statblock memorised via Study Target (Nature)."
+ },
+ {
+  "name": "Animate Dead",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "summon a creature",
+  "note": "Level-capped animated undead with the Minion trait, commanded on Sustain."
+ },
+ {
+  "name": "Animate Object",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "summon a creature",
+  "note": "Duration field is empty and the object-level gp cost table is mangled into one run-on line."
+ },
+ {
+  "name": "Anticipate Attack",
+  "verdict": "BUILDABLE",
+  "mechanism": "scoped bonus or penalty to a stat, skill, save or combat field",
+  "note": "bonus to the defence field; body says circumstance and the warp says status - pick one. Duration field is empty. Reaction trigger is printed casting text."
+ },
+ {
+  "name": "Anticipate Casting",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "modify action cost",
+  "note": "Lowers the AP cost of the next spell by 1, then expires."
+ },
+ {
+  "name": "Anticipations",
+  "verdict": "BUILDABLE",
+  "mechanism": "scoped bonus or penalty to a stat, skill, save or combat field",
+  "note": "+4 status bonus to the defence field with note scoping it to attacks by the target."
+ },
+ {
+  "name": "Antimagic Field",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "suppress magic in an area",
+  "note": "Suppresses the caster's own magic too; everything resumes intact at expiry."
+ },
+ {
+  "name": "Antipathy",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent area effect",
+  "note": "Compulsion zone keyed to a caster-named creature kind or aligned trait; the -2 penalty on a successful save is a plain scoped penalty."
+ },
+ {
+  "name": "Astral Conclave",
+  "verdict": "NARRATIVE",
+  "mechanism": "none — printed text only",
+  "note": ""
+ },
+ {
+  "name": "Augury",
+  "verdict": "TABLE_CALL",
+  "mechanism": "GM adjudication",
+  "note": "The secret DC 5 flat check could be rolled by the system even though the vision itself cannot."
+ },
+ {
+  "name": "Aura Of Vitality",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "recurring effect at the start of each turn",
+  "note": "heal exists, but not repeating it into an emanation each round, nor clearing persistent/bleed damage."
+ },
+ {
+  "name": "Avatar",
+  "verdict": "TABLE_CALL",
+  "mechanism": "GM adjudication",
+  "note": "Explicitly says the GM supplies the Avatar statistics."
+ },
+ {
+  "name": "Awaken Animal",
+  "verdict": "TABLE_CALL",
+  "mechanism": "GM adjudication",
+  "note": "No rule is given for how ability scores are 'amended accordingly' when the animal becomes a beast."
+ },
+ {
+  "name": "Banish Fatigue",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "reduce or suppress a condition's value",
+  "note": "condition applies values but does not subtract them; the +4 warp removes fatigue permanently, a different operation."
+ },
+ {
+  "name": "Banishment",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "remove a creature from play",
+  "note": "On the target's critical success the caster becomes stunned 1 - the effect rebounds onto the caster."
+ },
+ {
+  "name": "Barkskin",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "bonus to damage reduction",
+  "note": "Natural armour DR is not one of the bonus slots (attributes, skills, saves, attack, defence, initiative, spellcraft). Also gated on not wearing metal armour."
+ },
+ {
+  "name": "Beast Of Burden",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "modify carrying capacity",
+  "note": "Doubling is multiplicative and carrying capacity is not a bonus slot."
+ },
+ {
+  "name": "Bless Water",
+  "verdict": "NARRATIVE",
+  "mechanism": "none — printed text only",
+  "note": "Output is a holy water item the player swaps in by hand; could optionally be automated as item creation."
+ },
+ {
+  "name": "Blink",
+  "verdict": "BUILDABLE",
+  "mechanism": "resistance or immunity to damage types",
+  "note": "defence/resistance is qualitative, so 'resistance to all damage except force' is complete as written. The optional Sustain reposition is printed text."
+ },
+ {
+  "name": "Brawn",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "caster-chosen mode at cast time",
+  "note": "The +1 status bonus to Str, Con or Dex is a plain attribute bonus; only choosing which attribute at cast time is unexpressible."
+ },
+ {
+  "name": "Breeze",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to a save",
+  "note": "Only one Breeze may be active; recasting should dispel the previous casting, which is player bookkeeping."
+ },
+ {
+  "name": "Breeze Strike",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "modify range increments and penalties",
+  "note": "Warp text reads 'increase the amount of penalty ignore by -1 (max -10)' - sign is confusing."
+ },
+ {
+  "name": "Bungle",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "modify the triggering roll",
+  "note": "Penalty attaches to one already-declared action, not to a slot. Ladder uses a 'Blunder' tier and omits 'Critical'."
+ },
+ {
+  "name": "Call Item",
+  "verdict": "NARRATIVE",
+  "mechanism": "none — printed text only",
+  "note": ""
+ },
+ {
+  "name": "Calm",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "prevent hostile actions",
+  "note": "Success tier (-1 status penalty to attack rolls) is buildable; the failure tier blocks hostile actions and suppresses other emotion effects."
+ },
+ {
+  "name": "Calm Animal",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "prevent hostile actions",
+  "note": "Same ladder as Calm, single-target."
+ },
+ {
+  "name": "Cancel Magic",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "advantage or disadvantage on a roll",
+  "note": "Advantage is not a bonus type; scoped to saves against one chosen tradition."
+ },
+ {
+  "name": "Changing Lungs",
+  "verdict": "NARRATIVE",
+  "mechanism": "environmental protection",
+  "note": ""
+ },
+ {
+  "name": "Channel The Aspect",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "caster-chosen mode at cast time",
+  "note": "The four modes are plain save/skill bonuses, but the mode is picked at cast and switchable for 1 AP; Limbs also grants quickened restricted to Move or Strike."
+ },
+ {
+  "name": "Charm Animal",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "change a creature's attitude",
+  "note": "Outcome ladder omits 'Critical'."
+ },
+ {
+  "name": "Charm Kind",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "change a creature's attitude",
+  "note": ""
+ },
+ {
+  "name": "Charm Undead",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "change a creature's attitude",
+  "note": "Mindless undead get no save and are instead controlled outright with the minion trait."
+ },
+ {
+  "name": "Circle Of Warmth",
+  "verdict": "NARRATIVE",
+  "mechanism": "environmental protection",
+  "note": "Base duration is already Sustained (1 minute), so the +1 PP warp 'duration changes to 1 minute' changes nothing."
+ },
+ {
+  "name": "Clarity",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "advantage or disadvantage on a roll",
+  "note": "One-shot: consumed by the next mental save, which then ends the spell."
+ },
+ {
+  "name": "Click",
+  "verdict": "NARRATIVE",
+  "mechanism": "none — printed text only",
+  "note": ""
+ },
+ {
+  "name": "Cloak Of Greying",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "per-observer invisibility",
+  "note": "Per-target sensory state, not a condition; Success tier is explicit GM discretion and the Fumble re-save at -20 is worth a human check."
+ },
+ {
+  "name": "Clone",
+  "verdict": "TABLE_CALL",
+  "mechanism": "GM adjudication",
+  "note": "Bespoke success ladder resolved 1d6+1 months later, with the casting check made at the end of the growth period rather than at casting."
+ },
+ {
+  "name": "Coercive Retribution",
+  "verdict": "BUILDABLE",
+  "mechanism": "grant another spell",
+  "note": "Resolves entirely as the command spell, which the spell effect kind covers. Trigger line reads 'Trigger: Requirement Your most recent action dealt damage' - malformed field."
+ },
+ {
+  "name": "Command",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "compel a target's actions",
+  "note": "Dictates the first action of the target's next turn and blocks Delay and reactions until obeyed."
+ },
+ {
+  "name": "Command Swarm",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "take control of a creature",
+  "note": "Save field reads 'Will Negates' where every other spell uses a bare save name; also bypasses swarm mental immunity."
+ },
+ {
+  "name": "Commune",
+  "verdict": "TABLE_CALL",
+  "mechanism": "GM adjudication",
+  "note": ""
+ },
+ {
+  "name": "Conceal Thoughts",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to a skill",
+  "note": "Two bonuses (+2 Deception vs Sense Motive, +4 on saves vs mind reading); the warp says 'increase the bonus' without saying which one."
+ },
+ {
+  "name": "Concealing Terrain",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to a skill",
+  "note": "Requires significant plant life, which is a GM gate rather than a data condition."
+ },
+ {
+  "name": "Confident Veil",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "reduce or suppress a condition's value",
+  "note": "Lowers existing frightened by 1 and reduces incoming frightened; self-terminates with frightened +1 on a fumbled fear save."
+ },
+ {
+  "name": "Conjuration Shield",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent area effect",
+  "note": "Zone must interrupt another caster's conjuration, force their Will save against this spell's DC and consume their PP on a failure."
+ },
+ {
+  "name": "Conjure Animal",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "summon a creature",
+  "note": "Exact creature is GM-chosen; summon carries the Conjured trait and is commanded on Sustain."
+ },
+ {
+  "name": "Conjure Elemental",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "summon a creature",
+  "note": ""
+ },
+ {
+  "name": "Conjure Entity",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "summon a creature",
+  "note": "Base cap is 9th level here versus level 1 for Conjure Animal/Elemental - check this is intended."
+ },
+ {
+  "name": "Conjure Eternal",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "summon a creature",
+  "note": "Description has the CONJURE SPELLS sidebar pasted in twice."
+ },
+ {
+  "name": "Conjure Fey",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "summon a creature",
+  "note": ""
+ },
+ {
+  "name": "Conjure Giant",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "summon a creature",
+  "note": "Description repeats the effective-level paragraph twice."
+ },
+ {
+  "name": "Conjure Plant",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "summon a creature",
+  "note": ""
+ },
+ {
+  "name": "Conjure Swarm",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "summon a creature",
+  "note": ""
+ },
+ {
+  "name": "Conjure Wyrm",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "summon a creature",
+  "note": ""
+ },
+ {
+  "name": "Conjuring Control",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "take control of a creature",
+  "note": "Moves an existing summon's command link to a different caster."
+ },
+ {
+  "name": "Consecrate",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent area effect",
+  "note": "Zone applies penalties to undead inside it and buffs attacks against them; body calls the secondary damage essence, the +4 warp calls it positive."
+ },
+ {
+  "name": "Contingency",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "store a spell for later triggered release",
+  "note": "Holds a second cast in reserve with a caster-named trigger; a new casting supersedes the old."
+ },
+ {
+  "name": "Continual Light",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "change illumination level",
+  "note": "Duration is already 'unlimited' yet a +1 PP warp makes it permanent."
+ },
+ {
+  "name": "Control Water",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "terrain manipulation",
+  "note": "Raising/lowering water is terrain; the Slowed 1 on water-trait creatures is a plain condition. Duration field is empty."
+ },
+ {
+  "name": "Counter Perform",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "modify the triggering roll",
+  "note": "Bonus size is derived by comparing the Perform check to the Bonus check table against the incoming Save DC."
+ },
+ {
+  "name": "Courage",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "advantage or disadvantage on a roll",
+  "note": "Advantage on saves against Fear-trait effects."
+ },
+ {
+  "name": "Create Undead",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "summon or create a creature",
+  "note": "No effect kind creates or transforms a creature; the minion/command rules and the PP-vs-gp cost table are also authoring-only text flattened into one unreadable line."
+ },
+ {
+  "name": "Cutting Words",
+  "verdict": "BUILDABLE",
+  "mechanism": "scoped bonus or penalty to a slot",
+  "note": "Each degree is a negative circumstance bonus on slot attack (and the relevant skill), scoped by note to the triggering action."
+ },
+ {
+  "name": "Dancing Lights",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "illumination level change",
+  "note": "Illumination is a graded scale in this game but is not a bonus slot or a defence field; sustaining to move the spheres is otherwise fine."
+ },
+ {
+  "name": "Dareveil",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to a skill",
+  "note": "'+1 to any effects with the fear trait' presumably means saves against fear"
+ },
+ {
+  "name": "Darkness",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "illumination level change",
+  "note": "Also a text bug: the body's stray 'PP +4' line contradicts the listed +2 PP warp."
+ },
+ {
+  "name": "Darkvision",
+  "verdict": "BUILDABLE",
+  "mechanism": "granted trait or sense",
+  "note": "kind:trait grants Darkvision; both warps are range/duration changes the warp system already handles."
+ },
+ {
+  "name": "Dead Tongue",
+  "verdict": "NARRATIVE",
+  "mechanism": "communication at range",
+  "note": "the +1 PP 'won't attack you' warp is an NPC-behaviour clause the GM adjudicates"
+ },
+ {
+  "name": "Death Knell",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "effect scaled by the target's level",
+  "note": "Dying+1 is a plain condition, but the caster's healing is formula-scaled off the TARGET's level (@casterLevel is the only level token) and the failure tier kills outright. Text bug: 'you 1 HP for every level' is missing its verb."
+ },
+ {
+  "name": "Death Ward",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "condition suppression without removal",
+  "note": "The +4 status bonus to saves (note 'vs essence and death') and the qualitative essence resistance are both buildable today; only 'ignores the Doomed condition' has no expression. Target line is buried in the description instead of the target field."
+ },
+ {
+  "name": "Death’s Memory",
+  "verdict": "NARRATIVE",
+  "mechanism": "GM-narrated information",
+  "note": ""
+ },
+ {
+  "name": "Deathless",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "death prevention",
+  "note": "Needs to intercept the death threshold when HP exceeds Death State while still allowing death from criticals, death effects and soul drain."
+ },
+ {
+  "name": "Deathwatch",
+  "verdict": "NARRATIVE",
+  "mechanism": "GM-narrated information",
+  "note": "'and if the value of any injured and bleed conditions' should read 'the value'"
+ },
+ {
+  "name": "Decursive Veil",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "immunity scoped to a spell category and PP threshold",
+  "note": "defence/immunity takes named damage types, not 'insight spells of PP 2 or lower', and the +1 warp raises that threshold. Concealment and the frightened/sickened reduction are close to condition authoring."
+ },
+ {
+  "name": "Defer Fatality",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "death prevention",
+  "note": "Suspended animation on a death trigger, ending only when healed. Duration lives in the description rather than the duration field, and both warps cost +1 PP for very different durations."
+ },
+ {
+  "name": "Deflect Flame",
+  "verdict": "BUILDABLE",
+  "mechanism": "resistance or immunity by damage type",
+  "note": "Resistance here is qualitative, so the absent magnitude is not a gap: defence/resistance values ['fire'], with the +4 warp switching the duration to 1 minute."
+ },
+ {
+  "name": "Deflections",
+  "verdict": "BUILDABLE",
+  "mechanism": "scoped bonus or penalty to a slot",
+  "note": "-4 circumstance on slot attack against the triggering attack; the +2 warp just deepens the value and the other warps re-scope which attack type triggers it."
+ },
+ {
+  "name": "Deific Enhancement",
+  "verdict": "BUILDABLE",
+  "mechanism": "scoped bonus or penalty to a slot",
+  "note": "slot accepts any attribute, so this is one bonus entry per ability (or a cast-time pick); derived rolls follow from the attribute itself. Warps adjust value and duration."
+ },
+ {
+  "name": "Deific Knowing",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "roll-state advantage or disadvantage",
+  "note": "Advantage is a roll state, not a typed bonus; the warp ladder widens which checks it applies to but never changes that."
+ },
+ {
+  "name": "Delay Pain",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "condition suppression without removal",
+  "note": "Needs to ignore up to N points of dazed/weakened/injured without clearing them, then convert the ignored total into fatigue when the duration ends."
+ },
+ {
+  "name": "Delayed Respite",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "delayed application of an attack's effects",
+  "note": "Damage and criticals are rolled now but held for a round and applied in full when the duration expires."
+ },
+ {
+  "name": "Desecrate",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent area effect",
+  "note": "Bonuses, penalties and 1d4 secondary essence damage must attach to an area that keeps applying to whoever is inside it. Text bug: says it 'blesses' the area, wording copy-pasted from Consecrate."
+ },
+ {
+  "name": "Detect Aura",
+  "verdict": "NARRATIVE",
+  "mechanism": "GM-narrated information",
+  "note": ""
+ },
+ {
+  "name": "Detect Life",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "sense using an alternate skill",
+  "note": "A tertiary sense that substitutes Power Manipulation for Perception checks; trait grants cannot redirect which skill a sense rolls."
+ },
+ {
+  "name": "Detect Poison",
+  "verdict": "NARRATIVE",
+  "mechanism": "GM-narrated information",
+  "note": ""
+ },
+ {
+  "name": "Detect Scrying",
+  "verdict": "NARRATIVE",
+  "mechanism": "GM-narrated information",
+  "note": "the opposing caster's Will save is rolled off-screen by the GM"
+ },
+ {
+  "name": "Detect Signature",
+  "verdict": "NARRATIVE",
+  "mechanism": "GM-narrated information",
+  "note": "the Trace Signature warp's escalating tracking DC is a GM-run skill check"
+ },
+ {
+  "name": "Detect Undead",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "sense using an alternate skill",
+  "note": "Same tertiary-sense substitution as Detect Life."
+ },
+ {
+  "name": "Devastating Might",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "damage reduction or resistance negation",
+  "note": "DR is a numeric reduction and the warps strip resistance from others; defence/resistance only grants qualitative resistance, it cannot subtract it. Emanation is centred on the caster and hits the caster too."
+ },
+ {
+  "name": "Dimension Door",
+  "verdict": "NARRATIVE",
+  "mechanism": "movement handled by moving the token",
+  "note": "the +2 PP warp adds an hour-long temporary immunity that would need tracking"
+ },
+ {
+  "name": "Dimension Shift",
+  "verdict": "NARRATIVE",
+  "mechanism": "movement handled by moving the token",
+  "note": ""
+ },
+ {
+  "name": "Dimensional Lock",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent area effect",
+  "note": "The area must stand for a day making counteract checks against teleportation, planar travel, extradimensional items and summoning that cross it."
+ },
+ {
+  "name": "Disappearance",
+  "verdict": "BUILDABLE",
+  "mechanism": "apply condition",
+  "note": "needs an undetected condition that covers all senses, not just sight"
+ },
+ {
+  "name": "Discern Lies",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to a skill",
+  "note": "'disbelieve illusions' must exist as a bonus scope"
+ },
+ {
+  "name": "Disgrace",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "forcing a save on another creature's action",
+  "note": "The -2 status penalty to Deception/Diplomacy/Intimidate/Performance is buildable as four bonus entries; the gap is other creatures rolling Will when they try to cooperate, plus auto-failing any magical Charisma bolstering. Last sentence is truncated ('they hesitate and refuse,')."
+ },
+ {
+  "name": "Disjunction",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "counteract check",
+  "note": "Counteract against an item, inert for a week on success, destroyed on a critical. Text bug: 'this spell has effect on an artifact' almost certainly should read 'has no effect'."
+ },
+ {
+  "name": "Disorient",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "roll-state advantage or disadvantage",
+  "note": "The Success tier (-1 circumstance) is a plain bonus entry; the Failure and Fumble tiers impose disadvantage, which has no representation."
+ },
+ {
+  "name": "Displacement",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "roll-state advantage or disadvantage",
+  "note": "Incoming attacks made at disadvantage, and it then expires per attacker once that attacker lands a critical, which needs per-attacker tracking."
+ },
+ {
+  "name": "Disrupting Weapon",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "damage rider on a weapon's attacks",
+  "note": "kind:damage applies to a creature; nothing attaches recurring secondary damage to a weapon item's own attacks. Warps add weapons and raise the die count."
+ },
+ {
+  "name": "Dissipate Into Mist",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "removal from play",
+  "note": "Insubstantial, untargetable and unable to act until end of turn, then reforms within 15 feet; it also suppresses and reinstates the caster's own auras."
+ },
+ {
+  "name": "Divine Grace",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "one-shot bonus consumed by the next matching roll",
+  "note": "Otherwise a plain +3 status bonus across the Charisma skills; the missing part is that it is spent by the first qualifying check, with warps only extending the window."
+ },
+ {
+  "name": "Divine Might",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "override a derived statistic",
+  "note": "Setting Base Attack Bonus equal to caster level is an assignment, not a bonus. The +1 status to Str and Con and the physical-resistance warp are both buildable; the size-increase warp is not."
+ },
+ {
+  "name": "Divine Vision",
+  "verdict": "TABLE_CALL",
+  "mechanism": "GM adjudicates the outcome",
+  "note": "duration field is empty though the text refers to 'the Duration'; 'You all into a deep trance' should read 'fall'"
+ },
+ {
+  "name": "Divinity Purge",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "counteract check",
+  "note": "Counteracts all charm and compulsion effects, auto-succeeding when caster and target share a deity, and forgives conduct violations committed while charmed."
+ },
+ {
+  "name": "Doubt",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "roll-state advantage or disadvantage",
+  "note": "Also needs a fresh secret save each time the spell is sustained, with the result hidden from the target."
+ },
+ {
+  "name": "Draining Burst",
+  "verdict": "BUILDABLE",
+  "mechanism": "damage roll",
+  "note": "'Soul Drain' must exist as a damage type; area is an emanation but the range field is empty"
+ },
+ {
+  "name": "Dream Message",
+  "verdict": "NARRATIVE",
+  "mechanism": "communication at range",
+  "note": ""
+ },
+ {
+  "name": "Drop Dead",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "effect ends on a triggering action",
+  "note": "The invisibility itself is a plain condition; what is missing is termination when the target takes a hostile action (which the +4 warp removes), plus the illusory corpse and its disbelief check."
+ },
+ {
+  "name": "Earth Bind",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "movement type grant or suppression",
+  "note": "Failure and Fumble tiers block Fly/levitate for a set time, and every tier includes forced downward movement (a safe fall of up to 120 feet)."
+ },
+ {
+  "name": "Earth Glide",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "movement type grant or suppression",
+  "note": "Grants a burrow speed of 5 feet (warp raises it to 20); speed and movement types are not bonus slots."
+ },
+ {
+  "name": "Earth Prison",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "removal from play",
+  "note": "Slowed 1 on Success is buildable; Failure buries the target 100 feet down in suspended animation, and Fumble adds a -5 circumstance penalty to attempts to locate them."
+ },
+ {
+  "name": "Echolocation",
+  "verdict": "BUILDABLE",
+  "mechanism": "granted trait or sense",
+  "note": "kind:trait granting blindsight 40 feet for the parsed 1-hour duration."
+ },
+ {
+  "name": "Effortless Armour",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "bonus to a statistic outside the slot list",
+  "note": "Neither Speed nor armour check penalty is a bonus slot (slots cover attributes, skills, saves, attack, defence, initiative, spellcraft). Description also ends mid-sentence with a comma."
+ },
+ {
+  "name": "Eldritch Shield",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to a defence",
+  "note": "Scope must narrow the DB bonus to spell attacks only."
+ },
+ {
+  "name": "Eldritch Weapon",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "grant a weapon rune",
+  "note": "The base conjured weapon maps onto kind:attack (force damage, normal proficiency); the +2/+3 warps infusing a potency I-IV rune have no expression."
+ },
+ {
+  "name": "Element Ward",
+  "verdict": "BUILDABLE",
+  "mechanism": "resistance or immunity by damage type",
+  "note": "defence/resistance with the chosen type, scoped by note to the triggering effect's initial damage; the +8 warp swaps field to immunity."
+ },
+ {
+  "name": "Elemental Fury",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "triggers off your next spell cast",
+  "note": "Damage equals 1 HP per PP of the NEXT spell cast, inherits its damage type, and pools with that spell's damage before resistances and weaknesses are applied."
+ },
+ {
+  "name": "Elemental Speech",
+  "verdict": "NARRATIVE",
+  "mechanism": "printed text only",
+  "note": "'Intelligence score of -2 or greater' reads like a modifier, not a score."
+ },
+ {
+  "name": "Elude Time",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "removal from play",
+  "note": "Stasis with the caster choosing the expiry point at cast time and total invulnerability until then."
+ },
+ {
+  "name": "Embrace Destiny",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "replace a roll with a recorded result",
+  "note": "Rolls and stores a d20 to substitute for a later attack, save or skill check, with a one-instance-at-a-time restriction."
+ },
+ {
+  "name": "Enchanting Utterance",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "restrict allowed actions",
+  "note": "Failure and Fumble forbid hostile actions against the caster. The Success tier's -1 circumstance to attack is buildable, but its -1 damage-roll penalty has no slot and no bonus type given."
+ },
+ {
+  "name": "Endure Elements",
+  "verdict": "NARRATIVE",
+  "mechanism": "printed text only",
+  "note": "Explicitly grants no fire or cold damage protection, so nothing numeric is owed."
+ },
+ {
+  "name": "Enervation",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent damage",
+  "note": "Persistent essence damage across three tiers, plus 'soul drain' which appears to be a separate damage track. Doomed 1 on a Fumble is buildable. No range is given for the 30-foot line."
+ },
+ {
+  "name": "Entangle",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent area effect",
+  "note": "Difficult terrain plus a per-round Escape check at the spell DC for creatures starting their turn inside, with speed penalty and immobilisation on failure."
+ },
+ {
+  "name": "Entropic Shield",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to a defence",
+  "note": "Written as a penalty to incoming ranged attacks rather than a bonus to DB."
+ },
+ {
+  "name": "Eternal Aspect",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "grants an extra or modified action",
+  "note": "The acrobatics mode is a plain circumstance bonus, but one mode grants a non-provoking move action, and 'luck' is not one of the engine's bonus types (status/circumstance/item)."
+ },
+ {
+  "name": "Ethereal Jaunt",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "planar travel and incorporeal state",
+  "note": "Plane shift plus invisibility, object phasing, halved speeds, limited cross-plane perception, and 1 damage per foot displaced if it ends inside an object."
+ },
+ {
+  "name": "Face Shifting",
+  "verdict": "NARRATIVE",
+  "mechanism": "printed text only",
+  "note": ""
+ },
+ {
+  "name": "Fairy Fire",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "concealment and detection state change",
+  "note": "Blocks concealment on visible creatures and downgrades invisible ones from undetected to concealed; both are detection-state overrides rather than condition grants."
+ },
+ {
+  "name": "False Arrogance",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "penalty triggered by the target's own failed rolls",
+  "note": "A self-escalating -1 then -2 status penalty that arms on each failed attack or check. Uses a 'Partial' degree of success that the other save spells in this batch do not have."
+ },
+ {
+  "name": "False Health",
+  "verdict": "BUILDABLE",
+  "mechanism": "temporary HP",
+  "note": "Formula is spellcasting ability score x2, scaled by the warp."
+ },
+ {
+  "name": "False Mire",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent area effect",
+  "note": "Difficult terrain plus a save on entry and a repeatable Will save or Escape each turn. No critical-success entry is listed, only Success/Failure/Fumble."
+ },
+ {
+  "name": "False Vision",
+  "verdict": "TABLE_CALL",
+  "mechanism": "GM adjudication",
+  "note": "Unsure: the PP comparison and disbelief check are mechanical, but what a scryer perceives is not."
+ },
+ {
+  "name": "Fateful Temptation",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "shift a roll's degree of success",
+  "note": "The +2 status bonus to the triggering save is buildable; promoting a success to a critical and a failure to an unmitigatable fumble is not."
+ },
+ {
+  "name": "Feather Fall",
+  "verdict": "NARRATIVE",
+  "mechanism": "printed text only",
+  "note": "No falling model exists to hook; nothing to compute beyond not applying fall damage."
+ },
+ {
+  "name": "Find The Path",
+  "verdict": "NARRATIVE",
+  "mechanism": "printed text only",
+  "note": ""
+ },
+ {
+  "name": "Flame Blade",
+  "verdict": "BUILDABLE",
+  "mechanism": "granted attack",
+  "note": "kind:attack granting a scimitar-like attack that rolls Spellcraft at -2 and deals fire damage with fire criticals."
+ },
+ {
+  "name": "Flaming Weapon",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "damage rider on a weapon's attacks",
+  "note": "1d6 secondary fire damage attached to a weapon item's attacks (warp to 3d6); same gap as Disrupting Weapon."
+ },
+ {
+  "name": "Flawless Lies",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "roll-state advantage or disadvantage",
+  "note": "Advantage on all Deception checks for 10 minutes. The skill is written as 'Bluff (Deception)' - confirm which name the config skill list uses."
+ },
+ {
+  "name": "Fleeting Speed",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to speed",
+  "note": ""
+ },
+ {
+  "name": "Floating Disk",
+  "verdict": "NARRATIVE",
+  "mechanism": "printed text only",
+  "note": "Carrying capacity and the end conditions are tracked at the table."
+ },
+ {
+  "name": "Fluidity",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "grants an extra or modified action",
+  "note": "A Stride or Step folded into the cast; also ignores difficult terrain, and the +5-foot status bonus is to Speed, which is not a bonus slot."
+ },
+ {
+  "name": "Fly",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "grant a Speed for a movement type",
+  "note": "No effect kind sets a fly Speed derived from land Speed; the Feather Fall landing is narrative."
+ },
+ {
+  "name": "Focus Mind",
+  "verdict": "NARRATIVE",
+  "mechanism": "printed text only",
+  "note": ""
+ },
+ {
+  "name": "Foe To Friend",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "redirect an attack in progress",
+  "note": "The -5 circumstance penalty on Success is a plain attack-slot bonus; retargeting the attack is not expressible."
+ },
+ {
+  "name": "Fools Riches",
+  "verdict": "TABLE_CALL",
+  "mechanism": "GM adjudication",
+  "note": "Who is 'susceptible to the allure of material riches' is a GM call; area is a 5-foot burst but affects creatures within 20 feet, and no fumble entry is given."
+ },
+ {
+  "name": "Forbiddance",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "counteract check against another spell",
+  "note": "Needs an area that auto-counters conjuration/teleport casts made inside it."
+ },
+ {
+  "name": "Force Prison",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "confine a creature with escape saves",
+  "note": "Damage per degree maps to damage effects; the cage that blocks movement and repeated escape attempts does not."
+ },
+ {
+  "name": "Force Punch",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "secondary damage rider on weapon attacks",
+  "note": "1d6 force added to every unarmed attack for the duration; damage effects are auto-hit, not riders."
+ },
+ {
+  "name": "Forget",
+  "verdict": "NARRATIVE",
+  "mechanism": "printed text only",
+  "note": "Only the Will save is mechanical; the suppressed memories are pure narration."
+ },
+ {
+  "name": "Freedom",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "automatic success on a check",
+  "note": "The counter of speed-impairing magic maps to defence/immunity values; only the auto-succeeded Escape is missing."
+ },
+ {
+  "name": "Freezing Touch",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "apply an entry from the critical tables",
+  "note": "Minor Cold Critical on a failed Will save; warp raises severity one step."
+ },
+ {
+  "name": "Freezing Weapon",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "secondary damage rider on weapon attacks",
+  "note": "1d6 cold on all attacks with the touched weapon, scaling to 3d6 by warp."
+ },
+ {
+  "name": "Gaseous Form",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "polymorph into an alternate form",
+  "note": "Resistance and immunities are buildable defence effects, but the loss of armour bonuses, the action lockout and the fly Speed are not."
+ },
+ {
+  "name": "Gate",
+  "verdict": "NARRATIVE",
+  "mechanism": "printed text only",
+  "note": "Portal placement and travel are table-side; requires a plane stored via Study Target."
+ },
+ {
+  "name": "Geas",
+  "verdict": "TABLE_CALL",
+  "mechanism": "GM adjudication",
+  "note": "Whether the target is complying is a judgement call; target level is capped by the spell's PP cost."
+ },
+ {
+  "name": "Gentle Repose",
+  "verdict": "NARRATIVE",
+  "mechanism": "printed text only",
+  "note": ""
+ },
+ {
+  "name": "Ghostly Lanterns",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "summon a creature",
+  "note": "1d6 sustained figures that move with the caster; also steps illumination."
+ },
+ {
+  "name": "Ghostly Weapon",
+  "verdict": "BUILDABLE",
+  "mechanism": "add a trait",
+  "note": "Assumes a trait effect can be applied to an item rather than a creature; if not, this needs an item-targeting mechanism."
+ },
+ {
+  "name": "Glimpse",
+  "verdict": "NARRATIVE",
+  "mechanism": "printed text only",
+  "note": "The Search check is an ordinary skill check the player already makes."
+ },
+ {
+  "name": "Globe Of Cancellation",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "counteract check against another spell",
+  "note": "Auto-counters every spell crossing the sphere using Spellcraft, nullifying only the intersecting portion."
+ },
+ {
+  "name": "Glyph Of Protection",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "store a spell to trigger later",
+  "note": "Stores a lower-PP hostile spell, inherits its traits, and needs trap Perception/Thievery DCs plus a concurrency cap."
+ },
+ {
+  "name": "Goodberry",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "create a consumable item",
+  "note": "The +2 circumstance Medicine bonus is buildable; the 5 berries with a shared 8-point/24-hour cure cap are not."
+ },
+ {
+  "name": "Grace",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "take an action as part of casting",
+  "note": "Free move on cast, plus movement that does not provoke reactions until end of turn."
+ },
+ {
+  "name": "Grant Spell",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "limited daily uses on a granted spell",
+  "note": "kind:spell already grants a spell to a target; the 1/day innate use limit and cast-time choice of any available PP 2 spell are not expressible."
+ },
+ {
+  "name": "Gravity Weapon",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to weapon damage",
+  "note": "'Base damage die gains a +2 bonus' is ambiguous — added to the result, or a die-size step?"
+ },
+ {
+  "name": "Gustborn Movement",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "grant a Speed for a movement type",
+  "note": "Fly Speed equal to land Speed; safe descent on expiry is narrative."
+ },
+ {
+  "name": "Harrow",
+  "verdict": "BUILDABLE",
+  "mechanism": "apply condition",
+  "note": "Save DC is a fixed Very Easy (-5) step rather than spell DC; needs a per-spell DC-step field."
+ },
+ {
+  "name": "Haze Of Dreams",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "modify a creature's Speed",
+  "note": "Fumble's slowed 1 is a buildable condition; halving Speed to the next 5-foot increment on Failure is not."
+ },
+ {
+  "name": "Healer’s Grace",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "modify the PP or warping of other spells",
+  "note": "Treats every Healing-trait spell cast as warped 2 PP higher for free."
+ },
+ {
+  "name": "Heightened Awareness",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "dismiss the spell for a triggered bonus",
+  "note": "Both skill bonuses are buildable bonus effects; only the dismiss-for-+20-initiative clause is missing."
+ },
+ {
+  "name": "Hide From Animals",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "undetectable by a creature category",
+  "note": "Overrides blindsense/scent/tremorsense for one creature type and ends on a hostile action."
+ },
+ {
+  "name": "Hide From Undead",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "undetectable by a creature category",
+  "note": "Auto-applies to mindless undead, Will save for intelligent ones; ends on attack or positive energy."
+ },
+ {
+  "name": "Hindsight",
+  "verdict": "NARRATIVE",
+  "mechanism": "GM-narrated divination",
+  "note": "Only numeric clause is the -5 circumstance penalty when skimming."
+ },
+ {
+  "name": "Hunters Spirit",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to a skill",
+  "note": "The no-half-speed-while-tracking clause is overland travel narration."
+ },
+ {
+  "name": "Hypercognition",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "grant an extra action once per round",
+  "note": "The +5 status bonus on the four named checks is buildable; the once-per-round free action and the dismiss-for-advantage clause are not."
+ },
+ {
+  "name": "Ice Slick",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "terrain modification in an area",
+  "note": "Makes a 10-foot radius difficult terrain; no duration is printed."
+ },
+ {
+  "name": "Identify",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "spell that resolves as another action",
+  "note": "Resolves as an Identify Power check at -5 and tracks a +2 on later attempts against the same object."
+ },
+ {
+  "name": "Indomitable",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "triggered condition reduction",
+  "note": "Reduces dazed or weakened by 2 the first time it is applied, then ends. Printed text is missing a word (\"the first time you them\")."
+ },
+ {
+  "name": "Inner Focus",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "waive spell component requirements",
+  "note": "Suppresses the focus-component requirement and the no-Spell-Focus penalty."
+ },
+ {
+  "name": "Inner Sanctum",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "counteract check against another spell",
+  "note": "The +2 status bonus to saves vs possession/fear/translocation is a buildable bonus with a scope note; the counteract against translocation cast inside and the light step are not."
+ },
+ {
+  "name": "Insanity",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "roll on a random effect table each round",
+  "note": "D10 table at the start of each turn; duration keyed to margin of failure."
+ },
+ {
+  "name": "Inspiration",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "reaction that modifies a triggering roll",
+  "note": "Adds 1d6 to the triggering check and cannot avert an open-ended result."
+ },
+ {
+  "name": "Inspire Competence",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "spell that resolves as another action",
+  "note": "Resolves as an Aid action using the spell's own check result, minimum +1."
+ },
+ {
+  "name": "Inspire Heroics",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "grant advantage on a check",
+  "note": "Advantage is not a bonus value; one check per creature per round also needs per-round tracking."
+ },
+ {
+  "name": "Invisibility Purge",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent aura affecting creatures in the area",
+  "note": "Suppresses invisibility on anything inside the emanation while it remains there."
+ },
+ {
+  "name": "Invisibility Sphere",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "invisibility that ends on a hostile action",
+  "note": "Also ends per-creature on leaving the area, permanently for that creature."
+ },
+ {
+  "name": "Invisible Item",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "invisibility that ends on a hostile action",
+  "note": "Applies to an object; ends when the object is used in a hostile action."
+ },
+ {
+  "name": "Invulnerability",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "blanket immunity to all effects and damage",
+  "note": "defence/immunity takes named values, so immunity to any effect is not expressible; the artifact and deific exceptions are a GM call."
+ },
+ {
+  "name": "Iron Body",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "polymorph into an alternate form",
+  "note": "Str/Dex bonuses, Adamantine resistance and the Slam attack are buildable; the construct type, Base DR override, halved Speed and -8 ACP are not."
+ },
+ {
+  "name": "Iron Wood",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "change an item's material or properties",
+  "note": "Requires Densewood to exist as a material and a spell effect that can swap an item's material."
+ },
+ {
+  "name": "Jump",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to a skill",
+  "note": "Base bonus is +4 but the warp raises it in +5 steps to a max of +50 — looks inconsistent."
+ },
+ {
+  "name": "Keen Edge",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "per-use consumption on ammunition",
+  "note": "Granting the Keen quality maps to a trait grant; the per-projectile burn across 50 projectiles does not."
+ },
+ {
+  "name": "Knock",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "counteract check against another spell",
+  "note": "The +4 status bonus to Athletics/Thievery is a buildable skill-slot bonus; counteracting Lock and the Pick Lock on cast are not."
+ },
+ {
+  "name": "Lay Of The Land",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to a skill",
+  "note": ""
+ },
+ {
+  "name": "Learned Council",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to all checks",
+  "note": ""
+ },
+ {
+  "name": "Levitate",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "grant a Speed for a movement type",
+  "note": "The -2 circumstance attack penalty is buildable; the vertical lift, 1 AP raise and stabilize action are not."
+ },
+ {
+  "name": "Life Siphon",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "reaction keyed to another spell you cast",
+  "note": "Healing scales from the triggering spell's PP, not caster level."
+ },
+ {
+  "name": "Lifekeeping",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "block a condition from increasing",
+  "note": "Conditions can be applied or removed, but not frozen at their current value. Text says Dying while the target line says Death's Door."
+ },
+ {
+  "name": "Light",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "change the illumination level",
+  "note": "Two illumination steps on an object, capped at 8, and recasting must end the prior instance."
+ },
+ {
+  "name": "Light Feet",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to a skill",
+  "note": ""
+ },
+ {
+  "name": "Lighten Object",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "change an item's material or properties",
+  "note": "Halves item weight and reduces armour ACP without changing its category."
+ },
+ {
+  "name": "Locate",
+  "verdict": "NARRATIVE",
+  "mechanism": "GM-narrated divination",
+  "note": ""
+ },
+ {
+  "name": "Lock",
+  "verdict": "NARRATIVE",
+  "mechanism": "GM-applied DC on an object",
+  "note": "DC is spell DC +5; no object-DC model exists for the engine to write to."
+ },
+ {
+  "name": "Long Arm",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "increase a creature's reach",
+  "note": "Reach is not among the bonus slots."
+ },
+ {
+  "name": "Long Sense",
+  "verdict": "NARRATIVE",
+  "mechanism": "GM-narrated divination",
+  "note": ""
+ },
+ {
+  "name": "Long Stride",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to Speed",
+  "note": ""
+ },
+ {
+  "name": "Loremasters Edge",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "grant advantage on a check",
+  "note": "Reaction granting advantage on the triggering Recall Knowledge check."
+ },
+ {
+  "name": "Lucky Break",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "reroll a failed check",
+  "note": "Rerolls the failed save and sets a 10-minute per-target immunity timer."
+ },
+ {
+  "name": "Lullaby",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat penalty to a skill",
+  "note": ""
+ },
+ {
+  "name": "Luminance",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent aura affecting creatures in the area",
+  "note": "Heals or damages by creature type at the start of each turn, escalating to 5d8 when sustained; also a light step."
+ },
+ {
+  "name": "Magic Jar",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "possess another creature",
+  "note": "Soul transfer, gem receptacle, repeated possession attempts and death handling are all outside the vocabulary."
+ },
+ {
+  "name": "Magic Jaws",
+  "verdict": "BUILDABLE",
+  "mechanism": "item bonus to attack or defence",
+  "note": "Potency rune on an unarmed attack authors as an item bonus to the attack slot, with warps stepping the value and duration."
+ },
+ {
+  "name": "Magic Mouth",
+  "verdict": "NARRATIVE",
+  "mechanism": "no mechanical effect",
+  "note": ""
+ },
+ {
+  "name": "Magic Stone",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "per-use consumption on ammunition",
+  "note": "The +1 item bonus and disruptive trait are buildable; the pebbles crumbling after one use are not."
+ },
+ {
+  "name": "Magic Vestment",
+  "verdict": "BUILDABLE",
+  "mechanism": "item bonus to attack or defence",
+  "note": "Potency I armour or shield rune authors as an item bonus to the defence slot; the warp steps it to III."
+ },
+ {
+  "name": "Magic Volley",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "change an item's material or properties",
+  "note": "Overrides the ammunition's damage type at cast time and adds the matching elemental trait."
+ },
+ {
+  "name": "Magic Weapon",
+  "verdict": "BUILDABLE",
+  "mechanism": "item bonus to attack or defence",
+  "note": "Potency I weapon rune authors as an item bonus to the attack slot; the warp steps it to IV."
+ },
+ {
+  "name": "Mana Drain",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "draw on another creature's PP pool",
+  "note": "Spending a target's PP, plus repeated saves to break the link and a range that changes once linked."
+ },
+ {
+  "name": "Map Of The Root-knit",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "teleport network between placed markers",
+  "note": "Five persistent linked points with a once-per-round activation by caster or allies; no effect kind places or links terrain markers."
+ },
+ {
+  "name": "Mark Of Faith",
+  "verdict": "BUILDABLE",
+  "mechanism": "bonus or penalty to a slot",
+  "note": "bonus slot attack, +1 circumstance, note 'vs the marked target'; condition-free penalty as bonus slot fortitude/reflex/will value -1, note 'vs the caster's spells'. Warps scale value and target count. The caster-only illumination step is printed text."
+ },
+ {
+  "name": "Masterwork Item",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "item property modification",
+  "note": "Temporarily raises an item's quality tier to expert/master/legendary; no effect kind writes to an item's fields."
+ },
+ {
+  "name": "Maze",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "banish a creature from the field",
+  "note": "Removes the target from play for a save-scaled duration; the hunter creature and the caster's Stunned 2 on its defeat ride on the same missing mechanic."
+ },
+ {
+  "name": "Meld Into Stone",
+  "verdict": "NARRATIVE",
+  "mechanism": "no mechanical effect",
+  "note": "Expulsion inflicts a GM-chosen Serious Critical."
+ },
+ {
+  "name": "Memory Lapse",
+  "verdict": "NARRATIVE",
+  "mechanism": "GM-narrated memory alteration",
+  "note": "Whether a social-check retry is allowed is explicitly a GM call."
+ },
+ {
+  "name": "Message",
+  "verdict": "NARRATIVE",
+  "mechanism": "no mechanical effect",
+  "note": ""
+ },
+ {
+  "name": "Metabolism",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "recurring healing each round",
+  "note": "Regeneration 5 for the duration. The bleed reduction and the step-down of dazed/injured/weakened are also condition-value edits rather than condition applications."
+ },
+ {
+  "name": "Metal To Wood",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "item property modification",
+  "note": "Converts metal gear to wood with -2 attack/damage, armour DR -2 and HP halved; no effect kind writes to an item's fields."
+ },
+ {
+  "name": "Mind Blank",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "counteract check",
+  "note": "The +4 status bonus to mental saves is plain data (bonus, slot will/fortitude/reflex, note 'vs mental effects'). Only the counteract of insight spells at PP+4 is missing."
+ },
+ {
+  "name": "Mind Cleanse",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "counteract check",
+  "note": "Also needs removal of already-applied mental effects and ability penalties, not just application of new ones."
+ },
+ {
+  "name": "Mind Reading",
+  "verdict": "NARRATIVE",
+  "mechanism": "printed text only",
+  "note": "Every save outcome delivers information only; the 1-hour per-caster immunity is hand-tracked."
+ },
+ {
+  "name": "Mind’s Double",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "illusory duplicate of the caster",
+  "note": "Duplicate perceptible to one target only, with a disbelief ladder by degree of success."
+ },
+ {
+  "name": "Mindlink",
+  "verdict": "NARRATIVE",
+  "mechanism": "printed text only",
+  "note": ""
+ },
+ {
+  "name": "Mirage Entity",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "summoned entity with its own stat block",
+  "note": "Illusory creature acting on its own AP, using the caster's Spellcraft as attack and DB, dealing 1d4+5 mental damage, with disbelief refunding half."
+ },
+ {
+  "name": "Mirage Object",
+  "verdict": "NARRATIVE",
+  "mechanism": "illusion adjudicated in play",
+  "note": ""
+ },
+ {
+  "name": "Mirage Scene",
+  "verdict": "NARRATIVE",
+  "mechanism": "illusion adjudicated in play",
+  "note": ""
+ },
+ {
+  "name": "Mirage Terrain",
+  "verdict": "NARRATIVE",
+  "mechanism": "illusion adjudicated in play",
+  "note": ""
+ },
+ {
+  "name": "Mirror Image",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "incoming attack interception",
+  "note": "d100 thresholds 26/34/51 that step as duplicates pop, and only attack-trait effects consume an image."
+ },
+ {
+  "name": "Misdirection",
+  "verdict": "NARRATIVE",
+  "mechanism": "illusion adjudicated in play",
+  "note": "Only bites when something is reading auras, which is itself unautomated."
+ },
+ {
+  "name": "Mislead",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "illusory duplicate of the caster",
+  "note": "Invisibility is a plain condition; the commandable duplicate and the Deception-vs-Perception attribution are the missing clauses."
+ },
+ {
+  "name": "Missile Storm",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "rolled missile count",
+  "note": "The damage kind's count distributes missiles, but here count is 2d6+6 plus 1d6 per size category above Medium, so it cannot be a static number."
+ },
+ {
+  "name": "Misty Step",
+  "verdict": "NARRATIVE",
+  "mechanism": "printed text only",
+  "note": "Teleport is just the player moving the token 30 feet."
+ },
+ {
+  "name": "Moment Of Fortune",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "advantage or disadvantage on a roll",
+  "note": "Advantage on one saving throw, consumed on use; also one live casting at a time."
+ },
+ {
+  "name": "Moment Of Renewal",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "apply a full rest's recovery",
+  "note": "'As if 24 hours of rest' is not a heal formula, and it clears every effect that would lapse in a day; plus a 1-day per-target immunity."
+ },
+ {
+  "name": "Natural Animosity",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "recurring per-turn flat check",
+  "note": "DC 8 flat check at the start of each turn producing swarm criticals, plus a DC 5 spell-failure check on verdant casts. The Speed penalty also has no matching bonus slot."
+ },
+ {
+  "name": "Nature’s Bounty",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "create a consumable item",
+  "note": "The 3d10+12 heal is plain; the missing part is a conjured fruit any creature can eat as a 1 AP action, decaying after 1 minute."
+ },
+ {
+  "name": "Neutralise Poison",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "counteract check",
+  "note": ""
+ },
+ {
+  "name": "Nexus Of Elemental Energy",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent zone affecting creatures within it",
+  "note": "Per-turn save with element-dependent save type and damage type, plus an amp to elemental spells cast into the zone (+1 die, -2 to saves)."
+ },
+ {
+  "name": "Nightvision",
+  "verdict": "BUILDABLE",
+  "mechanism": "grant a sense",
+  "note": ""
+ },
+ {
+  "name": "Nondetection",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "counteract check",
+  "note": "Standing ward that counteracts divinations aimed at the target."
+ },
+ {
+  "name": "Oasis",
+  "verdict": "NARRATIVE",
+  "mechanism": "printed text only",
+  "note": ""
+ },
+ {
+  "name": "Object Prowess",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "one-shot bonus consumed by the next roll",
+  "note": "The standing +2 status bonus to Create checks is plain data (bonus, slot crafting skill). Only the dismiss-for-double-bonus clause is missing."
+ },
+ {
+  "name": "Obscuring Mist",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent zone affecting creatures within it",
+  "note": "Concealment applied both ways across the cloud boundary to creatures who enter later, and an optional 10 ft per round drift."
+ },
+ {
+  "name": "Open/close",
+  "verdict": "NARRATIVE",
+  "mechanism": "printed text only",
+  "note": ""
+ },
+ {
+  "name": "Orb Of The Void",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent zone affecting creatures within it",
+  "note": "Caster-moved sphere that applies Soul Drain 2d8 on entry or on ending a turn inside, with undead exempt."
+ },
+ {
+  "name": "Orientate",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to a skill",
+  "note": ""
+ },
+ {
+  "name": "Pariah",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "advantage or disadvantage on a roll",
+  "note": "Disadvantage on Deception, Diplomacy, Intimidate and Perform is the missing clause; the initial-attitude shift is GM-side."
+ },
+ {
+  "name": "Pass Without Trace",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "raise a DC others roll against",
+  "note": "Buffs the DC of other creatures' tracking checks, taking the higher of +4 or the caster's spell DC; the bonus slot list has no such field."
+ },
+ {
+  "name": "Passwall",
+  "verdict": "NARRATIVE",
+  "mechanism": "printed text only",
+  "note": ""
+ },
+ {
+  "name": "Phantasmal Revenge",
+  "verdict": "TABLE_CALL",
+  "mechanism": "GM adjudicates the outcome",
+  "note": "The GM decides who the killer was and where; once known, the payload is just a `spell` effect casting phantasmal killer."
+ },
+ {
+  "name": "Phantom",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "summoned entity with its own stat block",
+  "note": "Phantasmal enemy mirroring the target's own capabilities, with a disbelief save only once the target has reason to doubt."
+ },
+ {
+  "name": "Phantom Steed",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "summoned entity with its own stat block",
+  "note": "Real stat block (DB 15, DR 4, 10 HP, auto-fails saves); warps change Speed and movement types."
+ },
+ {
+  "name": "Physical Boost",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "one-shot bonus consumed by the next roll",
+  "note": "The +1 status bonus maps to bonus entries on strength, dexterity and constitution with a self-expiring duration; only the consume-on-first-check clause is missing."
+ },
+ {
+  "name": "Physical Surge",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to speed",
+  "note": "Also a +2 status bonus to Athletics; the free 0 AP Stride/Leap/Climb/Swim is player-executed."
+ },
+ {
+  "name": "Planar Ally",
+  "verdict": "TABLE_CALL",
+  "mechanism": "GM adjudicates the outcome",
+  "note": "Payment, bargaining and the assigned task are entirely GM territory."
+ },
+ {
+  "name": "Planar Contact",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "condition value scaled by the margin of failure",
+  "note": "Fatigue equal to the amount the Will save is failed by; the five answers are GM-supplied text."
+ },
+ {
+  "name": "Planar Enquiry",
+  "verdict": "TABLE_CALL",
+  "mechanism": "GM adjudicates the outcome",
+  "note": "What the called eternal learns is GM-decided; the Gather Information check is rolled by hand."
+ },
+ {
+  "name": "Plane Shift",
+  "verdict": "NARRATIVE",
+  "mechanism": "printed text only",
+  "note": ""
+ },
+ {
+  "name": "Polymorph Other",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "polymorph into another stat block",
+  "note": "Sickened 1 on a success is plain; failure and fumble swap the target's form, and failure allows a repeat Will save for spending all actions."
+ },
+ {
+  "name": "Possession",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "take control of another creature's turns",
+  "note": "Also per-turn re-saves, the caster's body falling unconscious, and a Fort save with paralysis if the host dies."
+ },
+ {
+  "name": "Power Crystal",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "create a consumable item",
+  "note": "Crystal holds PP spendable by whoever holds it and dissolves when drained or at 24 hours."
+ },
+ {
+  "name": "Precious Metals",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "item property modification",
+  "note": "Retypes an item's material for 1 minute, with damage dealt according to the new material."
+ },
+ {
+  "name": "Prescience",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "one-shot bonus consumed by the next roll",
+  "note": "Dismissed as a free action for a +2 circumstance bonus to the next roll, or to DB against one incoming attack; must be spent before the dice are rolled."
+ },
+ {
+  "name": "Project Image",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "illusory duplicate of the caster",
+  "note": "Non-radius spells may originate from the image, and the spell ends if the image is hit or fails a save."
+ },
+ {
+  "name": "Protection",
+  "verdict": "BUILDABLE",
+  "mechanism": "bonus or penalty to a slot",
+  "note": "bonus, slot defence and each save, +2 status, note 'vs creatures and effects of the chosen aligned trait'; a second pair at +4 with note 'vs control effects and attacks by summoned creatures of that trait'. The opposing-trait tagging is spell metadata."
+ },
+ {
+  "name": "Protection From Arrows",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "effect that discharges after a number of uses",
+  "note": "Resistance to missile attacks is fine as a qualitative defence value; the missing clause is the discharge after 10 attacks."
+ },
+ {
+  "name": "Protective Circle",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "barrier that blocks creature movement",
+  "note": "The +2/+4 status bonuses to DB and saves for the caster and allies in the radius are plain bonus data; the missing clause is the Will-save gate stopping summoned creatures of the chosen trait from entering, with the first success locked in."
+ },
+ {
+  "name": "Protector’s Sphere",
+  "verdict": "BUILDABLE",
+  "mechanism": "resistance or immunity to a damage type",
+  "note": "defence, field resistance, values physical, for the caster and allies in the 15-foot radius; warps add adamantine and then all damage. Resistance here is qualitative, so no magnitude is owed. Base text reads 'Physical Resistance (adamantine)' while the +6 warp adds adamantine, so the base line likely means physical except adamantine."
+ },
+ {
+  "name": "Prying Eye",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "summoned entity with its own stat block",
+  "note": "Flying eye moved by the caster's actions, destroyed by any damage; also vision transfer that blinds the caster while in use."
+ },
+ {
+  "name": "Punishing Winds",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent zone affecting creatures within it",
+  "note": "Forced 40-foot descent then 20 feet per turn airborne, terrain modification, fall damage on impact, and an Athletics/Acrobatics check to cross the cylinder wall."
+ },
+ {
+  "name": "Purify",
+  "verdict": "NARRATIVE",
+  "mechanism": "printed text only",
+  "note": ""
+ },
+ {
+  "name": "Qualm",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat penalty to all checks",
+  "note": "Negative-value bonus effect scoped to all actions, varying by degree of success."
+ },
+ {
+  "name": "Quick Time",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to speed",
+  "note": "Duration header says sustained (1 minute) but the text grants the bonus \"for 1 round\" — contradiction."
+ },
+ {
+  "name": "Radiant Aegis",
+  "verdict": "BUILDABLE",
+  "mechanism": "bonus or penalty to a slot",
+  "note": "bonus, slot defence, +1 status, for allies in the emanation, note 'vs attacks by creatures of an opposing aura type'; warps scale radius and value. The aura-type comparison lives in the note as scope text."
+ },
+ {
+  "name": "Rage",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "apply an effect when the spell ends",
+  "note": "The +1 to strength and constitution and +1 to mental saves are plain bonus data; the missing clauses are fatigued 10 for 1 hour on expiry and the bans on defensive and concentrate actions."
+ },
+ {
+  "name": "Rainbow Cloak",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "attack-triggered save against the attacker",
+  "note": "A melee hit on the target forces the attacker to save or be blinded/stunned, with per-attacker immunity until end of their turn; the dazzle aura on adjacent creatures rides on the same trigger."
+ },
+ {
+  "name": "Rapid Repair",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "recurring healing each round",
+  "note": "Fast healing 1 on a construct, non-stacking, warping up to 5."
+ },
+ {
+  "name": "Reaper’s Resonance",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "value derived from the triggering effect",
+  "note": "Heal is the triggering creature's level plus 5, doubled if it was undead; formulas only reach @casterLevel. The warp also converts HP healed into bleed reduction."
+ },
+ {
+  "name": "Reincarnated Embrace",
+  "verdict": "TABLE_CALL",
+  "mechanism": "GM-adjudicated resurrection in a new body",
+  "note": "Text never says who chooses the new race; also wipes 24 hours of memory and all PP until next preparation."
+ },
+ {
+  "name": "Reincarnation",
+  "verdict": "TABLE_CALL",
+  "mechanism": "GM-adjudicated resurrection in a new body",
+  "note": "Refers to 'if the check succeeds' but names no check."
+ },
+ {
+  "name": "Rejoining",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative effect only",
+  "note": ""
+ },
+ {
+  "name": "Remove Curse",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "counteract check",
+  "note": ""
+ },
+ {
+  "name": "Remove Disease",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "counteract check",
+  "note": ""
+ },
+ {
+  "name": "Remove Fear",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "counteract check",
+  "note": ""
+ },
+ {
+  "name": "Remove Paralysis",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "counteract check",
+  "note": ""
+ },
+ {
+  "name": "Repulsion",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "barrier that blocks creature movement",
+  "note": "Save-scaled difficult terrain, an outright block on approach, and prone, locked in per creature for the duration. The outcome list prints Failure twice; the second is presumably Fumble."
+ },
+ {
+  "name": "Resilient Fortitude",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "value derived from the triggering effect",
+  "note": "Resistance is qualitative so no magnitude is owed, but the resisted type is read from the triggering attack and applies only to it."
+ },
+ {
+  "name": "Resilient Sphere",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "summoned entity with its own stat block",
+  "note": "Sphere with DB 10, Hardness 10 and 40 HP that blocks passage; the save degree changes its HP or collapses it."
+ },
+ {
+  "name": "Resist Energy",
+  "verdict": "BUILDABLE",
+  "mechanism": "resistance or immunity to a damage type",
+  "note": "defence, field resistance, values the chosen energy type. Resistance is qualitative in this system, so the absent magnitude is not a gap. Warps add targets and a second energy type."
+ },
+ {
+  "name": "Resistance",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to a saving throw",
+  "note": "'Resistance' is not one of the engine's bonus types (circumstance/status/item/class/untyped)."
+ },
+ {
+  "name": "Resonance Manipulation",
+  "verdict": "BUILDABLE",
+  "mechanism": "bonus or penalty to a slot",
+  "note": "The fumble result is bonus entries on intelligence, wisdom and charisma at -2 status for 1 minute. The sound alteration itself is printed text. Header save field is empty though the text calls for a Will save."
+ },
+ {
+  "name": "Restoration",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "reduce an existing condition",
+  "note": "Applying a condition is expressible; decrementing one already on the target is not. Soul drain is a separate resource, and the once-per-day-per-creature limit is a table call."
+ },
+ {
+  "name": "Restore Senses",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "counteract check",
+  "note": "Removing the blinded/deafened conditions would be a condition effect, but the spell only does so if the counteract succeeds."
+ },
+ {
+  "name": "Resurrection",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "restore a dead creature to life",
+  "note": "Setting HP/PP/pools to fixed values and decrementing the Death State resource have no effect kind. The injured 2 for 1 week is a plain condition effect."
+ },
+ {
+  "name": "Retrocognition",
+  "verdict": "TABLE_CALL",
+  "mechanism": "GM-adjudicated divination",
+  "note": ""
+ },
+ {
+  "name": "Revealing Glance",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "counteract check",
+  "note": "Secret GM check per illusion, re-run whenever a new illusion enters an area that moves with the caster."
+ },
+ {
+  "name": "Revelation Divine",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "advantage or disadvantage on a roll",
+  "note": "The bonus effect carries flat values only; advantage is not a numeric bonus."
+ },
+ {
+  "name": "Reverse Gravity",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent area template",
+  "note": "Needs a standing volume that inverts falling for anything inside it, plus falling damage on impact."
+ },
+ {
+  "name": "Ride The Lightning",
+  "verdict": "NARRATIVE",
+  "mechanism": "self teleportation",
+  "note": "The +10 warp adds 8d12 electricity with a basic Reflex save, which is a buildable damage effect."
+ },
+ {
+  "name": "Rope Trick",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "sustained per-round commands",
+  "note": "A menu of commands chosen at cast and again on each Sustain. Bind is a granted attack whose hit applies a Speed penalty that ends on Escape."
+ },
+ {
+  "name": "Rune Of Warding",
+  "verdict": "BUILDABLE",
+  "mechanism": "status bonus to a slot",
+  "note": "+1 status bonus to defence and to fortitude/reflex/will on the creatures designated at cast time, 8-hour duration, warped to 24 hours. Author the designated creatures as the targets; the radius gate is left to the table."
+ },
+ {
+  "name": "Rune Of Warning",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative effect only",
+  "note": ""
+ },
+ {
+  "name": "Sacrificing Shield",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "damage redirection between creatures",
+  "note": "Reduces incoming damage on one creature and moves it onto the caster, bypassing the caster's own resistances, weaknesses and immunities."
+ },
+ {
+  "name": "Sanctuary",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "action-triggered saving throw",
+  "note": "The opponent saves when it tries to attack, once per opponent per turn, with degrees that eat the action. Spell ends on a hostile action by the protected creature."
+ },
+ {
+  "name": "Scribers Chant",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative effect only",
+  "note": ""
+ },
+ {
+  "name": "Scrying",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "per-target temporary immunity tracking",
+  "note": "Save degrees set a 1-day or 1-week immunity per target, and the degree shifts one worse if the target was stored with Study Target. The sensor itself is printed text."
+ },
+ {
+  "name": "See Invisible",
+  "verdict": "BUILDABLE",
+  "mechanism": "granted trait or sense",
+  "note": "Grant the sense as a trait effect for 10 minutes; the +2 warp to 8 hours and the +4 warp removing concealment are warp mods on the same trait."
+ },
+ {
+  "name": "Seer’s Vision",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "stored roll result replacing a later roll",
+  "note": "Roll and record a d20 now, spend it in place of a later save or skill check. Recasting cancels the stored result."
+ },
+ {
+  "name": "Self Mirage",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to a skill",
+  "note": "The clause ignoring disguise circumstance penalties stays a manual GM call."
+ },
+ {
+  "name": "Sending",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative effect only",
+  "note": ""
+ },
+ {
+  "name": "Sensory Link",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative effect only",
+  "note": ""
+ },
+ {
+  "name": "Shadow Step",
+  "verdict": "NARRATIVE",
+  "mechanism": "self teleportation",
+  "note": ""
+ },
+ {
+  "name": "Shadow Walk",
+  "verdict": "NARRATIVE",
+  "mechanism": "self teleportation",
+  "note": "Triggers a Resonance Event on a Spellcraft roll of 13 - confirm whether the core resonance system already covers that."
+ },
+ {
+  "name": "Shadow Weapon",
+  "verdict": "BUILDABLE",
+  "mechanism": "granted attack",
+  "note": "Grant a melee attack (player picks the weapon) with the magical trait for 1 minute; the +4 warp adds a +1 attack bonus."
+ },
+ {
+  "name": "Shape Of The Aberrant",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "polymorph form replacing the stat block",
+  "note": "Base forms replace physical ability scores, Speed and DR wholesale. Temp HP, the Fortitude bonus, the natural attack and the resistance warp are all expressible; the stat-block swap is not. Psychic Lash also uses BSB in place of BAB when higher."
+ },
+ {
+  "name": "Shape Of The Animal",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "polymorph form replacing the stat block",
+  "note": "Temp HP, the +2 Fortitude bonus and the natural attack map cleanly; the Agile/Brawn stat-block replacement does not."
+ },
+ {
+  "name": "Shape Of The Beast",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "polymorph form replacing the stat block",
+  "note": "Same stat-block swap as the other Shape spells. The immunity warp is a defence effect. Source bug: the '+1 PP: gain immunity to either Frightened, Prone or Stunned' warp is listed twice."
+ },
+ {
+  "name": "Shape Of The Elemental",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "polymorph form replacing the stat block",
+  "note": "Per-form immunities are defence effects and the temp HP is a tempHP effect; the Air/Earth/Fire/Water stat blocks and movement modes are not expressible."
+ },
+ {
+  "name": "Shape Of The Eternal",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "polymorph form replacing the stat block",
+  "note": "The aligned immunity/weakness pair is a defence effect and the innate-spell warps are spell effects; the five base stat blocks and fast healing 1 are not."
+ },
+ {
+  "name": "Shape Of The Fey",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "polymorph form replacing the stat block",
+  "note": "Sleep immunity, mental resistance and cold iron weakness are one defence effect; the three base stat blocks are not expressible. Trickster's teleport-on-miss reaction is its own missing piece, and this Shape grants no Fortitude bonus."
+ },
+ {
+  "name": "Shape Of The Plant",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "polymorph form replacing the stat block",
+  "note": "Immunities and the fire weakness are a defence effect; the Bulwark/Spore Warden/Vine stat blocks are not. Source bug: description says 'While in your fey form'."
+ },
+ {
+  "name": "Shape Of The Wyrm",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "polymorph form replacing the stat block",
+  "note": "Per-form immunity/weakness pairs are defence effects; the six stat blocks are not. The breath weapon is a granted 2 AP basic-reflex attack scaling at 1d8 per PP minus 2."
+ },
+ {
+  "name": "Shape Stone",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "skill check used as a saving throw",
+  "note": "An Acrobatics check stands in for the save, with degrees deciding prone or falling off. The stone reshaping itself is printed text."
+ },
+ {
+  "name": "Shape Wood",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative effect only",
+  "note": ""
+ },
+ {
+  "name": "Shapechange",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "polymorph form replacing the stat block",
+  "note": "Harder than the Shape spells: it copies an arbitrary creature stored with Study Target rather than a fixed form list, and allows re-forming for 1 action."
+ },
+ {
+  "name": "Shared Will",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "pooled saving throw across creatures",
+  "note": "Up to 6 creatures roll one Will save at the best bonus in the group plus 1 per member, and a failure lands on all of them."
+ },
+ {
+  "name": "Shifting Form",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "speed and movement-mode grants",
+  "note": "Speed is not a bonus slot, and a climb/swim Speed derived from the target's own Speed has no representation. Darkvision, Scent and the claws unarmed attack would be trait and attack effects."
+ },
+ {
+  "name": "Shillelagh",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "temporary rune on an item",
+  "note": "Effects target creatures; there is no way to hang a temporary Potency rune on a held weapon, nor to step its potency with the +6 warp."
+ },
+ {
+  "name": "Shrink Item",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative effect only",
+  "note": ""
+ },
+ {
+  "name": "Shroud",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "skill check used as a saving throw",
+  "note": "An Acrobatics check by an unwilling target sets the duration by degree. Perceiving light two steps lower is also not expressible; the +2 circumstance bonus to saves vs light effects on its own is buildable."
+ },
+ {
+  "name": "Silence",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "prevent actions with a given trait",
+  "note": "Blocks auditory and sonic actions and spells with verbal components. The +2 warp turns it into a 10-foot emanation imposing the same block on everyone inside."
+ },
+ {
+  "name": "Silent Binding",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative effect only",
+  "note": "Only mechanical element is the save degree setting the duration."
+ },
+ {
+  "name": "Size Alteration",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "change a creature's size category",
+  "note": "Applies the whole Chapter 12 size modifier table, and the warps step it up or down further."
+ },
+ {
+  "name": "Slay The Soul",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "damage scaled by margin of failure",
+  "note": "1 essence damage per point of failure on a partial. The Light Critical, the forced drop to 0 HP with Dying, and death on a fumble are also outside the vocabulary."
+ },
+ {
+  "name": "Sleepwalker",
+  "verdict": "TABLE_CALL",
+  "mechanism": "GM-adjudicated compulsion",
+  "note": "Delayed onset (takes effect when the target next falls asleep) has no trigger hook either."
+ },
+ {
+  "name": "Slide",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "teleport a target",
+  "note": "Moves a creature to a chosen point, with a d12 scatter roll and 2d6 force damage plus a bounce-back if it lands inside a solid object."
+ },
+ {
+  "name": "Smash",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "bonus to damage rolls",
+  "note": "Damage is not one of the bonus slots, and the bonus is scoped to objects and constructs. The 0 AP dismissal that doubles the bonus for one roll is a second missing piece."
+ },
+ {
+  "name": "Snagging Pit",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent area template",
+  "note": "Needs a pit terrain feature and the falling rules; the spikes warp keys secondary damage off the fall damage. Stunned 1 on a success is a plain condition effect."
+ },
+ {
+  "name": "Solid Fog",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent area template",
+  "note": "Concealment both ways plus difficult terrain inside a cloud that may drift 10 feet per round, so the template has to move."
+ },
+ {
+  "name": "Solitude",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent area template",
+  "note": "Creatures inside cannot be targeted at all, which is the hardest part. One Will save per creature on first interaction, and the spell ends if the caster leaves."
+ },
+ {
+  "name": "Soul Bind",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative state change",
+  "note": "Text is garbled ('a character been dead') and calls the spell 'bind soul' although it is named Soul Bind."
+ },
+ {
+  "name": "Soul Bleed",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "dying clock manipulation",
+  "note": "Forces another creature to make an immediate Dying Check, at disadvantage."
+ },
+ {
+  "name": "Speak With Animals",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative communication",
+  "note": ""
+ },
+ {
+  "name": "Speak With Plants",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative communication",
+  "note": ""
+ },
+ {
+  "name": "Spectral Grasp",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "combat manoeuvre using a spell check",
+  "note": "Runs Disarm, Grapple, Shove or Trip off the Spellcraft check at -4. Warps add a sustained mode repeating the manoeuvre each round, optionally on a new target."
+ },
+ {
+  "name": "Spectral Hand",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "redirect a subsequent spell's origin",
+  "note": "Later touch spells originate from the hand. It also carries the caster's defences and saves and deals 5 damage to the caster if destroyed."
+ },
+ {
+  "name": "Spell Drain",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "counter another creature's spell",
+  "note": "Reaction that makes the target's spell fail, and on a failure moves the drained PP into the caster's pool. Nothing edits a PP pool."
+ },
+ {
+  "name": "Spell Immunity",
+  "verdict": "BUILDABLE",
+  "mechanism": "immunity, resistance or weakness",
+  "note": "A defence effect with field immunity and the named spell as its value, 1 hour, warped to 24. The value is a pick at cast time and enforcement against that specific spell stays with the table."
+ },
+ {
+  "name": "Spell Prime",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "store a spell for later release",
+  "note": "Binds a second spell now and releases it as a 0 AP action later, excluding spells with the attack or save trait."
+ },
+ {
+  "name": "Spell Storing",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "store a spell for later release",
+  "note": "Captures the next spell cast into the Mage Staff; warps change the release action cost to a reaction or a free action."
+ },
+ {
+  "name": "Spell Transfer",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "redirect a subsequent spell's origin",
+  "note": "The next spell cast within the duration resolves from a willing creature's position instead of the caster's."
+ },
+ {
+  "name": "Spell Turning",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "counter another creature's spell",
+  "note": "Reaction counteract check off Spellcraft, and on success the spell is re-resolved against its own caster, which needs full spell reflection."
+ },
+ {
+  "name": "Spider Climb",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "speed and movement-mode grants",
+  "note": "A climb Speed equal to the target's own Speed. Speed is not a bonus slot and the value is derived from the target."
+ },
+ {
+  "name": "Spike Stones",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent area template",
+  "note": "1d8 piercing per square entered, plus difficult and hazardous terrain, with the spikes hidden behind a Search check opposing the Spell DC."
+ },
+ {
+  "name": "Spirit Lore",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to a skill",
+  "note": ""
+ },
+ {
+  "name": "Spirit Mark",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "action-triggered saving throw",
+  "note": "The target must save each time it tries to turn invisible. Aura concealment additionally needs a counteract check against the spell DC; the direction-and-distance tracking is printed text."
+ },
+ {
+  "name": "Spirit Of The Hunt",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "advantage or disadvantage on a roll",
+  "note": "Advantage on Search (Perception), and on Track (Survival) with the +2 warp. A bonus to the perception or survival slot would be a different mechanic, not this one."
+ },
+ {
+  "name": "Spirit Trap",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "recurring save to end an effect",
+  "note": "A fresh save at the start of each of the target's turns. Also needs a 5-foot movement tether and difficult terrain that applies only to the target."
+ },
+ {
+  "name": "Spiritual Weapon",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "sustained per-round commands",
+  "note": "An independent force weapon that copies the wielded weapon's statistics and Strikes with the caster's Spellcraft each time the spell is Sustained, moving to a new target."
+ },
+ {
+  "name": "Spoil The Profane",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "make a weapon Strike as part of the spell",
+  "note": "Casting immediately triggers a weapon Strike; weakened 1 on a hit is a plain condition effect, and the 1d6 aligned secondary damage is conditional on the target having an opposing aura."
+ },
+ {
+  "name": "Spook",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "bonus conditional on creature behaviour",
+  "note": "The +1 status bonuses to DB and saves apply only while the target keeps away from enemies, and the spell ends if it advances. The -2 circumstance penalty on saves vs fear on its own is a plain bonus effect with a note."
+ },
+ {
+  "name": "Spot",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to a skill",
+  "note": ""
+ },
+ {
+  "name": "Stabilise",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "dying clock manipulation",
+  "note": "Suppresses the end-of-turn Dying increase, with a once-per-round-per-creature limit."
+ },
+ {
+  "name": "Startle",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "forced movement",
+  "note": "A forced Step away from the caster on a failure. Frightened 1 on a fumble is a plain condition effect."
+ },
+ {
+  "name": "Stasis",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "remove a creature from play temporarily",
+  "note": "Untargetable, immune to all damage, immovable, and all ongoing timers paused — no effect kind suspends a target."
+ },
+ {
+  "name": "Status",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative information gathering",
+  "note": ""
+ },
+ {
+  "name": "Stone To Flesh",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "remove an existing condition",
+  "note": "The condition kind applies conditions; clearing petrified is not expressible. The stone-object half is narrative."
+ },
+ {
+  "name": "Stone Tongue",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative communication",
+  "note": ""
+ },
+ {
+  "name": "Stoneskin",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "duration shortened by incoming attacks",
+  "note": "The resistance itself is BUILDABLE as a qualitative defence effect (field resistance, values adamantine/physical), and the +4 warp just extends values. Only the 1-minute-per-hit duration burn is missing."
+ },
+ {
+  "name": "Stun Relief",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "triggered reaction spell",
+  "note": "Also needs to reduce a condition's value at the moment it is applied."
+ },
+ {
+  "name": "Suggestion",
+  "verdict": "TABLE_CALL",
+  "mechanism": "GM-adjudicated compulsion",
+  "note": ""
+ },
+ {
+  "name": "Suspended Unrest",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative state change",
+  "note": ""
+ },
+ {
+  "name": "Swallow Soul",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "waive the PP cost of a spell",
+  "note": "The heal is BUILDABLE apart from reading its formula off a corpse's level; the free follow-up cast is the missing clause."
+ },
+ {
+  "name": "Sympathy",
+  "verdict": "TABLE_CALL",
+  "mechanism": "GM-adjudicated compulsion",
+  "note": "Only the Sickened 4 on a successful save is buildable; the attraction itself is GM-run."
+ },
+ {
+  "name": "Talon Strike",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "extra damage on a weapon Strike",
+  "note": "The damage kind is auto-hit spell damage, not a rider attached to Strikes with a specific weapon."
+ },
+ {
+  "name": "Tanglefoot",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "combat manoeuvre using Spellcraft",
+  "note": "Grapple resolved with Spellcraft at -4, ending at the start of your next turn."
+ },
+ {
+  "name": "Tangling Creepers",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent area effect",
+  "note": "The -10-foot circumstance penalty to Speeds would be a bonus effect, but it must apply to whoever is inside a lasting template; also a 15-foot-reach Spellcraft grapple launched from any square."
+ },
+ {
+  "name": "Telekinetic Haul",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative object manipulation",
+  "note": ""
+ },
+ {
+  "name": "Telekinetic Manoeuvre",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "combat manoeuvre using Spellcraft",
+  "note": "Disarm, Shove or Trip substituting a Spellcraft check for the Combat check."
+ },
+ {
+  "name": "Telepathic Bond",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative communication",
+  "note": ""
+ },
+ {
+  "name": "Telepathic Demand",
+  "verdict": "TABLE_CALL",
+  "mechanism": "GM-adjudicated compulsion",
+  "note": "A success grants 1 day (1 month on a critical) of immunity to recasting, which nothing tracks."
+ },
+ {
+  "name": "Telepathy",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative communication",
+  "note": ""
+ },
+ {
+  "name": "Teleport",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative travel",
+  "note": "Mis-teleport consequences are explicitly left to the GM."
+ },
+ {
+  "name": "Teleportation Circle",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative travel",
+  "note": "Header labels the 500 gp material cost as a 'Trigger', which looks like a field mix-up."
+ },
+ {
+  "name": "Temporal Stasis",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative state change",
+  "note": "Save field says Will but the description never calls for or resolves a saving throw."
+ },
+ {
+  "name": "Thrall",
+  "verdict": "TABLE_CALL",
+  "mechanism": "GM-adjudicated compulsion",
+  "note": "Attitude steps (friendly/helpful) are not tracked anywhere in the effects vocabulary."
+ },
+ {
+  "name": "Time Hop",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "remove a creature from play temporarily",
+  "note": "Caster may return at the start of each turn and is displaced to the nearest free space if occupied."
+ },
+ {
+  "name": "Time Stop",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "grant extra actions outside the turn order",
+  "note": "1d6+3 AP rolled secretly by the GM; ends early if the caster affects anyone else or moves 1,000 feet."
+ },
+ {
+  "name": "Tinker",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "repair object hit points",
+  "note": "5 HP per caster level would be a plain casterLevelMods heal if object HP were a target the heal kind could address."
+ },
+ {
+  "name": "Tongues",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative communication",
+  "note": ""
+ },
+ {
+  "name": "Touch Of Obedience",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to a save",
+  "note": "Penalty durations are keyed to turn boundaries, which the duration field must be able to express."
+ },
+ {
+  "name": "Trace Location",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative information gathering",
+  "note": "Claims to bypass lower-PP insight protections, a layer that does not exist as data."
+ },
+ {
+  "name": "Trade Essence",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "transfer PP between creatures",
+  "note": "No effect kind reads or writes a creature's PP pool; the amount scales with caster level and clamps at 0 and max."
+ },
+ {
+  "name": "Transmute Rock & Mud",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent area effect",
+  "note": "Converts existing terrain material between rock and mud and leaves lasting difficult/formidable terrain; also per-degree grabbed/restrained outcomes."
+ },
+ {
+  "name": "Tree Shape",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "polymorph into another form",
+  "note": "DB is overridden to a flat 10 and all bonus types except status/circumstance are suppressed — an override of the modifier stack, not a bonus entry."
+ },
+ {
+  "name": "Tree Walk",
+  "verdict": "NARRATIVE",
+  "mechanism": "teleportation",
+  "note": ""
+ },
+ {
+  "name": "True Seeing",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "grant a sense",
+  "note": "Seeing through darkness, invisibility, illusion and polymorph is a perception mode; the trait kind grants traits, not senses."
+ },
+ {
+  "name": "True Strike",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "grant advantage or disadvantage on a roll",
+  "note": "Also ignores circumstance penalties and the concealed/hidden conditions for that one Strike."
+ },
+ {
+  "name": "True Target",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "grant advantage or disadvantage on a roll",
+  "note": "Advantage is conditional on which creature is attacked and is consumed once per attacker."
+ },
+ {
+  "name": "Truthful Words",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative effect",
+  "note": ""
+ },
+ {
+  "name": "Turn Undead",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "per-degree save outcome branching",
+  "note": "Each degree's payload (stunned 1, fleeing, essence critical) is individually BUILDABLE; the branching, undead-only targeting, per-turn re-save in the emanation and level-scaled critical severity are not."
+ },
+ {
+  "name": "Twisted Fate",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "per-degree save outcome branching",
+  "note": "Also disadvantage on checks and 'cannot benefit from chance effects', which is neither a condition nor a bonus."
+ },
+ {
+  "name": "Umbral Veil",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "illumination level change",
+  "note": "Reduces illumination by three steps in a moving 20-foot emanation, and can be detached as a decoy that keeps dimming light where it was left."
+ },
+ {
+  "name": "Unity",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "triggered reaction spell",
+  "note": "Also lets each ally substitute the caster's saving throw modifier for their own, chosen individually."
+ },
+ {
+  "name": "Unliving Vitality",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "fast healing",
+  "note": "The engine has a fastHealing active-effect flag used by feats, but no spell effect kind authors it."
+ },
+ {
+  "name": "Unremarkable Aura",
+  "verdict": "TABLE_CALL",
+  "mechanism": "GM adjudication",
+  "note": ""
+ },
+ {
+  "name": "Unseen Servant",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "summon a statted creature",
+  "note": "It has DB 0, 1 HP and Strength -2 and ends when reduced to 0 HP, so it needs a real actor, not a marker."
+ },
+ {
+  "name": "Unshakable",
+  "verdict": "BUILDABLE",
+  "mechanism": "immunity via defence effect",
+  "note": "defence effect, field immunity, values [stunned], duration 1 minute parsed from the Duration text. Both warps are metadata only — a longer duration and a range change."
+ },
+ {
+  "name": "Untamed Journey",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "ignore difficult terrain",
+  "note": "Immunity to Speed penalties from environmental sources and free movement through environmental difficult terrain are terrain interactions, not damage-type immunity."
+ },
+ {
+  "name": "Unwelcome Halo",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "illumination level change",
+  "note": "Also per-degree branching; the fumble line's +2 circumstance bonus to attacks would be a bonus effect applied to every other creature."
+ },
+ {
+  "name": "Veil Of The Shroud",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative effect",
+  "note": "The one mechanical clause is a static DC (Spellcraft DC +4) standing in for a Deception check — a number the GM reads off, not something to compute."
+ },
+ {
+  "name": "Veiled Presence",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "ignore difficult terrain",
+  "note": "The +2 status bonus to Deception and Stealth is BUILDABLE (bonus effect on the two skill slots) and the +2 PP warp scales it to max +5. Only ignoring crowd difficult terrain is missing."
+ },
+ {
+  "name": "Veiled Secret",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to a skill",
+  "note": "Two bonus effects (+4 status to skills and to saves); the scope is narrative — the GM decides which checks conceal the secret."
+ },
+ {
+  "name": "Ventriloquism",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative effect",
+  "note": ""
+ },
+ {
+  "name": "Verdant Snare",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent area effect",
+  "note": "Creates difficult terrain in a radius that persists and can be widened by warps."
+ },
+ {
+  "name": "Vibrant Thorns",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "reactive damage to attackers",
+  "note": "Text needs an editorial pass: the body escalates after an 'essence spell' while the warp says 'positive spell', and the trigger runs adjacency and 'hits you with an unarmed attack' together."
+ },
+ {
+  "name": "Vigilant Eye",
+  "verdict": "NARRATIVE",
+  "mechanism": "remote sensing",
+  "note": ""
+ },
+ {
+  "name": "Vigour",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "fast healing",
+  "note": "Heals at the END of the target's turn, where the existing fast-healing sweep fires at the start."
+ },
+ {
+  "name": "Visage Of Horror",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "save triggered by attacking the target",
+  "note": "The frightened 2 payload is BUILDABLE; the aggressive-move trigger, per-attacker temporary immunity and wasted-action fumble are not. Warp text refers to 'mask of terror', a name used nowhere else."
+ },
+ {
+  "name": "Vital Beacon",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "healing pool that degrades with each use",
+  "note": "Die type steps down 4d12 to 4d4 across uses, once per round, and the spell ends when the pool is spent."
+ },
+ {
+  "name": "Wake",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "remove an existing condition",
+  "note": "Becomes pure data authoring if a condition effect with value 0 clears the condition rather than applying it — worth confirming in code."
+ },
+ {
+  "name": "Wall Of Dispelling",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "counteract check",
+  "note": "No counteract level or wall statistics are given, so the wall's strength against passing spells is undefined in the text as well as unbuildable."
+ },
+ {
+  "name": "Wall Of Force",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "wall object with HP and hardness",
+  "note": "Also immunity to counteracting at or below its level and auto-destruction by disintegrate."
+ },
+ {
+  "name": "Wall Of Ice",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "wall object with HP and hardness",
+  "note": "Sections carry a fire weakness (a defence effect if sections were actors), and a section destroyed by other means leaves difficult terrain dealing 2d6 cold on entry."
+ },
+ {
+  "name": "Wall Of Stone",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "wall object with HP and hardness",
+  "note": "Per-section DB 0, Hardness 14, 50 HP, immune to critical hits and precision damage; destroyed sections leave difficult terrain."
+ },
+ {
+  "name": "Wall Of Thorns",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "wall object with HP and hardness",
+  "note": "Entering a wall space costs 2d8 piercing, and both faces grant cover."
+ },
+ {
+  "name": "Wall Of Wind",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent area effect",
+  "note": "No HP or hardness — it blocks ammunition and gases, applies a -2 circumstance penalty to larger thrown weapons, and runs a per-degree Fortitude save for fliers."
+ },
+ {
+  "name": "War Cry",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "triggered reaction spell",
+  "note": "Also adds 1d6 sonic to the ally's weapon and grants that ally a free extra Strike at their current multiple attack penalty."
+ },
+ {
+  "name": "Warped Terrain",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent area effect",
+  "note": "Radius scales with AP spent at cast time, and each creature disbelieves individually and is thereafter unaffected."
+ },
+ {
+  "name": "Water Breathing",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative effect",
+  "note": "Has a range and a 5-foot-radius area but an empty targets field, yet the text says 'the targets' — who is affected is undefined."
+ },
+ {
+  "name": "Water Walk",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative effect",
+  "note": ""
+ },
+ {
+  "name": "Waves Of Fatigue",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "per-degree save outcome branching",
+  "note": "Every degree applies fatigued 1 — a BUILDABLE condition effect — and the degrees differ only in duration, so this needs branching plus stacking on repeat casts. Text also lacks a critical line and gives the fumble no duration."
+ },
+ {
+  "name": "Weapon Surge",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "extra damage on a weapon Strike",
+  "note": "The +1 status bonus to the attack slot is BUILDABLE; adding a die to a weapon Strike and consuming it on that Strike only is not."
+ },
+ {
+  "name": "Web",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "persistent area effect",
+  "note": "Also a per-degree Athletics/Acrobatics check on entering, and each web space is a destructible object (DB 10, cleared by 5 slashing or 1 fire)."
+ },
+ {
+  "name": "Wellspring Of Valour",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "healing triggered by taking damage",
+  "note": "The +1 status bonus to the attack slot with note 'vs creatures of an opposed aura' is BUILDABLE; the 1d6 that fires when an ally first takes damage each round is not. 'Opposed aura' also needs an alignment concept the data does not carry."
+ },
+ {
+  "name": "Whispering Wind",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative effect",
+  "note": ""
+ },
+ {
+  "name": "Wild Morph",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "draw an ability from the Studied Target subsystem",
+  "note": "The attack kind can grant a natural attack, but the form, movement type or special ability must be copied from a Studied Target, and the duration can retune to Wildshape's."
+ },
+ {
+  "name": "Wind Walk",
+  "verdict": "NARRATIVE",
+  "mechanism": "narrative effect",
+  "note": ""
+ },
+ {
+  "name": "Windy Escape",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "triggered reaction spell",
+  "note": "Physical Resistance (non-magic) is complete as written and BUILDABLE as a qualitative defence effect; the reaction trigger and its one-attack scope are the missing part."
+ },
+ {
+  "name": "Wits",
+  "verdict": "BUILDABLE",
+  "mechanism": "flat bonus to an ability score",
+  "note": "The +4 PP warp reads 'increase the bonus by +5 (max +20)' against a +1 base — the step size looks like a typo."
+ },
+ {
+  "name": "Wizard Strike",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "grant advantage or disadvantage on a roll",
+  "note": "Carries an 'Advantage' trait, which may already be an engine hook worth checking before building anything new."
+ },
+ {
+  "name": "Woeful Dread",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "per-degree save outcome branching",
+  "note": "Introduces a 'Partial' degree used nowhere else, applies mental critical injuries at -20/-10/+10, and chains a second Fortitude save for instant death on a fumble."
+ },
+ {
+  "name": "Word Of Death",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "per-degree save outcome branching",
+  "note": "Instant-death HP thresholds and 'drops to -10 HP' are outcomes a damage effect cannot express; a success is far worse than a critical."
+ },
+ {
+  "name": "Word Of Recall",
+  "verdict": "NARRATIVE",
+  "mechanism": "teleportation",
+  "note": ""
+ },
+ {
+  "name": "Word Of Stunning",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "per-degree save outcome branching",
+  "note": "Each payload is a BUILDABLE condition effect; only the branching and the 10-minute per-target immunity are not. Success (stunned 2) is worse than failure (stunned for 1 round) — confirm that inversion is intended."
+ },
+ {
+  "name": "Zealous Battlecry",
+  "verdict": "NEEDS_MECH",
+  "mechanism": "triggered reaction spell",
+  "note": "Both creatures roll d100 and share the higher result for initiative — confirm d100 is the right die for initiative in this system."
+ }
+]

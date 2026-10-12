@@ -1,0 +1,136 @@
+<div class="trg-prime-sheet trg-effect-sheet">
+  <header class="effect-hero">
+    <img class="effect-portrait" src="{{effect.img}}" data-edit="img" alt="">
+    <div class="effect-hero-text">
+      <span class="eyebrow">
+        {{#if conditionLabel}}Condition{{else}}Effect{{/if}}
+      </span>
+      <input
+        type="text"
+        name="name"
+        value="{{effect.name}}"
+        class="effect-name-input"
+        placeholder="Name this effect"
+        {{#if conditionLabel}}readonly data-tooltip="This is one of the game's own conditions, so its name is fixed."{{/if}}
+      >
+      <p class="effect-hero-meta">
+        {{durationSummary}}{{#if conditionValue}} &middot; value {{conditionValue}}{{/if}}
+      </p>
+    </div>
+  </header>
+
+  <article class="ornate-card">
+    <h2>What it does</h2>
+    <label class="wide-field">
+      <span>Description</span>
+      <textarea name="description" rows="4" placeholder="Describe the effect in plain language — what it feels like, and what it changes.">{{effect.description}}</textarea>
+    </label>
+    <div class="field-grid two-column">
+      <label>
+        <span>Active</span>
+        <input type="checkbox" name="disabled" {{#unless effect.disabled}}checked{{/unless}} value="false">
+      </label>
+      <label>
+        <span>Source</span>
+        <input type="text" name="origin" value="{{effect.origin}}" placeholder="Where it came from">
+      </label>
+    </div>
+  </article>
+
+  <article class="ornate-card">
+    <h2>How long it lasts</h2>
+    <div class="field-grid three-column">
+      <label>
+        <span>Lasts</span>
+        <input type="number" name="duration.value" value="{{effect.duration.value}}" min="0" placeholder="—">
+      </label>
+      <label>
+        <span>Measured in</span>
+        <select name="duration.units">
+          {{selectOptions durationUnitChoices selected=effect.duration.units}}
+        </select>
+      </label>
+      <label>
+        <span>Ends on</span>
+        <select name="duration.expiry">
+          {{selectOptions expiryChoices selected=effect.duration.expiry}}
+        </select>
+      </label>
+    </div>
+    <p class="hint">Leave the number empty for an effect that lasts until something removes it.</p>
+  </article>
+
+  {{#if showInternals}}
+    <article class="ornate-card effect-internals">
+      <div class="card-heading">
+        <h2>Rule Changes</h2>
+        {{#if editable}}
+          <button type="button" class="gold-button" data-action="addChange">
+            <i class="fa-solid fa-plus"></i> Add Change
+          </button>
+        {{/if}}
+      </div>
+      <p class="hint">
+        The mechanical half: each row alters one value on the character. Hidden
+        from this sheet unless &ldquo;Show effect internals&rdquo; is ticked on
+        the actor&rsquo;s GM tab.
+      </p>
+
+      {{#if changeRows.length}}
+        <div class="item-list-header change-header">
+          <span>Attribute</span>
+          <span>How</span>
+          <span>Value</span>
+          <span>When</span>
+          <span>Priority</span>
+          <span></span>
+        </div>
+        {{#each changeRows as |row|}}
+          <div class="item-row change-row">
+            <input type="text" name="system.changes.{{row.index}}.key" value="{{row.key}}" placeholder="system.combat.defence.circumstance">
+            <select name="system.changes.{{row.index}}.type">
+              {{selectOptions ../typeChoices selected=row.type}}
+            </select>
+            <input type="text" name="system.changes.{{row.index}}.value" value="{{row.value}}">
+            <select name="system.changes.{{row.index}}.phase">
+              {{selectOptions ../phaseChoices selected=row.phase}}
+            </select>
+            <input type="number" name="system.changes.{{row.index}}.priority" value="{{row.priority}}">
+            <div class="item-controls">
+              {{#if ../editable}}
+                <button type="button" data-action="removeChange" data-index="{{row.index}}" data-tooltip="Remove this change">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              {{/if}}
+            </div>
+          </div>
+        {{/each}}
+      {{else}}
+        <div class="empty-state">
+          <i class="fa-solid fa-scale-balanced"></i>
+          <p>This effect changes no values directly.</p>
+        </div>
+      {{/if}}
+
+      <div class="field-grid three-column effect-internals-extra">
+        <label>
+          <span>Status ids</span>
+          <input type="text" value="{{statusList}}" readonly data-tooltip="Set by the system when a condition is applied.">
+        </label>
+        <label>
+          <span>Tint</span>
+          <input type="color" name="tint" value="{{effect.tint}}">
+        </label>
+        <label>
+          <span>Transfer to actor</span>
+          <input type="checkbox" name="transfer" {{#if effect.transfer}}checked{{/if}}>
+        </label>
+      </div>
+    </article>
+  {{else}}
+    <p class="hint effect-internals-note">
+      This effect&rsquo;s mechanical details are hidden. Tick <strong>Show effect
+      internals</strong> on the character&rsquo;s GM tab to see and edit them.
+    </p>
+  {{/if}}
+</div>

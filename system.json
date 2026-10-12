@@ -1,37 +1,23 @@
 {
-  "id": "trpg-prime",
-  "title": "TRPG Prime",
-  "description": "The TRPG Prime system for Foundry VTT.",
-  "authors": [
-    {
-      "name": "Snowtroll",
-      "discord": "snowtroll"
-    }
-  ],
-  "url": "https://github.com/snowtroll75-debug/trpg-prime",
-  "license": "LICENSE.txt",
-  "readme": "README.md",
-  "bugs": "https://github.com/snowtroll75-debug/trpg-prime/issues",
-  "changelog": "CHANGELOG.md",
-  "media": [
-    {
-      "type": "setup",
-      "url": "systems/trpg-prime/assets/anvil-impact.png",
-      "thumbnail": "systems/trpg-prime/assets/anvil-impact.png"
-    }
-  ],
-  "version": "4.3.917",
+  "id": "trg-prime",
+  "title": "TRG Prime",
+  "description": "The official Foundry Virtual Tabletop system foundation for TRG Prime by Traris Games.",
+  "version": "3.633.1",
   "compatibility": {
     "minimum": "14",
-    "verified": "14.363"
+    "verified": "14.367"
   },
+  "authors": [
+    {
+      "name": "Traris Games",
+      "url": "https://www.trarisgames.co.uk/"
+    }
+  ],
   "esmodules": [
-    "module/trpg-prime.mjs"
+    "scripts/trg-prime.mjs"
   ],
   "styles": [
-    "css/trpg-prime.css",
-    "css/trpg-prime-overrides.css",
-    "css/trpg-prime-layout-refresh.css"
+    "styles/trg-prime.css"
   ],
   "languages": [
     {
@@ -40,192 +26,264 @@
       "path": "lang/en.json"
     }
   ],
+  "documentTypes": {
+    "Actor": {
+      "character": {
+        "htmlFields": [
+          "details.biography",
+          "details.appearance",
+          "details.notes",
+          "gm.notes"
+        ]
+      },
+      "npc": {
+        "htmlFields": [
+          "details.biography",
+          "details.appearance",
+          "details.notes",
+          "gm.notes"
+        ]
+      },
+      "companion": {
+        "htmlFields": [
+          "details.biography",
+          "details.appearance",
+          "details.notes",
+          "gm.notes"
+        ]
+      },
+      "familiar": {}
+    },
+    "Item": {
+      "weapon": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "armour": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "shield": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "gear": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "consumable": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "ammunition": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "spell": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "feat": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "ability": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "skill": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "class": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "race": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "heritage": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "background": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "origin": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "divine-aspect": {
+        "htmlFields": [
+          "description",
+          "edicts",
+          "anathema"
+        ]
+      },
+      "affliction": {
+        "htmlFields": [
+          "description"
+        ]
+      }
+    }
+  },
+  "initiative": "1d100 + @combat.initiative.total",
   "packs": [
     {
-      "name": "races4d",
-      "label": "Races",
-      "type": "Item",
-      "path": "packs/races4d.db"
+      "name": "macros",
+      "label": "Macros (TRG Prime)",
+      "path": "packs/macros",
+      "type": "Macro"
     },
     {
-      "name": "heritages4d",
-      "label": "Heritages",
-      "type": "Item",
-      "path": "packs/heritages4d.db",
-      "system": "trpg-prime",
-      "flags": {}
+      "name": "races",
+      "label": "Races (TRG Prime)",
+      "path": "packs/races",
+      "type": "Item"
+    },
+    {
+      "name": "heritages",
+      "label": "Heritages (TRG Prime)",
+      "path": "packs/heritages",
+      "type": "Item"
     },
     {
       "name": "backgrounds",
-      "label": "Backgrounds",
-      "type": "Item",
-      "path": "packs/backgrounds.db"
+      "label": "Backgrounds (TRG Prime)",
+      "path": "packs/backgrounds",
+      "type": "Item"
+    },
+    {
+      "name": "origins",
+      "label": "Campaign Origins (TRG Prime)",
+      "path": "packs/origins",
+      "type": "Item"
     },
     {
       "name": "classes",
-      "label": "Classes",
-      "type": "Item",
-      "path": "packs/classes.db"
+      "label": "Classes (TRG Prime)",
+      "path": "packs/classes",
+      "type": "Item"
     },
     {
       "name": "divine-aspects",
-      "label": "Divine Aspects",
-      "type": "Item",
-      "path": "packs/divine-aspects.db"
+      "label": "Divine Aspects (TRG Prime)",
+      "path": "packs/divine-aspects",
+      "type": "Item"
     },
     {
-      "name": "languages",
-      "label": "Languages",
-      "type": "Item",
-      "path": "packs/languages.db"
+      "name": "wizard-schools",
+      "label": "Wizard Schools (TRG Prime)",
+      "path": "packs/wizard-schools",
+      "type": "Item"
     },
     {
-      "name": "class-feats4b",
-      "label": "Class Feats",
-      "type": "Item",
-      "path": "packs/class-feats4b.db"
+      "name": "creature-types",
+      "label": "Creature Types (TRG Prime)",
+      "path": "packs/creature-types",
+      "type": "Item"
     },
     {
-      "name": "archetype-feats",
-      "label": "Archetype Feats",
-      "type": "Item",
-      "path": "packs/archetype-feats.db"
+      "name": "creature-classes",
+      "label": "Creature Classes (TRG Prime)",
+      "path": "packs/creature-classes",
+      "type": "Item"
     },
     {
-      "name": "general-feats4d",
-      "label": "General Feats",
-      "type": "Item",
-      "path": "packs/general-feats4d.db",
-      "system": "trpg-prime",
-      "flags": {}
+      "name": "creature-attacks",
+      "label": "Creature Attacks (TRG Prime)",
+      "path": "packs/creature-attacks",
+      "type": "Item"
     },
     {
-      "name": "companion-feats",
-      "label": "Companion Feats",
-      "type": "Item",
-      "path": "packs/companion-feats.db",
-      "system": "trpg-prime",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER",
-        "GAMEMASTER": "OWNER"
-      },
-      "flags": {}
+      "name": "creature-abilities",
+      "label": "Creature Abilities (TRG Prime)",
+      "path": "packs/creature-abilities",
+      "type": "Item"
     },
     {
-      "name": "racial-feats",
-      "label": "Racial Feats",
-      "type": "Item",
-      "path": "packs/racial-feats.db"
+      "name": "companions",
+      "label": "Animal Companions (TRG Prime)",
+      "path": "packs/companions",
+      "type": "Item"
     },
     {
-      "name": "class-abilities",
-      "label": "Class Abilities",
-      "type": "Item",
-      "path": "packs/class-abilities.db"
+      "name": "abilities",
+      "label": "Abilities (TRG Prime)",
+      "path": "packs/abilities",
+      "type": "Item"
     },
     {
-      "name": "racial-abilities",
-      "label": "Racial Abilities",
-      "type": "Item",
-      "path": "packs/racial-abilities.db"
+      "name": "feats",
+      "label": "Feats (TRG Prime)",
+      "path": "packs/feats",
+      "type": "Item"
+    },
+    {
+      "name": "spells",
+      "label": "Spells (TRG Prime)",
+      "path": "packs/spells",
+      "type": "Item"
     },
     {
       "name": "weapons",
-      "label": "Weapons",
-      "type": "Item",
-      "path": "packs/weapons.db"
+      "label": "Weapons (TRG Prime)",
+      "path": "packs/weapons",
+      "type": "Item"
     },
     {
-      "name": "armours",
-      "label": "Armour",
-      "type": "Item",
-      "path": "packs/armours.db"
+      "name": "armour",
+      "label": "Armour (TRG Prime)",
+      "path": "packs/armour",
+      "type": "Item"
     },
     {
       "name": "shields",
-      "label": "Shields",
-      "type": "Item",
-      "path": "packs/shields.db"
-    },
-    {
-      "name": "gear",
-      "label": "Gear",
-      "type": "Item",
-      "path": "packs/gear.db"
-    },
-    {
-      "name": "services",
-      "label": "Services",
-      "type": "Item",
-      "path": "packs/services.db",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      },
-      "system": "trpg-prime"
-    },
-    {
-      "name": "mounts-vehicles",
-      "label": "Mounts & Vehicles",
-      "type": "Item",
-      "path": "packs/mounts-vehicles.db",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      },
-      "system": "trpg-prime"
+      "label": "Shields (TRG Prime)",
+      "path": "packs/shields",
+      "type": "Item"
     },
     {
       "name": "ammunition",
-      "label": "Ammunition",
-      "type": "Item",
-      "path": "packs/ammunition.db"
+      "label": "Ammunition (TRG Prime)",
+      "path": "packs/ammunition",
+      "type": "Item"
     },
     {
-      "name": "consumables4b",
-      "label": "Consumables",
-      "type": "Item",
-      "path": "packs/consumables4b.db"
+      "name": "gear",
+      "label": "Gear (TRG Prime)",
+      "path": "packs/gear",
+      "type": "Item"
     },
     {
-      "name": "charged-items",
-      "label": "Charged Items",
-      "type": "Item",
-      "path": "packs/charged-items.db"
+      "name": "consumables",
+      "label": "Consumables (TRG Prime)",
+      "path": "packs/consumables",
+      "type": "Item"
     },
     {
-      "name": "wondrous-items",
-      "label": "Wondrous Items",
+      "name": "alchemical",
+      "label": "Alchemical Items (Chapter 6)",
+      "path": "packs/alchemical",
       "type": "Item",
-      "path": "packs/wondrous-items.db"
-    },
-    {
-      "name": "traditions",
-      "label": "Traditions",
-      "type": "Item",
-      "path": "packs/traditions.db"
-    },
-    {
-      "name": "spells4c",
-      "label": "Spells",
-      "type": "Item",
-      "path": "packs/spells4c.db",
-      "system": "trpg-prime"
-    },
-    {
-      "name": "specialist-spells4c",
-      "label": "Specialist Spells",
-      "type": "Item",
-      "path": "packs/specialist-spells4c.db",
-      "system": "trpg-prime"
-    },
-    {
-      "name": "unarmed-attacks",
-      "label": "Unarmed Attacks",
-      "path": "packs/unarmed-attacks.db",
-      "type": "Item",
-      "system": "trpg-prime",
+      "system": "trg-prime",
       "ownership": {
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
@@ -233,177 +291,105 @@
     },
     {
       "name": "afflictions",
-      "label": "Afflictions",
+      "label": "Afflictions (TRG Prime)",
+      "path": "packs/afflictions",
       "type": "Item",
-      "path": "packs/afflictions.db",
-      "system": "trpg-prime",
+      "system": "trg-prime",
       "ownership": {
         "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER",
-        "GAMEMASTER": "OWNER"
-      },
-      "flags": {}
-    },
-    {
-      "name": "conditions",
-      "label": "Conditions",
-      "path": "packs/conditions.db",
-      "type": "Item",
-      "system": "trpg-prime"
-    },
-    {
-      "name": "macros",
-      "label": "TRPG Prime Macros",
-      "type": "Macro",
-      "path": "packs/macros.db"
-    },
-    {
-      "name": "creature-abilities",
-      "label": "Creature Abilities",
-      "type": "Item",
-      "path": "packs/creature-abilities.db",
-      "system": "trpg-prime",
-      "ownership": {
-        "PLAYER": "NONE",
-        "ASSISTANT": "OWNER",
-        "GAMEMASTER": "OWNER"
+        "ASSISTANT": "OWNER"
       }
     },
     {
-      "name": "creature-races",
-      "label": "Creature Races",
-      "type": "Item",
-      "path": "packs/creature-races.db",
-      "system": "trpg-prime",
-      "flags": {}
+      "name": "vehicles",
+      "label": "Vehicles (TRG Prime)",
+      "path": "packs/vehicles",
+      "type": "Actor"
     },
     {
-      "name": "creature-heritages",
-      "label": "Creature Heritages",
-      "type": "Item",
-      "path": "packs/creature-heritages.db",
-      "system": "trpg-prime",
-      "flags": {}
+      "name": "familiars",
+      "label": "Familiar Abilities",
+      "path": "packs/familiars",
+      "type": "Item"
     },
     {
-      "name": "creature-templates",
-      "label": "Creature Codex Templates",
-      "type": "Item",
-      "path": "packs/creature-templates.db",
-      "system": "trpg-prime",
-      "flags": {}
+      "name": "runes",
+      "label": "Runes",
+      "path": "packs/runes",
+      "type": "Item"
     },
     {
-      "name": "creature-codex-rules",
-      "label": "Creature Codex Rules",
-      "type": "JournalEntry",
-      "path": "packs/creature-codex-rules.db",
-      "system": "trpg-prime",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER",
-        "GAMEMASTER": "OWNER"
-      },
-      "flags": {}
+      "name": "charged-items",
+      "label": "Charged Items",
+      "path": "packs/charged-items",
+      "type": "Item"
     },
     {
-      "name": "templates",
-      "label": "Templates",
-      "type": "Item",
-      "path": "packs/templates.db",
-      "system": "trpg-prime",
-      "flags": {}
+      "name": "wondrous",
+      "label": "Wondrous Items",
+      "path": "packs/wondrous",
+      "type": "Item"
+    },
+    {
+      "name": "specific-items",
+      "label": "Specific Magic Armour & Weapons",
+      "path": "packs/specific-items",
+      "type": "Item"
+    },
+    {
+      "name": "test-items",
+      "label": "Test Items (Chapter 11)",
+      "path": "packs/test-items",
+      "type": "Item"
     }
   ],
   "packFolders": [
     {
-      "name": "Core Rulebook Items",
-      "sorting": "a",
-      "color": "#2f5d8c",
+      "name": "Core Rulebook",
+      "sorting": "m",
+      "color": "#6f0f17",
       "packs": [
-        "races4d",
-        "heritages4d",
+        "macros",
+        "races",
+        "heritages",
         "backgrounds",
+        "origins",
         "classes",
         "divine-aspects",
-        "languages",
-        "class-feats4b",
-        "archetype-feats",
-        "general-feats4d",
-        "companion-feats",
-        "racial-feats",
-        "class-abilities",
-        "racial-abilities",
-        "weapons",
-        "armours",
-        "shields",
-        "gear",
-        "services",
-        "mounts-vehicles",
-        "ammunition",
-        "consumables4b",
-        "charged-items",
-        "wondrous-items",
-        "traditions",
-        "spells4c",
-        "specialist-spells4c",
-        "unarmed-attacks",
-        "afflictions",
-        "conditions",
-        "templates"
-      ],
-      "folders": []
-    },
-    {
-      "name": "Creature",
-      "sorting": "a",
-      "color": "#7a4d24",
-      "packs": [
+        "wizard-schools",
+        "creature-types",
+        "creature-classes",
+        "creature-attacks",
         "creature-abilities",
-        "creature-races",
-        "creature-heritages",
-        "creature-templates",
-        "creature-codex-rules"
-      ],
-      "folders": []
-    },
-    {
-      "name": "PC Archive, Scenes & TRPG Macros",
-      "sorting": "a",
-      "color": "#5a527c",
-      "packs": [
-        "macros"
-      ],
-      "folders": []
+        "companions",
+        "abilities",
+        "feats",
+        "spells",
+        "weapons",
+        "armour",
+        "shields",
+        "ammunition",
+        "gear",
+        "consumables",
+        "alchemical",
+        "vehicles",
+        "familiars",
+        "runes",
+        "charged-items",
+        "wondrous",
+        "specific-items",
+        "test-items"
+      ]
     }
   ],
-  "socket": false,
-  "manifest": "https://raw.githubusercontent.com/snowtroll75-debug/trpg-prime/main/system.json",
-"download": "https://github.com/snowtroll75-debug/trpg-prime/releases/latest/download/trpg-prime.zip",
-  "background": "systems/trpg-prime/assets/anvil-impact.png",
-  "gridDistance": 5,
-  "gridUnits": "ft",
-  "primaryTokenAttribute": "hitPoints",
-  "secondaryTokenAttribute": "powerPoints",
-  "name": "trpg-prime",
-  "documentTypes": {
-    "Actor": {
-      "character": {},
-      "npc": {},
-      "companion": {},
-      "familiar": {},
-      "party": {}
-    },
-    "Item": {
-      "item": {},
-      "feature": {},
-      "spell": {},
-      "weapon": {},
-      "armor": {},
-      "shield": {},
-      "template": {},
-      "affliction": {}
-    }
+  "grid": {
+    "distance": 5,
+    "units": "ft"
   },
-  "manifestVersion": 1
+  "primaryTokenAttribute": "resources.hp",
+  "secondaryTokenAttribute": "resources.pp",
+  "socket": true,
+  "url": "https://www.trarisgames.co.uk/core/",
+  "download": "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.633.1/trg-prime.zip",
+  "manifest": "https://raw.githubusercontent.com/snowtroll75-debug/trpg-prime/main/system.json"
 }

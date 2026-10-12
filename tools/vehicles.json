@@ -1,0 +1,352 @@
+{
+  "_what": "The ten vehicles of Chapter 6, pages 176-177, as printed: the stat blocks, and the Mounts & Vehicles table's cost, size and rarity.",
+  "_why": "Graham's R11 of the block-17 audit (20 September 2026): a Vehicles compendium of NPC-type actors carrying the printed DB, Fort, Hardness, HP, immunities, weakness, speed, crew, passengers, load, and the skill and DC to pilot. tools/build-vehicles.mjs writes packs/vehicles from this file and nothing else, so every number here is reviewable and every number in the pack came from here.",
+  "_readings": [
+    "Level: the stat block's, not the table's (erratum E5) - the stat block says its level 'determines its DC for piloting and construction'; the table's figure is kept as tableLevel.",
+    "Hardness is applied as natural DR, the one damage reduction an actor has.",
+    "'Object immunities' is defined nowhere in the book (erratum); critical hits and precision damage are applied, and the phrase is kept in the notes.",
+    "'Ride' is not a skill (erratum E7): the Ride vehicles are piloted with Handle Animal, as the Carriage and Chariot say.",
+    "'Check varies' (the three ships): the pilot picks the skill."
+  ],
+  "vehicles": [
+    {
+      "name": "Canoe",
+      "level": 1,
+      "dcMod": -2,
+      "dcLabel": "Easy",
+      "check": [
+        "athletics"
+      ],
+      "checkText": "Athletics",
+      "size": "medium",
+      "tableSize": "M",
+      "length": 10,
+      "width": 3,
+      "height": 2,
+      "db": 10,
+      "fort": 6,
+      "hardness": 4,
+      "hp": 10,
+      "weakness": "",
+      "speed": {
+        "swim": 30
+      },
+      "speedText": "swim 30 feet (rowed)",
+      "crew": 1,
+      "passengers": 1,
+      "load": "800 lbs",
+      "qualities": [],
+      "cost": "200 gp",
+      "rarity": "Uncommon",
+      "tableLevel": 1,
+      "details": "Light slender boat",
+      "description": "A canoe is a lightweight and slender boat typically made of wood. It has a sleek design with a pointed bow and stern, allowing it to glide smoothly through the water. Canoes are propelled by a paddle, which is used to push and pull the water for forward motion and steering."
+    },
+    {
+      "name": "Cart",
+      "level": 1,
+      "dcMod": 0,
+      "dcLabel": "",
+      "check": [
+        "handleAnimal"
+      ],
+      "checkText": "Ride",
+      "size": "large",
+      "tableSize": "L",
+      "length": 10,
+      "width": 5,
+      "height": 4,
+      "db": 10,
+      "fort": 6,
+      "hardness": 4,
+      "hp": 10,
+      "weakness": "",
+      "speed": {},
+      "speedText": "the Speed of the slowest pulling creature (pulled by 1 Large creature)",
+      "crew": 1,
+      "passengers": 1,
+      "load": "1,000 lbs",
+      "qualities": [],
+      "cost": "30 gp",
+      "rarity": "Common",
+      "tableLevel": 0,
+      "details": "Standard cart for carrying cargo",
+      "description": "A simple draft wagon is a vehicle designed for hauling cargo overland. It features a sturdy construction with a single axle and a flat bed, providing ample space for carrying goods, supplies, or other items. The wagon is typically pulled by draft animals such as horses or oxen, utilizing their strength to transport heavy loads. The flatbed allows for easy loading and unloading of cargo, and it may be equipped with removable side panels or stakes to secure the goods during transportation."
+    },
+    {
+      "name": "Carriage",
+      "level": 4,
+      "dcMod": -2,
+      "dcLabel": "Easy",
+      "check": [
+        "handleAnimal"
+      ],
+      "checkText": "Ride (Handle Animal)",
+      "size": "large",
+      "tableSize": "L",
+      "length": 10,
+      "width": 10,
+      "height": 7,
+      "db": 14,
+      "fort": 8,
+      "hardness": 5,
+      "hp": 30,
+      "weakness": "",
+      "speed": {},
+      "speedText": "the Speed of the slowest pulling creature (pulled by 2 Large creatures)",
+      "crew": 1,
+      "passengers": 2,
+      "load": "800 lbs",
+      "qualities": [],
+      "cost": "1,000 gp",
+      "rarity": "Common",
+      "tableLevel": 2,
+      "details": "Comfortable transport",
+      "description": "A carriage is a robust vehicle designed to provide shelter and protection for both cargo and the driver. It features a sturdy frame, solid walls, and a roof that completely encloses the interior space. The vehicle is typically used for transporting passengers or valuable cargo that requires protection from the elements."
+    },
+    {
+      "name": "Chariot, Light",
+      "level": 2,
+      "dcMod": 2,
+      "dcLabel": "Hard",
+      "check": [
+        "handleAnimal"
+      ],
+      "checkText": "Ride (Handle Animal)",
+      "size": "large",
+      "tableSize": "L",
+      "length": 5,
+      "width": 5,
+      "height": 4,
+      "db": 10,
+      "fort": 6,
+      "hardness": 5,
+      "hp": 20,
+      "weakness": "",
+      "speed": {},
+      "speedText": "the Speed of the slowest pulling creature (pulled by 1 Large creature)",
+      "crew": 1,
+      "passengers": 0,
+      "load": "400 lbs",
+      "qualities": [],
+      "cost": "250 gp",
+      "rarity": "Common",
+      "tableLevel": 0,
+      "details": "Single person mount pulled vehicle",
+      "description": "A chariot consists of a lightweight, two-wheeled cart pulled by horses and driven by a skilled charioteer. The charioteer stands in the chariot, often holding the reins with one hand while wielding weapons such as spears, javelins, or bows with the other. The wheels of the chariot are typically spoked, allowing for smoother movement and manoeuvrability."
+    },
+    {
+      "name": "Galley",
+      "level": 13,
+      "dcMod": 0,
+      "dcLabel": "",
+      "check": [],
+      "checkText": "varies",
+      "size": "colossal",
+      "tableSize": "C",
+      "length": 120,
+      "width": 20,
+      "height": 25,
+      "db": 24,
+      "fort": 20,
+      "hardness": 15,
+      "hp": 120,
+      "weakness": "fire",
+      "speed": {
+        "swim": 30
+      },
+      "speedText": "swim 30 feet (rowed, wind)",
+      "crew": 22,
+      "crewNote": "20 rowers",
+      "passengers": 6,
+      "load": "15 tons",
+      "qualities": [
+        [
+          "Manoeuvrable",
+          "With a full complement of skilled rowers, a rowed galley can turn swiftly, turn in place, and even row backwards. Each 90-degree turn made in less than a vehicle length costs 5 extra feet of movement. It can row backwards no faster than half its speed, and it can't turn while rowing backwards."
+        ]
+      ],
+      "cost": "30,000 gp",
+      "rarity": "Common",
+      "tableLevel": 10,
+      "details": "Very large ocean vessel",
+      "description": "A galley is a long, slender vessel powered primarily by oars. It has a low, streamlined profile and is typically propelled by rowers seated in banks or tiers along the length of the ship."
+    },
+    {
+      "name": "Rowboat",
+      "level": 1,
+      "dcMod": 0,
+      "dcLabel": "",
+      "check": [
+        "athletics"
+      ],
+      "checkText": "Athletics",
+      "size": "medium",
+      "tableSize": "M",
+      "length": 10,
+      "width": 5,
+      "height": 3,
+      "db": 10,
+      "fort": 6,
+      "hardness": 5,
+      "hp": 12,
+      "weakness": "",
+      "speed": {
+        "swim": 20
+      },
+      "speedText": "swim 20 feet (rowed)",
+      "crew": 1,
+      "passengers": 2,
+      "load": "1,000 lbs",
+      "qualities": [],
+      "cost": "150 gp",
+      "rarity": "Common",
+      "tableLevel": 0,
+      "details": "Simple single oared water vessel",
+      "description": "This small watercraft is guided by row or sometimes a small sail."
+    },
+    {
+      "name": "Sailing Ship",
+      "level": 12,
+      "dcMod": 0,
+      "dcLabel": "",
+      "check": [],
+      "checkText": "varies",
+      "size": "gargantuan",
+      "tableSize": "G",
+      "length": 80,
+      "width": 20,
+      "height": 25,
+      "db": 22,
+      "fort": 18,
+      "hardness": 15,
+      "hp": 100,
+      "weakness": "fire",
+      "speed": {
+        "swim": 40
+      },
+      "speedText": "swim 40 feet (wind)",
+      "crew": 9,
+      "passengers": 10,
+      "load": "10 tons",
+      "qualities": [
+        [
+          "Sluggish",
+          "This vehicle must move twice its length for each 90-degree turn it makes."
+        ]
+      ],
+      "cost": "20,000 gp",
+      "rarity": "Common",
+      "tableLevel": 9,
+      "details": "Large ocean vessel",
+      "description": "A multi masted ship with three or more head sails."
+    },
+    {
+      "name": "Schooner",
+      "level": 9,
+      "dcMod": 0,
+      "dcLabel": "",
+      "check": [],
+      "checkText": "varies",
+      "size": "huge",
+      "tableSize": "H",
+      "length": 30,
+      "width": 15,
+      "height": 20,
+      "db": 20,
+      "fort": 14,
+      "hardness": 10,
+      "hp": 80,
+      "weakness": "fire",
+      "speed": {
+        "swim": 30
+      },
+      "speedText": "swim 30 feet (wind)",
+      "crew": 4,
+      "passengers": 6,
+      "load": "10 tons",
+      "qualities": [
+        [
+          "Sluggish",
+          "This vehicle must move twice its length for each 90-degree turn it makes."
+        ]
+      ],
+      "cost": "7,500 gp",
+      "rarity": "Common",
+      "tableLevel": 6,
+      "details": "Small ocean vessel",
+      "description": "A schooner is a sailing vessel characterized by a single mast and two or more head sails (fore-and-aft sails) that are set on separate masts or booms. It is known for its versatility and speed, making it a popular choice for both commercial and recreational purposes."
+    },
+    {
+      "name": "Sleigh",
+      "level": 2,
+      "dcMod": 0,
+      "dcLabel": "",
+      "check": [
+        "handleAnimal"
+      ],
+      "checkText": "Ride",
+      "size": "large",
+      "tableSize": "L",
+      "length": 10,
+      "width": 5,
+      "height": 4,
+      "db": 12,
+      "fort": 8,
+      "hardness": 5,
+      "hp": 12,
+      "weakness": "",
+      "speed": {},
+      "speedText": "the Speed of the slowest pulling creature (pulled by 2 Large creatures or 6 Medium creatures)",
+      "crew": 1,
+      "passengers": 1,
+      "load": "500 lbs",
+      "qualities": [
+        [
+          "Sluggish",
+          "This vehicle must move twice its length for each 90-degree turn it makes."
+        ],
+        [
+          "Ice Traverser",
+          "Ice and snow are not difficult terrain to a sleigh, but all other terrains are difficult terrain for it."
+        ]
+      ],
+      "cost": "400 gp",
+      "rarity": "Common",
+      "tableLevel": 1,
+      "details": "Vehicle for traversing arctic terrain",
+      "description": "A light vehicle for traversing arctic terrain."
+    },
+    {
+      "name": "Wagon",
+      "level": 2,
+      "dcMod": 0,
+      "dcLabel": "",
+      "check": [
+        "handleAnimal"
+      ],
+      "checkText": "Ride",
+      "size": "large",
+      "tableSize": "L",
+      "length": 10,
+      "width": 10,
+      "height": 7,
+      "db": 10,
+      "fort": 8,
+      "hardness": 5,
+      "hp": 12,
+      "weakness": "",
+      "speed": {},
+      "speedText": "the Speed of the slowest pulling creature (pulled by 2 Large creatures)",
+      "crew": 1,
+      "passengers": 2,
+      "load": "1,500 lbs",
+      "qualities": [],
+      "cost": "250 gp",
+      "rarity": "Common",
+      "tableLevel": 1,
+      "details": "Large vehicle for carrying cargo or passengers",
+      "description": "This two-axle cargo hauler is pulled by a single steed or horse team and provides decent cover during poor weather."
+    }
+  ]
+}

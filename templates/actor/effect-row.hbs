@@ -1,0 +1,66 @@
+          <div
+            class="effect-row {{#if effect.disabled}}disabled{{/if}}"
+            data-effect-id="{{effect.id}}"
+          >
+            <button type="button" class="item-name" data-action="effectEdit">
+              <img src="{{effect.img}}" alt="">
+              <strong>{{effect.name}}</strong>
+            </button>
+            <span class="effect-value">
+              {{#if effect.valued}}
+                <button
+                  type="button"
+                  class="value-step"
+                  data-action="conditionValueStep"
+                  data-delta="-1"
+                  data-tooltip="Reduce by 1 (removes it at 0)"
+                >&minus;</button>
+                <button
+                  type="button"
+                  class="value-current"
+                  data-action="conditionValueSet"
+                  data-tooltip="Set an exact value"
+                >{{effect.value}}</button>
+                <button
+                  type="button"
+                  class="value-step"
+                  data-action="conditionValueStep"
+                  data-delta="1"
+                  data-tooltip="Increase by 1"
+                >+</button>
+              {{else}}
+                <span class="value-none">&mdash;</span>
+              {{/if}}
+            </span>
+            <span>{{effect.origin}}</span>
+            <span>{{effect.duration}}</span>
+            <button type="button" class="effect-toggle" data-action="effectToggle">
+              {{#if effect.disabled}}
+                <i class="fa-solid fa-toggle-off"></i> Inactive
+              {{else}}
+                <i class="fa-solid fa-toggle-on"></i> Active
+              {{/if}}
+            </button>
+            <div class="item-controls">
+              <button type="button" data-action="effectEdit"><i class="fa-solid fa-pen-to-square"></i></button>
+              {{#if @root.editable}}
+                {{#if effect.deletable}}
+                  <button
+                    type="button"
+                    data-action="effectDelete"
+                    {{#if effect.deleteWarn}}data-warn="{{effect.deleteReason}}" data-tooltip="{{effect.deleteReason}}"{{/if}}
+                  ><i class="fa-solid fa-trash"></i></button>
+                {{else}}
+                  {{!-- A transferred effect belongs to its item and cannot be
+                        deleted from here. Offering the item is the honest
+                        control; a bin would promise something it cannot do. --}}
+                  <button
+                    type="button"
+                    data-action="effectGoToItem"
+                    data-item-id="{{effect.parentItemId}}"
+                    data-tooltip="{{effect.deleteReason}}"
+                  ><i class="fa-solid fa-up-right-from-square"></i></button>
+                {{/if}}
+              {{/if}}
+            </div>
+          </div>

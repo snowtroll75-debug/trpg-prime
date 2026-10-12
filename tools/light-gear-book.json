@@ -1,0 +1,32 @@
+{
+  "CANDLE": {
+    "heading": "CANDLE",
+    "text": "For 1 hour, a candle sheds enough light to increase the illumination level by one step to a maximum of Step 5 (Dim Light).",
+    "stepsWord": "one",
+    "cap": 5
+  },
+  "LANTERN, BULLSEYE": {
+    "heading": "LANTERN, BULLSEYE",
+    "text": "Resembling a modern marvel, this remarkable item functions like a flashlight, utilizing a focused beam of light emitted through a small front opening. It increase the illumination level by two steps to a maximum of Step 6 (Twilight) in a 75-ft. cone and consumes 1 pint of oil per 4 hours of use.",
+    "stepsWord": "two",
+    "cap": 6
+  },
+  "LANTERN, CANDLE": {
+    "heading": "LANTERN, CANDLE",
+    "text": "Exquisite in its simplicity, this delicate paper lantern eschews the use of oil and instead employs the warm glow of candles. Emitting a gentle and subtle light, it casts a faint radiance, increasing the illumination level by two steps to a maximum of Step 5 (Dim Light). To sustain its gentle luminosity, the lantern consumes one candle per hour of continuous use, allowing for a portable source of light.",
+    "stepsWord": "two",
+    "cap": 5
+  },
+  "LANTERN, HOODED": {
+    "heading": "LANTERN, HOODED",
+    "text": "With a cleverly designed hood that can be lowered to conceal its light without extinguishing it, this versatile lantern offers flexibility in controlling its illumination. This lantern increases the illumination level by two steps to a maximum of Step 7 (Flickering Light). The lantern consumes approximately 1 pint of oil for every 4 hours of continuous use, ensuring a steady source of light during extended periods of exploration or activity.",
+    "stepsWord": "two",
+    "cap": 7
+  },
+  "TORCH": {
+    "heading": "TORCH",
+    "text": "A torch burns for 1-hour, shedding light and increasing the illumination level by two steps to a maximum of Step 7 (Flickering Light) for 1 hour. If a torch is used in combat, treat it as an improvised club that also inflicts 1 fire damage.",
+    "stepsWord": "two",
+    "cap": 7
+  }
+}
