@@ -1,6 +1,7 @@
 import { TRGCheck } from "../dice/check.mjs";
 import { innateAttackFor, innateSaveFor } from "./innate-printed.mjs";
 import { highMagicFumble, highMagicHeightens, highMagicSaveStep } from "./high-magic.mjs";
+import { HARMONIZE_FLAG, harmonyTotal } from "../harmonize.mjs";
 import { classTradition, grantedTraditions, spellcraftAbilityFor } from "./caster-tier-feats.mjs";
 import { CHAIN_PROFILES, OPEN_ENDED, rollChain, percentileValue } from "../dice/open-ended.mjs";
 import { attackOutcome, lookupTableRow, mapPenalty, spellCountsTowardMAP } from "../combat/attack.mjs";
@@ -3173,6 +3174,14 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     // HIGH MAGIC (3.633.0, F&F 3.0 R12) heightens for free.
     const savePP = heightenedSavePP(totalPP, cap, highMagicHeightens(actor, mm.heightenSave));
     const innateSaveHere = isInnate ? innateSaveFor(spell, castingAbility, innateLevel) : null;
+    // HARMONIZE (3.634.0, F&F 3.0 block 4 R10): companions' aid waiting for
+    // this innate spell's save DC this round; spent by this cast.
+    const harmonyRecord = isInnate ? actor.getFlag?.(SYSTEM_ID, HARMONIZE_FLAG) : null;
+    const harmonyHere = harmonyTotal(harmonyRecord, {
+      combatId: game.combat?.started ? game.combat.id : "", round: game.combat?.started ? Number(game.combat.round ?? 0) : 0,
+      worldTime: Number(game.time?.worldTime ?? 0)
+    });
+    if (harmonyRecord && actor.unsetFlag) await actor.unsetFlag(SYSTEM_ID, HARMONIZE_FLAG);
     // "Innate Save = 10 + magical ability score + level" (Chapter 9) — a
     // creature's spell-like does not derive its DC from a PP cost it never
     // paid. This is the same number the old innate card printed; the change
@@ -3186,7 +3195,8 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       // Page 237's optional rule, when the world has turned it on.
       + harderSaveDCStep
       // HIGH MAGIC: "All casting DCs are increased by 2" — not on a printed DC.
-      + highMagicSaveStep(actor, { printed: innateSaveHere?.printed === true });
+      + highMagicSaveStep(actor, { printed: innateSaveHere?.printed === true })
+      + harmonyHere;
     // Runemage archetype (Chapter 5): "All Save DCs are increased by 1."
     // WAS `runemageSave > 0` AT THE CALL SITE BELOW, comparing a boolean
     // to a number — it happened to work, because `true > 0`. Kept as a
@@ -3255,7 +3265,7 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
           // Heighten Spell is named separately because it does not ADD to
           // the DC: it rebuilds the base from a larger PP, so no reading
           // of the spell's printed cost explains the number without it.
-          `Save: <strong>${castDefence}</strong> against DC <strong>${saveDC}</strong>${fixed > 0 ? (isItemCast ? ` (${esc(itemCast.saveDCSource || "the item's own")})` : " (set by the effect that granted this)") : isItemCast ? " (your own — you are the one casting it)" : isInnate ? (innateSaveHere?.printed ? " (as printed)" : " (10 + magical ability + level)") : isSpecialist ? " (Specialist — higher of ability+level or spellcraft)" : ""}${!fixed && !isInnate && savePP !== totalPP ? ` (Heighten Spell — as ${savePP} PP)` : ""}${!fixed && highMagicSaveStep(actor, { printed: innateSaveHere?.printed === true }) ? " (+2 High Magic)" : ""}${describeParts(saveDCResult.parts)}.`
+          `Save: <strong>${castDefence}</strong> against DC <strong>${saveDC}</strong>${fixed > 0 ? (isItemCast ? ` (${esc(itemCast.saveDCSource || "the item's own")})` : " (set by the effect that granted this)") : isItemCast ? " (your own — you are the one casting it)" : isInnate ? (innateSaveHere?.printed ? " (as printed)" : " (10 + magical ability + level)") : isSpecialist ? " (Specialist — higher of ability+level or spellcraft)" : ""}${!fixed && !isInnate && savePP !== totalPP ? ` (Heighten Spell — as ${savePP} PP)` : ""}${!fixed && highMagicSaveStep(actor, { printed: innateSaveHere?.printed === true }) ? " (+2 High Magic)" : ""}${!fixed && harmonyHere ? ` (${harmonyHere > 0 ? "+" : ""}${harmonyHere} Harmonize)` : ""}${describeParts(saveDCResult.parts)}.`
         )
       );
     }

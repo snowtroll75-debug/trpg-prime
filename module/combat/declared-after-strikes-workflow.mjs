@@ -26,7 +26,7 @@ const USED_FLAG = "strikeRidersUsed";
  * @param {{critical?: string|null}} opts the critical's severity, or null
  * @returns {Promise<string[]>} lines for the damage card
  */
-export async function applyDeclaredAfterStrikes(actor, weapon, targetActor, { critical = null } = {}) {
+export async function applyDeclaredAfterStrikes(actor, weapon, targetActor, { critical = null, damageTaken = 0 } = {}) {
   const lines = [];
   if (!actor || !weapon || !targetActor) return lines;
   const specs = declaredAfterStrikes(declarationCarriers(actor));
@@ -42,7 +42,8 @@ export async function applyDeclaredAfterStrikes(actor, weapon, targetActor, { cr
     criticalImmune: Boolean(defences.immunities?.has?.("critical")),
     used,
     targetTypes: creatureTypesOf(targetActor.system ?? {}),
-    targetTraits: creatureTraits(targetActor.system ?? {})
+    targetTraits: creatureTraits(targetActor.system ?? {}),
+    damageTaken
   };
   const level = Math.max(0, Math.floor(Number(actor.system?.identity?.level ?? 0) || 0));
   let next = null;
@@ -58,6 +59,7 @@ export async function applyDeclaredAfterStrikes(actor, weapon, targetActor, { cr
       const healed = Number(await healActor(actor, spec.selfHeal, { magical: false })) || 0;
       lines.push(`<strong>${spec.label}</strong> — ${actor.name} is healed <strong>${healed} HP</strong>.`);
     }
+    if (spec.selfCondition) lines.push(...await applySelfCondition(actor, spec));
     if (spec.expose) lines.push(...await exposeFromStrike(actor, targetActor, spec, level));
     if (spec.save) lines.push(...await rollDeclaredSave(actor, targetActor, spec, level, critical));
     if (spec.dispel) lines.push(...await dispelFromStrike(actor, targetActor, spec, level));
@@ -65,6 +67,25 @@ export async function applyDeclaredAfterStrikes(actor, weapon, targetActor, { cr
   }
   if (next && actor.setFlag) await actor.setFlag(SYSTEM_ID, USED_FLAG, next);
   return lines;
+}
+
+/**
+ * THE STRIKER'S OWN CONDITION (3.635.0, F&F 3.0 block 5 R5) — Dusty Haze's
+ * Concealed "until the beginning of its next turn": one round while a
+ * combat runs, as a strike rider's condition is (strike-riders-workflow.mjs);
+ * outside one there is no round to count, so it is left for the GM to lift.
+ */
+async function applySelfCondition(actor, spec) {
+  const { CONDITIONS } = await import("../conditions/registry.mjs");
+  const cond = CONDITIONS[spec.selfCondition.key];
+  if (!cond) return [`<em>${spec.label} names an unknown condition "${spec.selfCondition.key}".</em>`];
+  const { applyConditionTags, formatAppliedTags } = await import("./effect-application-workflow.mjs");
+  const rounds = spec.selfCondition.rounds;
+  const applied = await applyConditionTags(actor, [{ key: spec.selfCondition.key, label: cond.label, value: null }], {
+    expiresRound: rounds && game.combat?.started ? Number(game.combat.round ?? 0) + rounds : null,
+    spellEffect: true
+  });
+  return [`<strong>${spec.label}</strong> — ${actor.name}: ${formatAppliedTags(applied)}${rounds && game.combat?.started ? " until the beginning of its next turn" : ""}.`];
 }
 
 async function rollDeclaredSave(actor, targetActor, spec, level, severity) {

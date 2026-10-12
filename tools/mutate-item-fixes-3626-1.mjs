@@ -25,7 +25,7 @@ const MUTATIONS = [
   { name: "the hit path never asks", file: A, from: "    const declaredDamage = await declaredDamageBonus(actor, weapon, { skipPrompt: skipDialog(event) });\n", to: "    const declaredDamage = { bonus: 0, lines: [] };\n", breaks: "B1" },
   { name: "the formula ignores the total", file: A, from: "    formula += declaredDamageTotal > 0 ? ` + ${declaredDamageTotal}` : ` - ${Math.abs(declaredDamageTotal)}`;\n", to: "", breaks: "B2" },
   { name: "the workflow asks even when every row is automatic", file: W, from: "  if (offered.length && !skipPrompt && DialogV2) {", to: "  if (!skipPrompt && DialogV2) {", breaks: "B3" },
-  { name: "a rune's packet is as mundane as it ever was", file: A, from: "        magical: rune.mundane ? strikeIsMagical : true\n", to: "        magical: strikeIsMagical\n", breaks: "C2" },
+  { name: "a rune's packet is as mundane as it ever was", file: A, from: "        magical: rune.mundane ? strikeIsMagical : true,\n", to: "        magical: strikeIsMagical,\n", breaks: "C2" },
   { name: "an unguent's packet is magical by itself", file: A, from: "      .map((packet) => ({ ...packet, mundane: true }));", to: "      .map((packet) => ({ ...packet }));", breaks: "C2" },
   { name: "a partial ward is not recorded", file: E, from: "          wardedBy = `${ward.label}, ${incomingValue} → ${kept}`;\n", to: "", breaks: "D2" },
   { name: "a partial ward is not said", file: E, from: "      const partly = tag.wardedPartly ? ` (reduced by ${tag.wardedPartly})` : \"\";", to: "      const partly = \"\";", breaks: "D1" },

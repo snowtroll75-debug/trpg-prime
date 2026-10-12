@@ -152,6 +152,7 @@ import { registerSpawnHooks } from "../module/spawn-workflow.mjs";
 import { registerSwarmHooks } from "../module/swarm-workflow.mjs";
 import { registerAuraTraitEffectHooks } from "../module/aura-trait-effect-workflow.mjs";
 import { registerExtraplanarHooks } from "../module/extraplanar-workflow.mjs";
+import { registerAllyAuraEffectHooks } from "../module/ally-aura-effects-workflow.mjs";
 import { registerAlignedControlHooks } from "../module/aligned-control-workflow.mjs";
 
 Hooks.once("init", () => {
@@ -299,6 +300,7 @@ Hooks.once("init", () => {
   registerSwarmHooks();
   registerAuraTraitEffectHooks();
   registerExtraplanarHooks();
+  registerAllyAuraEffectHooks();
   registerAlignedControlHooks();
   // …and whether the creature IS in sunlight, as the GM marks the scene or
   // the token (3.627.0): the config fields and the lift on a change.

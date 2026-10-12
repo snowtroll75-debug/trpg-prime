@@ -204,3 +204,23 @@ export function weaponDamageFormula(weapon, { bab = 0, strength = 0, extraDice =
   const flat = (m[3] ? Number(m[3]) : 0) + (Number(strength) || 0);
   return `${dice}d${m[2]}${flat ? (flat > 0 ? `+${flat}` : `${flat}`) : ""}`;
 }
+
+/**
+ * A DAMAGE TYPE CHOSEN ON USE (3.634.0; F&F 3.0 block 4, R7). The Cherubim's
+ * Radiant Eyes: "a beam of energy, either cold or fire". Declared on the
+ * area as `damageChoice: ["cold", "fire"]`; the user picks one when it is
+ * used, and the area's damage takes that type.
+ * @returns {string[]} the choices, [] when the type is fixed
+ */
+export function areaDamageChoices(spec) {
+  const list = (Array.isArray(spec?.damageChoice) ? spec.damageChoice : []).map((t) => String(t ?? "").trim().toLowerCase()).filter(Boolean);
+  return list.length > 1 && spec?.damage?.formula ? [...new Set(list)] : [];
+}
+
+/** The spec with the chosen type set; the choice must be one offered. */
+export function withChosenDamageType(spec, choice) {
+  const choices = areaDamageChoices(spec);
+  const pick = String(choice ?? "").trim().toLowerCase();
+  if (!choices.includes(pick)) return spec;
+  return { ...spec, damage: { ...spec.damage, type: pick } };
+}

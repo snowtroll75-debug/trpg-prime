@@ -1,5 +1,5 @@
 import { DAMAGE_TYPES, SIZE_TABLE } from "../config.mjs";
-import { creatureSecondaryPackets } from "./creature-secondary.mjs";
+import { alignedPacketTraits, creatureSecondaryPackets } from "./creature-secondary.mjs";
 import { TRGCheck } from "../dice/check.mjs";
 import {
   armourRendingValue,
@@ -5368,7 +5368,11 @@ async function resolveWeaponDamage(
         // loop is a magical source EXCEPT an unguent's, which is alchemy
         // on the blade and is as magical as the blade. Graham had this on
         // the observations list from 0.7.0's test.
-        magical: rune.mundane ? strikeIsMagical : true
+        magical: rune.mundane ? strikeIsMagical : true,
+        // AN ALIGNED PACKET CARRIES ITS ALIGNMENT (3.634.0, F&F 3.0 block 4
+        // R3): "Weakness good" and "evil resistance" are alignment-keyed
+        // defences, read against the damage's source traits.
+        sourceTraits: alignedPacketTraits(rune)
       });
       lines.push(line(runeDamageLine(rune, runeRoll.total)));
       if (runePacket.taken !== runeRoll.total) {
@@ -5384,7 +5388,7 @@ async function resolveWeaponDamage(
         Hooks.callAll("trgPrimeSecondaryDamage", { attacker: actor, target: targetActor, amount: runePacket.taken, type: rune.type, weapon });
         await applyDamageAndCheckDying(targetActor, runePacket.taken, {
           isCritical: false,
-          damageTypes: [String(rune.type ?? "").trim().toLowerCase()].filter(Boolean),
+          damageTypes: [String(rune.type ?? "").trim().toLowerCase(), ...alignedPacketTraits(rune)].filter(Boolean),
           sourceLevel: Number(actor.system?.identity?.level ?? 0),
           sourceName: actor.name
         });
@@ -5476,7 +5480,7 @@ async function resolveWeaponDamage(
     // …AND THE ATTACKER'S OWN (3.627.0): a feat's after-strike on a critical
     // injury with a named natural attack — Ghoulish Venom, Paralytic Touch,
     // the Unliving diseases. See combat/declared-after-strikes.mjs.
-    for (const afterLine of await applyDeclaredAfterStrikes(actor, weapon, targetActor, { critical: critical || null })) {
+    for (const afterLine of await applyDeclaredAfterStrikes(actor, weapon, targetActor, { critical: critical || null, damageTaken: Number(packet?.taken ?? 0) || 0 })) {
       lines.push(line(afterLine));
     }
     // AND WHAT FELLING THE TARGET GIVES BACK (3.627.0) — Hunger Beyond Pain.

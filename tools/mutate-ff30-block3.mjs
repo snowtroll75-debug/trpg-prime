@@ -50,7 +50,7 @@ const MUTATIONS = [
   { name: "Mucus-Bound grants no trait", file: TRAITFX, from: "grantedTraits: effect.traits, [END_TIME_FLAG]: now + effect.seconds", to: "[END_TIME_FLAG]: now + effect.seconds", breaks: "B7" },
   { name: "Mucus-Bound's end leaves the breath as it was", file: INIT, from: "  registerAuraTraitEffectHooks();\n", to: "", breaks: "B7" },
   { name: "further packets take full damage on a save", file: PERIL, from: "        const extraAmount = Math.floor(extra.roll.total * bs.damageMultiplier);", to: "        const extraAmount = extra.roll.total;", breaks: "B8" },
-  { name: "High Magic's +2 never reaches the DC", file: CAST, from: "      + highMagicSaveStep(actor, { printed: innateSaveHere?.printed === true });", to: ";", breaks: "B9" },
+  { name: "High Magic's +2 never reaches the DC", file: CAST, from: "      + highMagicSaveStep(actor, { printed: innateSaveHere?.printed === true })\n      + harmonyHere;", to: "      + harmonyHere;", breaks: "B9" },
   { name: "the EL adjustment fills no pool", file: ACTOR, from: "    for (const { path, entry } of elAdjustRows(system, elAdjustOf(this))) this.addBonus(path, entry);\n", to: "", breaks: "B10" },
   { name: "the EL adjustment adds no HP", file: ACTOR, from: "  if (elHP) hp.max = Math.max(1, hp.max + elHP);", to: "", breaks: "B10" },
   { name: "the EL field leaves the sheet", file: TPL, from: "                name=\"flags.trg-prime.elAdjust\"", to: "                name=\"flags.trg-prime.elAdjustX\"", breaks: "B10" },

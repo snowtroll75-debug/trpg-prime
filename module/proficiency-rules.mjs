@@ -1006,6 +1006,16 @@ export function proficiencyOf(profile, item) {
   if (type === "weapon" && system.improvised === true) {
     return { proficient: true, why: "an improvised attack — its own penalty applies instead" };
   }
+  // A CREATURE IS TRAINED IN ITS OWN STAT BLOCK'S WEAPONS (3.635.0; Fiends &
+  // Fables 3.0 block 5 R1 — Graham, 12 October 2026). A creature has no
+  // class granting martial proficiency, so the Animus Armour's Halberd took
+  // −4 against its printed +7; across the bestiary 29 of 32 such attacks
+  // land exactly on the printed number once it is gone. The module marks
+  // the weapons a stat block prints; one a creature picks up in play
+  // carries no mark and is judged as any other.
+  if (type === "weapon" && item?.flags?.[SYSTEM_ID]?.statBlockWeapon === true) {
+    return { proficient: true, why: "a weapon from its own stat block" };
+  }
 
   if (["weapon", "armour", "shield"].includes(type) && !String(system.category ?? "").trim()) {
     return {

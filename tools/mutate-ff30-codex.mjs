@@ -46,7 +46,7 @@ const MUTATIONS = [
   { name: "the fixed MAP is not frozen", file: COMP, from: "  if (mapRule?.kind === \"fixed\") { options.mapOverride = mapRule.fixed; options.mapFrozen = true; }", to: "  if (mapRule?.kind === \"fixed\") { options.mapOverride = mapRule.fixed; }", breaks: "A32" },
   { name: "notWeapon is ignored", file: COMP, from: "&& !(not && not.test(String(w.name ?? \"\"))));", to: ");", breaks: "A33" },
   { name: "Life Drain does not escalate", file: DAS, from: "  return { value: drain.base + drain.perHit * hits, hits: hits + 1 };", to: "  return { value: drain.base, hits: hits + 1 };", breaks: "A35" },
-  { name: "a dispel-only after-strike is dropped", file: DAS, from: "  if (!expose && !save && !raw.selfHeal && raw.dispel !== true) return null;", to: "  if (!expose && !save && !raw.selfHeal) return null;", breaks: "A36" },
+  { name: "a dispel-only after-strike is dropped", file: DAS, from: "  if (!expose && !save && !raw.selfHeal && raw.dispel !== true && !selfCondition) return null;", to: "  if (!expose && !save && !raw.selfHeal && !selfCondition) return null;", breaks: "A36" },
   { name: "Pack Attack counts allies that cannot threaten", file: PACK, from: "  return Array.from(allies ?? []).filter((a) => allyThreatens(a).threatens).length;", to: "  return Array.from(allies ?? []).length;", breaks: "A37" },
   { name: "a hovering creature falls", file: FLY, from: "  if (hover) return { falls: false, distance: 0, reason: \"hovers (Hover)\" };\n", to: "", breaks: "A38" },
   { name: "a compound leg may use any Speed", file: MV, from: "  if (leg.speedKey && speedKey && leg.speedKey !== speedKey) {", to: "  if (false) {", breaks: "A39" },

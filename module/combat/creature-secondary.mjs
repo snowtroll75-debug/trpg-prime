@@ -64,3 +64,14 @@ export function creatureSecondaryPackets(weapon, targetSystem = null) {
   }
   return out;
 }
+
+/**
+ * The alignment an ALIGNED packet carries, as the damage's source traits
+ * (3.634.0, F&F 3.0 block 4 R3) — a creature's "plus 2d6 good" and an
+ * Aligned rune alike. [] for any other packet.
+ */
+export function alignedPacketTraits(packet) {
+  if (String(packet?.type ?? "").toLowerCase() !== "aligned") return [];
+  const word = String(packet?.parameter ?? "").trim().toLowerCase();
+  return ALIGNED_TRAITS.includes(word) ? [word] : [];
+}

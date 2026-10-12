@@ -61,7 +61,10 @@ function normaliseDeclaredAfterStrike(raw) {
     }
     : null;
   const save = SAVES.includes(lower(raw.save)) ? lower(raw.save) : "";
-  if (!expose && !save && !raw.selfHeal && raw.dispel !== true) return null;
+  const selfCondition = raw.selfCondition && typeof raw.selfCondition === "object" && String(raw.selfCondition.key ?? "").trim()
+    ? { key: String(raw.selfCondition.key).trim(), rounds: Math.max(0, Math.trunc(Number(raw.selfCondition.rounds ?? 1) || 0)), onDamage: raw.selfCondition.onDamage !== false }
+    : null;
+  if (!expose && !save && !raw.selfHeal && raw.dispel !== true && !selfCondition) return null;
   const sev = raw.dcBySeverity && typeof raw.dcBySeverity === "object" ? raw.dcBySeverity : {};
   return {
     key: String(raw.key ?? raw.label ?? "").trim() || "afterStrike",
@@ -98,7 +101,13 @@ function normaliseDeclaredAfterStrike(raw) {
     amountBySeverity: raw.amountBySeverity && typeof raw.amountBySeverity === "object"
       ? { key: String(raw.amountBySeverity.key || "soulDrain").trim(), minor: String(raw.amountBySeverity.minor ?? ""), serious: String(raw.amountBySeverity.serious ?? ""), deadly: String(raw.amountBySeverity.deadly ?? "") }
       : null,
-    dispel: raw.dispel === true
+    dispel: raw.dispel === true,
+    //   selfCondition     Dusty Haze (3.635.0, F&F 3.0 block 5 R5) — "Requirements
+    //                     A target the broom has just struck takes damage … granting
+    //                     it the concealed condition until the beginning of its next
+    //                     turn": a condition on the STRIKER, one round by default,
+    //                     only when the blow dealt damage unless `onDamage: false`
+    selfCondition
   };
 }
 
@@ -141,7 +150,7 @@ export function ownAfflictionItem(actor, name) {
  *
  * @param {object} spec normalised
  * @param {{weaponName?: string, critical?: string|boolean|null, criticalImmune?: boolean,
- *   used?: object, marker?: string, targetTypes?: string[], targetTraits?: string[]}} ctx
+ *   used?: object, marker?: string, targetTypes?: string[], targetTraits?: string[], damageTaken?: number}} ctx
  */
 export function declaredAfterStrikeFires(spec, ctx = {}) {
   if (!spec) return false;
@@ -149,6 +158,9 @@ export function declaredAfterStrikeFires(spec, ctx = {}) {
   if ((spec.onCritical || spec.onCriticalInjury) && !ctx.critical) return false;
   if (spec.onCriticalInjury && ctx.criticalImmune) return false;
   if (spec.oncePerRound && ctx.used?.[ctx.marker]) return false;
+  // A REACTION TO DAMAGE DEALT (3.635.0): a self-condition that asks for it
+  // fires only when the blow got through.
+  if (spec.selfCondition?.onDamage && !(Number(ctx.damageTaken) > 0)) return false;
   if (spec.targetTypes.length || spec.targetTraits.length) {
     const have = new Set([...(ctx.targetTypes ?? []), ...(ctx.targetTraits ?? [])].map(lower));
     if (!spec.targetTypes.some((t) => have.has(t)) && !spec.targetTraits.some((t) => have.has(t))) return false;

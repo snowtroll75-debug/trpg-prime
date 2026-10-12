@@ -421,7 +421,44 @@ async function draconicShifting(actor, item, spec) {
   return true;
 }
 
-const KINDS = Object.freeze({ constrict, rend, tearFlesh, abyssalHealing, swallow, magicDispelling, whispersOfTheGrave, amorphousSplit, eternalSummons, trample, draconicShifting });
+/**
+ * HARMONIZE (3.634.0; F&F 3.0 block 4 R10): the Virtue's 1 AP aid to a
+ * companion's innate spell. Target the companion; the Perform Aid check is
+ * rolled against this Virtue's own Level DC and read on the Bonus Check
+ * Table (±2 at most); the bonus waits on the companion for its next innate
+ * spell's save DC this round. See harmonize.mjs.
+ */
+async function harmonize(actor, item, spec) {
+  const companion = Array.from(game.user?.targets ?? []).map((t) => t.actor).find((a) => a && a !== actor) ?? null;
+  if (!companion) { ui.notifications?.warn(`${item.name}: target the companion whose spell you aid.`); return false; }
+  const ap = Math.max(0, Number(spec.ap ?? 1) || 0);
+  if (ap) {
+    const { ensureActionPoints, spendActionPoints } = await import("./combat/action-points-workflow.mjs");
+    if (!(await ensureActionPoints(actor, ap, item.name))) return false;
+    await spendActionPoints(actor, ap, item.name);
+  }
+  const { levelDC } = await import("./dice/resolution.mjs");
+  const { TRGCheck } = await import("./dice/check.mjs");
+  const { withCheckModifiers } = await import("./dice/check-modifiers.mjs");
+  const dc = levelDC(levelOf(actor));
+  const check = await TRGCheck.roll(withCheckModifiers({
+    actor, type: "skill", subject: String(spec.skill ?? "perform"), dc,
+    label: `${actor.name} — ${item.name} (Aid)`, subtitle: `Aiding ${companion.name}'s next innate spell — DC ${dc}`
+  }));
+  const { harmonizeBonus, withHarmony, HARMONIZE_FLAG } = await import("./harmonize.mjs");
+  const degree = check?.outcome?.degree;
+  const bonus = harmonizeBonus(degree?.key ?? "failure");
+  const when = { combatId: game.combat?.started ? game.combat.id : "", round: game.combat?.started ? Number(game.combat.round ?? 0) : 0, worldTime: Number(game.time?.worldTime ?? 0) };
+  if (bonus) {
+    const record = withHarmony(companion.getFlag?.(SYSTEM_ID, HARMONIZE_FLAG), { by: actor.uuid, bonus, when });
+    if (companion.isOwner) await companion.setFlag(SYSTEM_ID, HARMONIZE_FLAG, record);
+    else ui.notifications?.warn(`${item.name}: only the GM can record the aid on ${companion.name}.`);
+  }
+  await card(actor, item.name, [line(`${degree?.label ?? "Rolled"}: ${bonus > 0 ? `<strong>+${bonus}</strong>` : bonus < 0 ? `<strong>${bonus}</strong>` : "no bonus"} to the save DC of <strong>${companion.name}</strong>'s next innate spell this round${bonus ? "" : "."}${bonus ? ` (max ±2 per Virtue).` : ""}`)]);
+  return true;
+}
+
+const KINDS = Object.freeze({ constrict, rend, tearFlesh, abyssalHealing, swallow, magicDispelling, whispersOfTheGrave, amorphousSplit, eternalSummons, trample, draconicShifting, harmonize });
 
 /** The declared action on an item, or null. */
 function codexActionOf(item) {

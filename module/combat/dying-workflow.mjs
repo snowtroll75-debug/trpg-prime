@@ -1,4 +1,5 @@
 import { DAMAGE_TYPES } from "../config.mjs";
+import { regenerationHolds, withDamageTypes } from "../regeneration-rules.mjs";
 import { isPeril } from "../peril.mjs";
 import {
   RESPITE_FLAG, normaliseDelayedRespite, respiteCatches, respitePacket
@@ -234,6 +235,11 @@ async function applyDamageDirect(
   if (actor.setFlag) {
     const since = Number(actor.getFlag?.("trg-prime", "damageSinceTurn") ?? 0) || 0;
     await actor.setFlag("trg-prime", "damageSinceTurn", since + incoming);
+    // AND WHAT TYPES (3.634.0, F&F 3.0 block 4 R2): regeneration's negating
+    // type — "(Evil)" — is read from this record at its next turn.
+    if ((damageTypes ?? []).length) {
+      await actor.setFlag("trg-prime", "damageTypesSinceTurn", withDamageTypes(actor.getFlag?.("trg-prime", "damageTypesSinceTurn"), damageTypes));
+    }
   }
 
   // IMPERVIOUS IN STASIS (3.614.0, R2): "the target becomes impervious to
@@ -368,6 +374,31 @@ async function applyDamageDirect(
   const hp = actor.system?.resources?.hp;
   const maxHP = Number(hp?.max ?? 0);
   const alreadyDying = Boolean(actor.hasCondition?.("dying"));
+
+  // ACTIVE REGENERATION CANNOT DIE (3.634.0, F&F 3.0 block 4 R2): "A creature
+  // with active regeneration cannot die unless its Regeneration is …
+  // bypassed (usually by a specific damage type)". A blow that would take it
+  // to 0, or one that lands while it lies there, leaves it at 0 HP and
+  // unconscious — not Dying — unless the blow, or anything since its last
+  // turn, was of the negating type. Its next turn's heal raises it.
+  if (amount >= Number(hp?.value ?? 0) && !nonlethal) {
+    const regenHeld = regenerationHolds(Array.from(actor.items ?? []), {
+      blowTypes: damageTypes, sinceTypes: actor.getFlag?.("trg-prime", "damageTypesSinceTurn") ?? []
+    });
+    if (regenHeld) {
+      await actor.update({ "system.resources.hp.value": 0 });
+      if (alreadyDying) await actor.toggleStatusEffect("dying", { active: false });
+      if (!actor.hasCondition?.("unconscious")) await actor.toggleStatusEffect("unconscious", { active: true });
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor }),
+        content: `<div class="trg-prime trg-check-card"><header class="check-header"><div class="check-heading"><span class="check-actor">${actor.name}</span><h3>${regenHeld.label}</h3></div></header>`
+          + `<p style="margin:2px 0">${actor.name} falls at <strong>0 HP</strong> but <strong>cannot die</strong> while its regeneration is active.</p>`
+          + (regenHeld.negatedBy.length ? `<p style="margin:2px 0"><em>Only ${regenHeld.negatedBy.join(" or ")} damage negates it — or destroying its body utterly, the GM's call.</em></p>` : "")
+          + `</div>`
+      });
+      return { case: "regeneration-holds", guard: regenHeld.label, newHP: 0 };
+    }
+  }
 
   if (alreadyDying) {
     // Subdual (Chapter 7) is damage "delivered to purposefully disable an
