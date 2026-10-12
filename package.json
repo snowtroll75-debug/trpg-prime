@@ -1,0 +1,30 @@
+{
+  "dependencies": {
+    "@foundryvtt/foundryvtt-cli": "^3.0.4",
+    "acorn": "^8.18.0",
+    "acorn-walk": "^8.3.5",
+    "classic-level": "^3.0.0",
+    "eslint-scope": "^9.1.2"
+  },
+  "name": "trg-prime",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "verify": "node tools/verify.mjs",
+    "verify:names": "node tools/verify-no-undefined-names.mjs",
+    "verify:callers": "node tools/verify-rules-have-callers.mjs",
+    "verify:callers:update": "node tools/verify-rules-have-callers.mjs --update",
+    "verify:self": "node tools/verify-checks-can-fail.mjs",
+    "build": "node tools/build-zip.mjs",
+    "data-fixes": "node tools/apply-data-fixes.mjs",
+    "data-fixes:dry": "node tools/apply-data-fixes.mjs --dry-run",
+    "feats": "node tools/feat-evidence.mjs",
+    "verify:death": "node tools/verify-death-watch.mjs",
+    "mutate:death": "node tools/mutate-death-watch.mjs",
+    "verify:aoo": "node tools/verify-opportunity-reach.mjs",
+    "mutate:aoo": "node tools/mutate-opportunity-reach.mjs",
+    "verify:grapple": "node tools/verify-grapple-critical.mjs",
+    "mutate:grapple": "node tools/mutate-grapple-critical.mjs"
+  },
+  "version": "3.419.0"
+}

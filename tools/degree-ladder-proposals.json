@@ -1,0 +1,398 @@
+[
+  {
+    "name": "Stunning Glare",
+    "from": [
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "stunned",
+        "value": 2
+      }
+    ],
+    "to": [
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "stunned",
+        "onSave": [
+          "partial"
+        ],
+        "value": 1
+      },
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "stunned",
+        "onSave": [
+          "failure"
+        ],
+        "value": 2
+      },
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "stunned",
+        "onSave": [
+          "fumble"
+        ],
+        "value": 3
+      }
+    ],
+    "ladder": {
+      "success": "The target is unaffected.",
+      "partial": "The target is stunned 1.",
+      "failure": "The target is stunned 2.",
+      "fumble": "The target is stunned 3."
+    }
+  },
+  {
+    "name": "Colour Spray",
+    "from": [
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "stunned",
+        "value": 1
+      },
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "dazzled"
+      }
+    ],
+    "to": [
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "dazzled",
+        "onSave": [
+          "success"
+        ],
+        "duration": "1 round"
+      },
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "dazzled",
+        "onSave": [
+          "partial"
+        ],
+        "duration": "1 minute"
+      },
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "stunned",
+        "onSave": [
+          "failure"
+        ],
+        "value": 1
+      },
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "blinded",
+        "onSave": [
+          "failure"
+        ],
+        "duration": "1 round"
+      },
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "dazzled",
+        "onSave": [
+          "failure"
+        ],
+        "duration": "1 minute"
+      },
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "stunned",
+        "onSave": [
+          "fumble"
+        ],
+        "duration": "1 round"
+      },
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "blinded",
+        "onSave": [
+          "fumble"
+        ],
+        "duration": "1 minute"
+      }
+    ],
+    "ladder": {
+      "critical": "The creature is unaffected.",
+      "success": "The creature is dazzled for 1 round.",
+      "partial": "The creature is dazzled for 1 minute.",
+      "failure": "The creature is stunned 1, blinded for 1 round, and dazzled for 1 minute.",
+      "fumble": "The creature is stunned for 1 round and blinded for 1 minute."
+    }
+  },
+  {
+    "name": "Idiocy",
+    "from": [
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "dazed",
+        "value": 1
+      }
+    ],
+    "to": [
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "dazed",
+        "onSave": [
+          "success"
+        ],
+        "value": 1,
+        "duration": "1 round"
+      },
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "dazed",
+        "onSave": [
+          "failure"
+        ],
+        "value": 1,
+        "duration": "1 minute"
+      },
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "dazed",
+        "onSave": [
+          "fumble"
+        ],
+        "value": 2,
+        "duration": "1 minute"
+      }
+    ],
+    "ladder": {
+      "critical": "The target is unaffected.",
+      "success": "The target is dazed 1 for 1 round.",
+      "failure": "The target is dazed 1 for 1 minute.",
+      "fumble": "The target is dazed 2 for 1 minute."
+    }
+  },
+  {
+    "name": "Jam Construct",
+    "from": [
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "stunned",
+        "value": 2
+      },
+      {
+        "kind": "note",
+        "text": "Overrides a construct's usual immunities."
+      }
+    ],
+    "to": [
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "stunned",
+        "onSave": [
+          "success"
+        ],
+        "value": 1
+      },
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "stunned",
+        "onSave": [
+          "failure"
+        ],
+        "value": 2
+      },
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "stunned",
+        "onSave": [
+          "fumble"
+        ],
+        "value": 3
+      },
+      {
+        "kind": "note",
+        "text": "Overrides a construct's usual immunities."
+      }
+    ],
+    "ladder": {
+      "critical": "The target is unaffected.",
+      "success": "The target is stunned 1.",
+      "failure": "The target is stunned 2.",
+      "fumble": "The target is stunned 3. Be aware that this spell overrides a constructs usual immunities."
+    }
+  },
+  {
+    "name": "Ray Of Enfeeblement",
+    "from": [
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "weakened",
+        "value": 2
+      },
+      {
+        "kind": "note",
+        "text": "Weakened 1 on a success, 3 on a fumble; a critical spellcraft attack worsens the save by one step. Does not stack — keep the worst result."
+      }
+    ],
+    "to": [
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "weakened",
+        "onSave": [
+          "success"
+        ],
+        "value": 1
+      },
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "weakened",
+        "onSave": [
+          "failure"
+        ],
+        "value": 2
+      },
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "weakened",
+        "onSave": [
+          "fumble"
+        ],
+        "value": 3
+      },
+      {
+        "kind": "note",
+        "text": "Weakened 1 on a success, 3 on a fumble; a critical spellcraft attack worsens the save by one step. Does not stack — keep the worst result."
+      }
+    ],
+    "ladder": {
+      "critical": "The target is unaffected.",
+      "success": "The target is weakened 1.",
+      "failure": "The target is weakened 2.",
+      "fumble": "The target is weakened 3. Be aware that the results of this spell do not stack and a target affected multiple times will only suffer the most detrimental result."
+    }
+  },
+  {
+    "name": "Slow",
+    "from": [
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "slowed",
+        "value": 1
+      }
+    ],
+    "to": [
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "slowed",
+        "onSave": [
+          "success"
+        ],
+        "value": 1,
+        "duration": "1 round"
+      },
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "slowed",
+        "onSave": [
+          "failure"
+        ],
+        "value": 1,
+        "duration": "1 minute"
+      },
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "slowed",
+        "onSave": [
+          "fumble"
+        ],
+        "value": 2,
+        "duration": "1 minute"
+      }
+    ],
+    "ladder": {
+      "critical": "The target is unaffected.",
+      "success": "The target is slowed 1 for 1 round.",
+      "failure": "The target is slowed 1 for 1 minute.",
+      "fumble": "The target is slowed 2 for 1 minute."
+    }
+  },
+  {
+    "name": "Word Of Fatigue",
+    "from": [
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "fatigued",
+        "value": 2
+      }
+    ],
+    "to": [
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "fatigued",
+        "onSave": [
+          "critical"
+        ],
+        "value": 1,
+        "duration": "1 round"
+      },
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "fatigued",
+        "onSave": [
+          "success"
+        ],
+        "value": 1
+      },
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "fatigued",
+        "onSave": [
+          "failure"
+        ],
+        "value": 2
+      },
+      {
+        "kind": "condition",
+        "target": "targets",
+        "condition": "fatigued",
+        "onSave": [
+          "fumble"
+        ],
+        "value": 4
+      }
+    ],
+    "ladder": {
+      "critical": "The target is fatigued 1 for 1 round.",
+      "success": "The target is fatigued 1",
+      "failure": "The target is fatigued 2",
+      "fumble": "The target is fatigued 4"
+    }
+  }
+]

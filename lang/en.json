@@ -1,0 +1,38 @@
+{
+  "TYPES": {
+    "Actor": {
+      "character": "Character",
+      "npc": "NPC",
+      "companion": "Animal Companion",
+      "familiar": "Familiar",
+      "party": "Party"
+    }
+  },
+  "TRGPrime": {
+    "SystemTitle": "TRG Prime",
+    "ActorSheet": "TRG Prime Actor Sheet",
+    "ItemSheet": "TRG Prime Item Sheet",
+    "Degrees": {
+      "heroic": "Heroic",
+      "critical": "Critical",
+      "success": "Success",
+      "partial": "Partial",
+      "failure": "Failure",
+      "fumble": "Fumble",
+      "blunder": "Blunder",
+      "chaos": "Chaos"
+    },
+    "Tabs": {
+      "Summary": "Summary",
+      "Attributes": "Attributes",
+      "Combat": "Combat",
+      "Skills": "Skills",
+      "Features": "Feats & Abilities",
+      "Items": "Items",
+      "Magic": "Magic",
+      "Effects": "Effects",
+      "Description": "Description",
+      "GM": "GM"
+    }
+  }
+}

@@ -1,0 +1,705 @@
+<div class="trg-prime-sheet item-sheet">
+  <header class="item-sheet-header">
+    <div class="item-portrait">
+      <img src="{{item.img}}" alt="{{item.name}}" data-action="editImage" data-tooltip="Click to change icon">
+      <input type="text" name="img" value="{{item.img}}" aria-label="Icon path">
+    </div>
+    <div>
+      <span class="eyebrow">{{typeLabel}}</span>
+      <input class="item-title" type="text" name="name" value="{{item.name}}">
+    </div>
+  </header>
+
+  <main class="item-sheet-body">
+    {{#if isPhysical}}
+      <article class="ornate-card">
+        <h2>Inventory</h2>
+        <div class="field-grid four-column">
+          <label>
+            <span>Quantity</span>
+            <input type="number" name="system.quantity" value="{{system.quantity}}" min="0">
+          </label>
+          <label>
+            <span>Weight</span>
+            <input type="number" name="system.weight" value="{{system.weight}}" min="0" step="0.01">
+          </label>
+          <label>
+            <span>Price</span>
+            <input type="number" name="system.price" value="{{system.price}}" min="0" step="0.01">
+          </label>
+          <label class="checkbox-field">
+            <span>Equipped</span>
+            <input type="checkbox" name="system.equipped" {{checked system.equipped}}>
+          </label>
+          <label class="checkbox-field">
+            <span>Invested</span>
+            <input type="checkbox" name="system.invested" {{checked system.invested}}>
+          </label>
+          <label>
+            <span>HP</span>
+            <input type="number" name="system.hp.value" value="{{system.hp.value}}" data-tooltip="Leave Max HP at 0 to leave this item's damage untracked (Chapter 6).">
+          </label>
+          <label>
+            <span>Max HP</span>
+            <input type="number" name="system.hp.max" value="{{system.hp.max}}" min="0">
+          </label>
+        </div>
+        <label class="wide-field">
+          <span>Traits</span>
+          <input type="text" name="system.traits" value="{{system.traits}}">
+        </label>
+      </article>
+    {{/if}}
+
+    {{#if isWeapon}}
+      <article class="ornate-card">
+        <h2>Weapon</h2>
+        <div class="field-grid four-column">
+          <label><span>Attack Bonus</span><input type="number" name="system.attackBonus" value="{{system.attackBonus}}"></label>
+          <label><span>Damage</span><input type="text" name="system.damage" value="{{system.damage}}"></label>
+          <label><span>Damage Type</span>
+            <select name="system.damageType">
+              {{selectOptions damageTypeChoices selected=system.damageType}}
+            </select>
+          </label>
+          <label><span>Attack Mode</span>
+            <select name="system.attackMode">
+              {{selectOptions attackModeChoices selected=system.attackMode}}
+            </select>
+          </label>
+          <label><span>Fumble DC</span><input type="number" name="system.fumbleDC" value="{{system.fumbleDC}}" min="0"></label>
+          <label><span>Range Increment (ft)</span><input type="number" name="system.rangeIncrement" value="{{system.rangeIncrement}}" min="0" data-tooltip="0 for melee weapons. Missile/thrown weapons take -4 per increment beyond the first, up to six increments."></label>
+          <label><span>Base Damage</span><input type="number" name="system.baseDamage" value="{{system.baseDamage}}"></label>
+          <label><span>Hands</span><input type="text" value="{{handsDisplay.text}}" readonly disabled data-tooltip="Worked out from this weapon's size against the wielder's, plus the 2-Handed trait — not typed in. {{#if handsDisplay.assumedMedium}}This item has no owner, so the figure shown assumes a Medium wielder.{{else}}Sized against this item's owner ({{handsDisplay.wielderSize}}).{{/if}}"></label>
+          <label><span>Size</span>
+            <select name="system.size">
+              {{selectOptions sizeChoices selected=system.size}}
+            </select>
+          </label>
+          <label><span>Range</span><input type="text" name="system.range" value="{{system.range}}"></label>
+          <label><span>Armour Rending</span><input type="number" name="system.armourRending" value="{{system.armourRending}}"></label>
+          <label><span>Proficiency</span><input type="text" name="system.proficiency" value="{{system.proficiency}}"></label>
+          <label><span>Ammunition</span><input type="text" name="system.ammunitionFamily" value="{{system.ammunitionFamily}}" placeholder="{{system.group}}" data-tooltip="Which ammunition this weapon fires — matched against the ammunition's own 'For' field. Leave empty to use the weapon group. Crossbows are in the Bow group but fire Crossbow ammunition (bolts)."></label>
+          <label><span>Reach (ft)</span><input type="number" name="system.reachFeet" value="{{system.reachFeet}}" min="0" step="5" data-tooltip="The reach this weapon prints for a Medium wielder — the whip's 15. 0 uses the Reach trait's usual +5 ft. Ignored without the Reach trait."></label>
+          <label><span>Found-Rock Penalty</span><input type="number" name="system.foundAmmunitionPenalty" value="{{system.foundAmmunitionPenalty}}" max="0" data-tooltip="A sling can throw found rocks at -2. 0 means this weapon needs real ammunition."></label>
+          <label><span>Hands to Reload</span><input type="number" name="system.reloadHands" value="{{system.reloadHands}}" min="0" max="2" data-tooltip="The hand crossbow fires one-handed but needs both hands to reload (2). 0 means no extra requirement."></label>
+          <label><span>Mounted Use</span>
+            <select name="system.mountedUse" data-tooltip="The lance can only be wielded while mounted; the composite longbow cannot be used whilst mounted.">
+              {{selectOptions mountedUseChoices selected=system.mountedUse}}
+            </select>
+          </label>
+          <label class="checkbox-field"><span>Can't hit adjacent</span><input type="checkbox" name="system.noAdjacent" {{checked system.noAdjacent}} data-tooltip="The whip can't be used against adjacent creatures."></label>
+          <label class="checkbox-field"><span>Unarmed attack</span><input type="checkbox" name="system.unarmed" {{checked system.unarmed}} data-tooltip="A strike with it is an unarmed attack — the gauntlets, brass knuckles and cestus."></label>
+          <label class="checkbox-field"><span>Damage as thrown</span><input type="checkbox" name="system.thrownDamage" {{checked system.thrownDamage}} data-tooltip="A sling is treated as a thrown weapon for damage: it adds full Strength."></label>
+          <label class="checkbox-field"><span>Recovered as ammunition</span><input type="checkbox" name="system.recoveredAsAmmunition" {{checked system.recoveredAsAmmunition}} data-tooltip="Shuriken: counted like ammunition after they are thrown, and half recovered when the battle ends."></label>
+        </div>
+        <div class="trg-item-customise-summary">
+          <span><strong>Quality:</strong> {{qualityLabel}}</span>
+          <span><strong>Material:</strong> {{materialLabel}}</span>
+          <span><strong>Traits:</strong> {{traitsLabel}}</span>
+          {{#if editable}}
+            <button type="button" class="gold-button small-button" data-action="customiseItem"><i class="fa-solid fa-gem"></i> Customise</button>
+          {{/if}}
+        </div>
+      </article>
+    {{/if}}
+
+    {{#if isAffliction}}
+      <article class="ornate-card">
+        <h2>Affliction</h2>
+        <div class="field-grid four-column">
+          <label><span>Type</span>
+            <select name="system.afflictionType">
+              {{selectOptions afflictionTypeChoices selected=system.afflictionType}}
+            </select>
+          </label>
+          <label><span>Level</span><input type="number" name="system.level" value="{{system.level}}" min="0"></label>
+          <label><span>Saving Throw</span>
+            <select name="system.savingThrow">
+              {{selectOptions savingThrowChoices selected=system.savingThrow}}
+            </select>
+          </label>
+          <label><span>Rarity</span>
+            <select name="system.rarity">
+              {{selectOptions rarityChoices selected=system.rarity}}
+            </select>
+          </label>
+          <label><span>Rarity DC Modifier</span><input type="number" name="system.rarityModifier" value="{{system.rarityModifier}}" data-tooltip="Left at 0, the page's own: Rare +5, Uncommon +2 (Appendix 3). Any other number replaces it."></label>
+          <label><span>Incubation</span><input type="text" name="system.incubation" value="{{system.incubation}}" placeholder="e.g. 10 minutes, or blank for immediate"></label>
+          <label><span>Duration</span><input type="text" name="system.duration" value="{{system.duration}}" placeholder="e.g. 5 minutes"></label>
+        </div>
+        <label class="wide-field"><span>Traits</span><input type="text" name="system.traits" value="{{system.traits}}" placeholder="e.g. Alchemical Consumable Ingested Poison"></label>
+
+        <h2>Stages</h2>
+        {{#each stagesForDisplay as |stage|}}
+          <div class="ornate-card affliction-stage" data-stage-index="{{stage.index}}">
+            <div class="field-grid three-column">
+              <label><span>Stage {{stage.number}}</span></label>
+            </div>
+            <div class="field-grid two-column">
+              <label><span>Interval</span><input type="text" name="system.stages.{{stage.index}}.interval" value="{{stage.interval}}" placeholder="e.g. 1 minute"></label>
+              <label class="checkbox-field"><span>Rolls a Critical Injury</span><input type="checkbox" name="system.stages.{{stage.index}}.criticalOnFailure" {{checked stage.criticalOnFailure}}></label>
+            </div>
+            {{#if stage.criticalOnFailure}}
+              <label class="wide-field"><span>Critical Damage Type</span>
+                <select name="system.stages.{{stage.index}}.criticalDamageType">
+                  {{selectOptions ../damageTypeChoices selected=stage.criticalDamageType}}
+                </select>
+              </label>
+            {{/if}}
+            <label class="wide-field"><span>Effect</span><textarea name="system.stages.{{stage.index}}.effect" rows="2">{{stage.effect}}</textarea></label>
+            {{#if ../editable}}
+              <button type="button" class="gold-button small-button" data-action="removeStage" data-stage-index="{{stage.index}}"><i class="fa-solid fa-trash"></i> Remove Stage</button>
+            {{/if}}
+          </div>
+        {{/each}}
+        {{#if editable}}
+          <button type="button" class="gold-button" data-action="addStage"><i class="fa-solid fa-plus"></i> Add Stage</button>
+        {{/if}}
+      </article>
+    {{/if}}
+
+    {{#if isCreatureType}}
+      <article class="ornate-card">
+        <h2>Creature Type</h2>
+        <p class="hint">Ability modifiers, save bonuses and the fixed immunity/weakness/resistance lists below (Aberration, Animal, Beast...) are carried as effects, the same as a race — these fields are the readable statement of what those effects do. Natural DR and Elemental affinity are read directly from THIS item instead: the book gives no fixed value for either ("determined by the construct's race"; "often have a weakness to another elemental type"), so there is nothing a compendium-baked effect could ever get right for every member of the type at once — set them per NPC.</p>
+        <div class="field-grid four-column">
+          <label><span>Death State</span><input type="number" name="system.deathState" value="{{system.deathState}}" min="0" data-tooltip="Carried as an OVERRIDE effect, the same as a race's size or speed. Ignored entirely while No Death State is checked."></label>
+          <label class="checkbox-field"><span>No Death State</span><input type="checkbox" name="system.noDeathState" {{checked system.noDeathState}} data-tooltip="Construct, Elemental, Undead: destroyed outright at 0 HP instead of tracking the Dying condition. Reuses the same instant-death mechanism Massive Damage already uses — this system has no separate 'dead' status."></label>
+          <label><span>Critical Resistance</span><input type="number" name="system.criticalResistance" value="{{system.criticalResistance}}" min="0" data-tooltip="Fixed per type (Construct 4, Elemental 2, Eternal 2) — added alongside Armour Master's and Critical Resilience's own contributions."></label>
+          <label><span>Natural DR</span><input type="number" name="system.naturalDR" value="{{system.naturalDR}}" min="0" data-tooltip="Construct only. Per-instance — the book leaves the value to the GM ('determined by the constructs race'). Always adds, the same as Dracoris/Iron Hide."></label>
+        </div>
+        <div class="field-grid two-column">
+          <label><span>Elemental Immunity</span>
+            <select name="system.elementalImmunity" data-tooltip="Elemental only — its own native element.">
+              {{selectOptions damageTypeChoicesWithNone selected=system.elementalImmunity}}
+            </select>
+          </label>
+          <label><span>Elemental Weakness</span>
+            <select name="system.elementalWeakness" data-tooltip="Elemental only — the book never fixes which other element; set what fits this specific creature.">
+              {{selectOptions damageTypeChoicesWithNone selected=system.elementalWeakness}}
+            </select>
+          </label>
+        </div>
+        <div class="field-grid four-column">
+          <label class="checkbox-field"><span>Critical Immunity</span><input type="checkbox" name="system.critImmune" {{checked system.critImmune}} data-tooltip="Ooze: ignores all critical injuries."></label>
+          <label class="checkbox-field"><span>Cannot Be Flanked</span><input type="checkbox" name="system.noFlanking" {{checked system.noFlanking}} data-tooltip="Ooze: the Flanking bonus never applies against it. Flat-Footed immunity is a separate, ordinary condition immunity — list 'flat-footed' in Immunities below for that half."></label>
+          <label class="checkbox-field"><span>Blindsight</span><input type="checkbox" name="system.blindsight" {{checked system.blindsight}} data-tooltip="Ooze: blind, but bypasses Flat-Footed's Dexterity/dodge suppression."></label>
+          <label class="checkbox-field"><span>Damage Only From Criticals</span><input type="checkbox" name="system.critOnlyDamage" {{checked system.critOnlyDamage}} data-tooltip="Plant: only takes damage (and bleeds) from critical injuries. The book's own exception — a critical that wouldn't 'directly affect their anatomy' — is a GM call made by hand; nothing in a critical's data can test it automatically."></label>
+        </div>
+        <label class="wide-field"><span>Ability Modifiers</span><input type="text" name="system.abilityModifiers" value="{{system.abilityModifiers}}" placeholder="e.g. Intelligence -5" data-tooltip="Comma-separated. Carried as effects writing each attribute's racial slot, the same as a race."></label>
+        <label class="wide-field"><span>Traits (reference)</span><input type="text" name="system.traits" value="{{system.traits}}" placeholder="e.g. Darkvision, Nightvision, breathes/eats/sleeps" data-tooltip="The printed Traits line, for reference. Darkvision/Nightvision and similar are granted as real ability items via Granted Abilities below, not read from this text."></label>
+        <label class="wide-field"><span>Granted Abilities</span><input type="text" name="system.grantedAbilities" value="{{system.grantedAbilities}}" placeholder="e.g. Darkvision, Eternal Essence" data-tooltip="Comma-separated ability names, resolved from the abilities compendium when Apply Grants is pressed — the same mechanism a race's Racial Abilities use."></label>
+      </article>
+    {{/if}}
+
+    {{#if isArmour}}
+      <article class="ornate-card">
+        <h2>Armour</h2>
+        <div class="field-grid four-column">
+          <label><span>Category</span><input type="text" name="system.category" value="{{system.category}}" data-tooltip="Light/Medium/Heavy. Used for Ethereal spellcasters' armour prohibition (Chapter 9)."></label>
+          <label><span>Material</span><input type="text" name="system.material" value="{{system.material}}" data-tooltip="Used for Verdant spellcasters' metal-armour prohibition (Chapter 9)."></label>
+          <label class="checkbox-field"><span>Helmet</span><input type="checkbox" name="system.isHelmet" {{checked system.isHelmet}} data-tooltip="Used for Ethereal spellcasters' helmet prohibition (Chapter 9), and for Head/Neck hit-location coverage (Chapter 7)."></label>
+          <label class="checkbox-field"><span>Covers Torso</span><input type="checkbox" name="system.coversTorso" {{checked system.coversTorso}} data-tooltip="Chest and Abdomen hit-location coverage (Chapter 7) — base armour (a shirt or breastplate) covers this by default; bracers, greaves, and standalone helmets don't."></label>
+          <label class="checkbox-field"><span>Covers Arms</span><input type="checkbox" name="system.coversArms" {{checked system.coversArms}} data-tooltip="Arms hit-location coverage (Chapter 7) — bracers, or a full suit."></label>
+          <label class="checkbox-field"><span>Covers Legs</span><input type="checkbox" name="system.coversLegs" {{checked system.coversLegs}} data-tooltip="Legs hit-location coverage (Chapter 7) — greaves, or a full suit."></label>
+          <label><span>DR</span><input type="number" name="system.dr" value="{{system.dr}}"></label>
+          <label><span>Hardness</span><input type="number" name="system.hardness" value="{{system.hardness}}"></label>
+          <label><span>ACP</span><input type="number" name="system.penalty" value="{{system.penalty}}" data-tooltip="Armour Check Penalty, applied to Dexterity- and Strength-based skills"></label>
+          <label><span>Max Dex Bonus</span><input type="number" name="system.maxDexBonus" value="{{system.maxDexBonus}}" min="-1" data-tooltip="Caps the positive Dexterity bonus used for DB. -1 means no cap."></label>
+          <label><span>Max Dex Modifier</span><input type="number" name="system.maxDexModifier" value="{{system.maxDexModifier}}" max="0" data-tooltip="Changes the cap your body armour sets — the Other table's -1 on chain and metal greaves and metal bracers. 0 for everything else."></label>
+          <label><span>Proficiency</span><input type="text" name="system.proficiency" value="{{system.proficiency}}" data-tooltip="Type 'none' if not proficient — doubles this armour's ACP"></label>
+          <label><span>Speed Penalty</span><input type="number" name="system.speedPenalty" value="{{system.speedPenalty}}" data-tooltip="Penalty to land speed while worn, if any"></label>
+          <label><span>Item Level</span><input type="number" name="system.itemLevel" value="{{system.itemLevel}}"></label>
+        </div>
+        <div class="trg-item-customise-summary">
+          <span><strong>Quality:</strong> {{qualityLabel}}</span>
+          <span><strong>Material:</strong> {{materialLabel}}</span>
+          <span><strong>Traits:</strong> {{traitsLabel}}</span>
+          {{#if editable}}
+            <button type="button" class="gold-button small-button" data-action="customiseItem"><i class="fa-solid fa-gem"></i> Customise</button>
+          {{/if}}
+        </div>
+      </article>
+    {{/if}}
+
+    {{#if isShield}}
+      <article class="ornate-card">
+        <h2>Shield</h2>
+        <div class="field-grid three-column">
+          <label><span>DR</span><input type="number" name="system.dr" value="{{system.dr}}"></label>
+          <label><span>Hardness</span><input type="number" name="system.hardness" value="{{system.hardness}}"></label>
+          <label><span>Broken Threshold</span><input type="number" name="system.brokenThreshold" value="{{system.brokenThreshold}}"></label>
+          <label><span>ACP</span><input type="number" name="system.penalty" value="{{system.penalty}}" data-tooltip="Armour Check Penalty, applied to Dexterity- and Strength-based skills"></label>
+          <label><span>Proficiency</span><input type="text" name="system.proficiency" value="{{system.proficiency}}" data-tooltip="Type 'none' if not proficient — doubles this shield's ACP"></label>
+          <label><span>Defence Bonus</span><input type="number" name="system.defenceBonus" value="{{system.defenceBonus}}" data-tooltip="Bonus to Defence while wielded"></label>
+          <label><span>Item Level</span><input type="number" name="system.itemLevel" value="{{system.itemLevel}}"></label>
+          <label><span>Size</span>
+            <select name="system.size">
+              {{selectOptions sizeChoices selected=system.size}}
+            </select>
+          </label>
+          <label><span>Fight Defensively</span><input type="number" name="system.fightDefensivelyPenalty" value="{{system.fightDefensivelyPenalty}}" max="0" data-tooltip="The attack penalty while you Fight Defensively with this shield raised. 0 means the action's own -4; the madu's is -3."></label>
+          <label class="checkbox-field"><span>Shield hand bound</span><input type="checkbox" name="system.handBound" {{checked system.handBound}} data-tooltip="Nothing else can be held in the hand that bears this shield (the madu). A light shield without this can carry a torch or a potion in its hand."></label>
+        </div>
+        <div class="trg-item-customise-summary">
+          <span><strong>Quality:</strong> {{qualityLabel}}</span>
+          <span><strong>Material:</strong> {{materialLabel}}</span>
+          <span><strong>Traits:</strong> {{traitsLabel}}</span>
+          {{#if editable}}
+            <button type="button" class="gold-button small-button" data-action="customiseItem"><i class="fa-solid fa-gem"></i> Customise</button>
+          {{/if}}
+        </div>
+      </article>
+    {{/if}}
+
+    {{#if isRuneBearing}}
+      <article class="ornate-card">
+        <h2>Runes</h2>
+        <label class="wide-field"><span>Inscribed</span>
+          <input type="text" name="system.runes" value="{{system.runes}}"
+            placeholder="e.g. Potency II, Flaming I"
+            data-tooltip="Chapter 11. Type the runes as the book prints them — the potency rune's bonus is applied automatically, and anything that does not fit is reported below rather than refused.">
+        </label>
+        {{#if runedClothing}}
+          <p class="hint">Clothing upgraded like armour (page 173): its runes count only while it is worn and no body armour is worn over it.</p>
+        {{/if}}
+        <div class="trg-item-customise-summary">
+          <span><strong>Potency:</strong> {{runeSummary}}</span>
+          <span><strong>Other runes:</strong> {{runeOthers}}</span>
+        </div>
+        {{#if donning}}
+          <p class="hint">
+            <i class="fa-solid fa-clock"></i>
+            <strong>Donning:</strong> {{donning.label}}
+            {{#if donning.rune}}
+              {{#if donning.covers}}
+                — {{donning.rune}}, in place of {{donning.baseLabel}}.
+              {{else}}
+                — {{donning.why}} It reaches {{donning.coversLabel}}.
+              {{/if}}
+            {{/if}}
+            {{!-- SAYS WHICH CASE THIS IS (3.574.1). The fixed sentence
+                  "Doubled for a full suit of armour" was written when the
+                  doubling was NOT applied; once 3.573.0 applied it, the
+                  same sentence under "20 minutes" on Full Platemail read
+                  as an instruction to double again. Found in live
+                  testing. --}}
+            {{#if donning.doubled}}
+              Already doubled — this is a full suit of armour.
+            {{else if donning.fullSuit}}
+              A full suit — the rune's time is shown as printed.
+            {{else}}
+              Doubled if worn as a full suit of armour.
+            {{/if}}
+            Removing it has no printed time.
+          </p>
+        {{/if}}
+        {{#each runeProblems as |problem|}}
+          <p class="hint duplicate-slot-warning">
+            <i class="fa-solid fa-triangle-exclamation"></i> {{problem}}
+          </p>
+        {{/each}}
+        {{#each runeUsage as |usage|}}
+          {{#if usage.warn}}
+            <p class="hint duplicate-slot-warning">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <strong>{{usage.label}} — Usage {{usage.usage}}.</strong> {{usage.why}}
+            </p>
+          {{else}}
+            <p class="hint">
+              <i class="fa-solid fa-scroll"></i>
+              <strong>{{usage.label}} — Usage {{usage.usage}}.</strong>{{#if usage.why}} {{usage.why}}{{/if}}
+            </p>
+          {{/if}}
+        {{/each}}
+        {{#if runeEvents.length}}
+          <div class="trg-rune-actions">
+            {{#each runeEvents as |rune|}}
+              <div class="trg-rune-action">
+                {{#if rune.pressable}}
+                  <button type="button" class="gold-button small-button" data-action="useRuneAction" data-rune="{{rune.key}}">
+                    <i class="fa-solid fa-shield-halved"></i> {{rune.label}}
+                  </button>
+                {{else}}
+                  <span class="trg-rune-action-name">{{rune.label}}</span>
+                {{/if}}
+                <span class="trg-rune-action-note">
+                  {{rune.description}}
+                  {{#unless rune.unlimited}} <strong>{{rune.remaining}} left today.</strong>{{/unless}}
+                </span>
+              </div>
+            {{/each}}
+          </div>
+        {{/if}}
+        {{#if runeSpells.length}}
+          <div class="trg-rune-actions">
+            {{#each runeSpells as |rune|}}
+              <div class="trg-rune-action">
+                <span class="trg-rune-action-name">Spell Effect</span>
+                <span class="trg-rune-action-note">
+                  <strong>{{rune.spell}}</strong>, {{rune.frequencyLabel}}.
+                  {{#if rune.granted}}
+                    Granted as an innate spell — cast it from the Magic tab.
+                  {{else if rune.equipped}}
+                    <em>Not yet on the sheet; the spell appears when the grant next runs.</em>
+                  {{else}}
+                    <em>Equip this item to gain the spell.</em>
+                  {{/if}}
+                </span>
+              </div>
+            {{/each}}
+          </div>
+        {{/if}}
+        {{#if runeActions.length}}
+          <div class="trg-rune-actions">
+            {{#each runeActions as |action|}}
+              <div class="trg-rune-action">
+                <button type="button" class="gold-button small-button" data-action="useRuneAction" data-rune="{{action.key}}">
+                  <i class="fa-solid fa-wand-sparkles"></i> {{#if action.active}}End {{action.label}}{{else}}{{action.verb}}{{/if}}
+                </button>
+                <span class="trg-rune-action-note">
+                  {{action.description}}
+                  {{#unless action.unlimited}} <strong>{{action.remaining}} left today.</strong>{{/unless}}
+                </span>
+              </div>
+            {{/each}}
+          </div>
+        {{/if}}
+      </article>
+    {{/if}}
+
+    {{#if isAmmunition}}
+      <article class="ornate-card">
+        <h2>Ammunition</h2>
+        <div class="field-grid two-column">
+          <label><span>Damage</span><input type="text" name="system.damage" value="{{system.damage}}"></label>
+          <label><span>Armour Rending</span><input type="number" name="system.armourRending" value="{{system.armourRending}}"></label>
+          <label><span>Compatible Weapon Group</span><input type="text" name="system.compatibleWeaponGroup" value="{{system.compatibleWeaponGroup}}"></label>
+          <label><span>Item Level</span><input type="number" name="system.itemLevel" value="{{system.itemLevel}}"></label>
+          <label><span>Batch Size</span><input type="number" name="system.batchSize" value="{{system.batchSize}}" min="1" step="1" data-tooltip="How many pieces the printed Weight and Price cover. Arrows are sold and weighed in twenties, so a batch of 20 weighing 3 lb means 3 lb for all twenty — not 3 lb each. Leave at 1 for anything sold singly."></label>
+          <label><span>Removes Traits</span><input type="text" name="system.removesTraits" value="{{system.removesTraits}}" data-tooltip="Weapon traits this round takes away for the shot — Distance Arrows remove Deadly. Comma-separated."></label>
+          <label><span>Runes</span><input type="text" name="system.runes" value="{{system.runes}}" data-tooltip="Weapon runes on this batch (Chapter 11): its Potency is the round's item bonus to attack and +1 damage a tier, and its damage runes add their secondary damage when it is fired. Built by the Magical Ammunition builder."></label>
+        </div>
+        <p class="hint">Carried weight is <strong>quantity ÷ batch size × weight</strong>, so a half-spent quiver weighs half.</p>
+      </article>
+    {{/if}}
+
+    {{#if isConsumable}}
+      <article class="ornate-card">
+        <h2>Consumable</h2>
+        <div class="field-grid three-column">
+          <label><span>Uses</span><input type="number" name="system.uses.value" value="{{system.uses.value}}"></label>
+          <label><span>Maximum</span><input type="number" name="system.uses.max" value="{{system.uses.max}}"></label>
+          <label><span>Activation</span><input type="text" name="system.activation" value="{{system.activation}}"></label>
+          <label><span>Item Level</span><input type="number" name="system.itemLevel" value="{{system.itemLevel}}" data-tooltip="A magical consumable's level is the PP of the spell it creates (Chapter 11), and its price follows from that level."></label>
+        </div>
+        <div class="field-grid three-column">
+          <label><span>Kind</span>
+            <select name="flags.trg-prime.consumable.kind" data-tooltip="A scroll is priced from its own, cheaper column — and reading one takes a check, where a potion simply works.">
+              {{selectOptions consumableKindChoices selected=consumableKind blank=""}}
+            </select></label>
+          <label><span>Spell Released</span><input type="text" name="flags.trg-prime.consumable.spell.name" value="{{consumableSpellName}}" data-tooltip="The spell this releases when used. Matched against this character's own spells first, then the compendium — so a house-ruled version wins."></label>
+          <label><span>Spell PP</span><input type="number" name="flags.trg-prime.consumable.spell.pp" value="{{consumableSpellPP}}" min="0" data-tooltip="The PP it was made at. This is the item's level, and its Save DC is 10 + this."></label>
+        </div>
+        <input type="hidden" name="flags.trg-prime.consumable.spell.uuid" value="{{consumableSpellUuid}}">
+        <p class="hint">{{#if consumableSpellName}}Use it from the Inventory tab — {{#if consumableNeedsCheck}}reading it takes a Spellcraft or Use Magic Device check{{else}}no check is needed{{/if}}.{{else}}Name the spell it releases and it becomes usable from the Inventory tab.{{/if}}</p>
+      </article>
+    {{/if}}
+
+    {{#if isGear}}
+      <article class="ornate-card">
+        <h2>Gear</h2>
+        <div class="field-grid two-column">
+          <label><span>Slot</span><input type="text" name="system.slot" value="{{system.slot}}" data-tooltip="e.g. head, hands, feet, waist, neck, ring. Used to flag duplicate-slot items (Chapter 11) — rings are exempt."></label>
+          <label><span>Uses</span><input type="number" name="system.uses.value" value="{{system.uses.value}}"></label>
+          <label><span>Maximum</span><input type="number" name="system.uses.max" value="{{system.uses.max}}"></label>
+          <label><span>Size</span><input type="text" name="system.itemSize" value="{{system.itemSize}}" data-tooltip="How big the object is, for the hand requirement (Chapter 6). Letters and words both work — L and Large mean the same thing. Some entries carry more than a size (S/1h, S/2h); a dropdown was tried at 3.368.0 and would have quietly rewritten those."></label>
+          <label><span>Item Level</span><input type="number" name="system.itemLevel" value="{{system.itemLevel}}"></label>
+          <label><span>Hands Required</span><input type="number" name="system.heldHands" value="{{system.heldHands}}" min="0" max="2" data-tooltip="How many hands this item needs while equipped/in use — 0 if it doesn't need a hand at all (most gear)."></label>
+        </div>
+        <label class="wide-field"><span>Formulae</span><input type="text" name="system.formulae" value="{{system.formulae}}" data-tooltip="Chapter 6, Item Formulas — use the Add Formula button on the actor sheet to purchase and add a new one automatically, or edit this list directly."></label>
+        <label class="checkbox-field"><span>Spell Book Container</span><input type="checkbox" name="system.spellbookContainer" {{checked system.spellbookContainer}} data-tooltip="This gear item IS a Wizard-style spell book — its own sheet grows a slot ladder and offers Add to Book. Currently only the Wizard's Spellbook ships with this set."></label>
+      </article>
+    {{/if}}
+
+    {{#if isSpellbookContainer}}
+      <article class="ornate-card spellbook-growth-card">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">Grows with level — memorise from it each day to cast</span>
+            <h2>Spell Book</h2>
+          </div>
+          {{#if spellBook}}
+          {{#if editable}}
+          <div class="heading-actions">
+            <button type="button" class="gold-button" data-action="addToSpellBook"
+              data-tooltip="Add a spell to the book — six PP 2 picks at 1st, two more every level after">
+              <i class="fa-solid fa-book-medical"></i> Add to Book
+            </button>
+          </div>
+          {{/if}}
+          {{/if}}
+        </div>
+        {{#if spellBook}}
+        <div class="field-grid four-column">
+          <label>
+            <span>Slots filled</span>
+            <output data-tooltip="Spells in the book against the schedule.">{{spellBook.owned}} / {{spellBook.allowed}}</output>
+          </label>
+          <label>
+            <span>Owed</span>
+            <output data-tooltip="Slots the schedule has granted that are still empty.">{{spellBook.remaining}}</output>
+          </label>
+          <label>
+            <span>Restriction</span>
+            <output data-tooltip="What a slot may be: the owner's tradition; PP 2 while the opening batch is open, then anything they can actually cast.">{{spellBook.tradition}}</output>
+          </label>
+          <label>
+            <span></span>
+            <output></output>
+          </label>
+        </div>
+        {{#if spellBookSpells.length}}
+        <div class="list-filter-row">
+          <label>
+            <span>Tradition</span>
+            <select class="spell-filter-tradition">
+              <option value="">All traditions</option>
+              {{#each spellBookFilters.traditions}}
+              <option value="{{this.value}}">{{this.label}}</option>
+              {{/each}}
+            </select>
+          </label>
+          <label>
+            <span>PP</span>
+            <select class="spell-filter-pp">
+              <option value="">All PP</option>
+              {{#each spellBookFilters.pps}}
+              <option value="{{this}}">{{this}}</option>
+              {{/each}}
+            </select>
+          </label>
+        </div>
+        <div class="item-list-header book-spell-header">
+          <span>Spell</span>
+          <span>Tradition</span>
+          <span>PP</span>
+          <span>Prepared</span>
+        </div>
+        {{#each spellBookSpells as |spell|}}
+        <div class="item-row book-spell-row" data-spell-id="{{spell.id}}" data-tradition="{{spell.tradition}}" data-pp="{{spell.ppCost}}">
+          <button type="button" class="item-name" data-action="openBookSpell" data-tooltip="Open this spell — memorising it for the day happens from the Magic tab's Memorisation card, not here.">
+            <img src="{{spell.img}}" alt="">
+            <span><strong>{{spell.name}}</strong></span>
+          </button>
+          <span>{{spell.tradition}}</span>
+          <span>{{spell.ppCost}}</span>
+          <span class="{{#if spell.prepared}}prepared-state{{/if}}">{{#if spell.prepared}}Yes{{else}}—{{/if}}</span>
+        </div>
+        {{/each}}
+        {{else}}
+        <p class="hint">No spells in the book yet — press Add to Book above.</p>
+        {{/if}}
+        {{else}}
+        <p class="hint">
+          {{#if item.actor}}{{item.actor.name}}'s class doesn't keep a growing spell book — this card only tracks book-style memorisation (currently the Wizard alone).{{else}}Add this book to a Wizard's inventory to track its growth here — Apply Grants hands one over automatically when the class is taken.{{/if}}
+        </p>
+        {{/if}}
+      </article>
+    {{/if}}
+
+    {{#if isSpell}}
+      <article class="ornate-card">
+        <h2>Spell</h2>
+        <div class="field-grid four-column">
+          <label><span>Tradition</span><input type="text" name="system.tradition" value="{{system.tradition}}"></label>
+          <label>
+            <span>Category</span>
+            <select name="system.category">
+              {{selectOptions spellCategoryChoices selected=system.category}}
+            </select>
+          </label>
+          <label><span>Level</span><input type="number" name="system.level" value="{{system.level}}"></label>
+          <label><span>PP Cost</span><input type="number" name="system.ppCost" value="{{system.ppCost}}"></label>
+          <label><span>Cast AP</span><input type="number" name="system.castAP" value="{{system.castAP}}"></label>
+          <label><span>Range</span><input type="text" name="system.range" value="{{system.range}}"></label>
+          <label><span>Area</span><input type="text" name="system.area" value="{{system.area}}"></label>
+          <label><span>Targets</span><input type="text" name="system.targets" value="{{system.targets}}"></label>
+          <label><span>Duration</span><input type="text" name="system.duration" value="{{system.duration}}"></label>
+          <label><span>Defence</span><input type="text" name="system.defence" value="{{system.defence}}" data-tooltip="For Save spells: the saving throw the target rolls (Will, Fortitude or Reflex)."></label>
+          <label><span>Base Damage</span><input type="text" name="system.baseDamage" value="{{system.baseDamage}}" data-tooltip="Base Damage Value (Chapter 9) — used for warping and criticals. e.g. 1d8."></label>
+          <label class="checkbox-field"><span>Prepared</span><input type="checkbox" name="system.prepared" {{checked system.prepared}}></label>
+          <label class="checkbox-field"><span>Sustained</span><input type="checkbox" name="system.sustained" {{checked system.sustained}} data-tooltip="Maintained with the Sustain a Spell action each round (Chapter 7). Duration 'Sustained' = the spell ends if you don't sustain it. Duration with '(S)' = the spell doesn't end, it just has no effect for any round you don't sustain it."></label>
+          <label class="checkbox-field"><span>Specialist</span><input type="checkbox" name="system.specialist" {{checked system.specialist}} data-tooltip="Very Easy casting difficulty, PP cap of character level (not caster level), and the higher-of-two attack/save formulas (Chapter 9)."></label>
+          <label class="checkbox-field"><span>Innate</span><input type="checkbox" name="system.innate" {{checked system.innate}} data-tooltip="Innate spell (Chapter 9): cast for 0 PP, a set number of times per day, auto-warped to the maximum treating character level as caster level, using level-based attack/save (ability + level). Granted by a race or item rather than a class."></label>
+          <label><span>Uses / Day</span><input type="text" name="system.usesPerDay" value="{{system.usesPerDay}}" data-tooltip="For innate spells: how many times per day it can be cast (usually 1). Refreshed on Daily Preparation."></label>
+        </div>
+        <div class="component-row">
+          <label><input type="checkbox" name="system.components.somatic" {{checked system.components.somatic}}> Somatic</label>
+          <label><input type="checkbox" name="system.components.verbal" {{checked system.components.verbal}}> Verbal</label>
+          <label><input type="checkbox" name="system.components.material" {{checked system.components.material}}> Material</label>
+          <label><input type="checkbox" name="system.components.focus" {{checked system.components.focus}}> Focus</label>
+        </div>
+        <label class="wide-field"><span>Traits</span><input type="text" name="system.traits" value="{{system.traits}}"></label>
+      </article>
+    {{/if}}
+
+    {{#if isFeature}}
+      <article class="ornate-card">
+        <h2>Feature</h2>
+        <div class="field-grid three-column">
+          <label><span>Source</span><input type="text" name="system.source" value="{{system.source}}"></label>
+          {{#if isFeat}}
+            <label>
+              <span>Category</span>
+              <select name="system.category">
+                {{selectOptions featCategoryChoices selected=system.category}}
+              </select>
+            </label>
+          {{else if isAbility}}
+            <label>
+              <span>Category</span>
+              <select name="system.category">
+                {{selectOptions abilityCategoryChoices selected=system.category}}
+              </select>
+            </label>
+          {{else}}
+            <label><span>Category</span><input type="text" name="system.category" value="{{system.category}}"></label>
+          {{/if}}
+          <label><span>Tier</span><input type="text" name="system.tier" value="{{system.tier}}"></label>
+          <label><span>Level</span><input type="number" name="system.level" value="{{system.level}}"></label>
+          <label class="checkbox-field"><span>Active</span><input type="checkbox" name="system.active" {{checked system.active}}></label>
+        </div>
+        <label class="wide-field"><span>Prerequisites</span><input type="text" name="system.prerequisites" value="{{system.prerequisites}}"></label>
+        {{#if isFeat}}
+          <div class="field-grid three-column">
+            <label><span>Race(s)</span><input type="text" name="system.sourceRace" value="{{system.sourceRace}}" placeholder="e.g. Ascendan, Elf" data-tooltip="Comma-separated. The picker shows the feat when the character matches ANY listed race (Chapter 5: satisfy at least one trait). Blank = available to all."></label>
+            <label><span>Class</span><input type="text" name="system.sourceClass" value="{{system.sourceClass}}"></label>
+            <label><span>Traits</span><input type="text" name="system.traits" value="{{system.traits}}" placeholder="e.g. Morph, Concentrate"></label>
+          </div>
+          <label class="wide-field"><span>Granted Spells</span><input type="text" name="system.grantedSpells" value="{{system.grantedSpells}}" placeholder="e.g. Calm Animal" data-tooltip="Comma-separated spell names granted when this feat is taken (resolved from the spells compendium by name)."></label>
+          <label class="wide-field"><span>Granted Weapons</span><input type="text" name="system.grantedWeapons" value="{{system.grantedWeapons}}" placeholder="e.g. Fangs (Vesperyn)" data-tooltip="Comma-separated natural-attack names, resolved from the companions compendium (where natural attacks live) when this feat is taken."></label>
+          <label class="wide-field"><span>Granted Abilities</span><input type="text" name="system.grantedAbilities" value="{{system.grantedAbilities}}" placeholder="e.g. Nightvision" data-tooltip="Comma-separated ability names granted when this feat is taken (resolved from the abilities compendium by name)."></label>
+        {{/if}}
+        {{#if isAbility}}
+          <div class="field-grid three-column">
+            <label><span>Race(s)</span><input type="text" name="system.sourceRace" value="{{system.sourceRace}}"></label>
+            <label><span>Class</span><input type="text" name="system.sourceClass" value="{{system.sourceClass}}"></label>
+            <label><span>Traits</span><input type="text" name="system.traits" value="{{system.traits}}"></label>
+          </div>
+          <label class="wide-field"><span>Granted Spells</span><input type="text" name="system.grantedSpells" value="{{system.grantedSpells}}" placeholder="e.g. 1: Doctrinal Ward, 7: Word of Censure" data-tooltip="&quot;level: name&quot; pairs, resolved from the spells compendium when this ability lands on a sheet — a discipline's specialist spells. A bare name counts as 1st level."></label>
+          <label class="wide-field"><span>Granted Abilities</span><input type="text" name="system.grantedAbilities" value="{{system.grantedAbilities}}" data-tooltip="Comma-separated ability names, resolved from the abilities compendium when this ability lands on a sheet."></label>
+          <label class="wide-field"><span>Granted Feats</span><input type="text" name="system.grantedFeats" value="{{system.grantedFeats}}" data-tooltip="Comma-separated feat names, resolved from the feats compendium when this ability lands on a sheet."></label>
+        {{/if}}
+        {{#if isRace}}
+          <label class="wide-field"><span>Ability Modifiers</span><input type="text" name="system.abilityModifiers" value="{{system.abilityModifiers}}" placeholder="e.g. Str +1, Con +2, Dex -1, Wis +1, Cha -1" data-tooltip="Comma-separated. The compiled race carries these as effects writing each attribute's racial slot — this field is the readable statement of what those effects do."></label>
+          <label class="wide-field"><span>Languages (prose)</span><input type="text" name="system.languages" value="{{system.languages}}" placeholder="e.g. Core: Dengaris, Low Tongue. Additional: ..." data-tooltip="The rulebook's own sentence, shown in the description. The three fields below are what the character sheet actually computes from."></label>
+          <label class="wide-field"><span>Specialist Skills</span><input type="text" name="system.specialistSkills" value="{{system.specialistSkills}}" placeholder="e.g. Dwarven Lore, Stone Lore" data-tooltip="Comma-separated. Created on the character as specialist skill entries when the race's grants are applied, and removed again with the race."></label>
+          <label class="wide-field"><span>Granted Feats</span><input type="text" name="system.grantedFeats" value="{{system.grantedFeats}}" data-tooltip="Comma-separated feat names, resolved from the feats compendium when the grants are applied."></label>
+          <label class="wide-field"><span>Racial Abilities</span><input type="text" name="system.racialAbilities" value="{{system.racialAbilities}}" placeholder="e.g. Darkvision, Hardy, Lead Boots" data-tooltip="Comma-separated ability names, resolved from the abilities compendium when the grants are applied."></label>
+          <label class="wide-field"><span>Granted Spells</span><input type="text" name="system.grantedSpells" value="{{system.grantedSpells}}" placeholder="e.g. Read Aura" data-tooltip="Comma-separated spell names granted by the race itself (Pillars of Faith's Kethrani Revelatory Script is the first), resolved from the spells compendium when the grants are applied. Innate when the race carries the grantInnate flag."></label>
+          <div class="field-grid three-column">
+            <label><span>Core Languages</span><input type="text" name="system.coreLanguages" value="{{system.coreLanguages}}" placeholder="e.g. Dengaris, Low Tongue" data-tooltip="Comma-separated. Always known, cost no pick, and leave with this item."></label>
+            <label><span>Additional</span><input type="text" name="system.additionalLanguages" value="{{system.additionalLanguages}}" placeholder="e.g. common, Gaian" data-tooltip="What the character's bonus languages may be drawn from. Mix group names (common, uncommon, rare) with specific languages. Regional is always allowed on top."></label>
+            <label><span>Choice Slots</span><input type="text" name="system.languageChoices" value="{{system.languageChoices}}" placeholder="e.g. 1 regional" data-tooltip="Extra picks this item grants, as &quot;count groups&quot; — the Human's &quot;1 regional&quot;, a heritage's &quot;2 common|uncommon&quot;."></label>
+          </div>
+        {{/if}}
+        {{#if isBackgroundLike}}
+          {{#if isOrigin}}
+            <label class="wide-field"><span>Traits</span><input type="text" name="system.traits" value="{{system.traits}}" placeholder="e.g. Coastal, Noble" data-tooltip="Free-text traits this origin carries."></label>
+            <label class="wide-field"><span>Restricted To Race</span><input type="text" name="system.sourceRace" value="{{system.sourceRace}}" placeholder="e.g. Dwarf" data-tooltip="Leave blank for an origin open to everyone. A named race is the only one offered this origin in the picker — the same field, and the same filter, a heritage uses."></label>
+            <label class="wide-field"><span>Benefit</span><input type="text" name="system.benefit" value="{{system.benefit}}" placeholder="e.g. +1 circumstance to Crafting or Artistry checks involving…" data-tooltip="The printed sentence. What it DOES is carried as a conditional in flags.trg-prime.conditionals, offered in the roll dialog with this wording beside it — a scoped bonus, never a flat one."></label>
+            <label class="wide-field"><span>Contact</span><input type="text" name="system.contact" value="{{system.contact}}" data-tooltip="The local figure this origin gives the character. Reference for the GM; nothing on the sheet computes from it."></label>
+            <label class="wide-field"><span>Obligation</span><input type="text" name="system.obligation" value="{{system.obligation}}" data-tooltip="What the origin asks of the character in return. Held by the table, not by the system."></label>
+            <label class="wide-field"><span>Suggested Purchases</span><input type="text" name="system.suggestedPurchases" value="{{system.suggestedPurchases}}" data-tooltip="The document's own shopping suggestion for a character with this origin."></label>
+          {{/if}}
+          <label class="wide-field"><span>Granted Feats</span><input type="text" name="system.grantedFeats" value="{{system.grantedFeats}}" placeholder="e.g. Theologian" data-tooltip="Comma-separated feat names, resolved from the feats compendium when the grants are applied. Archaeologist, Diplomat and Lay Healer are the Chapter 2 backgrounds with none."></label>
+          <label class="wide-field"><span>Skill Bonuses</span><input type="text" name="system.skillBonuses" value="{{system.skillBonuses}}" placeholder="e.g. Culture, Religion, Meditation" data-tooltip="The printed line. The compiled background carries these as effects writing each skill's CLASS slot (+1 each) — this field is the readable statement of what those effects do."></label>
+          <label class="wide-field"><span>Specialist Skill</span><input type="text" name="system.specialistSkill" value="{{system.specialistSkill}}" placeholder="e.g. Religious Doctrine" data-tooltip="Created on the character as a specialist skill entry when the grants are applied, and removed again with the background. A background whose skill is a player CHOICE names it here and prompts for the answer on its Use button."></label>
+          <label class="wide-field"><span>Granted Spells</span><input type="text" name="system.grantedSpells" value="{{system.grantedSpells}}" placeholder="e.g. Lay On Hands" data-tooltip="Comma-separated spell names, resolved from the spells compendium when the grants are applied."></label>
+          <label class="wide-field"><span>Special</span><input type="text" name="system.special" value="{{system.special}}" data-tooltip="Any additional ability the background's description grants beyond the feat, skills and specialist skill."></label>
+          <label class="wide-field"><span>Wealth</span><input type="text" name="system.wealth" value="{{system.wealth}}" placeholder="e.g. 1, -2, 1d4-2" data-tooltip="The Background Wealth table (Chapter 6). Added to Charisma and the class value to make the character's wealth score, which is multiplied by 50 gp. A FORMULA (the Gambler's 1d4-2) is rolled once, when the background is added to a character, and the result is recorded on that item."></label>
+          <div class="field-grid three-column">
+            <label><span>Core Languages</span><input type="text" name="system.coreLanguages" value="{{system.coreLanguages}}" data-tooltip="Comma-separated. Always known, cost no pick, and leave with this item."></label>
+            <label><span>Additional</span><input type="text" name="system.additionalLanguages" value="{{system.additionalLanguages}}" data-tooltip="What this background's bonus languages may be drawn from. Mix group names (common, uncommon, rare) with specific languages."></label>
+            <label><span>Choice Slots</span><input type="text" name="system.languageChoices" value="{{system.languageChoices}}" placeholder="e.g. 2 common|uncommon|rare|regional" data-tooltip="Extra picks this background grants, as &quot;count groups&quot; — the Diplomat's two. Unlike a race's, a background's slots are FREE picks and are never flagged as off-list."></label>
+          </div>
+        {{/if}}
+        {{#if isClass}}
+          <div class="field-grid three-column">
+            <label><span>Class Type</span><select name="system.classType">{{selectOptions classTypeChoices selected=system.classType}}</select></label>
+            <label><span>Hit Points / Level</span><input type="number" name="system.hitPoints" value="{{system.hitPoints}}" min="0" data-tooltip="The class's own HP per level, before Constitution. The character sheet derives max HP from this — while a class is worn it replaces the manual HP-per-level field."></label>
+            <label><span>Skill Points / Level</span><input type="number" name="system.skillPoints" value="{{system.skillPoints}}" min="0" data-tooltip="Before Intelligence. The printed line is &quot;N + Int per level&quot;; this is the N."></label>
+            <label><span>Wealth</span><input type="text" name="system.wealth" value="{{system.wealth}}" placeholder="e.g. 2" data-tooltip="The Class Wealth table (Chapter 6): Bard 1, Cleric 2, Crusader 3, Druid 0, Fighter 3, Ranger 2, Rogue 2, Wizard 1. Added to Charisma and the background value to make the wealth score, which is multiplied by 50 gp."></label>
+          </div>
+          <label class="wide-field"><span>Key Ability Scores</span><input type="text" name="system.keyAbilityScores" value="{{system.keyAbilityScores}}" placeholder="e.g. Strength or Dexterity (min +2), Constitution" data-tooltip="The printed line. The &quot;(min +N)&quot; bracket is READ: a character below it is warned when the class is added and on their sheet, never refused. The requirement is whatever is named immediately before the bracket, and &quot;or&quot; means either satisfies it."></label>
+          <label class="wide-field"><span>Proficiencies</span><input type="text" name="system.proficiencies" value="{{system.proficiencies}}" data-tooltip="The printed sentence covering armour, shields and weapons."></label>
+          <label class="wide-field"><span>Class Skills</span><input type="text" name="system.classSkills" value="{{system.classSkills}}" placeholder="e.g. Athletics, Climbing, Culture" data-tooltip="Comma-separated. Each is worth your class bonus. Reported on the Apply Grants card and shown on the Skills tab, but NOT applied automatically — two sources both saying &quot;class skill&quot; must not double the bonus, and modelling that is its own piece of work."></label>
+          <label class="wide-field"><span>Granted Feats</span><input type="text" name="system.grantedFeats" value="{{system.grantedFeats}}" data-tooltip="Comma-separated feat names, resolved from the feats compendium when the grants are applied."></label>
+          <label class="wide-field"><span>Class Abilities</span><input type="text" name="system.classAbilities" value="{{system.classAbilities}}" placeholder="e.g. 1: Warrior&#39;s Resolve, 2: Battle Readiness" data-tooltip="&quot;level: name&quot; pairs, resolved from the abilities compendium. Only the ones the character has reached are granted; the rest are named on the card. A bare name with no level counts as 1st."></label>
+          <label class="wide-field"><span>Granted Gear</span><input type="text" name="system.grantedGear" value="{{system.grantedGear}}" placeholder="e.g. Wizard's Spellbook" data-tooltip="Comma-separated gear names, resolved from the gear compendium when the grants are applied — free starting equipment this class hands over, not levelled. Currently only the Wizard's own Spellbook."></label>
+          <label class="wide-field"><span>Granted Spells</span><input type="text" name="system.grantedSpells" value="{{system.grantedSpells}}" placeholder="e.g. 1: Cure, 1: Restoration" data-tooltip="&quot;level: name&quot; pairs, resolved from the spells compendium. Spells the class hands over outside its repertoire or book — Pillars of Faith's Healer is the first — listed as Granted on the spells table and not counted as repertoire picks."></label>
+          <div class="field-grid three-column">
+            <label><span>Magical Tradition</span><input type="text" name="system.magicalTradition" value="{{system.magicalTradition}}" placeholder="e.g. ethereal" data-tooltip="Blank for a class with no casting of its own — those characters still pick a tradition at 1st level, and it stays theirs to choose."></label>
+            <label><span>Magical Ability</span><input type="text" name="system.magicalAbility" value="{{system.magicalAbility}}" placeholder="e.g. charisma" data-tooltip="The ability added to Spellcraft. Blank for a non-caster, whose Spellcraft ability follows the tradition they pick instead."></label>
+          </div>
+          {{#if progressionRows.length}}
+            <label class="wide-field"><span>Progression</span></label>
+            <p class="hint">The character sheet reads the row matching the character's level and shows what this class contributes beside each total. Applying the class's grants clears the fields a player used to type these into, so the two can never add together.</p>
+            <table class="progression-table">
+              <thead><tr><th>Level</th><th>BAB</th><th>BDB</th><th>Fort</th><th>Ref</th><th>Will</th><th>Feats</th><th>CL</th><th>PP</th><th>BSB</th></tr></thead>
+              <tbody>
+                {{#each progressionRows}}
+                  <tr><td>{{this.level}}</td><td>{{this.bab}}</td><td>{{this.bdb}}</td><td>{{this.fortitude}}</td><td>{{this.reflex}}</td><td>{{this.will}}</td><td>{{this.bonusFeatsText}}</td><td>{{this.casterLevelText}}</td><td>{{this.ppText}}</td><td>{{this.bsb}}</td></tr>
+                {{/each}}
+              </tbody>
+            </table>
+          {{else}}
+            <p class="hint">No progression table on this class — the character sheet falls back to its manual BAB, defence, save and HP fields.</p>
+          {{/if}}
+        {{/if}}
+        {{#if isHeritage}}
+          <label class="wide-field"><span>Source Race</span><input type="text" name="system.sourceRace" value="{{system.sourceRace}}" placeholder="e.g. Dwarf" data-tooltip="Which race this heritage belongs to. The heritage picker filters on this — leave it blank and the heritage is offered to EVERY race."></label>
+          <label class="wide-field"><span>Ability Modifiers</span><input type="text" name="system.abilityModifiers" value="{{system.abilityModifiers}}" placeholder="e.g. Con +1" data-tooltip="Comma-separated adjustments this heritage makes ON TOP of the race's. Carried as effects writing each attribute's racial slot."></label>
+          <label class="wide-field"><span>Specialist Skills</span><input type="text" name="system.specialistSkills" value="{{system.specialistSkills}}" data-tooltip="Comma-separated. Created on the character as specialist skill entries when the heritage's grants are applied, and removed again with the heritage."></label>
+          <label class="wide-field"><span>Granted Feats</span><input type="text" name="system.grantedFeats" value="{{system.grantedFeats}}"></label>
+          <label class="wide-field"><span>Racial Abilities</span><input type="text" name="system.racialAbilities" value="{{system.racialAbilities}}"></label>
+          <label class="wide-field"><span>Removed Abilities</span><input type="text" name="system.removedAbilities" value="{{system.removedAbilities}}" placeholder="e.g. Ley Blood, Arcane Knowledge" data-tooltip="Comma-separated racial abilities this heritage TAKES AWAY. Deleted when the heritage's grants are applied, and never re-granted by the race while the heritage is worn."></label>
+          <label class="wide-field"><span>Granted Spells</span><input type="text" name="system.grantedSpells" value="{{system.grantedSpells}}" placeholder="e.g. Dancing Lights, Light" data-tooltip="Comma-separated spell names, resolved from the spells compendium when the grants are applied."></label>
+          <label class="wide-field"><span>Loyalties</span><input type="text" name="system.loyalties" value="{{system.loyalties}}" placeholder="e.g. All life is sacred." data-tooltip="The heritage's printed Loyalties line (Ascendan and some Elf heritages). Roleplaying guidance — no mechanical effect."></label>
+          <div class="field-grid three-column">
+            <label><span>Core Languages</span><input type="text" name="system.coreLanguages" value="{{system.coreLanguages}}" placeholder="e.g. Dengaris, Low Tongue" data-tooltip="Comma-separated. Always known, cost no pick, and leave with this item."></label>
+            <label><span>Additional</span><input type="text" name="system.additionalLanguages" value="{{system.additionalLanguages}}" placeholder="e.g. common, Gaian" data-tooltip="What the character's bonus languages may be drawn from. Mix group names (common, uncommon, rare) with specific languages. Regional is always allowed on top."></label>
+            <label><span>Choice Slots</span><input type="text" name="system.languageChoices" value="{{system.languageChoices}}" placeholder="e.g. 1 regional" data-tooltip="Extra picks this item grants, as &quot;count groups&quot; — the Human's &quot;1 regional&quot;, a heritage's &quot;2 common|uncommon&quot;."></label>
+          </div>
+        {{/if}}
+      </article>
+    {{/if}}
+
+    {{#if isUsable}}
+      <article class="ornate-card">
+        <h2>Uses Per Day</h2>
+        <div class="field-grid three-column">
+          <label><span>Uses Per Day</span><input type="text" name="system.usesPerDay" value="{{system.usesPerDay}}" placeholder="e.g. 3, Charisma, unlimited" data-tooltip="A flat number, an ability score name (the raw score), or 'unlimited'. Leave blank if this doesn't track daily uses."></label>
+          <label><span>Bonus Uses</span><input type="number" name="system.bonusUses" value="{{system.bonusUses}}" min="0" data-tooltip="Flat additional uses, e.g. from a feat granting extra uses per day. Set manually."></label>
+          <label><span>Uses Remaining</span><input type="number" name="system.usesValue" value="{{system.usesValue}}" min="0" data-tooltip="Current uses left today. Reset by Daily Preparation."></label>
+        </div>
+      </article>
+    {{/if}}
+
+    <article class="ornate-card description-card">
+      <h2>Description</h2>
+      <textarea
+        class="chronicle"
+        name="system.description"
+        placeholder="Rules, effects, and description…"
+      >{{system.description}}</textarea>
+    </article>
+  </main>
+
+  <footer class="sheet-footer">
+    <span><i class="fa-solid fa-dragon"></i> TRG Prime</span>
+    <span>{{typeLabel}}</span>
+  </footer>
+</div>

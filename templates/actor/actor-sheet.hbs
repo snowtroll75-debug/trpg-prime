@@ -1,0 +1,3765 @@
+<div class="trg-prime-sheet actor-sheet">
+  <header class="sheet-header">
+    <div class="portrait-frame">
+      <img class="profile-img" src="{{actor.img}}" alt="{{actor.name}}" data-action="editImage" data-tooltip="Click to change portrait">
+      <input
+        class="portrait-path"
+        type="text"
+        name="img"
+        value="{{actor.img}}"
+        aria-label="Portrait path"
+      >
+    </div>
+
+    <div class="identity">
+      <div class="title-row">
+        <div class="name-field">
+          <span class="eyebrow">{{#if isNPC}}NPC{{else if isCompanion}}Animal Companion{{else if isFamiliar}}Familiar{{else}}Adventurer{{/if}}</span>
+          <input
+            class="actor-name"
+            type="text"
+            name="name"
+            value="{{actor.name}}"
+            placeholder="Character Name"
+          >
+        </div>
+        <div class="level-seal">
+          <label>Level</label>
+          {{#if isNPC}}
+            <input
+              type="number"
+              name="system.identity.level"
+              value="{{system.identity.level}}"
+              min="0"
+            >
+            {{#if isGM}}
+              {{!-- ADJUSTING LEVEL (3.633.0; F&F 3.0 bestiary page 5): EL ±N,
+                    +N to every d20 roll and DB, ±8 HP a step. GM only. --}}
+              <input
+                type="number"
+                class="el-adjust"
+                name="flags.trg-prime.elAdjust"
+                value="{{elAdjust}}"
+                min="-5" max="5" step="1"
+                data-tooltip="EL adjustment (GM): +1 to every d20 roll and DB, and 8 HP, per step — Fiends &amp; Fables, Adjusting Level."
+              >
+            {{/if}}
+          {{else if isFamiliar}}
+            {{!-- Its master's level, pushed across. Editable for the
+                  same reason a companion's is: a GM building one by hand
+                  or repairing a drifted one needs to be able to. --}}
+            <input
+              type="number"
+              name="system.identity.level"
+              value="{{system.identity.level}}"
+              min="1"
+              data-tooltip="Equal to your master's level. Pushed across whenever theirs changes, and again on their Daily Preparation."
+            >
+          {{else if isCompanion}}
+            {{!-- Stored, not earned: "an animal companion has a level
+                  equal to your level", pushed across when the master's
+                  changes. Editable, because a GM building a companion by
+                  hand or fixing a drifted one needs to be able to — but
+                  the drift banner below says when the number disagrees
+                  with the master rather than silently correcting it. --}}
+            <input
+              type="number"
+              name="system.identity.level"
+              value="{{system.identity.level}}"
+              min="1"
+              data-tooltip="Equal to your master's level. Pushed across when they level up, and again on their Daily Preparation."
+            >
+          {{else}}
+            <output data-tooltip="Derived from XP — 10,000 per level. Edit XP in the Character tab to change it.">{{system.identity.level}}</output>
+          {{/if}}
+        </div>
+        <button type="button" class="daily-prep-button" data-action="dailyPreparation" data-tooltip="Daily Preparation: reset uses-per-day feats and abilities">
+          <i class="fa-solid fa-sun"></i>
+        </button>
+      </div>
+
+      <div class="identity-grid">
+        <label>
+          <span>{{#if isCompanion}}Species{{else}}Race{{/if}}</span>
+          <div class="identity-field">
+            <input type="text" value="{{identitySummary.race.name}}" readonly data-tooltip="Derived from the {{#if isCompanion}}base creature{{else}}Race item{{/if}} in Foundations below — add or change it there.">
+            {{#if identitySummary.race}}
+              <button type="button" data-action="itemDelete" data-item-id="{{identitySummary.race.id}}" data-tooltip="Remove {{identitySummary.race.name}}"><i class="fa-solid fa-xmark"></i></button>
+            {{/if}}
+          </div>
+        </label>
+        {{#if isFamiliar}}
+          <label>
+            <span>Master</span>
+            <div class="identity-field">
+              <input type="text" value="{{familiarSummary.masterName}}" readonly data-tooltip="The character you are bound to. Your saves, hit points, attack and defence bonuses and every skill rank are theirs.">
+              {{#if familiarSummary.masterId}}
+                <button type="button" data-action="openMaster" data-tooltip="Open {{familiarSummary.masterName}}'s sheet"><i class="fa-solid fa-up-right-from-square"></i></button>
+              {{/if}}
+            </div>
+          </label>
+        {{else if isCompanion}}
+          {{!-- A companion has no heritage and no background. What it
+                does have, and what nothing on this sheet said until
+                3.233.3, is a master. --}}
+          <label>
+            <span>Master</span>
+            <div class="identity-field">
+              <input type="text" value="{{companionSummary.masterName}}" readonly data-tooltip="The character you are bound to. Your level follows theirs.">
+              {{#if companionSummary.masterId}}
+                <button type="button" data-action="openMaster" data-tooltip="Open {{companionSummary.masterName}}'s sheet"><i class="fa-solid fa-up-right-from-square"></i></button>
+              {{/if}}
+            </div>
+          </label>
+        {{else}}
+          <label>
+            <span>Heritage</span>
+            <div class="identity-field">
+              <input type="text" value="{{identitySummary.heritage.name}}" readonly data-tooltip="Derived from the Heritage item in Foundations below — add or change it there.">
+              {{#if identitySummary.heritage}}
+                <button type="button" data-action="itemDelete" data-item-id="{{identitySummary.heritage.id}}" data-tooltip="Remove {{identitySummary.heritage.name}}"><i class="fa-solid fa-xmark"></i></button>
+              {{/if}}
+            </div>
+          </label>
+        {{/if}}
+        <label>
+          <span>Class</span>
+          <div class="identity-field">
+            <input type="text" value="{{identitySummary.class.name}}" readonly data-tooltip="Derived from the Class item in Foundations below — add or change it there.">
+            {{#if identitySummary.class}}
+              <button type="button" data-action="itemDelete" data-item-id="{{identitySummary.class.id}}" data-tooltip="Remove {{identitySummary.class.name}}"><i class="fa-solid fa-xmark"></i></button>
+            {{/if}}
+          </div>
+        </label>
+        {{#if isFamiliar}}
+          <label>
+            <span>Form</span>
+            <div class="identity-field">
+              <input type="text" name="system.familiar.form" value="{{familiarSummary.form}}" data-tooltip="Appearance only — an owl familiar gains no flight and a cat no claws. What it can do comes from its abilities.">
+            </div>
+          </label>
+        {{else if isCompanion}}
+          <label>
+            <span>Maximum Size</span>
+            <div class="identity-field">
+              <input type="text" value="{{companionSummary.maximumSize}}" readonly data-tooltip="The largest this species can grow to. Increase Size steps you towards it and stops there.">
+            </div>
+          </label>
+        {{else}}
+          <label>
+            <span>Background</span>
+            <div class="identity-field">
+              <input type="text" value="{{identitySummary.background.name}}" readonly data-tooltip="Derived from the Background item in Foundations below — add or change it there.">
+              {{#if identitySummary.background}}
+                <button type="button" data-action="itemDelete" data-item-id="{{identitySummary.background.id}}" data-tooltip="Remove {{identitySummary.background.name}}"><i class="fa-solid fa-xmark"></i></button>
+              {{/if}}
+            </div>
+          </label>
+        {{/if}}
+      </div>
+
+      {{#if classMinimumWarning}}
+        <div class="fatigue-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <strong>Below your class's minimum ability score</strong> — {{classMinimumWarning}}
+        </div>
+      {{/if}}
+
+      {{#if aspectMissingWarning}}
+        <div class="fatigue-warning aspect-missing-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <strong>No Divine Aspect</strong> — {{aspectMissingWarning}}
+        </div>
+      {{/if}}
+
+      {{#if ethicsOffList}}
+        <div class="fatigue-warning ethics-off-list-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <strong>{{ethicsOffList}} is not one of your aspect's ethics</strong> — a divinity caster selects one of its suggested ethics (Appendix 4).
+        </div>
+      {{/if}}
+
+      {{#if isFamiliar}}
+        {{#unless familiarSummary.inSync}}
+          <div class="fatigue-warning">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <strong>Out of step with {{familiarSummary.masterName}}</strong> —
+            {{familiarSummary.driftedLabel}} {{#if familiarSummary.drifted.length}}have{{/if}} changed on their sheet and not yet here.
+            Press Daily Preparation on their sheet to catch up.
+          </div>
+        {{/unless}}
+        {{#if familiarSummary.masterMissing}}
+          <div class="fatigue-warning">
+            <i class="fa-solid fa-link-slash"></i>
+            <strong>Master missing</strong> — the actor this familiar was bound to
+            {{#if familiarSummary.masterName}}({{familiarSummary.masterName}}){{/if}}
+            is no longer in this world, so nothing will keep its numbers current.
+          </div>
+        {{/if}}
+      {{/if}}
+
+      {{#if isCompanion}}
+        {{#unless companionSummary.inSync}}
+          <div class="fatigue-warning">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <strong>Out of step with your master</strong> —
+            {{companionSummary.masterName}} is level {{companionSummary.masterLevel}}, you are level {{companionSummary.companionLevel}}.
+            Every number below is being derived from {{companionSummary.companionLevel}}.
+            Press Daily Preparation on their sheet to catch up.
+          </div>
+        {{/unless}}
+        {{#if companionSummary.masterMissing}}
+          <div class="fatigue-warning">
+            <i class="fa-solid fa-link-slash"></i>
+            <strong>Master missing</strong> — the actor this companion was bound to
+            {{#if companionSummary.masterName}}({{companionSummary.masterName}}){{/if}}
+            is no longer in this world, so nothing will push your level any more.
+          </div>
+        {{/if}}
+      {{/if}}
+
+      {{#if system.identity.fatigueStatus}}
+        <div class="fatigue-warning">
+          {{#if isFatigueDead}}
+            <i class="fa-solid fa-skull"></i> <strong>Fatigue 20+</strong> — the character dies.
+          {{else}}
+            <i class="fa-solid fa-face-dizzy"></i> <strong>Fatigue 10+</strong> — Unconscious until Fatigue falls below 10.
+          {{/if}}
+        </div>
+      {{/if}}
+
+      <div class="resource-ribbon">
+        <div class="resource hp" style="--resource-pct: {{system.resources.hp.pct}}%;">
+          <button type="button" class="resource-icon conviction-spend" data-action="applyDamage" data-tooltip="Apply Damage (Chapter 7, Death & Dying)"><i class="fa-solid fa-heart"></i></button>
+          <label data-tooltip="Hit Points">HP</label>
+          <div class="resource-values">
+            <input
+              type="number"
+              name="system.resources.hp.value"
+              value="{{system.resources.hp.value}}"
+              aria-label="Current hit points"
+            >
+            <span>/</span>
+            <input
+              type="number"
+              name="system.resources.hp.max"
+              value="{{system.resources.hp.max}}"
+              readonly
+              data-tooltip="Derived: Size + (Constitution x level) + (HP per Level x level) + Other. Set HP per Level and Other on the Attributes tab."
+              aria-label="Maximum hit points"
+            >
+            {{!-- TEMPORARY HP (3.416.0). It was rendered on the PARTY
+                  sheet and nowhere else, so a raging character was
+                  granted class bonus x 20 temporary HP they could only
+                  see by opening somebody else's sheet. Found live,
+                  26 August 2026. Shown only when there is some: a
+                  permanent "+0" beside every character's HP is noise on
+                  the one line people read most. --}}
+            {{#if system.resources.hp.temp}}
+              <span class="hp-temp-sep">+</span>
+              <input
+                type="number"
+                class="hp-temp"
+                name="system.resources.hp.temp"
+                value="{{system.resources.hp.temp}}"
+                data-tooltip="Temporary HP — spent before your own, and lost when whatever granted it ends."
+                aria-label="Temporary hit points"
+              >
+            {{/if}}
+          </div>
+        </div>
+
+        <div class="resource pp" style="--resource-pct: {{system.resources.pp.pct}}%;">
+          <span class="resource-icon"><i class="fa-solid fa-sparkles"></i></span>
+          <label data-tooltip="Power Points">PP</label>
+          <div class="resource-values">
+            <input
+              type="number"
+              name="system.resources.pp.value"
+              value="{{system.resources.pp.value}}"
+              aria-label="Current power points"
+            >
+            <span>/</span>
+            {{! Maximum PP is derived from 3.206.0 — your own base, plus
+                your class's PP column, plus your magical ability score.
+                An input here would be overwritten on the next prepare, so
+                it reads out like max HP does; the BASE is editable on the
+                Magic tab, which is also where the grants write. }}
+            <output
+              class="pp-max"
+              aria-label="Maximum power points"
+              data-tooltip="Base {{system.resources.pp.base}}{{#if system.progression.pp}} + {{system.progression.pp}} from {{system.progression.source}} at level {{system.progression.level}} + {{system.resources.pp.abilityBonus}} from your magical ability score{{/if}}. Edit the base on the Magic tab."
+            >{{system.resources.pp.max}}</output>
+          </div>
+        </div>
+
+        <div class="resource ap" style="--resource-pct: {{system.resources.ap.pct}}%;">
+          <span class="resource-icon"><i class="fa-solid fa-bolt"></i></span>
+          <label data-tooltip="Action Points">AP</label>
+          <div class="resource-values">
+            <input
+              type="number"
+              name="system.resources.ap.value"
+              value="{{system.resources.ap.value}}"
+              aria-label="Current action points"
+            >
+            <span>/</span>
+            <input
+              type="number"
+              name="system.resources.ap.max"
+              value="{{system.resources.ap.max}}"
+              aria-label="Maximum action points"
+            >
+          </div>
+        </div>
+
+        <div class="resource reactions" style="--resource-pct: {{system.resources.reactions.pct}}%;">
+          <span class="resource-icon"><i class="fa-solid fa-shield-halved"></i></span>
+          <label data-tooltip="Reactions">R</label>
+          <div class="resource-values">
+            <input
+              type="number"
+              name="system.resources.reactions.value"
+              value="{{system.resources.reactions.value}}"
+              aria-label="Current reactions"
+            >
+            <span>/</span>
+            <input
+              type="number"
+              name="system.resources.reactions.max"
+              value="{{system.resources.reactions.max}}"
+              aria-label="Maximum reactions"
+            >
+          </div>
+        </div>
+
+        {{#if useConviction}}
+        <div class="resource conviction" style="--resource-pct: {{system.resources.conviction.pct}}%;">
+          <button type="button" class="resource-icon conviction-spend" data-action="convictionMenu" data-tooltip="Spend Conviction"><i class="fa-solid fa-star"></i></button>
+          <label data-tooltip="Conviction Points">CP</label>
+          <div class="resource-values">
+            <input
+              type="number"
+              name="system.resources.conviction.value" min="0"
+              value="{{system.resources.conviction.value}}"
+              aria-label="Current conviction"
+            >
+            <span>/</span>
+            <input
+              type="number" min="0"
+              {{#if isNPC}}data-tooltip="An NPC's pool is the GM's to give (Chapter 12): 0 unless this is a major NPC"{{else}}readonly data-tooltip="Derived: 1, +1 per 5 levels, plus feat bonuses"{{/if}}
+              name="system.resources.conviction.max"
+              value="{{system.resources.conviction.max}}"
+              aria-label="Maximum conviction"
+            >
+          </div>
+        </div>
+        {{/if}}
+      </div>
+    </div>
+  </header>
+
+  <nav
+    class="sheet-tabs"
+    data-group="primary"
+    role="tablist"
+    aria-label="Actor sheet tabs"
+  >
+    {{#each tabList as |tab|}}
+      <button
+        type="button"
+        class="sheet-tab {{tab.cssClass}}"
+        data-action="selectTab"
+        data-group="primary"
+        data-tab="{{tab.id}}"
+        data-tooltip="{{tab.label}}"
+        role="tab"
+        aria-selected="{{tab.active}}"
+      >
+        <i class="{{tab.icon}}"></i>
+        <span>{{tab.label}}</span>
+      </button>
+    {{/each}}
+  </nav>
+
+  <main class="sheet-body">
+    <section
+      class="tab sheet-tab-panel {{tabs.summary.cssClass}}"
+      data-group="primary"
+      data-tab="summary"
+    >
+      <div class="summary-layout">
+        <article class="ornate-card summary-defences">
+          <h2><i class="fa-solid fa-shield-halved"></i> Combat Readiness</h2>
+          <div class="hero-stat-grid">
+            {{!-- A VEHICLE'S SHEET HIDES THE CREATURE NUMBERS (3.577.2,
+                  Graham's ruling): Initiative, the attack bonuses,
+                  Critical Resistance, Reflex, Will and the attributes.
+                  See `isVehicleActor` in module/vehicles.mjs. --}}
+            {{#unless isVehicle}}
+            <button
+              class="hero-stat"
+              type="button"
+              data-action="rollInitiative"
+              data-tooltip="Roll Initiative"
+            >
+              <span class="hero-stat-label">Initiative</span>
+              <strong>{{system.combat.initiative.total}}</strong>
+              <i class="fa-solid fa-dice-d20"></i>
+            </button>
+            <div class="hero-stat">
+              <span class="hero-stat-label">Melee Attack</span>
+              <strong>{{system.combat.attack.total}}</strong>
+              <i class="fa-solid fa-crosshairs"></i>
+            </div>
+            {{!-- The glossary names two: "a d20 roll + your attack bonus"
+                  for melee, "a d20 roll + your ranged attack bonus" for
+                  ranged. One number on the sheet meant a Dexterous
+                  character read their melee total and then watched a bow
+                  roll higher, with nothing to explain it. --}}
+            <div class="hero-stat">
+              <span class="hero-stat-label">Ranged Attack</span>
+              <strong>{{system.combat.attack.ranged}}</strong>
+              <i class="fa-solid fa-bullseye"></i>
+            </div>
+            {{/unless}}
+            <div class="hero-stat">
+              <span class="hero-stat-label">Defence Bonus</span>
+              <strong>{{system.combat.defence.total}}</strong>
+              <i class="fa-solid fa-shield"></i>
+            </div>
+            <div
+              class="hero-stat"
+              data-tooltip="Every source of Damage Reduction you have, against an ordinary physical hit: equipped armour (after the Chapter 6 BDB multiplier), Natural Armour, and any Bonus DR. Energy types halve it and essence, force, aligned, mental and poison ignore it entirely; Armour Rending, Penetrating and a critical to an unarmoured location all cut it further. The Combat tab breaks the sources out."
+            >
+              <span class="hero-stat-label">Damage Reduction</span>
+              <strong>{{totalDR}}</strong>
+              <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            {{#unless isVehicle}}
+            <div
+              class="hero-stat"
+              data-tooltip="Raises the Attack Value needed to reach each critical severity band. Sums Armour Master (+1 while armoured), Critical Resilience/Improved, the Armour Grants CR optional rule, and a creature type's fixed bonus."
+            >
+              <span class="hero-stat-label">Critical Resistance</span>
+              <strong>{{system.combat.criticalResistance}}</strong>
+              <i class="fa-solid fa-shield-heart"></i>
+            </div>
+            {{/unless}}
+          </div>
+
+          {{#if mounted}}
+            <p class="hint trg-mounted-line">
+              <i class="fa-solid fa-horse"></i> Mounted{{#if mounted.mount}} on <strong>{{mounted.mount}}</strong>{{/if}}.
+              Use Mount / Dismount to get off.
+              <a data-action="clearMounted" data-tooltip="Clear the Mounted state by hand — for a mount that has gone some other way">clear</a>
+            </p>
+          {{/if}}
+          {{#if vehiclePilot}}
+            <p class="hint trg-vehicle-pilot">
+              <i class="fa-solid fa-ship"></i> Vehicle — pilot with {{vehiclePilot.skillText}}, <strong>DC {{vehiclePilot.dc}}</strong>.
+              <button type="button" class="gold-button small-button" data-action="pilotVehicle" data-tooltip="Rolls the selected pilot's skill against this vehicle's DC (Chapter 6, Vehicles).">
+                <i class="fa-solid fa-dice-d20"></i> Pilot
+              </button>
+            </p>
+          {{/if}}
+          {{#if steedOptions}}
+            <label class="hint trg-military-mount" data-tooltip="Page 176: an animal steed gains fleeing and frightened 4 when a combat begins, unless it is a military mount.">
+              <input type="checkbox" name="flags.trg-prime.militaryMount" {{checked steedOptions.military}}>
+              <i class="fa-solid fa-horse-head"></i> Military mount (war-trained)
+            </label>
+          {{/if}}
+
+          <h3>Saving Throws</h3>
+          <div class="save-row">
+            <button type="button" data-action="rollSave" data-save="fortitude">
+              <span>Fortitude</span>
+              <strong>{{system.combat.saves.fortitude.total}}</strong>
+              <i class="fa-solid fa-dice-d20"></i>
+            </button>
+            {{#unless isVehicle}}
+            <button type="button" data-action="rollSave" data-save="reflex">
+              <span>Reflex</span>
+              <strong>{{system.combat.saves.reflex.total}}</strong>
+              <i class="fa-solid fa-dice-d20"></i>
+            </button>
+            <button type="button" data-action="rollSave" data-save="will">
+              <span>Will</span>
+              <strong>{{system.combat.saves.will.total}}</strong>
+              <i class="fa-solid fa-dice-d20"></i>
+            </button>
+            {{/unless}}
+          </div>
+        </article>
+
+        <article class="ornate-card summary-attributes {{#if attributesExpanded}}expanded{{/if}}">
+          <h2>
+            {{!-- A VEHICLE KEEPS THIS CARD FOR ITS HIT POINTS (3.577.2): the
+                  HP formula's Other is how a GM's own vehicle reaches its
+                  printed HP. The six attributes, the point pool and the
+                  table are the creature numbers, and are hidden. --}}
+            {{#if isVehicle}}<i class="fa-solid fa-heart"></i> Hit Points{{else}}<i class="fa-solid fa-dumbbell"></i> Attributes{{/if}}
+            {{!-- Attributes used to be a tab of its own. Graham asked for
+                  it folded in here instead: a quick medallion row stays
+                  on screen, and the full editable breakdown (still every
+                  field it always was — Base/Racial/Class/Item/Magic/
+                  Status/Other, still saved the instant you change one)
+                  sits behind this icon until clicked open. --}}
+            <button
+              type="button"
+              class="heading-icon-button"
+              data-action="toggleAttributeDetails"
+              data-tooltip="{{#if attributesExpanded}}Hide the Attributes breakdown{{else}}Show the Attributes breakdown{{/if}}"
+              aria-expanded="{{attributesExpanded}}"
+              aria-label="Attributes breakdown"
+            ><i class="fa-solid fa-chevron-down"></i></button>
+          </h2>
+          {{#unless isVehicle}}
+          <div class="attribute-medallions">
+            {{#each attributes as |attribute|}}
+              <button
+                type="button"
+                class="attribute-medallion"
+                data-action="rollAttribute"
+                data-attribute="{{attribute.key}}"
+                data-tooltip="Roll {{attribute.label}}"
+              >
+                <i class="{{attribute.icon}}"></i>
+                <span>{{attribute.label}}</span>
+                <strong>{{attribute.total}}</strong>
+              </button>
+            {{/each}}
+          </div>
+
+          {{/unless}}
+
+          <div class="attribute-details">
+            {{#unless isVehicle}}
+            <div class="ability-point-banner">
+              <span><strong>Point Pool:</strong> {{abilityPoints.pool}}</span>
+              <span><strong>Spent:</strong> {{abilityPoints.spentDisplay}}</span>
+              <span><strong>Remaining:</strong> {{abilityPoints.remaining}}</span>
+              <span class="hint">
+                Base at level {{abilityPoints.level}}: {{abilityPoints.min}} to {{abilityPoints.maxDisplay}}.
+                Includes the +1 ability point gained at level 3 and every 3 levels thereafter.
+              </span>
+            </div>
+            {{/unless}}
+
+            <div class="hp-formula-banner">
+              <span><strong>Max HP formula:</strong> Size + (Con &times; level) + (HP/Level &times; level) + Other</span>
+              {{#if system.progression}}
+                <label>
+                  <span>HP per Level</span>
+                  <output data-tooltip="From your class table — {{system.progression.source}} gives {{system.progression.hitPoints}} hit points per level. Remove the class item to go back to typing this by hand.">{{system.progression.hitPoints}}</output>
+                </label>
+              {{else}}
+                <label>
+                  <span>HP per Level</span>
+                  <input type="number" name="system.resources.hp.hpPerLevel" value="{{system.resources.hp.hpPerLevel}}" data-tooltip="Your class's HP-per-level rate. A class item with a progression table supplies this automatically; type it here for an NPC or a character with no class item.">
+                </label>
+              {{/if}}
+              <label>
+                <span>Other</span>
+                <input type="number" name="system.resources.hp.other" value="{{system.resources.hp.other}}" data-tooltip="A flat, non-scaling catch-all for anything else affecting Max HP (feats, magic items, etc.).">
+              </label>
+            </div>
+
+            {{#unless isVehicle}}
+            <div class="attribute-table ornate-table">
+              <div class="table-row table-header">
+                <span>Attribute</span>
+                <span>Base</span>
+                <span>Racial</span>
+                <span>Class</span>
+                <span>Item</span>
+                <span>Magic</span>
+                <span>Status</span>
+                <span>Other</span>
+                <span>Total</span>
+              </div>
+              {{#each attributes as |attribute|}}
+                <div class="table-row">
+                  <button
+                    type="button"
+                    class="row-title rollable"
+                    data-action="rollAttribute"
+                    data-attribute="{{attribute.key}}"
+                  >
+                    <i class="{{attribute.icon}}"></i>
+                    <span>{{attribute.label}}</span>
+                    <i class="fa-solid fa-dice-d20 roll-icon"></i>
+                  </button>
+                  <input
+                    type="number"
+                    name="system.attributes.{{attribute.key}}.base"
+                    value="{{attribute.base}}"
+                    min="{{../abilityPoints.min}}"
+                    max="{{../abilityPoints.max}}"
+                    aria-label="{{attribute.label}} base"
+                  >
+                  <input
+                    type="number"
+                    name="system.attributes.{{attribute.key}}.racial"
+                    value="{{attribute.racial}}"
+                    aria-label="{{attribute.label}} racial"
+                  >
+                  <input
+                    type="number"
+                    name="system.attributes.{{attribute.key}}.class"
+                    value="{{attribute.class}}"
+                    aria-label="{{attribute.label}} class"
+                  >
+                  <input
+                    type="number"
+                    name="system.attributes.{{attribute.key}}.item"
+                    value="{{attribute.item}}"
+                    aria-label="{{attribute.label}} item"
+                  >
+                  <input
+                    type="number"
+                    name="system.attributes.{{attribute.key}}.magic"
+                    value="{{attribute.magic}}"
+                    aria-label="{{attribute.label}} magic"
+                  >
+                  <input
+                    type="number"
+                    name="system.attributes.{{attribute.key}}.status"
+                    value="{{attribute.status}}"
+                    aria-label="{{attribute.label}} status"
+                  >
+                  <input
+                    type="number"
+                    name="system.attributes.{{attribute.key}}.other"
+                    value="{{attribute.other}}"
+                    aria-label="{{attribute.label}} other"
+                  >
+                  <output>{{attribute.total}}</output>
+                </div>
+              {{/each}}
+            </div>
+            {{/unless}}
+          </div>
+        </article>
+
+        <article class="ornate-card summary-identity">
+          <h2><i class="fa-solid fa-id-card"></i> {{#if isCompanion}}Companion{{else if isFamiliar}}Familiar{{else}}Character{{/if}}</h2>
+          <div class="field-grid two-column">
+            {{#if isFamiliar}}
+              <label>
+                <span>Effective Level</span>
+                <output data-tooltip="Half your master's level, rounded down — what your familiar counts as for party level and anything else that asks.">{{familiarSummary.effectiveLevel}}</output>
+              </label>
+              <label>
+                <span>Action Points</span>
+                <output data-tooltip="A familiar gains 2 AP a round when commanded, or 3 with the Familiar Focus ability. Commanding it costs you a 1 AP Interact action.">{{familiarSummary.actionPoints}}</output>
+              </label>
+            {{else if isCompanion}}
+              {{!-- Archetype, Ethics, Deity, XP and Next Level are all
+                    Chapter 1 character apparatus and none of them applies
+                    to an animal. XP in particular was actively
+                    misleading: a companion's level is pushed from its
+                    master, so the box could be edited all day and change
+                    nothing. What replaces them is the one number a
+                    companion has that a character does not. --}}
+              <label>
+                <span>Effective Level</span>
+                <output data-tooltip="The Animal Companion table's own EL column — what your companion counts as for anything that cares about a creature's level rather than its own progression.">{{#if companionEffectiveLevel}}{{companionEffectiveLevel}}{{else}}—{{/if}}</output>
+              </label>
+              <label>
+                <span>Starting Size</span>
+                <output data-tooltip="The size this species begins at. Increase Size steps up from here towards the maximum.">{{#if companionSummary.startingSize}}{{companionSummary.startingSize}}{{else}}—{{/if}}</output>
+              </label>
+            {{else}}
+              <label>
+                <span>Archetype</span>
+                <input
+                  type="text"
+                  name="system.identity.archetype"
+                  value="{{system.identity.archetype}}"
+                >
+              </label>
+              <label>
+                <span>Ethics</span>
+                {{!-- TRG Prime uses the Ethics Alignment System (Chapter 8)
+                      instead of a traditional alignment grid — a closed
+                      list of fifteen, not free text. The tooltip carries
+                      the book's own Guiding Principle for whatever is
+                      picked, so the choice reads as something on the
+                      sheet rather than a name you have to go look up. --}}
+                <select
+                  name="system.identity.ethics"
+                  data-tooltip="{{#if ethicsPrinciple}}{{ethicsPrinciple}}{{else}}Chapter 8 — the Ethics Alignment System. Choose the orientation closest to your character.{{/if}}"
+                >
+                  {{selectOptions ethicsChoices selected=system.identity.ethics}}
+                </select>
+              </label>
+              <label>
+                <span>Deity</span>
+                <input
+                  type="text"
+                  name="system.identity.deity"
+                  value="{{system.identity.deity}}"
+                >
+              </label>
+            {{/if}}
+            <label>
+              <span>Size</span>
+              <select name="system.identity.size">
+                {{selectOptions sizeChoices selected=system.identity.size}}
+              </select>
+            </label>
+            {{#unless isCompanion}}{{#unless isFamiliar}}
+              <label>
+                <span>XP</span>
+                {{#if isNPC}}
+                  <input
+                    type="number"
+                    name="system.identity.xp.value"
+                    value="{{system.identity.xp.value}}"
+                  >
+                {{else}}
+                  <input
+                    type="number"
+                    name="system.identity.xp.value"
+                    value="{{system.identity.xp.value}}"
+                    data-tooltip="10,000 XP per level. Reaching the threshold below raises Level automatically."
+                  >
+                {{/if}}
+              </label>
+              <label>
+                <span>Next Level</span>
+                {{#if isNPC}}
+                  <input
+                    type="number"
+                    name="system.identity.xp.max"
+                    value="{{system.identity.xp.max}}"
+                  >
+                {{else}}
+                  <output data-tooltip="XP needed to reach your next level.">{{system.identity.xp.max}}</output>
+                {{/if}}
+              </label>
+            {{/unless}}{{/unless}}
+            <label>
+              <span>Class Bonus</span>
+              <output>{{system.identity.classBonus}}</output>
+            </label>
+            <label>
+              <span>Gender</span>
+              <input type="text" name="system.identity.gender" value="{{system.identity.gender}}">
+            </label>
+            <label>
+              <span>Age</span>
+              <input type="text" name="system.identity.age" value="{{system.identity.age}}">
+            </label>
+            <label>
+              <span>Height</span>
+              <input type="text" name="system.identity.height" value="{{system.identity.height}}">
+            </label>
+            <label>
+              <span>Weight</span>
+              <input type="text" name="system.identity.weight" value="{{system.identity.weight}}">
+            </label>
+            <div class="trg-language-panel wide-field{{#if languages.over}} is-over{{/if}}" data-tooltip="{{languages.tooltip}}">
+              <div class="trg-language-header">
+                <span>Languages</span>
+                <span class="trg-language-count">
+                  <strong>{{languages.headline}}</strong>
+                  <em>{{languages.status}}</em>
+                  {{#if languages.total}}<em class="trg-language-split">{{languages.split}}</em>{{/if}}
+                </span>
+                {{#if editable}}
+                  <button type="button" class="gold-button" data-action="manageLanguages">
+                    <i class="fa-solid fa-comments"></i> Manage
+                  </button>
+                {{/if}}
+              </div>
+              <div class="trg-language-chips">
+                {{#each languages.core}}
+                  <span class="trg-language-chip is-core" data-tooltip="Core language from {{this.source}} — always known, costs no pick.">{{this.name}}<em>{{this.source}}</em></span>
+                {{/each}}
+                {{#each languages.chosen}}
+                  <span class="trg-language-chip{{#if this.flagged}} is-off-list{{/if}}"{{#if this.flagged}} data-tooltip="Off your race's list with no free slot left to cover it. Kept — only 1st-level picks are held to the racial list, and a GM may allow others by campaign."{{/if}}>{{this.name}}<em>{{this.rarity}}</em></span>
+                {{/each}}
+                {{#each languages.temporary}}
+                  <span class="trg-language-chip is-temporary" data-tooltip="From {{this.source}} — until your next daily preparation. Costs no pick.">{{this.name}}<em>today</em></span>
+                {{/each}}
+                {{#unless languages.known}}
+                  <span class="empty-state-compact">No languages yet — add a Race below, then use Manage.</span>
+                {{/unless}}
+              </div>
+            </div>
+            <label>
+              <span>Loyalties</span>
+              <input
+                type="text"
+                name="system.identity.loyalties"
+                value="{{system.identity.loyalties}}"
+              >
+            </label>
+          </div>
+        </article>
+
+        <article class="ornate-card summary-movement">
+          <h2><i class="fa-solid fa-person-walking"></i> Movement & Load</h2>
+          <div class="movement-grid">
+            <label>
+              <span>Land</span>
+              <input
+                type="number"
+                name="system.combat.movement.land.base"
+                value="{{system.combat.movement.land.base}}"
+              >
+              <small>ft</small>
+            </label>
+            <label>
+              <span>Fly</span>
+              <input
+                type="number"
+                name="system.combat.movement.fly.base"
+                value="{{system.combat.movement.fly.base}}"
+              >
+              <small>ft</small>
+            </label>
+            <label>
+              <span>Swim</span>
+              <input
+                type="number"
+                name="system.combat.movement.swim.base"
+                value="{{system.combat.movement.swim.base}}"
+              >
+              <small>ft</small>
+            </label>
+            <label>
+              <span>Climb</span>
+              <input
+                type="number"
+                name="system.combat.movement.climb.base"
+                value="{{system.combat.movement.climb.base}}"
+              >
+              <small>ft</small>
+            </label>
+          </div>
+          <div class="encumbrance-line">
+            <span>Encumbrance</span>
+            <strong>{{system.encumbrance.value}}</strong>
+            <span>/</span>
+            <input
+              type="number"
+              readonly data-tooltip="Weight Allowance: 50 + Strength x 10"
+              name="system.encumbrance.max"
+              value="{{system.encumbrance.max}}"
+            >
+          </div>
+          {{#if system.encumbrance.stowage.shown}}
+            <div class="encumbrance-line{{#if system.encumbrance.stowage.over}} investment-over{{/if}}">
+              <span>Stowed</span>
+              <strong data-tooltip="Carried in a Never-Ending Stash Sack, which 'always weighs the same amount regardless of the weight of the objects placed within it'. Stowed weight does not count towards Encumbrance up to the sacks' capacity; anything over it does. Only INVESTED sacks provide capacity.">{{system.encumbrance.stowage.stowed}}</strong>
+              <span>/</span>
+              <output data-tooltip="Total capacity of every invested Stash Sack.">{{system.encumbrance.stowage.capacity}}</output>
+            </div>
+            {{#if system.encumbrance.stowage.over}}
+              <p class="hint duplicate-slot-warning">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <strong>{{system.encumbrance.stowage.over}} lb over capacity.</strong>
+                The excess is carried — it counts towards Encumbrance.
+              </p>
+            {{/if}}
+          {{/if}}
+          <div class="encumbrance-line">
+            <span>Armour Check Penalty</span>
+            <strong data-tooltip="Summed from equipped armour and shields, doubled per-piece if not proficient. Applied automatically to Dexterity- and Strength-based skills.">{{#if system.combat.acp.total}}-{{system.combat.acp.total}}{{else}}0{{/if}}</strong>
+          </div>
+          {{#if endeavourEnabled}}
+            {{!-- Movement & Load's own content leaves this card shorter than
+                  its row-mate (Character, with the Languages panel) — the
+                  grid stretches the card to match anyway, leaving blank
+                  space at the bottom. The Endeavour table lives there
+                  rather than in a card of its own below, which is why it
+                  reads level with Languages rather than under this card. --}}
+            <div class="endeavour-panel">
+              <div class="encumbrance-line">
+                <span>Endeavour</span>
+                <input
+                  type="number"
+                  name="system.resources.endeavour.value"
+                  value="{{system.resources.endeavour.value}}"
+                  data-tooltip="Optional rule. Earned for extreme results and GM-judged risk or significant challenge — tracked by hand, since the GM is the judge of both."
+                >
+              </div>
+              <div class="encumbrance-line">
+                <span>Endeavour Spent</span>
+                <output data-tooltip="Lifetime total spent on downtime purchases.">{{system.resources.endeavour.spent}}</output>
+              </div>
+              <button type="button" class="gold-button" data-action="endeavourMenu">
+                <i class="fa-solid fa-coins"></i> Spend Endeavour
+              </button>
+            </div>
+          {{/if}}
+        </article>
+
+        <article class="ornate-card summary-notes">
+          <h2><i class="fa-solid fa-feather"></i> Quick Notes</h2>
+          <textarea
+            name="system.details.notes"
+            placeholder="Oaths, reminders, wounds, and discoveries…"
+          >{{system.details.notes}}</textarea>
+        </article>
+      </div>
+    </section>
+
+    <section
+      class="tab sheet-tab-panel {{tabs.combat.cssClass}}"
+      data-group="primary"
+      data-tab="combat"
+    >
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">Steel, speed, and survival</span>
+          {{!-- Proficiencies were shown nowhere at all, so the -4
+                non-proficiency penalty turned up on attack rolls with
+                nothing on the character to explain it. They were then
+                shown as a row of chips under this heading, which for a
+                Druid ran to thirteen of them and pushed the whole tab
+                down. Reference, read once — so it is behind this icon
+                now, the same treatment the Skills breakdown got. --}}
+          <h2>
+            Combat
+            {{#if hasProficiencies}}
+              <button
+                type="button"
+                class="heading-icon-button"
+                data-action="showProficiencies"
+                data-tooltip="What {{actor.name}} is proficient with"
+                aria-label="Proficiencies"
+              ><i class="fa-solid fa-shield-halved"></i></button>
+            {{/if}}
+          </h2>
+        </div>
+        <div class="heading-actions">
+          <button type="button" class="gold-button" data-action="rollFlatCheck" data-dc="10">
+            <i class="fa-solid fa-dice-d20"></i> Flat Check
+          </button>
+          {{#unless isVehicle}}
+          <button type="button" class="gold-button" data-action="rollInitiative">
+            <i class="fa-solid fa-dice-d20"></i> Roll Initiative
+          </button>
+          {{/unless}}
+          <button type="button" class="gold-button" data-action="rollExhaustionCheck">
+            <i class="fa-solid fa-person-running"></i> Exhaustion Check
+          </button>
+          <button type="button" class="gold-button" data-action="rollSleepingInArmour">
+            <i class="fa-solid fa-shield-halved"></i> Sleeping in Armour
+          </button>
+          <button type="button" class="gold-button" data-action="rollFalling">
+            <i class="fa-solid fa-person-falling"></i> Falling
+          </button>
+          <button type="button" class="gold-button" data-action="rollCounteractCheck">
+            <i class="fa-solid fa-hand-sparkles"></i> Counteract
+          </button>
+          <button type="button" class="gold-button" data-action="rollNaturalHealing">
+            <i class="fa-solid fa-hand-holding-heart"></i> Natural Healing
+          </button>
+        </div>
+      </div>
+
+      <div class="combat-layout">
+        <article class="ornate-card">
+          <h2>Attack & Defence</h2>
+          <div class="combat-matrix">
+            <div class="matrix-header">
+              <span></span>
+              <span>Base</span>
+              <span>Ability</span>
+              <span>Class</span>
+              <span>Item</span>
+              <span>Status</span>
+              <span>Circ.</span>
+              <span>Other</span>
+              <span>Total</span>
+            </div>
+            {{#unless isVehicle}}
+            <div class="matrix-row">
+              {{!-- The editable slots are shared by both attack bonuses;
+                    only the ability term differs, so the ranged total is
+                    shown in the hero row rather than given a second row of
+                    inputs that would pretend to be independently editable. --}}
+              <strong>Melee Attack Bonus</strong>
+              <output>{{system.combat.attack.base}}</output>
+              <output>{{system.combat.attack.ability}}</output>
+              <input type="number" name="system.combat.attack.class" value="{{system.combat.attack.class}}">
+              <input type="number" name="system.combat.attack.item" value="{{system.combat.attack.item}}">
+              <input type="number" name="system.combat.attack.status" value="{{system.combat.attack.status}}">
+              <input
+                type="number"
+                name="system.combat.attack.circumstance"
+                value="{{system.combat.attack.circumstance}}"
+              >
+              <input type="number" name="system.combat.attack.other" value="{{system.combat.attack.other}}">
+              <output>{{system.combat.attack.total}}</output>
+            </div>
+            {{/unless}}
+            <div class="matrix-row">
+              <strong>Defence Bonus</strong>
+              <output>{{system.combat.defence.base}}</output>
+              <output>{{system.combat.defence.ability}}</output>
+              <output>{{system.combat.defence.class}}</output>
+              <input type="number" name="system.combat.defence.item" value="{{system.combat.defence.item}}">
+              <input type="number" name="system.combat.defence.status" value="{{system.combat.defence.status}}">
+              <input
+                type="number"
+                name="system.combat.defence.circumstance"
+                value="{{system.combat.defence.circumstance}}"
+              >
+              <input type="number" name="system.combat.defence.other" value="{{system.combat.defence.other}}">
+              <output>{{system.combat.defence.total}}</output>
+            </div>
+          </div>
+
+          {{#unless isVehicle}}
+          <div class="field-grid four-column compact-fields">
+            <label>
+              <span>Attack Ability</span>
+              <select name="system.combat.attack.abilityKey">
+                {{selectOptions abilityChoices selected=system.combat.attack.abilityKey}}
+              </select>
+            </label>
+            <label>
+              <span>BAB Base</span>
+              <input type="number" name="system.combat.bab.base" value="{{system.combat.bab.base}}">
+            </label>
+            <label>
+              <span>BAB Class</span>
+              <input type="number" name="system.combat.bab.class" value="{{system.combat.bab.class}}">
+            </label>
+            <label>
+              <span>BAB Other</span>
+              <input type="number" name="system.combat.bab.other" value="{{system.combat.bab.other}}">
+            </label>
+            {{#if system.progression}}
+              <label>
+                <span>BAB ({{system.progression.source}})</span>
+                <output data-tooltip="From your class table at level {{system.progression.level}}. It updates itself when your level changes — the three fields beside it stay yours.">{{system.progression.bab}}</output>
+              </label>
+            {{/if}}
+            <label>
+              <span>Total BAB</span>
+              <output>{{system.combat.bab.total}}</output>
+            </label>
+            <label>
+              <span>BDB Class</span>
+              <input type="number" name="system.combat.bdb.class" value="{{system.combat.bdb.class}}">
+            </label>
+            <label>
+              <span>BDB Other</span>
+              <input type="number" name="system.combat.bdb.other" value="{{system.combat.bdb.other}}">
+            </label>
+            {{#if system.progression}}
+              <label>
+                <span>BDB ({{system.progression.source}})</span>
+                <output data-tooltip="From your class table at level {{system.progression.level}}.">{{system.progression.bdb}}</output>
+              </label>
+            {{/if}}
+            <label>
+              <span>Total BDB</span>
+              <output>{{system.combat.bdb.total}}</output>
+            </label>
+            <label>
+              <span>MAP</span>
+              <input type="number" name="system.combat.map" value="{{system.combat.map}}">
+            </label>
+            <label>
+              <span>Reach</span>
+              <div class="input-with-unit">
+                <input type="number" name="system.combat.reach" value="{{system.combat.reach}}" readonly data-tooltip="Derived from Size (Chapter 1). Edit the Size field on the Identity tab to change this.">
+                <small>ft</small>
+              </div>
+            </label>
+          </div>
+          {{/unless}}
+        </article>
+
+        <article class="ornate-card">
+          <h2>Saving Throws</h2>
+          <div class="field-grid two-column" style="margin-bottom:8px">
+            <label class="field">
+              <span>Death State</span>
+              <input
+                type="number"
+                name="system.combat.deathState"
+                value="{{system.combat.deathState}}"
+                data-tooltip="Dying above this value means death. Usually 5; 4 for the frail, 6 for the resilient."
+              >
+            </label>
+            <button type="button" class="gold-button" data-action="promptSetDoomed" style="align-self:end">
+              <i class="fa-solid fa-skull"></i> Doomed
+            </button>
+            <button type="button" class="gold-button" data-action="promptSetSoulDrain" style="align-self:end">
+              <i class="fa-solid fa-heart-crack"></i> Soul Drain
+            </button>
+            {{#if enableLuck}}
+              <label class="field">
+                <span>Luck</span>
+                <input
+                  type="number"
+                  name="system.resources.luck.value"
+                  value="{{system.resources.luck.value}}"
+                  data-tooltip="Appendix 5, optional rule. Belongs to the player, not the character, per the rulebook — carry this manually between characters if you want that."
+                >
+              </label>
+              <button type="button" class="gold-button" data-action="rollLuckCheck" style="align-self:end" data-tooltip="Arm luck for your next skill check, attack or saving throw — or roll a luck check now.">
+                <i class="fa-solid fa-clover"></i> Luck{{#if luckArmed}} (armed){{/if}}
+              </button>
+            {{/if}}
+          </div>
+          {{#if system.progression}}
+            <p class="hint">Your class contributes its base save at level {{system.progression.level}} on top of these: Fort +{{system.progression.fortitude}}, Ref +{{system.progression.reflex}}, Will +{{system.progression.will}} from {{system.progression.source}}. The columns below stay yours.</p>
+          {{/if}}
+          <div class="save-table">
+            <div class="save-table-header">
+              <span>Save</span>
+              <span>Ability</span>
+              <span>Class</span>
+              <span>Item</span>
+              <span>Status</span>
+              <span>Other</span>
+              <span>Total</span>
+            </div>
+            <div class="save-table-row">
+              <button type="button" data-action="rollSave" data-save="fortitude">
+                Fortitude <i class="fa-solid fa-dice-d20"></i>
+              </button>
+              <output>{{system.combat.saves.fortitude.ability}}</output>
+              <input
+                type="number"
+                name="system.combat.saves.fortitude.class"
+                value="{{system.combat.saves.fortitude.class}}"
+              >
+              <input
+                type="number"
+                name="system.combat.saves.fortitude.item"
+                value="{{system.combat.saves.fortitude.item}}"
+              >
+              <input
+                type="number"
+                name="system.combat.saves.fortitude.status"
+                value="{{system.combat.saves.fortitude.status}}"
+              >
+              <input
+                type="number"
+                name="system.combat.saves.fortitude.other"
+                value="{{system.combat.saves.fortitude.other}}"
+              >
+              <output class="final-total">{{system.combat.saves.fortitude.total}}</output>
+            </div>
+            {{#unless isVehicle}}
+            <div class="save-table-row">
+              <button type="button" data-action="rollSave" data-save="reflex">
+                Reflex <i class="fa-solid fa-dice-d20"></i>
+              </button>
+              <output>{{system.combat.saves.reflex.ability}}</output>
+              <input
+                type="number"
+                name="system.combat.saves.reflex.class"
+                value="{{system.combat.saves.reflex.class}}"
+              >
+              <input
+                type="number"
+                name="system.combat.saves.reflex.item"
+                value="{{system.combat.saves.reflex.item}}"
+              >
+              <input
+                type="number"
+                name="system.combat.saves.reflex.status"
+                value="{{system.combat.saves.reflex.status}}"
+              >
+              <input
+                type="number"
+                name="system.combat.saves.reflex.other"
+                value="{{system.combat.saves.reflex.other}}"
+              >
+              <output class="final-total">{{system.combat.saves.reflex.total}}</output>
+            </div>
+            <div class="save-table-row">
+              <button type="button" data-action="rollSave" data-save="will">
+                Will <i class="fa-solid fa-dice-d20"></i>
+              </button>
+              <output>{{system.combat.saves.will.ability}}</output>
+              <input
+                type="number"
+                name="system.combat.saves.will.class"
+                value="{{system.combat.saves.will.class}}"
+              >
+              <input
+                type="number"
+                name="system.combat.saves.will.item"
+                value="{{system.combat.saves.will.item}}"
+              >
+              <input
+                type="number"
+                name="system.combat.saves.will.status"
+                value="{{system.combat.saves.will.status}}"
+              >
+              <input
+                type="number"
+                name="system.combat.saves.will.other"
+                value="{{system.combat.saves.will.other}}"
+              >
+              <output class="final-total">{{system.combat.saves.will.total}}</output>
+            </div>
+            {{/unless}}
+          </div>
+        </article>
+
+        <article class="ornate-card armour-card">
+          <h2>Protection</h2>
+          <div class="field-grid three-column">
+            <label>
+              <span>Armour DR</span>
+              <output data-tooltip="The best suit of body armour, plus the fittings (bracers, greaves, helmets), including quality/material bonuses. Broken armour halves its own contribution; destroyed armour contributes nothing.">{{system.combat.armour.dr}}</output>
+              {{#if system.combat.armour.suitsWarning}}<span class="hint warning"><i class="fa-solid fa-triangle-exclamation"></i> {{system.combat.armour.suitsWarning}}</span>{{/if}}
+            </label>
+            <label>
+              <span>Armour Hardness</span>
+              <output data-tooltip="From the first equipped armour piece (most characters wear one primary body armour item).">{{system.combat.armour.hardness}}</output>
+            </label>
+            <label>
+              <span>Armour Rending</span>
+              <input
+                type="number"
+                name="system.combat.armour.rending"
+                value="{{system.combat.armour.rending}}"
+              >
+            </label>
+            <label>
+              <span>Shield DR (Base)</span>
+              <output data-tooltip="Summed from equipped shields, including quality/material bonuses. Broken shields halve their own contribution; destroyed shields contribute nothing. This is the BASE value — Shield Block uses the multiplied figure beside it.">{{system.combat.shield.dr}}</output>
+            </label>
+            <label>
+              <span>Shield Block DR</span>
+              <output data-tooltip="What a Shield Block actually stops: the base beside this, multiplied by your BDB exactly the way worn armour's DR is (Chapter 6). A shield gives no passive Damage Reduction — it applies only when you spend the reaction, which is why it is absent from the Summary tab's Damage Reduction.">{{system.combat.shield.blockDR}}</output>
+            </label>
+            <label>
+              <span>Shield Hardness</span>
+              <output data-tooltip="From the first equipped shield.">{{system.combat.shield.hardness}}</output>
+            </label>
+            <label>
+              <span>Natural Armour (Flat)</span>
+              <input
+                type="number"
+                name="system.combat.naturalArmourFlat.natural"
+                value="{{system.combat.naturalArmourFlat.natural}}"
+                data-tooltip="A static DR bonus that never scales with BDB (Chapter 7). Competes with Base Natural Armour and any feat/spell-granted Natural Armour — only the higher of all sources applies, they don't add together."
+              >
+            </label>
+            <label>
+              <span>Natural Armour (Base)</span>
+              <input
+                type="number"
+                name="system.combat.naturalArmourBase.natural"
+                value="{{system.combat.naturalArmourBase.natural}}"
+                data-tooltip="Scales with BDB exactly like equipped armour's own DR (Chapter 7) — enter the base value only, the multiplier is applied automatically."
+              >
+            </label>
+            <label>
+              <span>Natural Armour DR</span>
+              <output data-tooltip="The higher of Flat and Base (after BDB scaling) — Natural Armour's two forms don't stack together.">{{system.combat.naturalArmour.dr}}</output>
+            </label>
+            {{!-- BONUS DR AND THE TOTAL. Reported by Graham (13 Aug 2026):
+                  a Dwarf with the Storgar heritage read 0 in every box on
+                  this card, so the +1 "looked like it wasn't applying".
+                  It WAS applying — Storgar, Dracoris and Iron Hide grant
+                  DR that always adds rather than competing with Natural
+                  Armour, so it lands in its own pool, and this card had
+                  no row for that pool at all. The Summary's Damage
+                  Reduction tooltip promises "The Combat tab breaks the
+                  sources out", which was untrue for the one source most
+                  likely to be non-zero on a low-level character.
+
+                  The total repeats the Summary's headline figure rather
+                  than recomputing it — `totalDR` is built once in
+                  _prepareContext from damage.mjs's own function, so the
+                  rows above and the number below cannot drift apart. --}}
+            <label>
+              <span>Bonus DR</span>
+              <output data-tooltip="{{system.combat.dr.tooltip}}">{{system.combat.dr.total}}</output>
+            </label>
+            <label>
+              <span>Damage Reduction (total)</span>
+              <output data-tooltip="Armour DR (after the Chapter 6 BDB multiplier) + Natural Armour DR + Bonus DR — the same figure as the Summary tab's headline, against an ordinary physical hit. Shield DR is excluded: it applies only through the Shield Block reaction.">{{totalDR}}</output>
+            </label>
+          </div>
+        </article>
+
+        <article class="ornate-card">
+          <h2>Defences & Movement</h2>
+          {{!-- Land/Fly/Swim/Climb are edited on the Summary tab's own
+                Movement & Load card (both panels live in the DOM at
+                once, tabs just hide the inactive one) — read-only here
+                on purpose. A second `name="system.combat.movement..."`
+                input duplicated here used to submit alongside the
+                Summary one on every change; Foundry collected both
+                same-named values into an array instead of a single
+                number, silently corrupting the stored field to
+                `[value, value]` (migrateMovementArrays in migration.mjs
+                repairs any actor already carrying one). Burrow has no
+                Summary counterpart, so it stays the one editable field
+                in this card. --}}
+          <div class="field-grid three-column">
+            <label>
+              <span>Land</span>
+              <output data-tooltip="Edit on the Summary tab's Movement & Load card.">{{system.combat.movement.land.total}}</output>
+            </label>
+            <label>
+              <span>Fly</span>
+              <output data-tooltip="Edit on the Summary tab's Movement & Load card.">{{system.combat.movement.fly.total}}</output>
+            </label>
+            <label>
+              <span>Swim</span>
+              <output data-tooltip="Edit on the Summary tab's Movement & Load card.">{{system.combat.movement.swim.total}}</output>
+            </label>
+            <label>
+              <span>Climb</span>
+              <output data-tooltip="Edit on the Summary tab's Movement & Load card.">{{system.combat.movement.climb.total}}</output>
+            </label>
+            <label>
+              <span>Burrow</span>
+              <input
+                type="number"
+                name="system.combat.movement.burrow.base"
+                value="{{system.combat.movement.burrow.base}}"
+              >
+            </label>
+          </div>
+          {{#if senseLines.length}}
+            <div class="wide-field">
+              <span>Senses</span>
+              <ul class="trg-defence-summary">
+                {{#each senseLines}}
+                  <li data-tooltip="{{#if modality}}{{modality}} · {{/if}}sensed entirely by this: {{detects}}.{{#if enhanced}} Doubled from {{baseFeet}} ft by an Enhanced feat.{{/if}}{{#if nameRangeDisagrees}} This ability is NAMED as {{claimedFeet}} ft, but its range works out at {{baseFeet}} ft — the name is stale and worth correcting on the item itself.{{/if}}{{#if note}} {{note}}{{/if}}">
+                    {{text}}{{#if enhanced}} <em>(doubled)</em>{{/if}}{{#if nameRangeDisagrees}} <em>(name says {{claimedFeet}} ft)</em>{{/if}}
+                  </li>
+                {{/each}}
+              </ul>
+            </div>
+          {{/if}}
+          {{#if visualRange}}
+            <div class="wide-field">
+              <span>Sight here</span>
+              <ul class="trg-defence-summary">
+                {{#if visualRange.blinded}}
+                  <li data-tooltip="Blinding Light's printed effect is blindness, not a shorter range — so the ranges above are unchanged and this is what applies instead.">
+                    <strong>{{visualRange.levelName}}</strong> — blinded
+                  </li>
+                {{else}}
+                  {{#each visualRange.rows}}
+                    <li data-tooltip="{{name}} reaches {{baseFeet}} ft in good light.{{#if blind}} At this level it sees nothing at all.{{else if reduced}} Cut to {{feet}} ft by the light here.{{else}} Unaffected by the light here.{{/if}}">
+                      {{name}} {{#if blind}}<strong>cannot see</strong>{{else}}<strong>{{feet}} ft.</strong>{{#if reduced}} <em>(from {{baseFeet}})</em>{{/if}}{{/if}}
+                    </li>
+                  {{/each}}
+                {{/if}}
+                <li class="trg-muted" data-tooltip="{{#if visualRange.raised}}The area is {{visualRange.ambientName}}; this creature's own senses lift it {{visualRange.steps}} {{#if visualRange.oneStep}}step{{else}}steps{{/if}} to {{visualRange.levelName}}.{{else}}The light level where this creature's token is standing.{{/if}}">
+                  <em>{{#if visualRange.raised}}{{visualRange.ambientName}}, seen as {{visualRange.levelName}} (+{{visualRange.steps}}){{else}}{{visualRange.levelName}}{{/if}}</em>
+                </li>
+              </ul>
+            </div>
+          {{/if}}
+          <label class="wide-field">
+            <span>Resistances</span>
+            <input
+              type="text"
+              name="system.combat.resistances"
+              value="{{system.combat.resistances}}"
+              placeholder="fire, cold, physical"
+              data-tooltip="Damage types, halved. A group name covers its whole group: physical, energy, special."
+            >
+          </label>
+          <label class="wide-field">
+            <span>Immunities</span>
+            <input
+              type="text"
+              name="system.combat.immunities"
+              value="{{system.combat.immunities}}"
+              placeholder="stun, mental, fire"
+              data-tooltip="One list. Each entry applies wherever it is valid: a damage type stops damage and criticals of that type, a condition stops that condition, a trait stops any effect carrying it. Mental does all three."
+            >
+          </label>
+          {{#if defenceSummary.length}}
+            <ul class="trg-defence-summary">
+              {{#each defenceSummary}}
+                <li class="{{#unless matched}}trg-defence-unresolved{{/unless}}">
+                  <strong>{{entry}}</strong> — {{summary}}
+                </li>
+              {{/each}}
+            </ul>
+          {{/if}}
+          <label class="wide-field">
+            <span>Weaknesses</span>
+            <input
+              type="text"
+              name="system.combat.weaknesses"
+              value="{{system.combat.weaknesses}}"
+              placeholder="fire, cold"
+              data-tooltip="Damage types, increased by 50%. Group names work here too."
+            >
+          </label>
+        </article>
+      </div>
+    </section>
+
+    <section
+      class="tab sheet-tab-panel {{tabs.actions.cssClass}}"
+      data-group="primary"
+      data-tab="actions"
+    >
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">Universal to every creature — nothing to add or manage here</span>
+          <h2>Actions</h2>
+        </div>
+      </div>
+
+      <article class="ornate-card item-section">
+        <h2>Basic Actions</h2>
+        <div class="action-grid">
+          {{#each basicActions as |action|}}
+            <button
+              type="button"
+              class="action-pill {{action.badge.colorClass}}"
+              data-action="useStaticAction"
+              data-action-source="basic"
+              data-action-key="{{action.key}}"
+              data-tooltip="{{action.name}} — {{action.apCost}} AP{{#if action.traits}} ({{action.traits}}){{/if}}: {{action.description}}"
+            >
+              <span class="action-pill-badge">{{action.badge.label}}</span>
+              <span class="action-pill-name">{{action.name}}</span>
+            </button>
+          {{/each}}
+        </div>
+      </article>
+
+      <article class="ornate-card item-section">
+        <h2>Special Actions</h2>
+        <div class="action-grid">
+          {{#each specialActions as |action|}}
+            <button
+              type="button"
+              class="action-pill {{action.badge.colorClass}}"
+              data-action="useStaticAction"
+              data-action-source="special"
+              data-action-key="{{action.key}}"
+              data-tooltip="{{action.name}} — {{action.apCost}} AP{{#if action.traits}} ({{action.traits}}){{/if}}: {{action.description}}"
+            >
+              <span class="action-pill-badge">{{action.badge.label}}</span>
+              <span class="action-pill-name">{{action.name}}</span>
+            </button>
+          {{else}}
+            <div class="empty-state">
+              <i class="fa-solid fa-wind"></i>
+              <p>None available — Special Actions require a matching movement type or ability (a fly or burrow speed, for example).</p>
+            </div>
+          {{/each}}
+        </div>
+      </article>
+
+      <article class="ornate-card">
+        <p class="hint">Skill Actions — including General Skill Actions usable with several skills — appear as an option when you roll the relevant skill on the Skills tab, rather than listed here.</p>
+      </article>
+    </section>
+
+    <section
+      class="tab sheet-tab-panel {{tabs.skills.cssClass}}"
+      data-group="primary"
+      data-tab="skills"
+    >
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">Training and expertise</span>
+          {{!-- The full breakdown is a TOOLTIP on the heading now: it is
+                reference, not something to read every time the tab is
+                opened. What stays on the page is the tally, which is the
+                number a player is actually working against. --}}
+          <h2{{#if system.progression}} class="has-detail" data-tooltip="{{skillPointsDetail}}"{{/if}}>Skills</h2>
+          {{#if system.progression.skillBudget}}
+            <p class="hint skill-budget{{#if system.progression.skillBudget.overspent}} overspent{{/if}}">
+              <strong>{{system.progression.skillBudget.spent}}</strong> of
+              <strong>{{system.progression.skillBudget.available}}</strong> skill points spent —
+              {{#if system.progression.skillBudget.overspent}}
+                <strong>{{system.progression.skillBudget.over}} OVER BUDGET</strong>
+                — remove {{system.progression.skillBudget.overLabel}}
+              {{else}}
+                <strong>{{system.progression.skillBudget.remaining}}</strong> left
+              {{/if}}
+            </p>
+            {{#if system.progression.skillBudget.hasOverLevel}}
+              <p class="hint skill-budget overspent">
+                <strong>Over the level cap:</strong>
+                {{#each system.progression.skillBudget.overLevel}}
+                  {{this.label}} has {{this.ranks}} ranks, maximum {{this.cap}}{{#unless @last}};{{/unless}}
+                {{/each}}
+              </p>
+            {{/if}}
+          {{/if}}
+        </div>
+        <button type="button" class="gold-button" data-action="rollAidAnother">
+          <i class="fa-solid fa-hands-helping"></i> Aid Another
+        </button>
+        {{#if studiedTargets}}
+          <button type="button" class="gold-button" data-action="manageStudiedTargets"
+            title="Study Target capacity = Int + level + one per 5 combined knowledge ranks. Click to view and forget studied targets.">
+            <i class="fa-solid fa-book-open-reader"></i> Studied Targets ({{studiedTargets.used}}/{{studiedTargets.capacity}})
+          </button>
+        {{/if}}
+        {{#if skillSpecialties}}
+          <button type="button" class="gold-button" data-action="manageSkillSpecialties"
+            title="Artistry, Crafting and Perform each require a specialty for their trained checks. Click to choose them.">
+            <i class="fa-solid fa-palette"></i> Specialties
+          </button>
+        {{/if}}
+        {{#if earnIncomeTask}}
+          <button type="button" class="gold-button" data-action="manageEarnIncome"
+            title="Active Earn Income task — work another day or finish it.">
+            <i class="fa-solid fa-coins"></i> Earn Income ({{earnIncomeTask.totalEarned}} gp, day {{earnIncomeTask.daysWorked}})
+          </button>
+        {{/if}}
+        {{#if createProject}}
+          <button type="button" class="gold-button" data-action="manageCreateProject"
+            title="Current crafting project — work another day, or clear it.">
+            <i class="fa-solid fa-hammer"></i> Crafting: {{createProject.itemName}} ({{createProject.progress}}/{{createProject.itemValue}} gp)
+          </button>
+        {{/if}}
+        {{#if editable}}
+          <button type="button" class="gold-button" data-action="skillCreate">
+            <i class="fa-solid fa-plus"></i> Add Skill
+          </button>
+        {{/if}}
+      </div>
+
+      {{#if skillSpecialties}}
+        <div class="skill-specialties-summary" style="display:flex;flex-wrap:wrap;gap:6px 16px;margin:0 0 8px;font-size:0.85em">
+          {{#each skillSpecialties as |spec|}}
+            <span><strong>{{spec.label}} specialties</strong> ({{spec.used}}/{{spec.cap}}): {{spec.summary}}</span>
+          {{/each}}
+        </div>
+      {{/if}}
+
+      <div class="skills-scroll">
+      <div class="skills-table ornate-table">
+        <div class="skill-row skill-header">
+          <span>Skill</span>
+          <span>Attribute</span>
+          <span>Ranks</span>
+          <span>Class</span>
+          <span>Racial</span>
+          <span>Item</span>
+          <span>Status</span>
+          <span>Other</span>
+          <span>Total</span>
+          <span>DC</span>
+          <span></span>
+        </div>
+        {{#each skills as |skill|}}
+          <div class="skill-row" data-skill-key="{{skill.key}}">
+            <button type="button" data-action="rollSkill" data-skill="{{skill.key}}">
+              <i class="fa-solid fa-dice-d20"></i>
+              {{#if skill.core}}
+                <span class="skill-name">{{skill.label}}</span>
+              {{else}}
+                <input
+                  type="text"
+                  name="system.skills.{{skill.key}}.label"
+                  value="{{skill.label}}"
+                  aria-label="Skill name"
+                >
+              {{/if}}
+            </button>
+            <select
+              name="system.skills.{{skill.key}}.ability"
+              aria-label="{{skill.label}} attribute"
+            >
+              {{selectOptions ../abilityChoices selected=skill.ability}}
+            </select>
+            <input
+              type="number"
+              class="skill-ranks{{#if skill.overLevel}} over-level{{/if}}"
+              name="system.skills.{{skill.key}}.ranks"
+              value="{{skill.ranks}}"
+              min="0"
+              max="{{../system.identity.level}}"
+              data-tooltip="{{#if skill.overLevel}}{{skill.ranks}} ranks, but your level allows only {{../system.identity.level}}. Lower it.{{else}}Ranks can never exceed your character level ({{../system.identity.level}}).{{/if}}"
+              aria-label="{{skill.label}} ranks"
+            >
+            {{! The Class column is a tickbox now, not a number. It used to
+                mean two different things at once: "this is a class skill,
+                worth my class bonus" and "something granted a flat
+                class-type bonus here". The tick is the first; the second
+                lives in the effect that granted it and stacks on top. }}
+            <label class="class-skill-cell" data-tooltip="{{#if skill.classSkillTooltip}}{{skill.classSkillTooltip}}{{else}}Tick if this is a class skill — it is then worth your class bonus. Your class and any archetype that grants one tick their own.{{/if}}">
+              {{! Ticked from the DERIVED state, not the stored one: a
+                  Fighter's Athletics is a class skill whether or not the
+                  player ever ticked the box, and showing it empty and
+                  greyed read as "not a class skill". A disabled control
+                  is not submitted, so nothing is written back. }}
+              <input
+                type="checkbox"
+                name="system.skills.{{skill.key}}.classSkill"
+                {{checked skill.isClassSkill}}
+                {{#if skill.classSkillLocked}}disabled{{/if}}
+                aria-label="{{skill.label}} is a class skill"
+              >
+              {{#if skill.isClassSkill}}<span class="class-skill-value">+{{skill.classSkillValue}}</span>{{/if}}
+              {{! A flat class-type bonus from a feat lands in the old
+                  numeric slot and still counts. Shown when it is not zero,
+                  because otherwise there is now no control on the sheet
+                  that reveals it at all. }}
+              {{#if skill.class}}<span class="class-skill-flat" data-tooltip="A flat class bonus granted by a feat or effect, on top of any class skill. Stacks, per Appendix 1.">+{{skill.class}}</span>{{/if}}
+            </label>
+            <input
+              type="number"
+              name="system.skills.{{skill.key}}.racial"
+              value="{{skill.racial}}"
+              aria-label="{{skill.label}} racial bonus"
+            >
+            <input
+              type="number"
+              name="system.skills.{{skill.key}}.item"
+              value="{{skill.item}}"
+              aria-label="{{skill.label}} item bonus"
+            >
+            <input
+              type="number"
+              name="system.skills.{{skill.key}}.status"
+              value="{{skill.status}}"
+              aria-label="{{skill.label}} status bonus"
+            >
+            <input
+              type="number"
+              name="system.skills.{{skill.key}}.other"
+              value="{{skill.other}}"
+              aria-label="{{skill.label}} other bonus"
+            >
+            <output data-tooltip="{{skill.tooltip}}">{{skill.total}}</output>
+            <output>{{skill.dc}}</output>
+            {{#if ../editable}}
+              {{#unless skill.core}}
+                <button
+                  type="button"
+                  class="icon-button danger"
+                  data-action="skillDelete"
+                  data-tooltip="Delete {{skill.label}}"
+                >
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              {{/unless}}
+            {{/if}}
+          </div>
+        {{/each}}
+      </div>
+      </div>
+
+      <div class="section-heading specialist-heading">
+        <div>
+          <span class="eyebrow">Unique training and lore</span>
+          <h2>Specialist Skills</h2>
+        </div>
+        {{#if editable}}
+          <button type="button" class="gold-button" data-action="specialistSkillCreate">
+            <i class="fa-solid fa-plus"></i> Add Specialist Skill
+          </button>
+        {{/if}}
+      </div>
+
+      <div class="skills-scroll">
+      <div class="specialist-skills-table ornate-table">
+        <div class="specialist-skill-row skill-header">
+          <span>Specialist Skill</span>
+          <span>Attribute</span>
+          <span>Level</span>
+          <span>Class</span>
+          <span>Racial</span>
+          <span>Item</span>
+          <span>Status</span>
+          <span>Other</span>
+          <span>+2</span>
+          <span>Total</span>
+          <span>DC</span>
+          <span></span>
+        </div>
+        {{#each specialistSkills as |skill|}}
+          <div
+            class="specialist-skill-row"
+            data-specialist-key="{{skill.key}}"
+          >
+            <button
+              type="button"
+              data-action="rollSpecialistSkill"
+              data-specialist="{{skill.key}}"
+            >
+              <i class="fa-solid fa-dice-d20"></i>
+              <input
+                type="text"
+                name="system.specialistSkills.{{skill.key}}.label"
+                value="{{skill.label}}"
+                aria-label="Specialist skill name"
+              >
+            </button>
+            <select name="system.specialistSkills.{{skill.key}}.ability">
+              {{selectOptions ../abilityChoices selected=skill.ability}}
+            </select>
+            <output>{{../system.identity.level}}</output>
+            <output>{{skill.class}}</output>
+            <input
+              type="number"
+              name="system.specialistSkills.{{skill.key}}.racial"
+              value="{{skill.racial}}"
+            >
+            <input
+              type="number"
+              name="system.specialistSkills.{{skill.key}}.item"
+              value="{{skill.item}}"
+            >
+            <input
+              type="number"
+              name="system.specialistSkills.{{skill.key}}.status"
+              value="{{skill.status}}"
+            >
+            <input
+              type="number"
+              name="system.specialistSkills.{{skill.key}}.other"
+              value="{{skill.other}}"
+            >
+            <output>2</output>
+            <output data-tooltip="{{skill.tooltip}}">{{skill.total}}</output>
+            <output>{{skill.dc}}</output>
+            {{#if ../editable}}
+              <button
+                type="button"
+                class="icon-button danger"
+                data-action="specialistSkillDelete"
+                data-tooltip="Delete {{skill.label}}"
+              >
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            {{/if}}
+          </div>
+        {{else}}
+          <div class="empty-state compact">
+            <p>No specialist skills have been granted.</p>
+          </div>
+        {{/each}}
+      </div>
+      </div>
+    </section>
+
+    <section
+      class="tab sheet-tab-panel {{tabs.features.cssClass}}"
+      data-group="primary"
+      data-tab="features"
+    >
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">Talents, training, and bloodlines</span>
+          <h2>Feats & Abilities</h2>
+        </div>
+        {{#if editable}}
+          <div class="button-group">
+            <button type="button" class="gold-button" data-action="itemCreate" data-item-type="feat">
+              <i class="fa-solid fa-plus"></i> Feat
+            </button>
+            <button type="button" class="gold-button" data-action="itemCreate" data-item-type="ability">
+              <i class="fa-solid fa-plus"></i> Ability
+            </button>
+          </div>
+        {{/if}}
+      </div>
+
+      <div class="feat-picks-banner">
+        {{#if isFamiliar}}
+          <span><strong>Familiar Abilities:</strong> {{familiarAbilities.spent}} / {{familiarAbilities.available}}</span>
+          <span class="hint">Two at 1st level and one more at 4th and every 4 levels after. Empathic Link is free and costs none of them. A familiar gains no feats of its own.</span>
+        {{else if isCompanion}}
+          <span><strong>Companion Feats:</strong> {{featPicks.single.spent}} / {{featPicks.single.available}}</span>
+          <span class="hint">Spent / Available, from the Animal Companion table's own Feats column — one pool, not the character split. Feats your class granted (Evasion, Improved Evasion) cost nothing.</span>
+        {{else}}
+          <span><strong>Racial:</strong> {{featPicks.racial.spent}} / {{featPicks.racial.available}}</span>
+          <span><strong>Class:</strong> {{featPicks.class.spent}} / {{featPicks.class.available}}</span>
+          <span><strong>General:</strong> {{featPicks.general.spent}} / {{featPicks.general.available}}</span>
+          {{#if featPicks.archetype}}
+            <span><strong>Bonus Archetype:</strong> {{featPicks.archetype.spent}} / {{featPicks.archetype.available}}</span>
+          {{/if}}
+          <span class="hint">Spent / Available, by character level (Chapter 5). Archetype feats draw from the Class pool{{#if featPicks.archetype}}, after the bonus Archetype pick{{/if}}.{{#if featPicks.extraLabels}} Campaign: {{#each featPicks.extraLabels}}{{this}}{{#unless @last}}; {{/unless}}{{/each}}.{{/if}}</span>
+        {{/if}}
+      </div>
+
+      <div class="features-columns">
+        <div class="features-column">
+          <article class="ornate-card item-section compact-feature-card">
+            <div class="compact-feature-heading">
+              <h3>Racial Feats</h3>
+              {{#if editable}}
+                <button type="button" data-action="addFromPicker" data-slot="racialFeat"><i class="fa-solid fa-magnifying-glass"></i> Add</button>
+              {{/if}}
+            </div>
+            <div class="item-list-header feature-header compact">
+              <span>Name</span>
+              <span>Uses</span>
+              <span></span>
+            </div>
+            {{#each itemGroups.racialFeats as |item|}}
+              <div class="item-row feature-row compact" data-item-id="{{item.id}}">
+                <button type="button" class="item-name" data-action="itemEdit">
+                  <img src="{{item.img}}" alt="">
+                  <strong>{{item.name}}</strong>
+                </button>
+                <span class="uses-cell">
+                  {{#if item.usesUnlimited}}
+                    <span class="uses-unlimited">Unlimited</span>
+                  {{else if item.usesTracked}}
+                    {{item.usesRemaining}} / {{item.usesMax}}
+                  {{/if}}
+                </span>
+                <div class="item-controls">
+                  {{#if item.hasFeatAction}}
+                    <button type="button" data-action="useFeat" data-tooltip="{{item.featActionHint}}"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+                  {{else if item.passiveAutomation}}
+                    <button type="button" class="passive-info" data-action="useFeat" data-tooltip="{{item.featActionHint}}"><i class="fa-solid fa-circle-info"></i></button>
+                  {{/if}}
+                  {{#if item.usesTracked}}
+                    <button type="button" data-action="useItemCharge" data-tooltip="Use a charge"><i class="fa-solid fa-bolt-lightning"></i></button>
+                  {{/if}}
+                  <button type="button" data-action="itemEdit" data-tooltip="Edit"><i class="fa-solid fa-pen-to-square"></i></button>
+                  {{#if ../editable}}
+                    <button type="button" data-action="itemDelete" data-tooltip="Delete"><i class="fa-solid fa-trash"></i></button>
+                  {{/if}}
+                </div>
+              </div>
+            {{else}}
+              <p class="empty-state-compact">No racial feats.</p>
+            {{/each}}
+          </article>
+
+          <article class="ornate-card item-section compact-feature-card">
+            <div class="compact-feature-heading">
+              <h3>Archetype Feats</h3>
+              {{#if editable}}
+                <button type="button" data-action="addFromPicker" data-slot="archetypeFeat"><i class="fa-solid fa-magnifying-glass"></i> Add</button>
+              {{/if}}
+            </div>
+            <div class="item-list-header feature-header compact">
+              <span>Name</span>
+              <span>Uses</span>
+              <span></span>
+            </div>
+            {{#each itemGroups.archetypeFeats as |item|}}
+              <div class="item-row feature-row compact" data-item-id="{{item.id}}">
+                <button type="button" class="item-name" data-action="itemEdit">
+                  <img src="{{item.img}}" alt="">
+                  <strong>{{item.name}}</strong>
+                </button>
+                <span class="uses-cell">
+                  {{#if item.usesUnlimited}}
+                    <span class="uses-unlimited">Unlimited</span>
+                  {{else if item.usesTracked}}
+                    {{item.usesRemaining}} / {{item.usesMax}}
+                  {{/if}}
+                </span>
+                <div class="item-controls">
+                  {{#if item.hasFeatAction}}
+                    <button type="button" data-action="useFeat" data-tooltip="{{item.featActionHint}}"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+                  {{else if item.passiveAutomation}}
+                    <button type="button" class="passive-info" data-action="useFeat" data-tooltip="{{item.featActionHint}}"><i class="fa-solid fa-circle-info"></i></button>
+                  {{/if}}
+                  {{#if item.usesTracked}}
+                    <button type="button" data-action="useItemCharge" data-tooltip="Use a charge"><i class="fa-solid fa-bolt-lightning"></i></button>
+                  {{/if}}
+                  <button type="button" data-action="itemEdit" data-tooltip="Edit"><i class="fa-solid fa-pen-to-square"></i></button>
+                  {{#if ../editable}}
+                    <button type="button" data-action="itemDelete" data-tooltip="Delete"><i class="fa-solid fa-trash"></i></button>
+                  {{/if}}
+                </div>
+              </div>
+            {{else}}
+              <p class="empty-state-compact">No archetype feats.</p>
+            {{/each}}
+          </article>
+
+          <article class="ornate-card item-section compact-feature-card">
+            <div class="compact-feature-heading">
+              <h3>Class Feats</h3>
+              {{#if editable}}
+                <button type="button" data-action="addFromPicker" data-slot="classFeat"><i class="fa-solid fa-magnifying-glass"></i> Add</button>
+              {{/if}}
+            </div>
+            <div class="item-list-header feature-header compact">
+              <span>Name</span>
+              <span>Uses</span>
+              <span></span>
+            </div>
+            {{#each itemGroups.classFeats as |item|}}
+              <div class="item-row feature-row compact" data-item-id="{{item.id}}">
+                <button type="button" class="item-name" data-action="itemEdit">
+                  <img src="{{item.img}}" alt="">
+                  <strong>{{item.name}}</strong>
+                </button>
+                <span class="uses-cell">
+                  {{#if item.usesUnlimited}}
+                    <span class="uses-unlimited">Unlimited</span>
+                  {{else if item.usesTracked}}
+                    {{item.usesRemaining}} / {{item.usesMax}}
+                  {{/if}}
+                </span>
+                <div class="item-controls">
+                  {{#if item.hasFeatAction}}
+                    <button type="button" data-action="useFeat" data-tooltip="{{item.featActionHint}}"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+                  {{else if item.passiveAutomation}}
+                    <button type="button" class="passive-info" data-action="useFeat" data-tooltip="{{item.featActionHint}}"><i class="fa-solid fa-circle-info"></i></button>
+                  {{/if}}
+                  {{#if item.usesTracked}}
+                    <button type="button" data-action="useItemCharge" data-tooltip="Use a charge"><i class="fa-solid fa-bolt-lightning"></i></button>
+                  {{/if}}
+                  <button type="button" data-action="itemEdit" data-tooltip="Edit"><i class="fa-solid fa-pen-to-square"></i></button>
+                  {{#if ../editable}}
+                    <button type="button" data-action="itemDelete" data-tooltip="Delete"><i class="fa-solid fa-trash"></i></button>
+                  {{/if}}
+                </div>
+              </div>
+            {{else}}
+              <p class="empty-state-compact">No class feats.</p>
+            {{/each}}
+          </article>
+
+          <article class="ornate-card item-section compact-feature-card">
+            <div class="compact-feature-heading">
+              <h3>General Feats</h3>
+              {{#if editable}}
+                <button type="button" data-action="addFromPicker" data-slot="generalFeat"><i class="fa-solid fa-magnifying-glass"></i> Add</button>
+              {{/if}}
+            </div>
+            <div class="item-list-header feature-header compact">
+              <span>Name</span>
+              <span>Uses</span>
+              <span></span>
+            </div>
+            {{#each itemGroups.generalFeats as |item|}}
+              <div class="item-row feature-row compact" data-item-id="{{item.id}}">
+                <button type="button" class="item-name" data-action="itemEdit">
+                  <img src="{{item.img}}" alt="">
+                  <strong>{{item.name}}</strong>
+                </button>
+                <span class="uses-cell">
+                  {{#if item.usesUnlimited}}
+                    <span class="uses-unlimited">Unlimited</span>
+                  {{else if item.usesTracked}}
+                    {{item.usesRemaining}} / {{item.usesMax}}
+                  {{/if}}
+                </span>
+                <div class="item-controls">
+                  {{#if item.hasFeatAction}}
+                    <button type="button" data-action="useFeat" data-tooltip="{{item.featActionHint}}"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+                  {{else if item.passiveAutomation}}
+                    <button type="button" class="passive-info" data-action="useFeat" data-tooltip="{{item.featActionHint}}"><i class="fa-solid fa-circle-info"></i></button>
+                  {{/if}}
+                  {{#if item.usesTracked}}
+                    <button type="button" data-action="useItemCharge" data-tooltip="Use a charge"><i class="fa-solid fa-bolt-lightning"></i></button>
+                  {{/if}}
+                  <button type="button" data-action="itemEdit" data-tooltip="Edit"><i class="fa-solid fa-pen-to-square"></i></button>
+                  {{#if ../editable}}
+                    <button type="button" data-action="itemDelete" data-tooltip="Delete"><i class="fa-solid fa-trash"></i></button>
+                  {{/if}}
+                </div>
+              </div>
+            {{else}}
+              <p class="empty-state-compact">No general feats.</p>
+            {{/each}}
+          </article>
+        </div>
+
+        <div class="features-column">
+          <article class="ornate-card item-section compact-feature-card">
+            <div class="compact-feature-heading">
+              <h3>{{#if isNPC}}Creature Abilities{{else}}Racial Abilities{{/if}}</h3>
+              {{#if editable}}
+                <button type="button" data-action="addFromPicker" data-slot="racialAbility"><i class="fa-solid fa-magnifying-glass"></i> Add</button>
+              {{/if}}
+            </div>
+            <div class="item-list-header feature-header compact">
+              <span>Name</span>
+              <span>Uses</span>
+              <span></span>
+            </div>
+            {{#each itemGroups.racialAbilities as |item|}}
+              <div class="item-row feature-row compact" data-item-id="{{item.id}}">
+                <button type="button" class="item-name" data-action="itemEdit">
+                  <img src="{{item.img}}" alt="">
+                  <strong>{{item.name}}</strong>
+                </button>
+                <span class="uses-cell">
+                  {{#if item.usesUnlimited}}
+                    <span class="uses-unlimited">Unlimited</span>
+                  {{else if item.usesTracked}}
+                    {{item.usesRemaining}} / {{item.usesMax}}
+                  {{/if}}
+                </span>
+                <div class="item-controls">
+                  {{#if item.hasFeatAction}}
+                    <button type="button" data-action="useFeat" data-tooltip="{{item.featActionHint}}"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+                  {{else if item.passiveAutomation}}
+                    <button type="button" class="passive-info" data-action="useFeat" data-tooltip="{{item.featActionHint}}"><i class="fa-solid fa-circle-info"></i></button>
+                  {{/if}}
+                  {{#if item.usesTracked}}
+                    <button type="button" data-action="useItemCharge" data-tooltip="Use a charge"><i class="fa-solid fa-bolt-lightning"></i></button>
+                  {{/if}}
+                  <button type="button" data-action="itemEdit" data-tooltip="Edit"><i class="fa-solid fa-pen-to-square"></i></button>
+                  {{#if ../editable}}
+                    <button type="button" data-action="itemDelete" data-tooltip="Delete"><i class="fa-solid fa-trash"></i></button>
+                  {{/if}}
+                </div>
+              </div>
+            {{else}}
+              <p class="empty-state-compact">{{#if isNPC}}No creature abilities.{{else}}No racial abilities.{{/if}}</p>
+            {{/each}}
+          </article>
+
+          <article class="ornate-card item-section compact-feature-card">
+            <div class="compact-feature-heading">
+              <h3>Class Abilities</h3>
+              {{#if editable}}
+                <button type="button" data-action="addFromPicker" data-slot="classAbility"><i class="fa-solid fa-magnifying-glass"></i> Add</button>
+              {{/if}}
+            </div>
+            <div class="item-list-header feature-header compact">
+              <span>Name</span>
+              <span>Uses</span>
+              <span></span>
+            </div>
+            {{#each itemGroups.classAbilities as |item|}}
+              <div class="item-row feature-row compact" data-item-id="{{item.id}}">
+                <button type="button" class="item-name" data-action="itemEdit">
+                  <img src="{{item.img}}" alt="">
+                  <strong>{{item.name}}</strong>
+                </button>
+                <span class="uses-cell">
+                  {{#if item.usesUnlimited}}
+                    <span class="uses-unlimited">Unlimited</span>
+                  {{else if item.usesTracked}}
+                    {{item.usesRemaining}} / {{item.usesMax}}
+                  {{/if}}
+                </span>
+                <div class="item-controls">
+                  {{#if item.hasFeatAction}}
+                    <button type="button" data-action="useFeat" data-tooltip="{{item.featActionHint}}"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+                  {{else if item.passiveAutomation}}
+                    <button type="button" class="passive-info" data-action="useFeat" data-tooltip="{{item.featActionHint}}"><i class="fa-solid fa-circle-info"></i></button>
+                  {{/if}}
+                  {{#if item.usesTracked}}
+                    <button type="button" data-action="useItemCharge" data-tooltip="Use a charge"><i class="fa-solid fa-bolt-lightning"></i></button>
+                  {{/if}}
+                  <button type="button" data-action="itemEdit" data-tooltip="Edit"><i class="fa-solid fa-pen-to-square"></i></button>
+                  {{#if ../editable}}
+                    <button type="button" data-action="itemDelete" data-tooltip="Delete"><i class="fa-solid fa-trash"></i></button>
+                  {{/if}}
+                </div>
+              </div>
+            {{else}}
+              <p class="empty-state-compact">No class abilities or proficiencies.</p>
+            {{/each}}
+          </article>
+
+        </div>
+      </div>
+
+      {{#if itemGroups.otherFeatures.length}}
+        <article class="ornate-card item-section">
+          <div class="card-heading">
+            <h2>Uncategorised</h2>
+            <p class="hint">Set a Category on these to sort them into the tables above.</p>
+          </div>
+          <div class="item-list-header feature-header">
+            <span>Name</span>
+            <span>Type</span>
+            <span>Source</span>
+            <span>Tier</span>
+            <span>Uses</span>
+            <span></span>
+          </div>
+          {{#each itemGroups.otherFeatures as |item|}}
+            <div class="item-row feature-row" data-item-id="{{item.id}}">
+              <button type="button" class="item-name" data-action="itemEdit">
+                <img src="{{item.img}}" alt="">
+                <strong>{{item.name}}</strong>
+              </button>
+              <span>{{item.typeLabel}}</span>
+              <span>{{item.system.source}}</span>
+              <span>{{item.system.tier}}</span>
+              <span class="uses-cell">
+                {{#if item.usesUnlimited}}
+                  <span class="uses-unlimited">Unlimited</span>
+                {{else if item.usesTracked}}
+                  {{item.usesRemaining}} / {{item.usesMax}}
+                {{/if}}
+              </span>
+              <div class="item-controls">
+                {{!-- A ROW THAT KNOWS IT HAS AN ACTION MUST BE ABLE TO SAY SO (3.586.3).
+                      This table is where anything the grouping branches do not
+                      recognise lands, and it was the one table with no Use control —
+                      so an item with a complete handler could be entirely unreachable
+                      while its own row carried hasFeatAction: true. Death Mark and
+                      Agile Display sat here for months. The routing that put them
+                      here is fixed too; this is so the next one is merely misfiled
+                      rather than unusable. --}}
+                {{#if item.hasFeatAction}}
+                  <button type="button" data-action="useFeat" data-tooltip="{{item.featActionHint}}"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+                {{else if item.passiveAutomation}}
+                  <button type="button" class="passive-info" data-action="useFeat" data-tooltip="{{item.featActionHint}}"><i class="fa-solid fa-circle-info"></i></button>
+                {{/if}}
+                {{#if item.usesTracked}}
+                  <button type="button" data-action="useItemCharge" data-tooltip="Use a charge"><i class="fa-solid fa-bolt-lightning"></i></button>
+                {{/if}}
+                <button type="button" data-action="itemEdit" data-tooltip="Edit">
+                  <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                {{#if editable}}
+                  <button type="button" data-action="itemDelete" data-tooltip="Delete">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                {{/if}}
+              </div>
+            </div>
+          {{/each}}
+        </article>
+      {{/if}}
+
+      <article class="ornate-card item-section">
+        <div class="card-heading">
+          <h2>Foundations</h2>
+          {{#if editable}}
+            <div class="button-group compact">
+              <button type="button" data-action="addFromPicker" data-slot="race" data-tooltip="Add from Compendium"><i class="fa-solid fa-magnifying-glass"></i> Race</button>
+              <button type="button" data-action="addFromPicker" data-slot="heritage" data-tooltip="Add from Compendium"><i class="fa-solid fa-magnifying-glass"></i> Heritage</button>
+              <button type="button" data-action="addFromPicker" data-slot="background" data-tooltip="Add from Compendium"><i class="fa-solid fa-magnifying-glass"></i> Background</button>
+              <button type="button" data-action="addFromPicker" data-slot="class" data-tooltip="Add from Compendium"><i class="fa-solid fa-magnifying-glass"></i> Class</button>
+              <button type="button" data-action="addFromPicker" data-slot="creatureType" data-tooltip="Add from Compendium"><i class="fa-solid fa-magnifying-glass"></i> Creature Type</button>
+              {{#if needsDivineAspect}}
+                <button type="button" data-action="addFromPicker" data-slot="divineAspect" data-tooltip="Add from Compendium"><i class="fa-solid fa-magnifying-glass"></i> Divine Aspect</button>
+              {{/if}}
+              {{#if needsWizardSchool}}
+                <button type="button" data-action="addFromPicker" data-slot="wizardSchool" data-tooltip="Add from Compendium"><i class="fa-solid fa-magnifying-glass"></i> Wizard School</button>
+              {{/if}}
+            </div>
+          {{/if}}
+        </div>
+        {{#each itemGroups.identity as |item|}}
+          <div class="item-row foundation-row" data-item-id="{{item.id}}">
+            <button type="button" class="item-name" data-action="itemEdit">
+              <img src="{{item.img}}" alt="">
+              <strong>{{item.name}}</strong>
+            </button>
+            <span>{{item.typeLabel}}</span>
+            <span>{{item.system.source}}</span>
+            <span>Level {{item.system.level}}</span>
+            <div class="item-controls">
+              {{#if item.hasFeatAction}}
+                <button type="button" class="gold-button small-button" data-action="useFeat" data-tooltip="{{item.featHint}}">
+                  <i class="fa-solid fa-wand-sparkles"></i> Use
+                </button>
+              {{/if}}
+              <button type="button" data-action="applyAllGrants" data-tooltip="Apply Grants (bonus feats, spells, etc.)">
+                <i class="fa-solid fa-gift"></i>
+              </button>
+              <button type="button" data-action="itemEdit"><i class="fa-solid fa-pen-to-square"></i></button>
+              {{#if ../editable}}
+                <button type="button" data-action="itemDelete"><i class="fa-solid fa-trash"></i></button>
+              {{/if}}
+            </div>
+          </div>
+        {{else}}
+          <div class="empty-state compact">
+            <p>No foundation items have been added.</p>
+          </div>
+        {{/each}}
+      </article>
+    </section>
+
+    <section
+      class="tab sheet-tab-panel {{tabs.items.cssClass}}"
+      data-group="primary"
+      data-tab="items"
+    >
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">Arms, armour, and adventuring gear</span>
+          <h2>Items</h2>
+        </div>
+        <div class="encumbrance-badge">
+          <i class="fa-solid fa-weight-hanging"></i>
+          <span>{{system.encumbrance.value}} / {{system.encumbrance.max}}</span>
+        </div>
+      </div>
+
+      <div class="currency-tracker">
+        <label data-tooltip="Mithril Piece (Dragon) — 100 gp">
+          <span>MP</span>
+          <input type="number" name="system.currency.mp" value="{{system.currency.mp}}" min="0">
+        </label>
+        <label data-tooltip="Platinum Piece (Sphinx) — 10 gp">
+          <span>PP</span>
+          <input type="number" name="system.currency.pp" value="{{system.currency.pp}}" min="0">
+        </label>
+        <label data-tooltip="Gold Piece (Lion) — 1 gp">
+          <span>GP</span>
+          <input type="number" name="system.currency.gp" value="{{system.currency.gp}}" min="0">
+        </label>
+        <label data-tooltip="Silver Piece (Falcon) — 1/10 gp">
+          <span>SP</span>
+          <input type="number" name="system.currency.sp" value="{{system.currency.sp}}" min="0">
+        </label>
+        <label data-tooltip="Copper Piece (Penny) — 1/100 gp">
+          <span>CP</span>
+          <input type="number" name="system.currency.cp" value="{{system.currency.cp}}" min="0">
+        </label>
+        <span class="currency-total" data-tooltip="Total wealth in gold pieces">{{currencyTotalGP}} gp total</span>
+      </div>
+
+      {{#if showStartingWealth}}
+        <div class="starting-wealth">
+          <span class="starting-wealth-score" data-tooltip="{{startingWealthBreakdown}}">
+            <i class="fa-solid fa-sack-dollar"></i>
+            {{#if startingWealth.byLevel}}
+              Starting wealth for a new level {{startingWealth.level}} character &mdash; {{startingWealth.gp}} gp (Chapter 12)
+            {{else}}
+            Starting wealth score {{startingWealth.score}}
+            {{#if startingWealth.pending}}
+              &mdash; background wealth not yet rolled
+            {{else if startingWealth.indebted}}
+              &mdash; you begin in debt (Chapter 6): settle the details with your GM
+            {{else}}
+              &mdash; {{startingWealth.gp}} gp
+            {{/if}}
+            {{/if}}
+          </span>
+          {{#if editable}}
+            <button type="button" data-action="grantStartingWealth"
+              data-tooltip="Chapter 6: Charisma (negatives ignored) + background + class, &times; 50 gp. Above 1st level, Chapter 12's table by level instead. Taken once.">
+              Take starting wealth
+            </button>
+          {{/if}}
+        </div>
+      {{/if}}
+
+      <div class="inventory-columns">
+        <article class="ornate-card item-section">
+          <div class="card-heading">
+            <h2>Attacks/Weapons</h2>
+            {{#if editable}}
+              <button type="button" data-action="addFromPicker" data-slot="weapon" data-tooltip="Add from Compendium">
+                <i class="fa-solid fa-magnifying-glass"></i>
+              </button>
+              <button type="button" data-action="itemCreate" data-item-type="weapon" data-tooltip="Create Blank">
+                <i class="fa-solid fa-plus"></i>
+              </button>
+            {{/if}}
+          </div>
+          <div class="item-list-header inventory-header">
+            <span>Name</span><span>Damage</span><span>Range</span><span>Wt.</span><span></span>
+          </div>
+          {{#each itemGroups.weapons as |item|}}
+            <div class="item-row inventory-row" data-item-id="{{item.id}}">
+              <button type="button" class="item-name" data-action="itemEdit">
+                <img src="{{item.img}}" alt="">
+                <strong>{{item.name}}</strong>
+                {{#if item.notProficient}}
+                  {{!-- Shown on the exception, not the rule: a badge on
+                        every row is wallpaper. The tooltip carries the
+                        reason, so the -4 on the roll has an explanation
+                        on the sheet that produced it. --}}
+                  <span class="not-proficient-badge" data-tooltip="Not proficient — {{item.proficiencyWhy}}. Attacks take -4; armour check penalties are doubled.">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                  </span>
+                {{/if}}
+              </button>
+              <span>{{item.system.damage}}</span>
+              <span>{{item.system.range}}</span>
+              <span>{{item.system.totalWeight}}</span>
+              <div class="item-controls">
+                <button type="button" data-action="toggleItemEquipped" data-tooltip="{{#if item.system.equipped}}Equipped — click to unequip{{else}}Not equipped — click to equip{{/if}}">
+                  <i class="fa-solid fa-hand-fist{{#unless item.system.equipped}} muted-icon{{/unless}}"></i>
+                </button>
+                <button type="button" data-action="rollWeaponAttack" data-tooltip="Attack (targets the selected token)"><i class="fa-solid fa-dice-d20"></i></button>
+                <button type="button" data-action="rollWeaponDamage" data-tooltip="Damage"><i class="fa-solid fa-burst"></i></button>
+                {{#if item.hasLoad}}
+                  <button type="button" data-action="reloadWeapon" data-tooltip="{{#if item.system.loaded}}Loaded{{else}}Reload{{/if}}">
+                    <i class="fa-solid fa-rotate{{#if item.system.loaded}} muted-icon{{/if}}"></i>
+                  </button>
+                {{else if item.hasMagazine}}
+                  <button type="button" data-action="reloadWeapon" data-tooltip="Magazine {{item.system.magazine}}/{{item.magazineCap}} — reload (full round)">
+                    <i class="fa-solid fa-layer-group{{#if item.system.magazine}} muted-icon{{/if}}"></i>
+                    <span class="magazine-count">{{item.system.magazine}}</span>
+                  </button>
+                {{/if}}
+                {{#if item.hasSpin}}
+                  <button type="button" data-action="spinWeapon" data-tooltip="Spin (build up next attack's damage)">
+                    <i class="fa-solid fa-compact-disc"></i>
+                  </button>
+                {{/if}}
+                <button type="button" data-action="itemEdit"><i class="fa-solid fa-pen-to-square"></i></button>
+                {{#if ../editable}}
+                  <button type="button" data-action="itemDelete"><i class="fa-solid fa-trash"></i></button>
+                {{/if}}
+              </div>
+            </div>
+          {{else}}
+            <div class="empty-state compact"><p>No weapons.</p></div>
+          {{/each}}
+        </article>
+
+        <article class="ornate-card item-section">
+          <div class="card-heading">
+            <h2>Armour & Shields</h2>
+            {{#if editable}}
+              <div class="button-group compact">
+                <button type="button" data-action="addFromPicker" data-slot="armour" data-tooltip="Add from Compendium">
+                  <i class="fa-solid fa-magnifying-glass"></i> Armour
+                </button>
+                <button type="button" data-action="itemCreate" data-item-type="armour" data-tooltip="Create Blank">
+                  <i class="fa-solid fa-plus"></i>
+                </button>
+                <button type="button" data-action="addFromPicker" data-slot="shield" data-tooltip="Add from Compendium">
+                  <i class="fa-solid fa-magnifying-glass"></i> Shield
+                </button>
+                <button type="button" data-action="itemCreate" data-item-type="shield" data-tooltip="Create Blank">
+                  <i class="fa-solid fa-plus"></i>
+                </button>
+              </div>
+            {{/if}}
+          </div>
+          <div class="item-list-header inventory-header">
+            <span>Name</span><span>Type</span><span>DR</span><span>Wt.</span><span></span>
+          </div>
+          {{#each itemGroups.armour as |item|}}
+            <div class="item-row inventory-row" data-item-id="{{item.id}}">
+              <button type="button" class="item-name" data-action="itemEdit">
+                <img src="{{item.img}}" alt="">
+                <strong>{{item.name}}</strong>
+                {{#if item.notProficient}}
+                  {{!-- Shown on the exception, not the rule: a badge on
+                        every row is wallpaper. The tooltip carries the
+                        reason, so the -4 on the roll has an explanation
+                        on the sheet that produced it. --}}
+                  <span class="not-proficient-badge" data-tooltip="Not proficient — {{item.proficiencyWhy}}. Attacks take -4; armour check penalties are doubled.">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                  </span>
+                {{/if}}
+              </button>
+              <span>Armour</span>
+              <span>{{item.system.dr}}</span>
+              <span>{{item.system.totalWeight}}</span>
+              <div class="item-controls">
+                <button type="button" data-action="toggleItemEquipped" data-tooltip="{{#if item.system.equipped}}Worn — click to remove{{else}}Not worn — click to wear{{/if}}">
+                  <i class="fa-solid fa-shirt{{#unless item.system.equipped}} muted-icon{{/unless}}"></i>
+                </button>
+                <button type="button" data-action="itemEdit"><i class="fa-solid fa-pen-to-square"></i></button>
+                {{#if ../editable}}
+                  <button type="button" data-action="itemDelete"><i class="fa-solid fa-trash"></i></button>
+                {{/if}}
+              </div>
+            </div>
+          {{/each}}
+          {{#each itemGroups.shields as |item|}}
+            <div class="item-row inventory-row" data-item-id="{{item.id}}">
+              <button type="button" class="item-name" data-action="itemEdit">
+                <img src="{{item.img}}" alt="">
+                <strong>{{item.name}}</strong>
+                {{#if item.notProficient}}
+                  {{!-- Shown on the exception, not the rule: a badge on
+                        every row is wallpaper. The tooltip carries the
+                        reason, so the -4 on the roll has an explanation
+                        on the sheet that produced it. --}}
+                  <span class="not-proficient-badge" data-tooltip="Not proficient — {{item.proficiencyWhy}}. Attacks take -4; armour check penalties are doubled.">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                  </span>
+                {{/if}}
+              </button>
+              <span>Shield</span>
+              <span>{{item.system.dr}}</span>
+              <span>{{item.system.totalWeight}}</span>
+              <div class="item-controls">
+                {{#if item.isBuckler}}
+                  <button type="button" data-action="toggleShieldArm" data-tooltip="{{#if item.shieldArmInUse}}Shield arm is in use — {{item.bucklerPenalty}} to attack and no DB from the buckler. Click to free it.{{else}}Shield arm free — the buckler gives its full DB. Click if you are using a weapon with it.{{/if}}">
+                    <i class="fa-solid {{#if item.shieldArmInUse}}fa-hand-fist{{else}}fa-shield{{/if}}"></i>
+                  </button>
+                {{/if}}
+                <button type="button" data-action="toggleItemEquipped" data-tooltip="{{#if item.system.equipped}}Equipped — click to unequip{{else}}Not equipped — click to equip{{/if}}">
+                  <i class="fa-solid fa-shield{{#unless item.system.equipped}} muted-icon{{/unless}}"></i>
+                </button>
+                <button type="button" data-action="itemEdit"><i class="fa-solid fa-pen-to-square"></i></button>
+                {{#if ../editable}}
+                  <button type="button" data-action="itemDelete"><i class="fa-solid fa-trash"></i></button>
+                {{/if}}
+              </div>
+            </div>
+          {{/each}}
+        </article>
+
+        <article class="ornate-card item-section">
+          <div class="card-heading">
+            <h2>Gear</h2>
+            {{#if editable}}
+              <button type="button" data-action="addFromPicker" data-slot="gear" data-tooltip="Add from Compendium">
+                <i class="fa-solid fa-magnifying-glass"></i>
+              </button>
+              <button type="button" data-action="itemCreate" data-item-type="gear" data-tooltip="Create Blank">
+                <i class="fa-solid fa-plus"></i>
+              </button>
+            {{/if}}
+          </div>
+          {{#each chargedItemWarnings as |warning|}}
+            <p class="hint duplicate-slot-warning">
+              <i class="fa-solid fa-triangle-exclamation"></i> {{warning}}
+            </p>
+          {{/each}}
+          <div class="item-list-header inventory-header">
+            <span>Name</span><span>Qty.</span><span>Price</span><span>Wt.</span><span></span>
+          </div>
+          {{#each itemGroups.gear as |item|}}
+            <div class="item-row inventory-row" data-item-id="{{item.id}}">
+              <button type="button" class="item-name" data-action="itemEdit">
+                <img src="{{item.img}}" alt="">
+                {{#if item.chargedMaxPP}}
+                  {{!-- The sheet's own name-plus-secondary-line idiom, as
+                        used by spells and afflictions. A pill beside the
+                        name pushed "Rod of Extension III" into an
+                        ellipsis. --}}
+                  <span>
+                    <strong>{{item.name}}</strong>
+                    <small class="charge-line{{#if item.chargedEmpty}} charge-empty{{/if}}" data-tooltip="Power points held by the item — regains {{item.chargedRecharge}} per day while invested (Chapter 11)">{{item.chargedPP}}/{{item.chargedMaxPP}} PP · regains {{item.chargedRecharge}}/day</small>
+                  </span>
+                {{else}}
+                  <strong>{{item.name}}</strong>
+                {{/if}}
+              </button>
+              <span>{{item.system.quantity}}</span>
+              <span>{{item.system.price}}</span>
+              <span>{{item.system.totalWeight}}</span>
+              <div class="item-controls">
+                <button type="button" data-action="toggleItemEquipped" data-tooltip="{{#if item.system.equipped}}Equipped — click to unequip{{else}}Not equipped — click to equip{{/if}}">
+                  <i class="fa-solid fa-hand-fist{{#unless item.system.equipped}} muted-icon{{/unless}}"></i>
+                </button>
+                <button type="button" data-action="toggleItemStowed" data-tooltip="{{#if item.system.stowed}}Stowed in a Stash Sack — click to take out{{else}}Stow in a Stash Sack (its weight stops counting){{/if}}">
+                  <i class="fa-solid fa-sack-xmark{{#unless item.system.stowed}} muted-icon{{/unless}}"></i>
+                </button>
+                {{#if item.isLightSource}}
+                  <button type="button" data-action="toggleItemLit" data-tooltip="{{#if item.isLit}}Lit — click to put out{{else}}Not lit — click to light it (must also be equipped to shed light){{/if}}">
+                    <i class="fa-solid fa-fire{{#unless item.isLit}} muted-icon{{/unless}}"></i>
+                  </button>
+                  {{#if item.hasHood}}
+                    <button type="button" data-action="toggleItemHood" data-tooltip="{{#if item.isHooded}}Hood lowered — still burning, shedding no light. Click to raise it{{else}}Hood raised — click to lower it and conceal the light without putting it out{{/if}}">
+                      <i class="fa-solid {{#if item.isHooded}}fa-eye-slash{{else}}fa-eye muted-icon{{/if}}"></i>
+                    </button>
+                  {{/if}}
+                {{/if}}
+                {{#if item.goodsUse}}
+                  <button type="button" data-action="useGoods" data-tooltip="{{item.goodsUse}}">
+                    <i class="fa-solid fa-hand-sparkles"></i>
+                  </button>
+                {{/if}}
+                {{#if item.hasInvested}}
+                  <button type="button" data-action="investItem" data-tooltip="{{#if item.system.invested}}End Investment{{else}}Invest Item{{/if}} (Chapter 11)">
+                    <i class="fa-solid {{#if item.system.invested}}fa-link{{else}}fa-link-slash{{/if}}"></i>
+                  </button>
+                {{/if}}
+                {{#if item.hasFormulae}}
+                  <button type="button" data-action="addFormula" data-tooltip="Add Formula (Chapter 6) — costs 10% of the item's own price">
+                    <i class="fa-solid fa-scroll"></i>
+                  </button>
+                {{/if}}
+                <button type="button" data-action="activateItem" data-tooltip="Activate Item">
+                  <i class="fa-solid fa-bolt"></i>
+                </button>
+                <button type="button" data-action="damageItem" data-tooltip="Apply Damage to this Item (Chapter 6)">
+                  <i class="fa-solid fa-hammer-crash"></i>
+                </button>
+                <button type="button" data-action="itemEdit"><i class="fa-solid fa-pen-to-square"></i></button>
+                {{#if ../editable}}
+                  <button type="button" data-action="itemDelete"><i class="fa-solid fa-trash"></i></button>
+                {{/if}}
+              </div>
+            </div>
+          {{else}}
+            <div class="empty-state compact"><p>No gear.</p></div>
+          {{/each}}
+        </article>
+
+        <article class="ornate-card item-section">
+          <div class="card-heading">
+            <h2>Consumables & Ammunition</h2>
+            {{#if editable}}
+              <div class="button-group compact">
+                <button type="button" data-action="addFromPicker" data-slot="consumable" data-tooltip="Add from Compendium">
+                  <i class="fa-solid fa-magnifying-glass"></i> Consumable
+                </button>
+                <button type="button" data-action="itemCreate" data-item-type="consumable" data-tooltip="Create Blank">
+                  <i class="fa-solid fa-plus"></i>
+                </button>
+                <button type="button" data-action="addFromPicker" data-slot="ammunition" data-tooltip="Add from Compendium">
+                  <i class="fa-solid fa-magnifying-glass"></i> Ammunition
+                </button>
+                <button type="button" data-action="addFromPicker" data-slot="alchemical" data-tooltip="Add from Compendium — elixirs, herbs, oils, poisons and vials (Chapter 6)">
+                  <i class="fa-solid fa-magnifying-glass"></i> Alchemical
+                </button>
+                <button type="button" data-action="itemCreate" data-item-type="ammunition" data-tooltip="Create Blank">
+                  <i class="fa-solid fa-plus"></i>
+                </button>
+              </div>
+            {{/if}}
+          </div>
+          <div class="item-list-header inventory-header">
+            <span>Name</span><span>Type</span><span>Qty.</span><span>Wt.</span><span></span>
+          </div>
+          {{#each itemGroups.consumables as |item|}}
+            <div class="item-row inventory-row" data-item-id="{{item.id}}">
+              <button type="button" class="item-name" data-action="itemEdit">
+                <img src="{{item.img}}" alt="">
+                <span>
+                  <strong>{{item.name}}</strong>
+                  {{#if item.bombLine}}
+                    <small class="charge-line" data-tooltip="Thrown as a martial weapon, range increment {{item.bombRange}} ft (Chapter 6)">{{item.bombLine}}</small>
+                  {{/if}}
+                  {{#if item.consumableLine}}
+                    <small class="charge-line" data-tooltip="What this releases when used, and at what PP (Chapter 11)">{{item.consumableLine}}</small>
+                  {{/if}}
+                </span>
+              </button>
+              <span>{{#if item.alchemicalSection}}{{item.alchemicalSection}}{{else if item.consumableLabel}}{{item.consumableLabel}}{{else}}Consumable{{/if}}</span>
+              <span>{{item.system.quantity}}</span>
+              <span>{{item.system.totalWeight}}</span>
+              <div class="item-controls">
+                {{#if item.canUseConsumable}}
+                  <button type="button" data-action="useConsumable" data-tooltip="{{item.consumableVerb}} it{{#if item.consumableSpell}} — releases {{item.consumableSpell}}{{else}} — nothing is recorded on it, so its description is read out instead{{/if}}">
+                    <i class="fa-solid fa-wand-sparkles{{#if item.consumableNeedsSpell}} muted-icon{{/if}}"></i>
+                  </button>
+                {{/if}}
+                {{#if item.isBomb}}
+                  <button type="button" data-action="throwBomb" data-tooltip="Throw it — an attack as a martial thrown weapon, {{item.bombRange}} ft range increment">
+                    <i class="fa-solid fa-fire-flame-curved"></i>
+                  </button>
+                {{/if}}
+                {{#if item.canCraftHigher}}
+                  <button type="button" data-action="craftAtLevel" data-tooltip="Craft this at a higher level — its effect and price both climb (Chapter 6)">
+                    <i class="fa-solid fa-arrow-up-right-dots"></i>
+                  </button>
+                {{/if}}
+                <button type="button" data-action="toggleItemEquipped" data-tooltip="{{#if item.system.equipped}}Held, ready to use — click to put away{{else}}Not held — click to hold ready{{/if}}">
+                  <i class="fa-solid fa-hand-fist{{#unless item.system.equipped}} muted-icon{{/unless}}"></i>
+                </button>
+                <button type="button" data-action="itemEdit"><i class="fa-solid fa-pen-to-square"></i></button>
+                {{#if ../editable}}
+                  <button type="button" data-action="itemDelete"><i class="fa-solid fa-trash"></i></button>
+                {{/if}}
+              </div>
+            </div>
+          {{/each}}
+          {{#each itemGroups.ammunition as |item|}}
+            <div class="item-row inventory-row" data-item-id="{{item.id}}">
+              <button type="button" class="item-name" data-action="itemEdit">
+                <img src="{{item.img}}" alt=""><strong>{{item.name}}</strong>
+              </button>
+              <span>Ammunition</span>
+              <span>{{item.system.quantity}}</span>
+              <span>{{item.system.totalWeight}}</span>
+              <div class="item-controls">
+                <button type="button" data-action="itemEdit"><i class="fa-solid fa-pen-to-square"></i></button>
+                {{#if ../editable}}
+                  <button type="button" data-action="itemDelete"><i class="fa-solid fa-trash"></i></button>
+                {{/if}}
+              </div>
+            </div>
+          {{/each}}
+        </article>
+      </div>
+    </section>
+
+    <section
+      class="tab sheet-tab-panel {{tabs.magicItems.cssClass}}"
+      data-group="primary"
+      data-tab="magicItems"
+    >
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">Charged, wondrous, and specific</span>
+          <h2>Magic Items</h2>
+        </div>
+        {{#if editable}}
+          <button type="button" class="gold-button" data-action="buildMagicItem"
+            data-tooltip="Build a magic item from Chapter 11's construction rules — priced and levelled as you choose">
+            <i class="fa-solid fa-hammer"></i> Build
+          </button>
+        {{/if}}
+        <div class="encumbrance-badge{{#if investment.over}} investment-over{{/if}}"
+          data-tooltip="{{#if investment.over}}Over the Chapter 11 investment limit — some of these items should not be granting their benefits{{else}}Items invested, against your limit (Chapter 11){{/if}}">
+          <i class="fa-solid {{#if investment.over}}fa-triangle-exclamation{{else}}fa-link{{/if}}"></i>
+          <span>{{investment.used}} / {{investment.max}} invested</span>
+        </div>
+      </div>
+
+      <div class="inventory-columns">
+        <article class="ornate-card item-section">
+          <div class="card-heading">
+            <h2>Charged Items</h2>
+            {{#if editable}}
+              <button type="button" data-action="addFromPicker" data-slot="chargedItem" data-tooltip="Add from Compendium">
+                <i class="fa-solid fa-magnifying-glass"></i>
+              </button>
+            {{/if}}
+          </div>
+          {{#each chargedItemWarnings as |warning|}}
+            <p class="hint duplicate-slot-warning">
+              <i class="fa-solid fa-triangle-exclamation"></i> {{warning}}
+            </p>
+          {{/each}}
+          <div class="item-list-header inventory-header">
+            <span>Name</span><span>Charge</span><span>Price</span><span>Wt.</span><span></span>
+          </div>
+          {{#each itemGroups.chargedItems as |item|}}
+            <div class="item-row inventory-row" data-item-id="{{item.id}}">
+              <button type="button" class="item-name" data-action="itemEdit">
+                <img src="{{item.img}}" alt="">
+                <span>
+                  <strong>{{item.name}}</strong>
+                  {{#if item.chargedSpells}}
+                    <small class="charge-line">{{item.chargedSpells}}</small>
+                  {{/if}}
+                </span>
+              </button>
+              <span class="charge-line{{#if item.chargedEmpty}} charge-empty{{/if}}"
+                data-tooltip="Power points held by the item — regains {{item.chargedRecharge}} per day while invested (Chapter 11)">{{item.chargedPP}}/{{item.chargedMaxPP}} PP</span>
+              <span>{{item.system.price}}</span>
+              <span>{{item.system.totalWeight}}</span>
+              <div class="item-controls">
+                <button type="button" data-action="toggleItemEquipped" data-tooltip="{{#if item.system.equipped}}Held — click to stow{{else}}Stowed — click to hold{{/if}}">
+                  <i class="fa-solid fa-hand-fist{{#unless item.system.equipped}} muted-icon{{/unless}}"></i>
+                </button>
+                {{#if item.hasInvested}}
+                  <button type="button" data-action="investItem" data-tooltip="{{#if item.system.invested}}End Investment{{else}}Invest Item{{/if}} (Chapter 11)">
+                    <i class="fa-solid {{#if item.system.invested}}fa-link{{else}}fa-link-slash{{/if}}"></i>
+                  </button>
+                {{/if}}
+                <button type="button" data-action="activateItem" data-tooltip="Cast a Spell from this item (Chapter 11)">
+                  <i class="fa-solid fa-bolt"></i>
+                </button>
+                <button type="button" data-action="itemEdit"><i class="fa-solid fa-pen-to-square"></i></button>
+                {{#if ../editable}}
+                  <button type="button" data-action="itemDelete"><i class="fa-solid fa-trash"></i></button>
+                {{/if}}
+              </div>
+            </div>
+          {{else}}
+            <div class="empty-state compact"><p>No rods, staves or wands.</p></div>
+          {{/each}}
+        </article>
+
+        <article class="ornate-card item-section">
+          <div class="card-heading">
+            <h2>Wondrous Items</h2>
+            {{#if editable}}
+              <button type="button" data-action="addFromPicker" data-slot="wondrous" data-tooltip="Add from Compendium">
+                <i class="fa-solid fa-magnifying-glass"></i>
+              </button>
+            {{/if}}
+          </div>
+          <p class="hint">
+            A wondrous item's benefits apply while it is <strong>invested and worn</strong> (Chapter 11); a Stash Sack needs only its investment.
+          </p>
+          {{#each system.combat.wondrousProblems as |problem|}}
+            <p class="hint duplicate-slot-warning">
+              <i class="fa-solid fa-triangle-exclamation"></i> {{problem}}
+            </p>
+          {{/each}}
+          <div class="item-list-header inventory-header">
+            <span>Name</span><span>Slot</span><span>Price</span><span>Wt.</span><span></span>
+          </div>
+          {{#each itemGroups.wondrousItems as |item|}}
+            <div class="item-row inventory-row" data-item-id="{{item.id}}">
+              <button type="button" class="item-name" data-action="itemEdit">
+                <img src="{{item.img}}" alt="">
+                <span>
+                  <strong>{{item.name}}</strong>
+                  {{#if item.wondrousAbilities.length}}
+                    <small class="charge-line{{#unless item.wondrousActive}} charge-empty{{/unless}}"
+                      data-tooltip="{{#if item.wondrousActive}}Applied to the sheet now{{else}}Invest and wear the item to gain these{{/if}}">{{#each item.wondrousAbilities as |ability|}}{{#unless @first}}, {{/unless}}{{ability}}{{/each}}</small>
+                  {{/if}}
+                </span>
+              </button>
+              <span>{{item.wondrousSlot}}</span>
+              <span>{{item.system.price}}</span>
+              <span>{{item.system.totalWeight}}</span>
+              <div class="item-controls">
+                <button type="button" data-action="toggleItemEquipped" data-tooltip="{{#if item.system.equipped}}Worn — click to stow{{else}}Stowed — click to wear{{/if}}">
+                  <i class="fa-solid fa-hand-fist{{#unless item.system.equipped}} muted-icon{{/unless}}"></i>
+                </button>
+                {{#if item.hasInvested}}
+                  <button type="button" data-action="investItem" data-tooltip="{{#if item.system.invested}}End Investment — its benefits stop{{else}}Invest Item — its benefits begin (Chapter 11){{/if}}">
+                    <i class="fa-solid {{#if item.system.invested}}fa-link{{else}}fa-link-slash{{/if}}"></i>
+                  </button>
+                {{/if}}
+                <button type="button" data-action="activateItem" data-tooltip="{{#if item.wondrousUse}}{{item.wondrousUse}}{{else}}Activate Item{{/if}}">
+                  <i class="fa-solid {{#if item.wondrousUse}}fa-hand-holding-medical{{else}}fa-bolt{{/if}}"></i>
+                </button>
+                <button type="button" data-action="itemEdit"><i class="fa-solid fa-pen-to-square"></i></button>
+                {{#if ../editable}}
+                  <button type="button" data-action="itemDelete"><i class="fa-solid fa-trash"></i></button>
+                {{/if}}
+              </div>
+            </div>
+          {{else}}
+            <div class="empty-state compact"><p>No wondrous items.</p></div>
+          {{/each}}
+        </article>
+      </div>
+
+      {{#if system.combat.wondrousReported.length}}
+        <article class="ornate-card item-section">
+          <div class="card-heading">
+            <h2>Applied by hand</h2>
+          </div>
+          <p class="hint">
+            What your invested wondrous items do that this system does not model for you.
+          </p>
+          {{#each system.combat.wondrousReported as |note|}}
+            <p class="hint"><i class="fa-solid fa-circle-info"></i> {{note}}</p>
+          {{/each}}
+        </article>
+      {{/if}}
+
+      <article class="ornate-card item-section">
+        <div class="card-heading">
+          <h2>Specific Armour &amp; Weapons</h2>
+          {{#if editable}}
+            <button type="button" data-action="addFromPicker" data-slot="specificItem" data-tooltip="Add from Compendium">
+              <i class="fa-solid fa-magnifying-glass"></i>
+            </button>
+          {{/if}}
+        </div>
+        <p class="hint">
+          Named magical armour, shields and weapons. They are armour and weapons, so they appear
+          in the <strong>Items</strong> tab's own tables once added.
+        </p>
+      </article>
+    </section>
+
+    <section
+      class="tab sheet-tab-panel {{tabs.magic.cssClass}}"
+      data-group="primary"
+      data-tab="magic"
+    >
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">Tradition, power, and spellcraft</span>
+          <h2>Magic</h2>
+        </div>
+        <div class="heading-actions">
+          <button type="button" class="gold-button" data-action="rollSpellConcentration">
+            <i class="fa-solid fa-om"></i> Spell Concentration
+          </button>
+          <button type="button" class="gold-button" data-action="rollPowerPointRecovery">
+            <i class="fa-solid fa-battery-half"></i> PP Recovery
+          </button>
+          <button type="button" class="gold-button" data-action="rollDisbelieveIllusion">
+            <i class="fa-solid fa-eye-slash"></i> Disbelieve Illusion
+          </button>
+        </div>
+        {{#if editable}}
+          <button type="button" class="gold-button" data-action="addFromPicker" data-slot="spell">
+            <i class="fa-solid fa-magnifying-glass"></i> Add from Compendium
+          </button>
+          <button type="button" class="gold-button" data-action="itemCreate" data-item-type="spell">
+            <i class="fa-solid fa-plus"></i> Add Spell
+          </button>
+        {{/if}}
+      </div>
+
+      <article class="ornate-card magic-summary">
+        <div class="field-grid six-column">
+          {{! A caster class FIXES both of these — "you draw your spells
+              from the verdant tradition" is not a choice — so they read
+              out rather than offering a control that submits the derived
+              value straight back into storage. The sheet submits on every
+              change, so an editable select here meant a Ranger's verdant
+              was written into _source and survived the class being
+              removed. }}
+          <label>
+            <span>Tradition</span>
+            {{#if system.progression.tradition}}
+              <output data-tooltip="Fixed by your class — {{system.progression.source}} draws its spells from the {{system.progression.tradition}} tradition.">{{system.magic.tradition}}</output>
+            {{else}}
+              <select name="system.magic.tradition" data-tooltip="Setting a tradition automatically sets Casting Attribute to match (Chapter 9). Leave blank to set Casting Attribute manually.">
+                {{selectOptions traditionChoices selected=system.magic.tradition}}
+              </select>
+            {{/if}}
+          </label>
+          <label>
+            <span>Casting Attribute</span>
+            {{#if castingAbilityFixed}}
+              <output data-tooltip="{{castingAbilityWhy}}">{{system.magic.castingAbility}}</output>
+            {{else}}
+              <select name="system.magic.castingAbility">
+                {{selectOptions abilityChoices selected=system.magic.castingAbility}}
+              </select>
+            {{/if}}
+          </label>
+          <label>
+            <span>Caster Level</span>
+            {{#if casterLevelFixed}}
+              <output data-tooltip="{{casterLevelWhy}}">{{system.magic.casterLevelValue}}</output>
+            {{else}}
+              <input type="number" name="system.magic.casterLevel" value="{{system.magic.casterLevel}}" min="0" data-tooltip="Caster level for spell scaling (Chapter 9). 0 = take it from your class table, or from your character level if your class has none. Anything else overrides both. Resolved: {{system.magic.casterLevelValue}} (from {{system.magic.casterLevelSource}}).">
+            {{/if}}
+          </label>
+          <label>
+            <span>BSB</span>
+            {{#if bsbFixed}}
+              <output data-tooltip="{{bsbWhy}}">{{bsbValue}}</output>
+            {{else}}
+              <input type="number" name="system.magic.bsb" value="{{system.magic.bsb}}" data-tooltip="Your Base Spellcraft Bonus. A class supplies this from its own table; this field is what you have on top of that.">
+            {{/if}}
+          </label>
+          <label>
+            <span>Base Power Points</span>
+            <input type="number" name="system.resources.pp.base" value="{{system.resources.pp.base}}" min="0" data-tooltip="Your own base maximum PP, before your class and your magical ability score. This is what racial power points, Aura of Power and the Knight feats write into. Resolved maximum: {{system.resources.pp.max}}.">
+          </label>
+          <label>
+            <span>Spellcraft DC</span>
+            <output>{{system.magic.spellcraft.dc}}</output>
+          </label>
+          <label>
+            <span>Spellcraft</span>
+            <button type="button" class="output-button" data-action="rollSpellcraft">
+              <strong>{{system.magic.spellcraft.total}}</strong>
+              <i class="fa-solid fa-dice-d20"></i>
+            </button>
+          </label>
+          <label>
+            <span>Casting Focus</span>
+            <input type="text" name="system.magic.focus" value="{{system.magic.focus}}" placeholder="wand, staff, holy symbol…" data-tooltip="The focus item this caster channels through (name it here). Casting Focus is a permanent choice made at character creation.">
+          </label>
+          <div class="two-checkbox-field">
+            <span>Focus</span>
+            <div class="two-checkbox-row">
+              <label data-tooltip="This caster casts with a focus (Chapter 9): +1 item bonus to casting while the focus is in hand, but -2 circumstance (and +10 to any Fumble roll) when casting without it. The held focus also stands in for a somatic component.">
+                <input type="checkbox" name="system.magic.focusCasting" {{checked system.magic.focusCasting}}>
+                <span>Caster</span>
+              </label>
+              <label data-tooltip="Whether the focus is currently held and usable. Untick if the focus is lost, stowed, or otherwise unavailable — casting then takes the -2 circumstance penalty and the +10 fumble danger.">
+                <input type="checkbox" name="system.magic.focusReady" {{checked system.magic.focusReady}}>
+                <span>In hand</span>
+              </label>
+            </div>
+          </div>
+          <label>
+            <span>Control Levels</span>
+            <output data-tooltip="Chapter 9: the total creature levels you can control at once = character level + magical ability modifier + a per-level class bonus. If you exceed this, your highest-level controlled creature makes a DC 20 Will save each round to break free.">{{system.magic.controlLevelsUsed}} / {{system.magic.controlLevels}}</output>
+          </label>
+          <label>
+            <span>Control bonus / level</span>
+            <input type="number" name="system.magic.controlBonusPerLevel" value="{{system.magic.controlBonusPerLevel}}" min="0" max="2" data-tooltip="The per-level class bonus to Control Levels: Cleric / Druid / Wizard = 1; Wizard (Conjurer / Enchanter) = 2; other classes = 0. Still set by hand — the caster classes have not been built yet.">
+          </label>
+          <label>
+            <span>Controlled (levels)</span>
+            <input type="number" name="system.magic.controlLevelsUsed" value="{{system.magic.controlLevelsUsed}}" min="0" data-tooltip="Total levels of creatures you currently control. When this exceeds your Control Levels, the highest-level controlled creature can attempt a DC 20 Will save each round to release itself.">
+          </label>
+        </div>
+        <div class="spellcraft-breakdown">
+          <label><span>Ability</span><output>{{system.magic.spellcraft.ability}}</output></label>
+          <label><span>Racial</span><input type="number" name="system.magic.spellcraft.racial" value="{{system.magic.spellcraft.racial}}"></label>
+          <label><span>Class</span><input type="number" name="system.magic.spellcraft.class" value="{{system.magic.spellcraft.class}}"></label>
+          <label><span>Item</span><input type="number" name="system.magic.spellcraft.item" value="{{system.magic.spellcraft.item}}"></label>
+          <label><span>Status</span><input type="number" name="system.magic.spellcraft.status" value="{{system.magic.spellcraft.status}}"></label>
+          <label><span>Other</span><input type="number" name="system.magic.spellcraft.other" value="{{system.magic.spellcraft.other}}"></label>
+        </div>
+      </article>
+
+      {{!-- SPELL STORING (3.495.0). Its own card rather than a row in the
+            Active Spells list: the entry there belongs to Spell Storing
+            itself, which is PP-locked until daily preparations, while
+            this is a different spell sitting in a different object. --}}
+      {{#if storedSpell}}
+      <article class="ornate-card stored-spell">
+        <div class="item-list-header">
+          <span>Stored Spell</span>
+          <span>PP</span>
+          <span>In</span>
+          <span></span>
+        </div>
+        <div class="item-row">
+          <span>{{storedSpell.name}}</span>
+          <span>{{storedSpell.ppPaid}}</span>
+          <span>{{storedSpell.itemName}}</span>
+          <span class="spell-actions">
+            <button type="button" data-action="releaseStoredSpell"
+              data-tooltip="Release the stored spell ({{storedSpell.releaseLabel}}) — its targets, check and saves resolve now"><i class="fa-solid fa-wand-sparkles"></i></button>
+          </span>
+        </div>
+        <p class="hint" style="padding:4px 8px">Paid for at storage; releasing settles the difference against the degree rolled.</p>
+      </article>
+      {{/if}}
+
+      {{#if activeSpells.length}}
+      <article class="ornate-card active-spells">
+        <div class="item-list-header">
+          <span>Active Spell</span>
+          <span>PP</span>
+          <span>State</span>
+          <span></span>
+        </div>
+        {{#each activeSpells as |spell|}}
+          <div class="item-row" data-spell-id="{{spell.id}}">
+            <span>{{spell.name}}</span>
+            <span>{{#if spell.lock}}{{spell.pp}} 🔒{{else}}—{{/if}}</span>
+            {{!-- One string, computed in active-spells.mjs. The two-way
+                  branch that lived here printed "PP locked ()" over any
+                  entry that was neither sustained nor locked, which is
+                  every (D) spell from 3.494.0 on. --}}
+            <span>{{spell.state}}</span>
+            <span class="spell-actions">
+              {{#if spell.sustained}}<button type="button" data-action="sustainSpell" data-spell-id="{{spell.id}}" data-tooltip="Sustain — continue until the end of your next turn"><i class="fa-solid fa-rotate-right"></i></button>{{/if}}
+              {{!-- Umbral Veil's decoy. Offered only while the circle is
+                    still following someone, because putting down a cloak
+                    already on the floor is not a thing that happens. --}}
+              {{#if spell.canDrop}}<button type="button" data-action="dropSpell" data-spell-id="{{spell.id}}" data-tooltip="Let it go (1 AP Interact) — the shadows stay where they are dropped and keep dimming for the rest of the duration"><i class="fa-solid fa-hand-sparkles"></i></button>{{/if}}
+              <button type="button" data-action="endSpell" data-spell-id="{{spell.id}}" data-tooltip="Dismiss / end this spell (releases any locked PP)"><i class="fa-solid fa-xmark"></i></button>
+            </span>
+          </div>
+        {{/each}}
+        {{#if system.resources.pp.locked}}<p class="hint" style="padding:4px 8px">{{system.resources.pp.locked}} PP locked by extended-duration spells (unrecoverable until they end).</p>{{/if}}
+      </article>
+      {{/if}}
+
+      {{#if repertoire}}
+      <article class="ornate-card repertoire-card">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">Instinctive caster — no memorisation needed</span>
+            <h2>Spell Repertoire</h2>
+          </div>
+          {{#if editable}}
+          <div class="heading-actions">
+            <button type="button" class="gold-button" data-action="pickRepertoireSpell"
+              data-tooltip="Add a repertoire spell — two PP 2 picks at 1st, one more at 3rd and every two levels after{{#if repertoire.category}} ({{repertoire.category}} spells only){{/if}}">
+              <i class="fa-solid fa-book-medical"></i> Pick Spell
+            </button>
+            <button type="button" class="gold-button" data-action="swapRepertoireSpell"
+              data-tooltip="Swap one repertoire spell for a new one — one swap banked at 5th and every two levels after">
+              <i class="fa-solid fa-right-left"></i> Swap Spell
+            </button>
+          </div>
+          {{/if}}
+        </div>
+        <div class="field-grid four-column">
+          <label>
+            <span>Picks</span>
+            <output data-tooltip="Repertoire spells chosen against the class schedule{{#if repertoire.bonus}}, including {{repertoire.bonus}} from Magical Discovery{{/if}}{{#if repertoire.nextPickLevel}} — the next pick arrives at level {{repertoire.nextPickLevel}}{{/if}}.">{{repertoire.picked}} / {{repertoire.allowed}}</output>
+          </label>
+          <label>
+            <span>Owed</span>
+            <output data-tooltip="Picks the schedule has granted that are still unchosen.">{{repertoire.remaining}}</output>
+          </label>
+          <label>
+            <span>Swaps left</span>
+            <output data-tooltip="Banked swaps — one arrives at 5th level and every two levels after{{#if repertoire.nextSwapLevel}}; the next at level {{repertoire.nextSwapLevel}}{{/if}}.">{{repertoire.swapsLeft}} / {{repertoire.swapsAllowed}}</output>
+          </label>
+          <label>
+            <span>Restriction</span>
+            <output data-tooltip="What a pick may be: your tradition{{#if repertoire.category}}, {{repertoire.category}} spells only{{/if}}; PP 2 for the two 1st-level picks, then anything you can actually cast.">{{repertoire.tradition}}{{#if repertoire.category}} · {{repertoire.category}}{{/if}}</output>
+          </label>
+        </div>
+      </article>
+      {{/if}}
+
+      {{#if knownCantrips}}
+      <article class="ornate-card repertoire-card">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">Learned once — cast at any time, no memorisation</span>
+            <h2>Cantrips</h2>
+          </div>
+          {{#if editable}}
+          <div class="heading-actions">
+            <button type="button" class="gold-button" data-action="pickCantrip"
+              data-tooltip="Learn a cantrip — {{knownCantrips.allowed}} chosen at 1st level from your tradition, kept permanently.">
+              <i class="fa-solid fa-wand-sparkles"></i> Pick Cantrip
+            </button>
+          </div>
+          {{/if}}
+        </div>
+        <div class="field-grid four-column">
+          <label>
+            <span>Known</span>
+            <output data-tooltip="Cantrips learned against this class's permanent allowance.">{{knownCantrips.picked}} / {{knownCantrips.allowed}}</output>
+          </label>
+          <label>
+            <span>Owed</span>
+            <output data-tooltip="Cantrips the class has granted that are still unchosen.">{{knownCantrips.remaining}}</output>
+          </label>
+          <label>
+            <span>Restriction</span>
+            <output data-tooltip="What a cantrip may be: PP 0, from your own tradition.">{{knownCantrips.tradition}} · PP 0</output>
+          </label>
+        </div>
+      </article>
+      {{/if}}
+
+      {{!-- The caster archetypes: one card each, never merged with the
+            class's own pools, because a Cleric may hold Arcanist. --}}
+      {{#each archetypeCasting as |arch|}}
+      <article class="ornate-card repertoire-card">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">{{arch.printed}}</span>
+            <h2>{{arch.label}} — {{arch.traditionLabel}} Cantrips</h2>
+            {{#if arch.casterLevelNote}}
+            <p class="archetype-caster-level-note"><em>{{arch.casterLevelNote}}</em></p>
+            {{/if}}
+          </div>
+          {{#if ../editable}}
+          <div class="heading-actions">
+            {{#if arch.permanentAllowed}}
+            <button type="button" class="gold-button" data-action="pickArchetypeCantrip"
+              data-source="{{arch.key}}"
+              data-tooltip="Choose one of the {{arch.permanentAllowed}} cantrips you keep permanently.">
+              <i class="fa-solid fa-book"></i> Pick Cantrip
+            </button>
+            {{/if}}
+            {{#if arch.prepares}}
+            <button type="button" class="gold-button" data-action="prepareArchetypeCantrip"
+              data-source="{{arch.key}}"
+              data-tooltip="Prepare one of today's {{arch.dailyAllowed}} cantrips.">
+              <i class="fa-solid fa-wand-sparkles"></i> Prepare
+            </button>
+            <button type="button" class="gold-button" data-action="clearArchetypeCantrips"
+              data-source="{{arch.key}}"
+              data-tooltip="Put today's prepared cantrips back so a different set can be chosen.">
+              <i class="fa-solid fa-rotate-left"></i> Clear Prepared
+            </button>
+            {{/if}}
+          </div>
+          {{/if}}
+        </div>
+        <div class="field-grid four-column">
+          {{#if arch.permanentAllowed}}
+          <label>
+            <span>{{#if arch.preparesFromBook}}Spellbook{{else}}Known{{/if}}</span>
+            <output data-tooltip="Cantrips kept permanently by this archetype.">{{arch.permanentPicked}} / {{arch.permanentAllowed}}</output>
+          </label>
+          {{/if}}
+          {{#if arch.prepares}}
+          <label>
+            <span>Prepared today</span>
+            <output data-tooltip="Cantrips prepared for today. Clear them to choose differently.">{{arch.dailyPicked}} / {{arch.dailyAllowed}}</output>
+          </label>
+          {{/if}}
+          <label>
+            <span>Restriction</span>
+            <output data-tooltip="What a cantrip may be here: PP 0, from this archetype's tradition.">{{arch.traditionLabel}} · PP 0</output>
+          </label>
+        </div>
+        {{#if arch.blockedOnBook}}
+        <p class="hint"><em>Fill the spellbook before preparing — the Arcanist prepares two of <strong>these</strong> cantrips, not any four.</em></p>
+        {{/if}}
+        {{#if arch.permanent.length}}
+        <p class="hint"><strong>{{#if arch.preparesFromBook}}Spellbook{{else}}Known{{/if}}:</strong>
+          {{#each arch.permanent as |c|}}{{c.name}}{{#unless @last}}, {{/unless}}{{/each}}</p>
+        {{/if}}
+        {{#if arch.daily.length}}
+        <p class="hint"><strong>Prepared today:</strong>
+          {{#each arch.daily as |c|}}{{c.name}}{{#unless @last}}, {{/unless}}{{/each}}</p>
+        {{/if}}
+      </article>
+      {{/each}}
+
+      {{!-- Feat-granted LEVELLED slots (3.345.0): a Knight feat's PP 2
+            spell and any caster-tier slots, grouped by tradition. Each
+            row names the feat that granted the slot and that feat's own
+            PP ceiling, because one character can hold several slots at
+            different ceilings in the same tradition. --}}
+      {{#each featSpellSlots as |grp|}}
+      <article class="ornate-card repertoire-card">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">Granted by feats — one spell per slot, not a pool</span>
+            <h2>{{grp.label}} Spell Slots</h2>
+          </div>
+        </div>
+        {{#if grp.total}}
+        <div class="field-grid four-column">
+          <label>
+            <span>Filled</span>
+            <output data-tooltip="Slots holding a memorised spell.">{{grp.filled}} / {{grp.total}}</output>
+          </label>
+          <label>
+            <span>Empty</span>
+            <output data-tooltip="Slots still to fill from this card.">{{grp.empty}}</output>
+          </label>
+        </div>
+        <table>
+          <thead><tr><th>Granted by</th><th>Max PP</th><th>Spell</th><th></th></tr></thead>
+          <tbody>
+            {{#each grp.slots as |slot|}}
+            <tr>
+              <td>{{slot.grantedBy}}</td>
+              <td>{{slot.maxPP}}</td>
+              <td>{{#if slot.filledName}}{{slot.filledName}}{{else}}<em>empty</em>{{/if}}</td>
+              <td>
+                {{#if @root.editable}}
+                {{#if slot.filledName}}
+                <button type="button" class="gold-button" data-action="clearFeatSlotSpell"
+                  data-slot="{{slot.id}}" data-tooltip="Empty this slot so a different spell can be memorised.">
+                  <i class="fa-solid fa-rotate-left"></i> Clear
+                </button>
+                {{else}}
+                <button type="button" class="gold-button" data-action="pickFeatSlotSpell"
+                  data-slot="{{slot.id}}" data-tooltip="Memorise a spell of PP {{slot.maxPP}} or less in this slot.">
+                  <i class="fa-solid fa-wand-sparkles"></i> Memorise
+                </button>
+                {{/if}}
+                {{/if}}
+              </td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+        {{/if}}
+        {{#if grp.orphaned}}
+        <p class="hint"><strong style="color:#8a1c1c">No slot:</strong>
+          {{#each grp.orphaned as |o|}}{{o.name}}{{#unless @last}}, {{/unless}}{{/each}} —
+          the feat that granted the slot has gone, so this cannot be cast.</p>
+        {{/if}}
+        {{#each grp.suppressed as |sup|}}
+        <p class="hint"><strong>{{sup.name}}</strong> grants nothing —
+          caster feats grant a tradition <em>different</em> from your class's,
+          and {{sup.tradition}} is already yours.</p>
+        {{/each}}
+      </article>
+      {{/each}}
+
+      {{#if memorisation}}
+      <article class="ornate-card memorisation-card">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">Learned caster — memorise for the day before casting</span>
+            <h2>Memorisation</h2>
+          </div>
+          {{#if editable}}
+          <div class="heading-actions">
+            <button type="button" class="gold-button" data-action="memoriseSpell"
+              data-tooltip="Choose today's leveled spells{{#if memorisation.isBookStyle}} from your spell book{{/if}} — 2 + (2 x level), pre-checked with what's already memorised. Persists day to day until you change it.">
+              <i class="fa-solid fa-book-medical"></i> Memorise Spell
+            </button>
+            <button type="button" class="gold-button" data-action="memoriseCantrip"
+              data-tooltip="Choose today's cantrips — pack-wide regardless of memorisation style, pre-checked with what's already memorised. Persists day to day until you change it.">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Memorise Cantrip
+            </button>
+          </div>
+          {{/if}}
+        </div>
+        <div class="field-grid four-column">
+          <label>
+            <span>Leveled spells</span>
+            <output data-tooltip="Today's leveled picks against the day's allowance (2 + 2 x level){{#if memorisation.bonus}}, including {{memorisation.bonus}} from Magical Discovery{{/if}}.">{{memorisation.leveledPicked}} / {{memorisation.leveledAllowed}}</output>
+          </label>
+          <label>
+            <span>Owed</span>
+            <output data-tooltip="Leveled slots still open today.">{{memorisation.leveledRemaining}}</output>
+          </label>
+          <label>
+            <span>Cantrips</span>
+            <output data-tooltip="Today's cantrip picks against the day's allowance.">{{memorisation.cantripsPicked}} / {{memorisation.cantripsAllowed}}</output>
+          </label>
+          <label>
+            <span>Pool</span>
+            <output data-tooltip="Where today's leveled picks come from.">{{memorisation.poolLabel}}</output>
+          </label>
+        </div>
+        {{#if memorisation.hasGranted}}
+        <div class="field-grid four-column">
+          {{#each memorisation.granted}}
+          <label>
+            <span>{{this.label}} spells</span>
+            <output data-tooltip="Granted by your Caster feats. These slots hold {{this.label}} spells only — they are not extra room in your own tradition.">{{this.picked}} / {{this.slots}}</output>
+          </label>
+          {{/each}}
+        </div>
+        <p class="hint">Your Caster feats grant spells of a <strong>different</strong> tradition, memorised in their own slots above. Spellcraft checks for those spells use that tradition's own ability score.</p>
+        {{/if}}
+        {{#if memorisation.isBookStyle}}
+        <p class="hint">To add new spells to the book itself (rather than just memorise from it for today), open the Wizard's Spellbook item in your inventory.</p>
+        {{/if}}
+      </article>
+      {{/if}}
+
+      <article class="ornate-card spellbook">
+        {{#if itemGroups.spells.length}}
+        <div class="list-filter-row">
+          <label>
+            <span>Tradition</span>
+            <select class="spell-filter-tradition">
+              <option value="">All traditions</option>
+              {{#each spellFilters.traditions}}
+              <option value="{{this.value}}">{{this.label}}</option>
+              {{/each}}
+            </select>
+          </label>
+          <label>
+            <span>PP</span>
+            <select class="spell-filter-pp">
+              <option value="">All PP</option>
+              {{#each spellFilters.pps}}
+              <option value="{{this}}">{{this}}</option>
+              {{/each}}
+            </select>
+          </label>
+        </div>
+        {{/if}}
+        <div class="item-list-header spell-header">
+          <span></span>
+          <span>Spell</span>
+          <span>Tradition</span>
+          <span>PP</span>
+          <span>AP</span>
+          <span>Range</span>
+          <span>Duration</span>
+          <span>Source</span>
+          <span></span>
+        </div>
+        {{#each itemGroups.spells as |item|}}
+          <div class="item-row spell-row" data-item-id="{{item.id}}" data-tradition="{{item.system.tradition}}" data-pp="{{item.system.ppCost}}">
+            <div class="spell-actions">
+              <button type="button" class="cast-spell-button" data-action="castSpell" data-tooltip="Cast a Spell"><i class="fa-solid fa-wand-sparkles"></i></button>
+              <button type="button" class="cast-spell-button" data-action="rollMagicRitual" data-tooltip="Magic Ritual (cooperative overcasting)"><i class="fa-solid fa-people-group"></i></button>
+            </div>
+            <button type="button" class="item-name" data-action="itemEdit">
+              <img src="{{item.img}}" alt="">
+              <span>
+                <strong>{{item.name}}</strong>
+                <small>{{item.system.category}}</small>
+              </span>
+            </button>
+            <span>{{item.system.tradition}}</span>
+            <span>{{item.system.ppCost}}</span>
+            <span>{{item.system.castAP}}</span>
+            <span>{{item.system.range}}</span>
+            <span>{{item.system.duration}}</span>
+            {{!-- Why this spell is castable, replacing a tick that read
+                  "prepared": true for a learned caster mid-day, meaningless
+                  for a Bard, and actively misleading beside a deific
+                  aspect's spells. --}}
+            <span class="spell-source" data-source="{{item.spellSourceKey}}"
+              data-tooltip="Everything on this table can be cast. This is where it came from.">{{item.spellSource}}</span>
+            <div class="item-controls">
+              <button type="button" data-action="itemEdit"><i class="fa-solid fa-pen-to-square"></i></button>
+              {{#if ../editable}}
+                <button type="button" data-action="itemDelete"><i class="fa-solid fa-trash"></i></button>
+              {{/if}}
+            </div>
+          </div>
+        {{else}}
+          <div class="empty-state">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            <p>This spellbook is empty.</p>
+          </div>
+        {{/each}}
+      </article>
+
+      {{#if itemGroups.innateSpells.length}}
+      <article class="ornate-card spellbook innate-spellbook">
+        <h2>Innate Spells</h2>
+        <div class="item-list-header spell-header innate-spell-header">
+          <span></span>
+          <span>Spell</span>
+          <span>Tradition</span>
+          <span>Uses / Day</span>
+          <span>Attack / Save</span>
+          <span></span>
+        </div>
+        {{#each itemGroups.innateSpells as |item|}}
+          <div class="item-row spell-row innate-spell-row" data-item-id="{{item.id}}">
+            <div class="spell-actions">
+              <button type="button" class="cast-spell-button" data-action="castSpell" data-tooltip="Cast Innate Spell (0 PP)"><i class="fa-solid fa-wand-sparkles"></i></button>
+            </div>
+            <button type="button" class="item-name" data-action="itemEdit">
+              <img src="{{item.img}}" alt="">
+              <span>
+                <strong>{{item.name}}</strong>
+                <small>{{item.system.category}} · innate</small>
+              </span>
+            </button>
+            <span>{{item.system.tradition}}</span>
+            <span class="uses-cell">
+              {{#if item.usesUnlimited}}
+                &infin;
+              {{else if item.usesTracked}}
+                <button type="button" class="uses-set" data-action="setItemUses"
+                  data-tooltip="Uses left today — click to set an exact figure. A successful Refocus restores one; Daily Preparation refills it.">{{item.usesRemaining}} / {{item.usesMax}}</button>
+              {{else}}&mdash;{{/if}}
+            </span>
+            <span>
+              {{#if item.isAttack}}Atk +{{item.innateAttack}}{{else if item.isSave}}{{item.system.defence}} DC {{item.innateSave}}{{else}}&mdash;{{/if}}
+            </span>
+            <div class="item-controls">
+              {{#if item.usesTracked}}
+                <button type="button" data-action="restoreItemUse" data-tooltip="{{#if item.isFocus}}Restore one use (Focus — a successful Refocus does this too){{else}}Restore one use{{/if}}"{{#if item.usesFull}} disabled{{/if}}>
+                  <i class="fa-solid fa-rotate-left{{#if item.usesFull}} muted-icon{{/if}}"></i>
+                </button>
+              {{/if}}
+              <button type="button" data-action="itemEdit"><i class="fa-solid fa-pen-to-square"></i></button>
+              {{#if ../editable}}
+                <button type="button" data-action="itemDelete"><i class="fa-solid fa-trash"></i></button>
+              {{/if}}
+            </div>
+          </div>
+        {{/each}}
+      </article>
+      {{/if}}
+
+      <article class="ornate-card">
+        <h2>Magic Notes</h2>
+        <textarea
+          class="large-textarea"
+          name="system.magic.notes"
+          placeholder="Prepared spells, rituals, tradition notes, and magical obligations…"
+        >{{system.magic.notes}}</textarea>
+      </article>
+    </section>
+
+    <section
+      class="tab sheet-tab-panel {{tabs.effects.cssClass}}"
+      data-group="primary"
+      data-tab="effects"
+    >
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">Blessings, curses, wounds, and conditions</span>
+          <h2>Effects</h2>
+        </div>
+        <div class="heading-actions">
+          <button type="button" class="gold-button" data-action="rollFatigueRecovery">
+            <i class="fa-solid fa-bed"></i> Fatigue Recovery
+          </button>
+          <button type="button" class="gold-button" data-action="rollFrightenedRecovery">
+            <i class="fa-solid fa-face-scream"></i> Frightened Recovery
+          </button>
+          <button type="button" class="gold-button" data-action="rollSickenedRetch">
+            <i class="fa-solid fa-face-dizzy"></i> Retch (Sickened)
+          </button>
+          {{#if editable}}
+            <button type="button" class="gold-button" data-action="effectCreate">
+              <i class="fa-solid fa-plus"></i> Add Effect
+            </button>
+          {{/if}}
+        </div>
+      </div>
+
+      {{!-- THE EFFECTS TAB (3.383.0). One table became three groups.
+
+            It used to list `actor.effects` alone, which showed three rows
+            for a character with seventeen effects acting on them: the
+            permanent ones live on their parent items and arrive by
+            transfer. Graham asked for the permanent ones to be moved out
+            of this table and hidden; they were never in it. The grouping
+            rule and the measurement behind it are in
+            module/effect-grouping.mjs. --}}
+
+      {{#if effectGroups.conditions.mechanical.length}}
+        <article class="ornate-card effects-list">
+          <div class="card-heading"><h2>Conditions</h2></div>
+          <div class="item-list-header effect-header">
+            <span>Effect</span><span>Value</span><span>Source</span>
+            <span>Duration</span><span>Status</span><span></span>
+          </div>
+          {{#each effectGroups.conditions.mechanical as |effect|}}
+            {{> "systems/trg-prime/templates/actor/effect-row.hbs" effect=this}}
+          {{/each}}
+        </article>
+      {{/if}}
+
+      <article class="ornate-card effects-list">
+        <div class="card-heading">
+          <h2>Temporary</h2>
+          <span class="eyebrow">Spells, items and anything with an end</span>
+        </div>
+        <div class="item-list-header effect-header">
+          <span>Effect</span><span>Value</span><span>Source</span>
+          <span>Duration</span><span>Status</span><span></span>
+        </div>
+        {{#each effectGroups.temporary.mechanical as |effect|}}
+          {{> "systems/trg-prime/templates/actor/effect-row.hbs" effect=this}}
+        {{else}}
+          <div class="empty-state">
+            <i class="fa-solid fa-sun"></i>
+            <p>Nothing temporary is shaping this actor.</p>
+          </div>
+        {{/each}}
+        {{#each effectGroups.temporary.notes as |effect|}}
+          {{> "systems/trg-prime/templates/actor/effect-row.hbs" effect=this}}
+        {{/each}}
+      </article>
+
+      {{!-- COLLAPSED BY DEFAULT — Graham's instinct, and right: this is
+            the largest group and the least often acted on. The toggle
+            copies `toggleAttributeDetails` rather than inventing a second
+            idiom; see its comment for why it is a DOM toggle and not a
+            re-render. --}}
+      <article class="ornate-card item-section permanent-effects {{#if permanentEffectsExpanded}}expanded{{/if}}">
+        <div class="card-heading">
+          <h2>
+            Permanent
+            <span class="eyebrow">From your race, heritage, background, class, abilities and feats — {{permanentEffectCount}} in all</span>
+          </h2>
+          <button
+            type="button"
+            class="heading-icon-button"
+            data-action="togglePermanentEffects"
+            data-tooltip="{{#if permanentEffectsExpanded}}Hide the permanent effects{{else}}Show the permanent effects{{/if}}"
+            aria-expanded="{{permanentEffectsExpanded}}"
+            aria-label="Permanent effects"
+          ><i class="fa-solid fa-chevron-down"></i></button>
+        </div>
+        <div class="permanent-effects-body">
+          <div class="item-list-header effect-header">
+            <span>Effect</span><span>Value</span><span>Source</span>
+            <span>Duration</span><span>Status</span><span></span>
+          </div>
+          {{#each effectGroups.permanent.mechanical as |effect|}}
+            {{> "systems/trg-prime/templates/actor/effect-row.hbs" effect=this}}
+          {{else}}
+            <div class="empty-state">
+              <i class="fa-solid fa-shield"></i>
+              <p>Nothing permanent is shaping this actor.</p>
+            </div>
+          {{/each}}
+
+          {{!-- NOTES ARE SEPARATED, not mixed in. Most permanent effects
+                on a levelled character change nothing at all — they are
+                printed reminders attached to a feat. Listing them beside
+                real modifiers would replace one unusable table with
+                another. --}}
+          {{#if effectGroups.permanent.notes.length}}
+            <div class="section-subheading">
+              <span class="eyebrow">Notes — these explain a rule rather than change a number</span>
+            </div>
+            {{#each effectGroups.permanent.notes as |effect|}}
+              {{> "systems/trg-prime/templates/actor/effect-row.hbs" effect=this}}
+            {{/each}}
+          {{/if}}
+        </div>
+      </article>
+
+      <article class="ornate-card item-section">
+        <div class="card-heading">
+          <h2>Afflictions</h2>
+          {{#if editable}}
+            <button type="button" class="gold-button" data-action="itemCreate" data-item-type="affliction">
+              <i class="fa-solid fa-plus"></i> Affliction
+            </button>
+          {{/if}}
+        </div>
+        <div class="item-list-header affliction-header">
+          <span>Name</span>
+          <span>Level</span>
+          <span>Save</span>
+          <span>Status</span>
+          <span></span>
+        </div>
+        {{#each itemGroups.afflictions as |item|}}
+          <div class="item-row affliction-row" data-item-id="{{item.id}}">
+            <button type="button" class="item-name" data-action="itemEdit">
+              <img src="{{item.img}}" alt="">
+              <span>
+                <strong>{{item.name}}</strong>
+                <small>{{item.system.afflictionType}}</small>
+              </span>
+            </button>
+            <span>{{item.system.level}}</span>
+            <span>{{item.system.savingThrow}}</span>
+            <span class="affliction-status">
+              {{#if item.system.incubating}}
+                <span class="status-pill status-incubating">Ready to Apply</span>
+              {{else if item.system.currentStage}}
+                <span class="status-pill status-active">Stage {{item.system.currentStage}}</span>
+              {{else}}
+                <span class="status-pill status-inert">Resisted</span>
+              {{/if}}
+            </span>
+            <div class="item-controls">
+              {{#if item.system.incubating}}
+                <button type="button" data-action="applyAffliction" data-tooltip="Apply to targeted token(s) and roll initial exposure"><i class="fa-solid fa-syringe"></i></button>
+              {{else if item.system.currentStage}}
+                <button type="button" data-action="rollAfflictionStageSave" data-tooltip="Roll the stage saving throw"><i class="fa-solid fa-dice-d20"></i></button>
+              {{/if}}
+              <button type="button" data-action="itemEdit" data-tooltip="Edit">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+              {{#if ../editable}}
+                <button type="button" data-action="itemDelete" data-tooltip="Delete">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              {{/if}}
+            </div>
+          </div>
+        {{else}}
+          <div class="empty-state">
+            <i class="fa-solid fa-skull-crossbones"></i>
+            <p>No afflictions have been added.</p>
+          </div>
+        {{/each}}
+      </article>
+    </section>
+
+    <section
+      class="tab sheet-tab-panel {{tabs.description.cssClass}}"
+      data-group="primary"
+      data-tab="description"
+    >
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">The story behind the statistics</span>
+          <h2>Description</h2>
+        </div>
+      </div>
+
+      <div class="description-layout">
+        <article class="ornate-card">
+          <h2>Creature Traits</h2>
+          <input
+            type="text"
+            name="system.details.traits"
+            value="{{system.details.traits}}"
+            placeholder="Mindless, Construct, Evil, Undead…"
+            data-tooltip="Appendix 3 traits this creature itself carries. Mindless applies -25 racial to Intelligence and Charisma and grants immunity to mental effects and damage; Construct grants immunity to Essence; an alignment trait (Good, Evil, Chaos, Order) determines which aligned damage can harm it."
+          >
+
+          {{!-- GRANTED TRAITS (3.314.0). Shown BESIDE the input, never in it.
+                A Form spell's traits are derived from the active effect that
+                granted them, so they are read-only here on purpose: typing
+                them into the box above would survive the form expiring, and
+                the box is the one field a GM owns outright. Rendered only when
+                something is granting, so an ordinary character sees the card
+                exactly as before. --}}
+          {{#if system.details.grantedTraits}}
+            <p class="hint" data-tooltip="Granted by an active effect — a Form spell or similar — and removed when it ends. Read by the same rules as the traits above.">
+              <em>Also, for the duration:</em> <strong>{{system.details.grantedTraits}}</strong>
+            </p>
+          {{/if}}
+
+          {{!-- CAMPAIGN ORIGIN (3.250.0). Inside the Creature Traits card
+                rather than beside it, because that card held one input
+                and a quarter of the tab — which is what Graham reported.
+                A character has exactly one origin: picking a second
+                replaces the first. --}}
+          <h2 class="origin-heading">Origin</h2>
+          {{#each itemGroups.origins as |item|}}
+            <div class="item-row origin-row" data-item-id="{{item.id}}">
+              <button type="button" class="item-name" data-action="itemEdit">
+                <img src="{{item.img}}" alt="">
+                <strong>{{item.name}}</strong>
+              </button>
+              <span>{{item.system.specialistSkill}}</span>
+              <div class="item-controls">
+                <button type="button" data-action="applyAllGrants" data-tooltip="Apply Grants (bonus feats, spells, specialist skills, languages)">
+                  <i class="fa-solid fa-gift"></i>
+                </button>
+                <button type="button" data-action="itemEdit" data-tooltip="Edit"><i class="fa-solid fa-pen-to-square"></i></button>
+                {{#if ../editable}}
+                  <button type="button" data-action="itemDelete" data-tooltip="Remove"><i class="fa-solid fa-trash"></i></button>
+                {{/if}}
+              </div>
+            </div>
+          {{else}}
+            <div class="empty-state compact">
+              <p>No origin chosen.</p>
+            </div>
+          {{/each}}
+          {{#if editable}}
+            <div class="button-group compact">
+              <button type="button" data-action="addFromPicker" data-slot="origin" data-tooltip="Choose a campaign origin. A character has exactly one — adding a second warns rather than replacing, the same as a race, heritage or background.">
+                <i class="fa-solid fa-magnifying-glass"></i> Origin
+              </button>
+            </div>
+          {{/if}}
+        </article>
+        <article class="ornate-card">
+          <h2>Biography</h2>
+          <textarea
+            class="chronicle"
+            name="system.details.biography"
+            placeholder="Record the character's history…"
+          >{{system.details.biography}}</textarea>
+        </article>
+        <article class="ornate-card">
+          <h2>Appearance</h2>
+          <textarea
+            name="system.details.appearance"
+            placeholder="Build, dress, manner, and distinguishing features…"
+          >{{system.details.appearance}}</textarea>
+        </article>
+        <article class="ornate-card">
+          <h2>Personality</h2>
+          <textarea
+            name="system.details.personality"
+            placeholder="Temperament, habits, and voice…"
+          >{{system.details.personality}}</textarea>
+        </article>
+        <article class="ornate-card">
+          <h2>Ideals</h2>
+          <textarea name="system.details.ideals">{{system.details.ideals}}</textarea>
+        </article>
+        <article class="ornate-card">
+          <h2>Bonds</h2>
+          <textarea name="system.details.bonds">{{system.details.bonds}}</textarea>
+        </article>
+        <article class="ornate-card">
+          <h2>Flaws</h2>
+          <textarea name="system.details.flaws">{{system.details.flaws}}</textarea>
+        </article>
+      </div>
+    </section>
+
+    {{#if isGM}}
+      <section
+        class="tab sheet-tab-panel {{tabs.gm.cssClass}}"
+        data-group="primary"
+        data-tab="gm"
+      >
+        <div class="section-heading gm-heading">
+          <div>
+            <span class="eyebrow">Behind the screen</span>
+            <h2>GM</h2>
+          </div>
+          <i class="fa-solid fa-lock"></i>
+        </div>
+
+        <div class="gm-layout">
+          <article class="ornate-card">
+            <h2>Encounter Data</h2>
+            <div class="field-grid three-column">
+              <label data-tooltip="Effective Level (Chapter 12): what this creature is worth against the party's APL. Leave at 0 to use its level ({{system.identity.level}}).">
+                <span>Effective Level</span>
+                <input type="number" min="0" name="system.gm.challenge" value="{{system.gm.challenge}}" placeholder="{{system.identity.level}}">
+              </label>
+              <label>
+                <span>DP</span>
+                <input type="number" name="system.gm.dp" value="{{system.gm.dp}}">
+              </label>
+              <label>
+                <span>Role</span>
+                <input type="text" name="system.gm.role" value="{{system.gm.role}}">
+              </label>
+              <label>
+                <span>Faction</span>
+                <input type="text" name="system.gm.faction" value="{{system.gm.faction}}">
+              </label>
+              <label>
+                <span>Disposition</span>
+                <select name="system.gm.disposition">
+                  {{selectOptions dispositionChoices selected=system.gm.disposition}}
+                </select>
+              </label>
+            </div>
+            <label class="wide-field checkbox-field">
+              <span>Show effect internals</span>
+              <input
+                type="checkbox"
+                name="flags.trg-prime.showEffectInternals"
+                {{#if showEffectInternals}}checked{{/if}}
+                data-tooltip="Reveals the attribute keys, change modes and priorities on this character's effect sheets. Hidden by default — the rules are what matters at the table."
+              >
+            </label>
+          </article>
+          {{#if isNPC}}
+            <article class="ornate-card trg-peril-card">
+              <h2>Peril</h2>
+              <p class="hint">Chapter 12: a trap, an environmental hazard or an echo, built as an NPC. Its DB, saves, HP and defences are this sheet's own, and its Hardness is its natural-armour DR (damage to objects is reduced by their DR, Chapter 6); the rest of the stat block is here. Its XP is a creature's of its Effective Level.</p>
+              <label class="checkbox-field">
+                <span>This NPC is a peril</span>
+                <input type="checkbox" name="system.gm.peril.enabled" {{checked system.gm.peril.enabled}}>
+              </label>
+              {{#if perilShown}}
+                <div class="field-grid three-column">
+                  <label><span>Detection skill</span>
+                    <select name="system.gm.peril.detectionSkill" {{#if perilDetectionByLine}}disabled data-tooltip="The Detection line below is used instead."{{/if}}>{{selectOptions perilSkillChoices selected=system.gm.peril.detectionSkill}}</select></label>
+                  <label><span>Detection (Stealth) DC</span><input type="number" min="0" name="system.gm.peril.detectionDC" value="{{system.gm.peril.detectionDC}}" {{#if perilDetectionByLine}}disabled{{/if}}></label>
+                  <label data-tooltip="0: every PC gets a secret check. Above 0: only a PC Searching with this many ranks."><span>Minimum ranks</span><input type="number" min="0" name="system.gm.peril.minRank" value="{{system.gm.peril.minRank}}" {{#if perilDetectionByLine}}disabled{{/if}}></label>
+                  <label data-tooltip="Thievery, Nature, Survival, Occultism or Religion — several separated by commas. Dispel always counteracts."><span>Disable with</span><input type="text" name="system.gm.peril.disableSkills" value="{{system.gm.peril.disableSkills}}" {{#if perilDisableByLine}}disabled{{/if}}></label>
+                  <label><span>Disable DC</span><input type="number" min="0" name="system.gm.peril.disableDC" value="{{system.gm.peril.disableDC}}" {{#if perilDisableByLine}}disabled{{/if}}></label>
+                  <label><span>Successes needed</span><input type="number" min="1" name="system.gm.peril.successes" value="{{system.gm.peril.successes}}"></label>
+                  <label><span>Action type</span>
+                    <select name="system.gm.peril.actionType">{{selectOptions perilActionChoices selected=system.gm.peril.actionType}}</select></label>
+                  <label><span>Progress</span><input type="number" min="0" name="system.gm.peril.progress" value="{{system.gm.peril.progress}}"></label>
+                  <label><span>State</span>
+                    <select name="system.gm.peril.state">{{selectOptions perilStateChoices selected=system.gm.peril.state}}</select></label>
+                </div>
+                <h3>Haunts and echoes</h3>
+                <p class="hint">Pillars of Faith, Chapter 8 — any peril may use these. Type the stat block's own lines: each skill with its DC ("Perception DC 17; Occultism or Religion DC 17, Rank 1"). A line here replaces the skill and DC above.</p>
+                <label class="wide-field" data-tooltip="Several skills, each with its DC; a ', Rank n' after a DC is that group's minimum rank. Each PC rolls the one that serves them best."><span>Detection line</span><input type="text" name="system.gm.peril.detection" value="{{system.gm.peril.detection}}"></label>
+                <label class="wide-field" data-tooltip="Any skill, a specialist Lore by name ('Spirit Lore'). Disable a Peril is refused for a skill the line does not name."><span>Disable line</span><input type="text" name="system.gm.peril.disable" value="{{system.gm.peril.disable}}"></label>
+                {{#if perilEntriesText}}<p class="hint">{{perilEntriesText}}</p>{{/if}}
+                <div class="field-grid three-column">
+                  <label><span>A finished Disable</span>
+                    <select name="system.gm.peril.onDisable">{{selectOptions perilOnDisableChoices selected=system.gm.peril.onDisable}}</select></label>
+                  <label data-tooltip="'24 hours', '1 hour', '10 minutes'. Blank: until its next Reset (the GM's button)."><span>Suppressed for</span><input type="text" name="system.gm.peril.suppressFor" value="{{system.gm.peril.suppressFor}}"></label>
+                  <label data-tooltip="0: its level. A suppressing peril (a haunt) is Counteracted at this level."><span>Counteract level</span><input type="number" min="0" name="system.gm.peril.counteractLevel" value="{{system.gm.peril.counteractLevel}}"></label>
+                  <label data-tooltip="0: its Level DC (level + 14)."><span>Counteract DC</span><input type="number" min="0" name="system.gm.peril.counteractDC" value="{{system.gm.peril.counteractDC}}"></label>
+                  <label class="checkbox-field" data-tooltip="Spirit Sense reveals its presence and general direction at detection, without a roll."><span>Spiritual presence</span><input type="checkbox" name="system.gm.peril.spiritPresence" {{checked system.gm.peril.spiritPresence}}></label>
+                  <label class="checkbox-field" data-tooltip="A haunt 'normally has no physical body': Strikes are refused and damage passes through it."><span>No physical body</span><input type="checkbox" name="system.gm.peril.noBody" {{checked system.gm.peril.noBody}}></label>
+                  <label data-tooltip="A module's registered automation for an Effect that is more than a save. Leave blank."><span>Automation</span><input type="text" name="system.gm.peril.automation" value="{{system.gm.peril.automation}}"></label>
+                </div>
+                {{#if perilSuppressedText}}<p class="hint"><strong>{{perilSuppressedText}}</strong></p>{{/if}}
+                <label class="wide-field" data-tooltip="'+2 circumstance: speaking a remembered name' — several separated by ';'. Offered, unticked, in the disabling check's dialog."><span>Disable bonuses</span><input type="text" name="system.gm.peril.disableBonuses" value="{{system.gm.peril.disableBonuses}}"></label>
+                <label class="wide-field"><span>Trigger</span><input type="text" name="system.gm.peril.trigger" value="{{system.gm.peril.trigger}}"></label>
+                <label class="wide-field" data-tooltip="The Effect as printed, its ladder one degree a line ('Partial Frightened 2.'). Trigger rolls the save — the printed DC, else its Level DC — for everyone within a printed radius of its token, or for your targets, and applies the conditions and damage."><span>Effect</span><textarea name="system.gm.peril.effectText">{{system.gm.peril.effectText}}</textarea></label>
+                {{#if perilEffectPreview}}<p class="hint">Trigger will apply: {{perilEffectPreview}}</p>{{/if}}
+                <label class="wide-field"><span>Routine</span><textarea name="system.gm.peril.routine">{{system.gm.peril.routine}}</textarea></label>
+                <label class="wide-field"><span>Anchor</span><input type="text" name="system.gm.peril.anchor" value="{{system.gm.peril.anchor}}"></label>
+                <label class="wide-field"><span>Resolution</span><textarea name="system.gm.peril.resolution">{{system.gm.peril.resolution}}</textarea></label>
+                <label class="wide-field"><span>Reset</span><input type="text" name="system.gm.peril.reset" value="{{system.gm.peril.reset}}"></label>
+                <div class="party-reward-buttons">
+                  <button type="button" data-action="perilDetect"><i class="fa-solid fa-eye"></i> Roll Detection</button>
+                  <button type="button" data-action="perilTrigger"><i class="fa-solid fa-bolt"></i> Trigger</button>
+                  <button type="button" data-action="perilReset"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+                  <button type="button" data-action="perilResolve"><i class="fa-solid fa-dove"></i> Resolve</button>
+                </div>
+              {{/if}}
+            </article>
+            <article class="ornate-card">
+              <h2>Wade Through the Mooks</h2>
+              <p class="hint">Chapter 7's optional rule for Minor Creatures (MNPCs, usually 4+ levels below the party). Simplifies critical hits to a flat HP-multiplier table and applies a Wound Threshold penalty to attack/defence based on remaining HP.</p>
+              <label class="checkbox-field">
+                <span>Treat as a Minor Creature (Mook)</span>
+                <input type="checkbox" name="system.gm.isMook" {{checked system.gm.isMook}}>
+              </label>
+            </article>
+          {{/if}}
+          <article class="ornate-card">
+            <h2>Treasure & Rewards</h2>
+            <textarea
+              name="system.gm.treasure"
+              placeholder="Treasure, clues, rewards, and recoverable equipment…"
+            >{{system.gm.treasure}}</textarea>
+          </article>
+          <article class="ornate-card gm-notes-card">
+            <h2>Secret Notes</h2>
+            <textarea
+              class="chronicle"
+              name="system.gm.notes"
+              placeholder="Secrets known only to the GM…"
+            >{{system.gm.notes}}</textarea>
+          </article>
+        </div>
+      </section>
+    {{/if}}
+  </main>
+
+  <footer class="sheet-footer">
+    <span><i class="fa-solid fa-dragon"></i> TRG Prime</span>
+    <span>Actor: {{actor.type}}</span>
+    <span>System v{{systemVersion}}</span>
+  </footer>
+</div>

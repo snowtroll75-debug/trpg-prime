@@ -1,0 +1,4859 @@
+@layer trg-prime {
+  .trg-prime {
+    --trg-ink: #261b17;
+    --trg-muted: #69584b;
+    --trg-parchment: #e9dcc0;
+    --trg-parchment-light: #f8eed7;
+    --trg-parchment-dark: #c9b184;
+    --trg-burgundy: #4b1019;
+    --trg-burgundy-dark: #23070d;
+    --trg-burgundy-light: #7a2230;
+    --trg-gold: #c6a252;
+    --trg-gold-light: #f0d58b;
+    --trg-gold-dark: #75541f;
+    --trg-green: #214f3b;
+    --trg-blue: #253e62;
+    --trg-red: #8e1c28;
+    --trg-shadow: rgb(33 16 9 / 38%);
+    --trg-line: rgb(93 64 34 / 38%);
+    font-family: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    color: var(--trg-ink);
+  }
+
+  .trg-prime.sheet .window-content {
+    padding: 0;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 50% 0%, rgb(255 250 229 / 86%), transparent 46%),
+      repeating-linear-gradient(
+        0deg,
+        rgb(87 52 24 / 2%) 0,
+        rgb(87 52 24 / 2%) 1px,
+        transparent 1px,
+        transparent 4px
+      ),
+      var(--trg-parchment);
+  }
+
+  .trg-prime.sheet .window-header {
+    border-bottom: 1px solid var(--trg-gold-dark);
+    color: #f6e8c0;
+    background:
+      linear-gradient(90deg, rgb(255 255 255 / 4%), transparent 25% 75%, rgb(0 0 0 / 15%)),
+      var(--trg-burgundy-dark);
+  }
+
+  .trg-prime-sheet {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    overflow: hidden;
+    color: var(--trg-ink);
+    background:
+      linear-gradient(90deg, transparent 98%, rgb(71 43 21 / 5%) 100%),
+      transparent;
+  }
+
+  .trg-prime-sheet *,
+  .trg-prime-sheet *::before,
+  .trg-prime-sheet *::after {
+    box-sizing: border-box;
+  }
+
+  .trg-prime-sheet input,
+  .trg-prime-sheet select,
+  .trg-prime-sheet textarea,
+  .trg-prime-sheet button {
+    font: inherit;
+  }
+
+  .trg-prime-sheet input,
+  .trg-prime-sheet select,
+  .trg-prime-sheet textarea {
+    border: 1px solid rgb(86 61 37 / 45%);
+    border-radius: 3px;
+    color: var(--trg-ink);
+    background: rgb(255 250 233 / 62%);
+    box-shadow:
+      inset 0 1px 2px rgb(51 28 12 / 12%),
+      0 1px rgb(255 255 255 / 32%);
+  }
+
+  .trg-prime-sheet input:hover,
+  .trg-prime-sheet select:hover,
+  .trg-prime-sheet textarea:hover {
+    border-color: var(--trg-gold-dark);
+  }
+
+  .trg-prime-sheet input:focus,
+  .trg-prime-sheet select:focus,
+  .trg-prime-sheet textarea:focus {
+    outline: 1px solid var(--trg-gold);
+    border-color: var(--trg-burgundy);
+    box-shadow: 0 0 0 2px rgb(198 162 82 / 22%);
+  }
+
+  .trg-prime-sheet input[type="number"] {
+    text-align: center;
+  }
+
+  .trg-prime-sheet textarea {
+    min-height: 90px;
+    padding: 9px 11px;
+    resize: vertical;
+    line-height: 1.45;
+  }
+
+  .trg-prime-sheet button {
+    min-height: auto;
+    margin: 0;
+    border: 0;
+    color: inherit;
+    background: transparent;
+    box-shadow: none;
+    cursor: pointer;
+  }
+
+  .trg-prime-sheet button:hover,
+  .trg-prime-sheet button:focus {
+    color: var(--trg-burgundy);
+    text-shadow: none;
+  }
+
+  .trg-prime-sheet h2,
+  .trg-prime-sheet h3,
+  .trg-prime-sheet p {
+    margin-top: 0;
+  }
+
+  .trg-prime-sheet h2 {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+    color: var(--trg-burgundy);
+    font-size: 1.16rem;
+    font-variant: small-caps;
+    letter-spacing: 0.04em;
+  }
+
+  .trg-prime-sheet h3 {
+    margin: 16px 0 8px;
+    color: var(--trg-muted);
+    font-size: 0.82rem;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  .trg-prime .sheet-header {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: 154px 1fr;
+    gap: 14px;
+    min-height: 178px;
+    /* The sheet is a column flex container, so this header is a flex
+       ITEM and shrinks by default. `min-height` then holds it at 178px
+       while its CONTENT keeps its natural size — so anything that makes
+       the header taller than 178px does not push the tab strip down, it
+       draws over it. The resource ribbon landed on top of the tab labels
+       the first time a companion showed a level-drift banner (3.233.3),
+       and the same had always been true of a character showing a Fatigue
+       warning — rare enough that nobody had reached it. The body below
+       is the part that scrolls; the header takes the space it needs. */
+    flex-shrink: 0;
+    padding: 12px 16px 11px;
+    border-bottom: 2px solid var(--trg-gold-dark);
+    background:
+      linear-gradient(90deg, rgb(24 4 8 / 97%) 0 168px, transparent 168px),
+      linear-gradient(135deg, rgb(255 255 255 / 6%), transparent 48%),
+      linear-gradient(90deg, var(--trg-burgundy-dark), var(--trg-burgundy) 38%, #5b1720);
+    box-shadow: 0 3px 10px var(--trg-shadow);
+  }
+
+  .trg-prime .sheet-header::after {
+    position: absolute;
+    right: 14px;
+    bottom: 5px;
+    left: 170px;
+    height: 1px;
+    content: "";
+    background: linear-gradient(90deg, transparent, var(--trg-gold-light), transparent);
+    opacity: 0.6;
+  }
+
+  .trg-prime .portrait-frame {
+    position: relative;
+    width: 142px;
+    height: 142px;
+    padding: 5px;
+    border: 2px solid var(--trg-gold);
+    clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px);
+    background: var(--trg-gold-dark);
+    box-shadow:
+      0 0 0 2px var(--trg-burgundy-dark),
+      0 5px 14px rgb(0 0 0 / 50%);
+  }
+
+  .trg-prime .portrait-frame .profile-img,
+  .trg-prime .item-portrait img {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    object-fit: cover;
+    object-position: center top;
+    background: #170d0c;
+    cursor: pointer;
+  }
+
+  .trg-prime .portrait-path,
+  .trg-prime .item-portrait input {
+    position: absolute;
+    right: 5px;
+    bottom: 5px;
+    left: 5px;
+    height: 22px;
+    border-color: rgb(239 212 141 / 55%) !important;
+    color: #f6e8c0 !important;
+    background: rgb(18 4 8 / 82%) !important;
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+
+  .trg-prime .portrait-frame:hover .portrait-path,
+  .trg-prime .item-portrait:hover input,
+  .trg-prime .portrait-path:focus,
+  .trg-prime .item-portrait input:focus {
+    opacity: 1;
+  }
+
+  .trg-prime .identity {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .trg-prime .title-row {
+    display: flex;
+    gap: 16px;
+    align-items: end;
+  }
+
+  .trg-prime .name-field {
+    flex: 1;
+  }
+
+  .trg-prime .eyebrow {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--trg-gold-light);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+  }
+
+  .trg-prime .actor-name,
+  .trg-prime .item-title {
+    width: 100%;
+    height: 38px !important;
+    padding: 0 3px !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgb(239 213 142 / 62%) !important;
+    border-radius: 0 !important;
+    color: #fff5db !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 1.8rem !important;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+  }
+
+  .trg-prime .actor-name::placeholder {
+    color: rgb(255 245 219 / 45%);
+  }
+
+  .trg-prime .level-seal {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 68px;
+    height: 68px;
+    border: 2px solid var(--trg-gold);
+    border-radius: 50%;
+    color: #fff0c5;
+    background:
+      radial-gradient(circle, var(--trg-burgundy-light), var(--trg-burgundy-dark) 72%);
+    box-shadow:
+      0 0 0 3px rgb(39 8 13 / 85%),
+      0 0 0 4px var(--trg-gold-dark);
+  }
+
+  .trg-prime .level-seal label {
+    color: var(--trg-gold-light);
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  .trg-prime .level-seal input {
+    width: 48px;
+    height: 28px;
+    border: 0;
+    color: #fff4d4;
+    background: transparent;
+    box-shadow: none;
+    font-size: 1.32rem;
+    font-weight: 700;
+  }
+
+  /* The GM's EL adjustment (3.633.0) sits small under the level, inside
+     the seal. */
+  .trg-prime .level-seal input.el-adjust {
+    width: 34px;
+    height: 14px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--trg-gold-light);
+    text-align: center;
+  }
+
+  /* A player character's Level is derived from XP (3.218.0) and shown as
+     an <output> here instead of the editable <input> above — same seal,
+     same type treatment, just no longer something to type into. */
+  .trg-prime .level-seal output {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 28px;
+    color: #fff4d4;
+    font-size: 1.32rem;
+    font-weight: 700;
+  }
+
+  .trg-prime .identity-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 7px;
+  }
+
+  .trg-prime .identity-grid label,
+  .trg-prime .field-grid label,
+  .trg-prime .wide-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .trg-prime .identity-grid label > span {
+    color: var(--trg-gold-light);
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .trg-prime .identity-grid input {
+    height: 26px;
+    border-color: rgb(239 213 142 / 32%);
+    color: #fff3d5;
+    background: rgb(22 3 7 / 35%);
+  }
+
+  .trg-prime .identity-field {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .trg-prime .identity-field input {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .trg-prime .identity-field button {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    border: 1px solid rgb(239 213 142 / 32%);
+    border-radius: 3px;
+    background: transparent;
+    color: var(--trg-gold-light);
+    cursor: pointer;
+    font-size: 0.68rem;
+  }
+
+  .trg-prime .identity-field button:hover {
+    background: rgb(139 15 15 / 45%);
+    color: #fff3d5;
+  }
+
+  .trg-prime .resource-ribbon {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    margin-top: 7px;
+  }
+
+  .trg-prime .resource {
+    position: relative;
+    display: grid;
+    grid-template-columns: 24px 1fr auto;
+    grid-template-rows: auto 1fr;
+    gap: 0 5px;
+    align-items: center;
+    min-width: 0;
+    height: 45px;
+    padding: 4px 7px;
+    overflow: hidden;
+    border: 1px solid rgb(238 210 136 / 38%);
+    border-radius: 4px;
+    color: #fff3d1;
+    background: rgb(16 3 6 / 38%);
+  }
+
+  .trg-prime .resource::after {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    content: "";
+    background:
+      linear-gradient(
+        90deg,
+        currentcolor 0 var(--resource-pct),
+        rgb(0 0 0 / 38%) var(--resource-pct) 100%
+      );
+    opacity: 0.75;
+  }
+
+  .trg-prime .resource.hp {
+    color: #e75b64;
+  }
+
+  .trg-prime .resource.pp {
+    color: #82a9ee;
+  }
+
+  .trg-prime .resource.ap {
+    color: #e3b548;
+  }
+
+  .trg-prime .resource.reactions {
+    color: #7ecbb0;
+  }
+
+  .trg-prime .resource.conviction {
+    color: #d9c4f4;
+  }
+
+  .trg-prime .resource-icon {
+    grid-row: 1 / 3;
+    color: currentcolor;
+    font-size: 1.08rem;
+    text-align: center;
+  }
+
+  .trg-prime .resource label {
+    align-self: end;
+    color: #e9d8ae;
+    font-size: 0.57rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .trg-prime .resource-values {
+    grid-row: 1 / 3;
+    grid-column: 3;
+    display: flex;
+    align-items: center;
+  }
+
+  .trg-prime .resource-values input {
+    width: 43px;
+    height: 28px;
+    padding: 0 2px;
+    border: 0;
+    color: #fff5dc;
+    background: transparent;
+    box-shadow: none;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .trg-prime .resource-values span {
+    color: rgb(255 255 255 / 42%);
+  }
+
+  .trg-prime .sheet-tabs {
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    flex: 0 0 52px;
+    border-bottom: 1px solid var(--trg-gold-dark);
+    background:
+      linear-gradient(180deg, #5b1720, var(--trg-burgundy-dark));
+    box-shadow: 0 3px 8px rgb(37 16 8 / 23%);
+  }
+
+  .trg-prime .sheet-tab {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: center;
+    justify-content: center;
+    width: 100% !important;
+    height: 52px !important;
+    min-height: 52px !important;
+    min-width: 0;
+    padding: 4px 2px !important;
+    overflow: hidden;
+    border-right: 1px solid rgb(221 186 102 / 18%) !important;
+    border-radius: 0 !important;
+    color: #dbc995 !important;
+    font-size: 0.65rem !important;
+    white-space: nowrap;
+  }
+
+  .trg-prime .sheet-tab i {
+    flex: 0 0 auto;
+    font-size: 0.92rem;
+    line-height: 1;
+  }
+
+  .trg-prime .sheet-tab span {
+    display: block;
+    flex: 0 0 auto;
+    overflow: hidden;
+    width: 100%;
+    min-height: 0.75rem;
+    max-width: 100%;
+    line-height: 1.15;
+    text-align: center;
+    text-overflow: ellipsis;
+  }
+
+  .trg-prime .sheet-tab:hover {
+    color: #fff2c7 !important;
+    background: rgb(255 255 255 / 5%);
+  }
+
+  .trg-prime .sheet-tab.active {
+    color: #fff3c9 !important;
+    background:
+      linear-gradient(180deg, rgb(198 162 82 / 23%), transparent);
+  }
+
+  .trg-prime .sheet-tab.active::after {
+    position: absolute;
+    right: 16%;
+    bottom: 0;
+    left: 16%;
+    height: 3px;
+    content: "";
+    background: var(--trg-gold-light);
+    box-shadow: 0 0 7px var(--trg-gold);
+  }
+
+  .trg-prime .sheet-body,
+  .trg-prime .item-sheet-body {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .trg-prime .sheet-tab-panel {
+    display: none;
+    height: 100%;
+    padding: 16px;
+    overflow-y: auto;
+    scrollbar-color: var(--trg-gold-dark) rgb(87 58 30 / 12%);
+    scrollbar-width: thin;
+  }
+
+  .trg-prime .sheet-tab-panel.active {
+    display: block;
+  }
+
+  .trg-prime .sheet-tab-panel::before {
+    position: absolute;
+    top: 13px;
+    right: 14px;
+    width: 84px;
+    height: 84px;
+    border: 1px solid rgb(112 80 41 / 11%);
+    border-radius: 50%;
+    content: "";
+    pointer-events: none;
+    box-shadow:
+      inset 0 0 0 7px transparent,
+      inset 0 0 0 8px rgb(112 80 41 / 8%);
+  }
+
+  .trg-prime .sheet-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex: 0 0 24px;
+    padding: 0 12px;
+    border-top: 1px solid var(--trg-gold-dark);
+    color: #dbc991;
+    background: var(--trg-burgundy-dark);
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+  }
+
+  .trg-prime .section-heading {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 48px;
+    margin-bottom: 12px;
+    padding: 0 4px 8px;
+    border-bottom: 1px solid var(--trg-line);
+  }
+
+  .trg-prime .section-heading .eyebrow {
+    color: var(--trg-gold-dark);
+  }
+
+  /* Why an archetype caster's caster level reads zero (3.385.0). It sits
+     under the heading rather than beside the number, because the number
+     is on a different tab from the cantrips that make it look wrong. */
+  .trg-prime .archetype-caster-level-note {
+    margin: 4px 0 0;
+    font-size: 0.92rem;
+    color: var(--trg-ink);
+    opacity: 0.8;
+  }
+
+  .trg-prime .section-heading h2 {
+    display: flex;
+    gap: 9px;
+    align-items: center;
+    margin: 0;
+    font-size: 1.65rem;
+  }
+
+  /* A small button living inside a section heading — the Combat tab's
+     proficiency panel. Sized off the heading rather than the button
+     defaults, so it reads as punctuation next to the word rather than a
+     control competing with it. */
+  .trg-prime .heading-icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid var(--trg-gold-dark);
+    border-radius: 50%;
+    background: rgb(198 162 82 / 12%);
+    color: var(--trg-gold-dark);
+    font-size: 0.72rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+
+  .trg-prime .heading-icon-button:hover {
+    background: var(--trg-gold-dark);
+    color: #fffbe8;
+  }
+
+  .trg-prime .section-heading p {
+    max-width: 440px;
+    margin-bottom: 0;
+    color: var(--trg-muted);
+    font-size: 0.79rem;
+    font-style: italic;
+    text-align: right;
+  }
+
+  .trg-prime .ornate-card {
+    position: relative;
+    padding: 13px 14px;
+    border: 1px solid rgb(99 67 34 / 44%);
+    border-radius: 5px;
+    background:
+      linear-gradient(135deg, rgb(255 255 255 / 40%), transparent 35%),
+      rgb(248 238 215 / 62%);
+    box-shadow:
+      0 2px 5px rgb(54 28 11 / 14%),
+      inset 0 0 0 3px rgb(255 255 255 / 16%);
+  }
+
+  .trg-prime .ornate-card::after {
+    position: absolute;
+    right: 5px;
+    bottom: 5px;
+    width: 14px;
+    height: 14px;
+    border-right: 2px solid rgb(126 89 40 / 35%);
+    border-bottom: 2px solid rgb(126 89 40 / 35%);
+    content: "";
+    pointer-events: none;
+  }
+
+  .trg-prime .summary-layout {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr;
+    gap: 12px;
+  }
+
+  .trg-prime .summary-notes {
+    grid-column: 1 / -1;
+  }
+
+  .trg-prime .summary-notes textarea {
+    width: 100%;
+    min-height: 80px;
+  }
+
+  /* Movement & Load's own content is shorter than its row-mate (the
+     Character card, with the Languages panel underneath it), and the
+     grid stretches every card to the row's own height regardless — so
+     the card had blank space at its own bottom before this rule existed.
+     The Endeavour table fills it, pinned to the card's bottom edge via
+     the parent's flex column rather than sitting inline with everything
+     above it, which is what actually reads as "occupying the blank
+     space" rather than just adding more stacked content. */
+  .trg-prime .summary-movement {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .trg-prime .endeavour-panel {
+    margin-top: auto;
+  }
+
+  .trg-prime .endeavour-panel .gold-button {
+    width: 100%;
+    margin-top: 10px;
+  }
+
+  .trg-prime .hero-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 7px;
+  }
+
+  .trg-prime .hero-stat {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 72px;
+    padding: 7px;
+    border: 1px solid rgb(96 65 34 / 38%) !important;
+    border-radius: 4px !important;
+    background: rgb(255 251 239 / 48%) !important;
+  }
+
+  .trg-prime .hero-stat strong {
+    color: var(--trg-burgundy);
+    font-size: 1.55rem;
+  }
+
+  .trg-prime .hero-stat > i {
+    position: absolute;
+    right: 5px;
+    bottom: 4px;
+    color: rgb(116 83 37 / 31%);
+    font-size: 0.82rem;
+  }
+
+  .trg-prime .hero-stat-label {
+    color: var(--trg-muted);
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+
+  .trg-prime .save-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 7px;
+  }
+
+  .trg-prime .save-row button {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 8px;
+    align-items: center;
+    padding: 7px 9px;
+    border: 1px solid rgb(95 65 34 / 30%);
+    border-radius: 3px;
+    background: rgb(255 250 235 / 45%);
+    text-align: left;
+  }
+
+  .trg-prime .save-row button:hover {
+    border-color: var(--trg-gold-dark);
+  }
+
+  .trg-prime .save-row strong {
+    color: var(--trg-burgundy);
+    font-size: 1.08rem;
+  }
+
+  .trg-prime .save-row i {
+    color: var(--trg-gold-dark);
+  }
+
+  .trg-prime .attribute-medallions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .trg-prime .attribute-medallion {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    grid-template-rows: auto auto;
+    gap: 1px 5px;
+    align-items: center;
+    min-height: 67px;
+    padding: 7px !important;
+    border: 1px solid rgb(105 72 37 / 35%) !important;
+    border-radius: 50% 50% 7px 7px !important;
+    background:
+      radial-gradient(circle at 50% 20%, rgb(255 255 255 / 48%), transparent 55%),
+      rgb(237 221 187 / 50%) !important;
+  }
+
+  .trg-prime .attribute-medallion > i {
+    grid-row: 1 / 3;
+    color: var(--trg-gold-dark);
+    font-size: 1.08rem;
+  }
+
+  .trg-prime .attribute-medallion span {
+    overflow: hidden;
+    color: var(--trg-muted);
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+  }
+
+  .trg-prime .attribute-medallion strong {
+    color: var(--trg-burgundy);
+    font-size: 1.24rem;
+  }
+
+  /* The Attributes breakdown (3.219.0): hidden behind the heading icon
+     until clicked. The full nine-column table needs more room than the
+     Summary tab's own 1.35fr column, so the whole card spans the tab's
+     full width for as long as it is open — the same escape hatch
+     summary-notes already uses below — rather than being squeezed. */
+  .trg-prime .summary-attributes .attribute-details {
+    display: none;
+    margin-top: 10px;
+  }
+
+  .trg-prime .summary-attributes.expanded {
+    grid-column: 1 / -1;
+  }
+
+  .trg-prime .summary-attributes.expanded .attribute-details {
+    display: block;
+  }
+
+  .trg-prime .summary-attributes .heading-icon-button i {
+    transition: transform 0.15s ease;
+  }
+
+  .trg-prime .summary-attributes.expanded .heading-icon-button i {
+    transform: rotate(180deg);
+  }
+
+  /* THE PERMANENT EFFECTS GROUP (3.383.0), collapsed by default. The
+     same idiom as .summary-attributes directly above rather than a
+     second one — a chevron that rotates, a body that is display:none
+     until .expanded is toggled onto the card by the sheet. */
+  .trg-prime .permanent-effects .permanent-effects-body {
+    display: none;
+  }
+
+  .trg-prime .permanent-effects.expanded .permanent-effects-body {
+    display: block;
+  }
+
+  .trg-prime .permanent-effects .heading-icon-button i {
+    transition: transform 0.15s ease;
+  }
+
+  .trg-prime .permanent-effects.expanded .heading-icon-button i {
+    transform: rotate(180deg);
+  }
+
+  /* The notes subheading inside it — quieter than a real heading,
+     because these rows explain rather than modify. */
+  .trg-prime .permanent-effects .section-subheading {
+    margin: 12px 0 4px;
+    opacity: 0.75;
+  }
+
+  .trg-prime .field-grid {
+    display: grid;
+    gap: 9px;
+  }
+
+  .trg-prime .field-grid.two-column {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .trg-prime .field-grid.three-column {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .trg-prime .field-grid.four-column {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .trg-prime .field-grid.five-column {
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  .trg-prime .field-grid.six-column {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  /* A single field cell holding two independent checkboxes side by side
+     (the Magic tab's Focus card, 3.230.4) — same title-on-top shape as
+     an ordinary field-grid label, but the control row is two small
+     checkbox+text pairs instead of one input. */
+  .trg-prime .field-grid .two-checkbox-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .trg-prime .two-checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 30px;
+  }
+
+  .trg-prime .two-checkbox-row label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.68rem;
+    color: var(--trg-burgundy);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .trg-prime .two-checkbox-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+  }
+
+  .trg-prime .field-grid label > span,
+  .trg-prime .wide-field > span {
+    color: var(--trg-muted);
+    font-size: 0.64rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+
+  .trg-prime .field-grid input,
+  .trg-prime .field-grid select,
+  .trg-prime .wide-field input {
+    width: 100%;
+    height: 30px;
+  }
+
+  .trg-prime .field-grid output {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 30px;
+    border: 1px solid var(--trg-gold-dark);
+    border-radius: 3px;
+    color: var(--trg-burgundy);
+    background: rgb(198 162 82 / 18%);
+    font-weight: 700;
+  }
+
+  .trg-prime .output-button {
+    display: flex;
+    gap: 7px;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 30px;
+    border: 1px solid var(--trg-gold-dark) !important;
+    border-radius: 3px !important;
+    color: var(--trg-burgundy) !important;
+    background: rgb(198 162 82 / 18%) !important;
+  }
+
+  .trg-prime .output-button:hover {
+    background: rgb(198 162 82 / 28%) !important;
+  }
+
+  .trg-prime .movement-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 7px;
+  }
+
+  .trg-prime .movement-grid label {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 2px;
+  }
+
+  .trg-prime .movement-grid span {
+    grid-column: 1 / -1;
+    color: var(--trg-muted);
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .trg-prime .movement-grid input {
+    width: 100%;
+    height: 29px;
+  }
+
+  .trg-prime .movement-grid small {
+    align-self: center;
+    color: var(--trg-muted);
+  }
+
+  .trg-prime .encumbrance-line {
+    display: flex;
+    gap: 7px;
+    align-items: center;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--trg-line);
+  }
+
+  .trg-prime .encumbrance-line > span:first-child {
+    flex: 1;
+    color: var(--trg-muted);
+    font-size: 0.67rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .trg-prime .encumbrance-line input {
+    width: 65px;
+  }
+
+  .trg-prime .ornate-table {
+    overflow: hidden;
+    border: 1px solid var(--trg-line);
+    border-radius: 5px;
+    background: rgb(249 241 222 / 46%);
+  }
+
+  .trg-prime .attribute-table .table-row {
+    display: grid;
+    grid-template-columns: minmax(150px, 1.6fr) repeat(8, minmax(54px, 0.65fr));
+    gap: 1px;
+    align-items: stretch;
+    border-bottom: 1px solid rgb(94 63 31 / 16%);
+  }
+
+  .trg-prime .attribute-table .table-row:last-child {
+    border-bottom: 0;
+  }
+
+  .trg-prime .table-header,
+  .trg-prime .skill-header {
+    color: #f3dfad;
+    background: var(--trg-burgundy-dark);
+    font-size: 0.63rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .trg-prime .table-header > span,
+  .trg-prime .skill-header > span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+  }
+
+  .trg-prime .attribute-table input {
+    width: 100%;
+    min-width: 0;
+    height: 43px;
+    border: 0;
+    border-left: 1px solid rgb(86 58 29 / 12%);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .trg-prime .attribute-table output {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--trg-burgundy);
+    background: rgb(198 162 82 / 13%);
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+
+  .trg-prime .row-title {
+    display: grid;
+    grid-template-columns: 26px 1fr 18px;
+    gap: 7px;
+    align-items: center;
+    padding: 0 10px !important;
+    text-align: left;
+  }
+
+  .trg-prime .row-title > i:first-child {
+    color: var(--trg-gold-dark);
+  }
+
+  .trg-prime .row-title .roll-icon {
+    color: rgb(103 71 35 / 33%);
+    opacity: 0;
+    transition: opacity 100ms ease;
+  }
+
+  .trg-prime .row-title:hover .roll-icon {
+    opacity: 1;
+  }
+
+  .trg-prime .combat-layout {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr;
+    gap: 12px;
+  }
+
+  .trg-prime .combat-matrix {
+    overflow: auto;
+    border: 1px solid var(--trg-line);
+    border-radius: 4px;
+  }
+
+  .trg-prime .matrix-header,
+  .trg-prime .matrix-row {
+    display: grid;
+    grid-template-columns: minmax(115px, 1.3fr) repeat(8, minmax(48px, 0.65fr));
+    align-items: center;
+  }
+
+  .trg-prime .matrix-header {
+    min-height: 30px;
+    color: #f4e2b4;
+    background: var(--trg-burgundy-dark);
+    font-size: 0.58rem;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  .trg-prime .matrix-row {
+    border-top: 1px solid var(--trg-line);
+  }
+
+  .trg-prime .matrix-row strong {
+    padding-left: 8px;
+    color: var(--trg-muted);
+    font-size: 0.72rem;
+  }
+
+  .trg-prime .matrix-row input {
+    width: 100%;
+    height: 38px;
+    border: 0;
+    border-left: 1px solid rgb(91 61 31 / 15%);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .trg-prime .matrix-row output {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: stretch;
+    color: var(--trg-burgundy);
+    background: rgb(198 162 82 / 14%);
+    font-weight: 700;
+  }
+
+  .trg-prime .compact-fields {
+    margin-top: 12px;
+  }
+
+  .trg-prime .input-with-unit {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+
+  .trg-prime .input-with-unit small {
+    padding-left: 5px;
+    color: var(--trg-muted);
+  }
+
+  .trg-prime .save-table {
+    border: 1px solid var(--trg-line);
+    border-radius: 4px;
+  }
+
+  .trg-prime .save-table-header,
+  .trg-prime .save-table-row {
+    display: grid;
+    grid-template-columns: minmax(88px, 1.2fr) repeat(6, minmax(45px, 0.65fr));
+    align-items: center;
+  }
+
+  .trg-prime .save-table-header {
+    min-height: 30px;
+    color: #f4e2b4;
+    background: var(--trg-burgundy-dark);
+    font-size: 0.57rem;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  .trg-prime .save-table-row {
+    min-height: 40px;
+    border-top: 1px solid var(--trg-line);
+  }
+
+  .trg-prime .save-table-row button {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 7px;
+    font-size: 0.72rem;
+  }
+
+  .trg-prime .save-table-row input {
+    width: 100%;
+    height: 39px;
+    border: 0;
+    border-left: 1px solid rgb(91 61 31 / 15%);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .trg-prime .save-table-row output {
+    text-align: center;
+  }
+
+  .trg-prime .save-table-row .final-total {
+    align-self: stretch;
+    padding-top: 10px;
+    color: var(--trg-burgundy);
+    background: rgb(198 162 82 / 14%);
+    font-weight: 700;
+  }
+
+  .trg-prime .wide-field {
+    margin-top: 9px;
+  }
+
+  .trg-prime .gold-button {
+    display: inline-flex;
+    gap: 7px;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px !important;
+    padding: 6px 12px !important;
+    border: 1px solid var(--trg-gold-dark) !important;
+    border-radius: 3px !important;
+    color: #fff1c8 !important;
+    background:
+      linear-gradient(180deg, var(--trg-burgundy-light), var(--trg-burgundy-dark)) !important;
+    box-shadow:
+      inset 0 0 0 1px rgb(255 255 255 / 8%),
+      0 2px 3px rgb(38 16 6 / 20%) !important;
+    font-size: 0.72rem !important;
+    font-weight: 700;
+  }
+
+  .trg-prime .gold-button:hover {
+    border-color: var(--trg-gold-light) !important;
+    color: #fff !important;
+    filter: brightness(1.08);
+  }
+
+  .trg-prime .button-group {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .trg-prime .button-group.compact {
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .trg-prime .button-group.compact button {
+    min-height: 25px;
+    padding: 3px 7px;
+    border: 1px solid var(--trg-line);
+    border-radius: 3px;
+    background: rgb(255 251 239 / 45%);
+    font-size: 0.64rem;
+  }
+
+  /* Carrying something you cannot use. Shown on the exception only —
+     a tick on every row of a forty-item inventory says nothing. */
+  .trg-prime .not-proficient-badge {
+    margin-left: 5px;
+    color: #a1401f;
+    font-size: 0.75rem;
+    cursor: help;
+  }
+
+  /* The refresh report lists one row per changed item, and with a full
+     party that ran past the bottom of the window — taking the Update
+     button with it, so the dialog could not be confirmed at all. The
+     LIST scrolls; the summary above it and the buttons below stay put. */
+  .trg-prime .compendium-refresh-report {
+    display: flex;
+    flex-direction: column;
+    max-height: 60vh;
+  }
+
+  .trg-prime .compendium-refresh-report .refresh-rows {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    min-height: 4em;
+    margin: 4px 0;
+    padding-right: 6px;
+  }
+
+  /* The Skills heading carries the class breakdown as a tooltip, so it
+     needs to look like something worth pointing at. */
+  .trg-prime h2.has-detail {
+    cursor: help;
+    text-decoration: underline dotted rgba(0, 0, 0, 0.25);
+    text-underline-offset: 4px;
+  }
+
+  .trg-prime .skill-budget strong {
+    color: var(--trg-ink, inherit);
+  }
+
+  /* A rank input carrying more than the character's level. The write
+     path blocks new ones, but a character can arrive already over — a
+     level lowered, or a sheet built before the cap existed. */
+  .trg-prime input.skill-ranks.over-level {
+    border-color: #8a1c1c;
+    background: rgba(138, 28, 28, 0.08);
+    color: #8a1c1c;
+    font-weight: 700;
+  }
+
+  .trg-prime .skill-budget.overspent,
+  .trg-prime .skill-budget.overspent strong {
+    color: #8a1c1c;
+  }
+
+  .trg-prime .skills-scroll {
+    overflow-x: auto;
+    scrollbar-color: var(--trg-gold-dark) rgb(87 58 30 / 12%);
+    scrollbar-width: thin;
+  }
+
+  .trg-prime .skills-table {
+    min-width: 1078px;
+  }
+
+  .trg-prime .skill-row {
+    display: grid;
+    /* The Class column gets its own, slightly wider track: it holds a
+       tickbox and can hold two small values beside it (what the tick is
+       worth, and any flat class bonus a feat wrote into the old numeric
+       slot). Every other column is a single number. */
+    grid-template-columns:
+      minmax(150px, 1.3fr)
+      minmax(100px, 0.9fr)
+      minmax(52px, 0.55fr)
+      minmax(70px, 0.62fr)
+      repeat(6, minmax(52px, 0.55fr))
+      32px;
+    align-items: center;
+    min-height: 38px;
+    border-bottom: 1px solid rgb(94 63 31 / 16%);
+  }
+
+  .trg-prime .skill-row:last-child {
+    border-bottom: 0;
+  }
+
+  .trg-prime .skill-row > button:first-child {
+    display: grid;
+    grid-template-columns: 21px 1fr;
+    gap: 3px;
+    align-items: center;
+    height: 100%;
+    padding: 0 6px;
+  }
+
+  .trg-prime .skill-row > button:first-child > i {
+    color: var(--trg-gold-dark);
+  }
+
+  .trg-prime .skill-row .skill-name {
+    height: 37px;
+    padding-left: 2px;
+    overflow: hidden;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 37px;
+  }
+
+  .trg-prime .skill-row input,
+  .trg-prime .skill-row select {
+    width: 100%;
+    height: 37px;
+    border: 0;
+    border-left: 1px solid rgb(91 61 31 / 14%);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .trg-prime .skill-row output {
+    text-align: center;
+    color: var(--trg-burgundy);
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .trg-prime .specialist-heading {
+    margin-top: 18px;
+  }
+
+  .trg-prime .specialist-skills-table {
+    min-width: 1110px;
+  }
+
+  .trg-prime .specialist-skill-row {
+    display: grid;
+    grid-template-columns:
+      minmax(180px, 1.4fr)
+      minmax(105px, 0.9fr)
+      repeat(9, minmax(52px, 0.55fr))
+      32px;
+    align-items: center;
+    min-height: 38px;
+    border-bottom: 1px solid rgb(94 63 31 / 16%);
+  }
+
+  .trg-prime .specialist-skill-row:last-child {
+    border-bottom: 0;
+  }
+
+  .trg-prime .specialist-skill-row > button:first-child {
+    display: grid;
+    grid-template-columns: 21px 1fr;
+    gap: 3px;
+    align-items: center;
+    height: 100%;
+    padding: 0 6px;
+  }
+
+  .trg-prime .specialist-skill-row > button:first-child > i {
+    color: var(--trg-gold-dark);
+  }
+
+  .trg-prime .specialist-skill-row input,
+  .trg-prime .specialist-skill-row select {
+    width: 100%;
+    height: 37px;
+    border: 0;
+    border-left: 1px solid rgb(91 61 31 / 14%);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .trg-prime .specialist-skill-row output {
+    text-align: center;
+    color: var(--trg-burgundy);
+    font-weight: 700;
+  }
+
+  .trg-prime .icon-button {
+    width: 30px;
+    height: 30px;
+  }
+
+  .trg-prime .icon-button.danger,
+  .trg-prime .item-controls button:last-child {
+    color: #85303b;
+  }
+
+  .trg-prime .item-section {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .trg-prime .card-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 43px;
+    padding: 8px 11px;
+    border-bottom: 1px solid var(--trg-line);
+    background: rgb(198 162 82 / 10%);
+  }
+
+  .trg-prime .card-heading h2 {
+    margin: 0;
+  }
+
+  .trg-prime .card-heading > button {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--trg-line);
+    border-radius: 50%;
+  }
+
+  /* Tradition/PP filter row above a spell table (the Spell Book item's
+     own contents list, and the Magic tab's Spells table — 3.230.5).
+     Plain row-hiding via list-filters.mjs; this is just the two small
+     dropdowns above the header. */
+  .trg-prime .list-filter-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    padding: 6px 10px;
+    background: rgb(0 0 0 / 12%);
+  }
+
+  .trg-prime .list-filter-row label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #cbb98a;
+  }
+
+  .trg-prime .list-filter-row select {
+    min-width: 130px;
+    font-size: 0.75rem;
+  }
+
+  .trg-prime .item-list-header,
+  .trg-prime .item-row,
+  .trg-prime .effect-row {
+    display: grid;
+    grid-template-columns: minmax(220px, 2fr) 0.65fr 1fr 0.65fr 74px;
+    gap: 8px;
+    align-items: center;
+    min-height: 42px;
+    padding: 0 10px;
+  }
+
+  .trg-prime .item-list-header {
+    min-height: 30px;
+    color: #f3dfad;
+    background: var(--trg-burgundy-dark);
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .trg-prime .item-row,
+  .trg-prime .effect-row {
+    border-bottom: 1px solid rgb(94 63 31 / 15%);
+    font-size: 0.75rem;
+  }
+
+  .trg-prime .item-row:last-child,
+  .trg-prime .effect-row:last-child {
+    border-bottom: 0;
+  }
+
+  .trg-prime .item-row:hover,
+  .trg-prime .effect-row:hover {
+    background: rgb(198 162 82 / 8%);
+  }
+
+  .trg-prime .item-name {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    /* LEFT, not centre. This is a <button>, and Foundry's own button rule
+       centres flex content — so the icon and name sat in the middle of a
+       stretched grid cell, drifting sideways as neighbouring names changed
+       length. The `text-align: left` below could never have fixed it: the
+       icon and the name are flex items, and text-align does not place
+       flex items. Reported by Graham, 3.215.2. One rule, and it reaches
+       all eighteen item tables on the sheet. */
+    justify-content: flex-start;
+    min-width: 0;
+    text-align: left;
+  }
+
+  .trg-prime .item-name img {
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--trg-gold-dark);
+    border-radius: 3px;
+    object-fit: cover;
+    background: #201312;
+  }
+
+  .trg-prime .item-name strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .trg-prime .item-name > span {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .trg-prime .item-name small {
+    color: var(--trg-muted);
+    font-size: 0.6rem;
+    text-transform: capitalize;
+  }
+
+  /* A charged item's remaining power points, on the secondary line under
+     its name — the one number that matters on a wand. `text-transform`
+     is reset because `.item-name small` capitalises, which would render
+     "regains" as "Regains" mid-sentence. */
+  .trg-prime .item-name small.charge-line {
+    text-transform: none;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  .trg-prime .item-name small.charge-line.charge-empty {
+    color: #a33;
+  }
+
+  .trg-prime .item-controls {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  .trg-prime .item-controls button {
+    width: 27px;
+    height: 27px;
+    color: var(--trg-muted);
+  }
+
+  .trg-prime .item-controls button[data-action="toggleItemEquipped"] i,
+  .trg-prime .item-controls button[data-action="reloadWeapon"] i {
+    color: var(--trg-gold-dark);
+  }
+
+  .trg-prime .item-controls button[data-action="toggleItemEquipped"] i.muted-icon,
+  .trg-prime .item-controls button[data-action="reloadWeapon"] i.muted-icon {
+    color: var(--trg-muted);
+    opacity: 0.4;
+  }
+
+  /* Repeater magazine count, a small badge in the corner of the reload button. */
+  .trg-prime .item-controls button[data-action="reloadWeapon"] {
+    position: relative;
+  }
+
+  .trg-prime .magazine-count {
+    position: absolute;
+    right: 1px;
+    bottom: 0;
+    font-size: 0.6rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--trg-ink);
+  }
+
+  .trg-prime .empty-state {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    align-items: center;
+    justify-content: center;
+    min-height: 105px;
+    padding: 20px;
+    color: rgb(82 62 47 / 70%);
+    text-align: center;
+  }
+
+  .trg-prime .empty-state i {
+    color: rgb(117 84 31 / 48%);
+    font-size: 1.7rem;
+  }
+
+  .trg-prime .empty-state p {
+    margin: 0;
+    font-style: italic;
+  }
+
+  .trg-prime .empty-state.compact {
+    min-height: 52px;
+    padding: 10px;
+  }
+
+  .trg-prime .sheet-tab-panel[data-tab="features"] {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .trg-prime .sheet-tab-panel[data-tab="features"].active {
+    display: flex;
+  }
+
+  /* 3.192.0 (Graham's live testing): the panel is the scroll container,
+     but as a flex column its children were allowed to SHRINK — content
+     compressed/clipped instead of extending the scroll height, so the
+     bar stopped short of the bottom. Children must keep their natural
+     height and let the panel scroll. */
+  .trg-prime .sheet-tab-panel[data-tab="features"] > * {
+    flex-shrink: 0;
+  }
+
+  .trg-prime .foundation-row {
+    grid-template-columns: minmax(220px, 2fr) 0.65fr 1fr 0.65fr 104px;
+  }
+
+  /* The campaign origin, inside the Creature Traits card (3.250.0). Its
+     own heading needs a rule of separation from the traits input above
+     it, since two headings now share one card. */
+  .trg-prime .origin-heading {
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px solid var(--trg-gold-dark);
+  }
+
+  .trg-prime .origin-row {
+    grid-template-columns: minmax(140px, 2fr) 1fr 82px;
+  }
+
+  .trg-prime .encumbrance-badge {
+    display: inline-flex;
+    gap: 7px;
+    align-items: center;
+    padding: 6px 10px;
+    border: 1px solid var(--trg-gold-dark);
+    border-radius: 20px;
+    color: var(--trg-burgundy);
+    background: rgb(198 162 82 / 12%);
+    font-weight: 700;
+  }
+
+  .trg-prime .currency-tracker {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 8px 10px;
+    border: 1px solid var(--trg-line);
+    border-radius: 6px;
+    background: rgb(198 162 82 / 8%);
+  }
+
+  .trg-prime .currency-tracker label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .trg-prime .currency-tracker label > span {
+    color: var(--trg-gold-dark);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .trg-prime .currency-tracker input {
+    width: 58px;
+    height: 24px;
+    padding: 2px 6px;
+    text-align: right;
+  }
+
+  .trg-prime .currency-tracker .currency-total {
+    margin-left: auto;
+    color: var(--trg-burgundy);
+    font-size: 0.78rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  /* Starting wealth (Chapter 6) — shown only until it is taken. */
+  .trg-prime .starting-wealth {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0 8px;
+    padding: 4px 8px;
+    border: 1px solid var(--trg-gold, #b8963f);
+    border-radius: 4px;
+    background: rgba(184, 150, 63, 0.08);
+  }
+
+  .trg-prime .starting-wealth .starting-wealth-score {
+    color: var(--trg-burgundy);
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+
+  .trg-prime .starting-wealth button {
+    margin-left: auto;
+    width: auto;
+    padding: 2px 10px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+
+  .trg-prime .inventory-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .trg-prime .inventory-header,
+  .trg-prime .inventory-row {
+    grid-template-columns: minmax(130px, 1.7fr) 0.7fr 0.7fr 0.6fr 78px;
+    gap: 6px;
+  }
+
+  .trg-prime .magic-summary {
+    margin-bottom: 12px;
+  }
+
+  .trg-prime .spellcraft-breakdown {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 7px;
+    margin-top: 11px;
+    padding-top: 10px;
+    border-top: 1px solid var(--trg-line);
+  }
+
+  .trg-prime .spellcraft-breakdown label {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .trg-prime .spellcraft-breakdown span {
+    color: var(--trg-muted);
+    font-size: 0.61rem;
+    font-weight: 700;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  .trg-prime .spellcraft-breakdown input,
+  .trg-prime .spellcraft-breakdown output {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 29px;
+  }
+
+  .trg-prime .spellcraft-breakdown output {
+    border: 1px solid var(--trg-gold-dark);
+    border-radius: 3px;
+    color: var(--trg-burgundy);
+    background: rgb(198 162 82 / 14%);
+    font-weight: 700;
+  }
+
+  .trg-prime .spellbook {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .trg-prime .spell-header,
+  .trg-prime .spell-row {
+    grid-template-columns:
+      58px                    /* cast actions */
+      minmax(160px, 1.6fr)    /* spell name */
+      0.8fr                   /* tradition */
+      42px                    /* pp */
+      42px                    /* ap */
+      0.8fr                   /* range */
+      0.8fr                   /* duration */
+      58px                    /* prepared */
+      74px;                   /* controls */
+  }
+
+  /* Innate Spells table (3.113.0): its own column set — cast actions, name,
+     tradition, uses/day, attack-or-save, controls. Placed after the base
+     .spell-* rule so it wins for rows carrying both classes. */
+  .trg-prime .innate-spell-header,
+  .trg-prime .innate-spell-row {
+    grid-template-columns:
+      58px                    /* cast actions */
+      minmax(160px, 1.6fr)    /* spell name */
+      0.9fr                   /* tradition */
+      0.9fr                   /* uses / day */
+      0.9fr                   /* attack / save */
+      74px;                   /* controls */
+  }
+
+  /* The Wizard's Spellbook item's own contents list (3.230.4): no cast
+     actions and no controls column — this is a browse/open list, not
+     something you cast or delete from here. */
+  .trg-prime .book-spell-header,
+  .trg-prime .book-spell-row {
+    grid-template-columns:
+      minmax(160px, 1.6fr)    /* spell name */
+      0.8fr                   /* tradition */
+      50px                    /* pp */
+      70px;                   /* prepared */
+  }
+
+  .trg-prime .prepared-state {
+    color: var(--trg-green);
+    text-align: center;
+  }
+
+  .trg-prime .large-textarea {
+    width: 100%;
+    min-height: 110px;
+  }
+
+  .trg-prime .effects-list {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .trg-prime .effect-header,
+  .trg-prime .effect-row {
+    grid-template-columns: minmax(200px, 1.5fr) 96px 1fr 0.8fr 0.75fr 74px;
+  }
+
+  /* Valued conditions (Stunned 2, Soul Drain 3) adjusted in place. */
+  .trg-prime .effect-value {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 3px;
+  }
+
+  .trg-prime .effect-value .value-step,
+  .trg-prime .effect-value .value-current {
+    background: rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(90, 60, 30, 0.28);
+    border-radius: 4px;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    line-height: 1;
+    padding: 2px 0;
+    transition: background 120ms ease, border-color 120ms ease;
+  }
+
+  .trg-prime .effect-value .value-step {
+    width: 20px;
+    text-align: center;
+  }
+
+  .trg-prime .effect-value .value-current {
+    min-width: 26px;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  .trg-prime .effect-value .value-step:hover,
+  .trg-prime .effect-value .value-current:hover {
+    background: rgba(160, 110, 40, 0.18);
+    border-color: rgba(90, 60, 30, 0.5);
+  }
+
+  .trg-prime .effect-value .value-none {
+    opacity: 0.4;
+    padding-left: 4px;
+  }
+
+  .trg-prime .effect-row.disabled {
+    filter: grayscale(0.65);
+    opacity: 0.62;
+  }
+
+  .trg-prime .effect-toggle {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    color: var(--trg-green) !important;
+    font-size: 0.68rem !important;
+  }
+
+  .trg-prime .effect-row.disabled .effect-toggle {
+    color: var(--trg-muted) !important;
+  }
+
+  .trg-prime .description-layout {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 12px;
+  }
+
+  .trg-prime .description-layout .ornate-card:first-child {
+    grid-row: span 3;
+  }
+
+  .trg-prime .description-layout textarea {
+    width: 100%;
+    min-height: 105px;
+  }
+
+  .trg-prime .description-layout .chronicle {
+    min-height: 470px;
+  }
+
+  .trg-prime .gm-heading > i {
+    color: var(--trg-burgundy);
+    font-size: 1.4rem;
+  }
+
+  .trg-prime .gm-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .trg-prime .gm-layout textarea {
+    width: 100%;
+    min-height: 135px;
+  }
+
+  .trg-prime .gm-notes-card {
+    grid-column: 1 / -1;
+  }
+
+  .trg-prime .gm-notes-card textarea {
+    min-height: 280px;
+  }
+
+  .trg-prime .item-sheet-header {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    gap: 14px;
+    align-items: center;
+    flex: 0 0 116px;
+    padding: 10px 14px;
+    border-bottom: 2px solid var(--trg-gold-dark);
+    background:
+      linear-gradient(135deg, rgb(255 255 255 / 6%), transparent 48%),
+      linear-gradient(90deg, var(--trg-burgundy-dark), var(--trg-burgundy));
+  }
+
+  .trg-prime .item-portrait {
+    position: relative;
+    width: 90px;
+    height: 90px;
+    padding: 4px;
+    border: 2px solid var(--trg-gold);
+    background: var(--trg-burgundy-dark);
+  }
+
+  .trg-prime .item-sheet-body {
+    padding: 12px;
+    overflow-y: auto;
+  }
+
+  .trg-prime .item-sheet-body > .ornate-card {
+    margin-bottom: 10px;
+  }
+
+  .trg-prime .item-sheet-body .description-card {
+    margin-bottom: 0;
+  }
+
+  .trg-prime .description-card textarea {
+    width: 100%;
+    min-height: 180px;
+  }
+
+  .trg-prime .checkbox-field {
+    align-items: center;
+  }
+
+  .trg-prime .checkbox-field input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+  }
+
+  .trg-prime .component-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin: 12px 0 4px;
+    padding: 8px 10px;
+    border: 1px solid var(--trg-line);
+    border-radius: 3px;
+    background: rgb(255 250 236 / 34%);
+  }
+
+  .trg-prime .component-row label {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    font-size: 0.72rem;
+  }
+
+  @media (max-width: 900px) {
+    .trg-prime .sheet-tabs {
+      grid-template-columns: repeat(5, 1fr);
+      flex-basis: 92px;
+    }
+
+    .trg-prime .sheet-tab {
+      height: 46px !important;
+      min-height: 46px !important;
+    }
+
+    .trg-prime .summary-layout,
+  .trg-prime .combat-layout,
+  .trg-prime .inventory-columns,
+  .trg-prime .description-layout,
+  .trg-prime .gm-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .trg-prime .description-layout .ornate-card:first-child {
+      grid-row: auto;
+    }
+
+    .trg-prime .gm-notes-card,
+  .trg-prime .summary-notes,
+  .trg-prime .summary-endeavour {
+      grid-column: auto;
+    }
+
+    .trg-prime .field-grid.five-column {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .trg-prime .field-grid.six-column {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Check result chat card                                                  */
+  /* ---------------------------------------------------------------------- */
+
+  .trg-prime .heading-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .trg-prime.trg-check-card {
+    --degree-accent: var(--trg-gold-dark);
+    --degree-ink: var(--trg-parchment-light);
+    padding: 8px 10px 10px;
+    border: 1px solid var(--trg-line);
+    border-radius: 3px;
+    background: var(--trg-parchment-light);
+    color: var(--trg-ink);
+  }
+
+  .trg-prime.trg-check-card.degree-heroic { --degree-accent: #8a6a12; }
+  .trg-prime.trg-check-card.degree-critical { --degree-accent: var(--trg-green); }
+  .trg-prime.trg-check-card.degree-success { --degree-accent: #35664f; }
+  .trg-prime.trg-check-card.degree-partial { --degree-accent: var(--trg-blue); }
+  .trg-prime.trg-check-card.degree-failure { --degree-accent: var(--trg-muted); }
+  .trg-prime.trg-check-card.degree-fumble { --degree-accent: var(--trg-red); }
+  .trg-prime.trg-check-card.degree-blunder { --degree-accent: var(--trg-burgundy-dark); }
+  .trg-prime.trg-check-card.degree-none { --degree-accent: var(--trg-gold-dark); }
+
+  .trg-prime.trg-check-card .check-header {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--trg-line);
+  }
+
+  .trg-prime.trg-check-card .check-actor {
+    display: block;
+    color: var(--trg-muted);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .trg-prime.trg-check-card .check-heading h3 {
+    margin: 0;
+    border: 0;
+    color: var(--trg-burgundy);
+    font-size: 1.05rem;
+    line-height: 1.2;
+  }
+
+  .trg-prime.trg-check-card .check-subtitle {
+    color: var(--trg-muted);
+    font-size: 0.75rem;
+    font-style: italic;
+  }
+
+  .trg-prime.trg-check-card .check-total {
+    display: grid;
+    place-items: center;
+    min-width: 46px;
+    height: 46px;
+    padding: 0 6px;
+    border: 2px solid var(--degree-accent);
+    border-radius: 50%;
+    background: var(--trg-parchment);
+    color: var(--degree-accent);
+    font-size: 1.35rem;
+    font-weight: 700;
+  }
+
+  .trg-prime.trg-check-card .degree-banner {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-top: 6px;
+    padding: 4px 8px;
+    border-radius: 2px;
+    background: var(--degree-accent);
+    color: var(--degree-ink);
+  }
+
+  .trg-prime.trg-check-card .degree-banner.degree-unknown {
+    /* Stack, rather than the space-between row the resolved banner uses:
+       in the narrow chat sidebar the row squeezed the label into a
+       one-letter-wide column ("A W A I T I N G" down the card) and cramped
+       the Set DC control beside it. As a column each part gets full width. */
+    flex-direction: column;
+    align-items: stretch;
+    gap: 3px;
+    background: transparent;
+    border: 1px dashed var(--trg-line);
+    color: var(--trg-muted);
+  }
+
+  .trg-prime.trg-check-card .degree-label {
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .trg-prime.trg-check-card .degree-margin {
+    font-size: 0.72rem;
+    opacity: 0.9;
+  }
+
+  .trg-prime.trg-check-card .chaos-banner {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-top: 5px;
+    padding: 4px 8px;
+    border: 1px solid var(--trg-gold-dark);
+    border-radius: 2px;
+    background: rgb(198 162 82 / 22%);
+    font-size: 0.76rem;
+  }
+
+  .trg-prime.trg-check-card .check-dice {
+    margin-top: 7px;
+  }
+
+  .trg-prime.trg-check-card .dice-chain {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+    padding: 2px 0;
+  }
+
+  .trg-prime.trg-check-card .dice-chain.discarded {
+    opacity: 0.4;
+    text-decoration: line-through;
+  }
+
+  .trg-prime.trg-check-card .die-face {
+    display: inline-grid;
+    place-items: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 4px;
+    border: 1px solid var(--trg-gold-dark);
+    border-radius: 2px;
+    background: var(--trg-parchment);
+    font-weight: 700;
+  }
+
+  .trg-prime.trg-check-card .die-face.small {
+    min-width: 20px;
+    height: 20px;
+    font-size: 0.75rem;
+  }
+
+  .trg-prime.trg-check-card .die-face.chosen {
+    border-color: var(--degree-accent);
+    background: var(--trg-gold-light);
+  }
+
+  .trg-prime.trg-check-card .chain-operator {
+    color: var(--trg-muted);
+    font-weight: 700;
+  }
+
+  .trg-prime.trg-check-card .chain-total {
+    margin-left: 4px;
+    color: var(--trg-muted);
+    font-size: 0.8rem;
+  }
+
+  .trg-prime.trg-check-card .dice-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 3px;
+  }
+
+  .trg-prime.trg-check-card .bias-tag,
+  .trg-prime.trg-check-card .open-ended-tag {
+    padding: 1px 6px;
+    border: 1px solid var(--trg-line);
+    border-radius: 9px;
+    color: var(--trg-muted);
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .trg-prime.trg-check-card .percentile-detail {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    margin-top: 4px;
+    color: var(--trg-muted);
+    font-size: 0.72rem;
+  }
+
+  .trg-prime.trg-check-card .check-modifiers {
+    margin: 7px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .trg-prime.trg-check-card .check-modifiers li {
+    display: grid;
+    grid-template-columns: 1fr auto 44px;
+    gap: 6px;
+    align-items: center;
+    padding: 2px 0;
+    border-bottom: 1px dotted var(--trg-line);
+    font-size: 0.78rem;
+  }
+
+  .trg-prime.trg-check-card .check-modifiers li.suppressed {
+    opacity: 0.45;
+    text-decoration: line-through;
+  }
+
+  .trg-prime.trg-check-card .modifier-type {
+    color: var(--trg-muted);
+    font-size: 0.65rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .trg-prime.trg-check-card .modifier-value {
+    text-align: right;
+    font-weight: 700;
+  }
+
+  .trg-prime.trg-check-card .check-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 7px;
+    padding-top: 5px;
+    border-top: 1px solid var(--trg-line);
+    color: var(--trg-muted);
+    font-size: 0.72rem;
+  }
+
+  .trg-prime.trg-check-card .bonus-check {
+    margin-top: 6px;
+    padding: 4px 8px;
+    border-left: 3px solid var(--degree-accent);
+    background: rgb(198 162 82 / 16%);
+    font-size: 0.78rem;
+  }
+
+  /* Compact check cards (weapon Attack rolls): only a short result
+     summary shows by default, with the full dice/modifier breakdown
+     tucked behind a hover icon rather than always taking up space. */
+  .trg-prime.trg-check-card .check-details-wrapper {
+    position: relative;
+  }
+
+  .trg-prime.trg-check-card .compact-summary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .trg-prime.trg-check-card .compact-summary {
+    color: var(--degree-accent);
+    font-size: 0.95rem;
+    font-weight: 700;
+  }
+
+  .trg-prime.trg-check-card .check-details-icon {
+    flex: 0 0 auto;
+    color: var(--trg-gold-dark);
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  .trg-prime.trg-check-card.compact .check-details {
+    display: none;
+  }
+
+  /* The compact card's full breakdown is shown on demand in Foundry's global
+     #tooltip (see registerCheckCardListeners) rather than as an in-card popup —
+     the old absolutely-positioned popup was clipped away by the chat message's
+     overflow:hidden. The tooltip renders at the document root, so nothing clips
+     it. cssClass "trg-prime trg-check-card" carries the breakdown's own styling
+     (dice, modifiers, banners); this rule sizes and themes the container. */
+  #tooltip.trg-breakdown-tooltip,
+  .locked-tooltip.trg-breakdown-tooltip {
+    max-width: 340px;
+    text-align: left;
+    white-space: normal;
+    background: var(--trg-parchment);
+    color: var(--trg-ink);
+    border: 1px solid var(--trg-gold-dark);
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+
+  .trg-prime .trg-check-dialog .form-group {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  /* A prompt that is a SENTENCE rather than a field name. The grid's
+     150px label column wraps one into a narrow ragged stack beside its
+     control; stacked puts it on its own line above, full width. */
+  .trg-prime .trg-check-dialog .form-group.stacked {
+    display: block;
+  }
+
+  .trg-prime .trg-check-dialog .form-group.stacked label {
+    display: block;
+    margin-bottom: 6px;
+    line-height: 1.35;
+  }
+
+  .trg-prime .trg-check-dialog .form-group.stacked select,
+  .trg-prime .trg-check-dialog .form-group.stacked input {
+    width: 100%;
+  }
+
+  .trg-prime .trg-check-dialog .trg-inline {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .trg-prime .trg-check-dialog .hint,
+  .trg-prime .hint {
+    color: var(--trg-muted);
+    font-size: 0.72rem;
+  }
+
+  /* Warp chooser rows: a flex row (overriding the form-group grid) so the
+     control sits beside its label. LAYOUT ONLY — this comment used to add
+     "and the label keeps the readable dialog colour a form-group gives it",
+     which was never true of any rule here. The colour is owned by the
+     dialog block near the end of this file. */
+  .trg-prime .trg-check-dialog .form-group.warp-option {
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .trg-prime .trg-check-dialog .form-group.warp-option label {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    cursor: pointer;
+  }
+
+  .trg-prime .trg-check-dialog .form-group.warp-option input[type="number"] {
+    flex: 0 0 3.2em;
+    width: 3.2em;
+  }
+
+  .trg-prime .trg-check-dialog .form-group.warp-option input[type="checkbox"] {
+    flex: 0 0 auto;
+    align-self: center;
+  }
+
+  .trg-prime .trg-check-dialog .form-group.warp-metamagic {
+    margin-top: 8px;
+  }
+
+/* Spell cast button (3.9.0) */
+.trg-prime .spell-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.trg-prime .spell-row .cast-spell-button {
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--trg-gold, #75541f);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--trg-burgundy, #4b1019);
+  cursor: pointer;
+}
+.trg-prime .spell-row .cast-spell-button:hover {
+  background: var(--trg-gold, #75541f);
+  color: #fffbe8;
+}
+
+/* Conviction spend button (3.10.0) */
+.trg-prime .resource .conviction-spend {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.trg-prime .resource .conviction-spend:hover i {
+  color: var(--trg-gold, #75541f);
+  text-shadow: 0 0 6px rgba(117, 84, 31, 0.6);
+}
+
+/* Feats & Abilities: uses-per-day column (3.13.0) */
+.trg-prime .feature-header,
+.trg-prime .feature-row {
+  grid-template-columns:
+    minmax(190px, 1.5fr)
+    0.7fr
+    0.9fr
+    0.55fr
+    0.9fr
+    74px;
+}
+
+.trg-prime .uses-cell {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.trg-prime .uses-unlimited {
+  color: var(--trg-muted);
+  font-size: 0.68rem;
+  font-style: italic;
+}
+
+/* Daily Preparation button (3.13.0) */
+.trg-prime .daily-prep-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  align-self: center;
+  border: 2px solid var(--trg-gold);
+  border-radius: 50%;
+  color: #fff0c5;
+  background: radial-gradient(circle, var(--trg-burgundy-light), var(--trg-burgundy-dark) 72%);
+  box-shadow: 0 0 0 2px rgb(39 8 13 / 85%);
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.trg-prime .daily-prep-button:hover {
+  color: var(--trg-gold-light);
+  box-shadow:
+    0 0 0 2px rgb(39 8 13 / 85%),
+    0 0 8px rgb(239 213 142 / 55%);
+}
+
+/* Afflictions (3.14.0) */
+.trg-prime .affliction-header,
+.trg-prime .affliction-row {
+  grid-template-columns:
+    minmax(190px, 1.6fr)
+    0.5fr
+    0.7fr
+    0.9fr
+    74px;
+}
+
+.trg-prime .affliction-status {
+  display: flex;
+  align-items: center;
+}
+
+.trg-prime .status-pill {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.trg-prime .status-incubating {
+  color: #3a2a06;
+  background: rgb(239 213 142 / 75%);
+}
+
+.trg-prime .status-active {
+  color: #fff0e8;
+  background: var(--trg-burgundy, #4b1019);
+}
+
+.trg-prime .status-inert {
+  color: var(--trg-muted);
+  background: rgb(120 120 120 / 18%);
+}
+
+.trg-prime .affliction-stage {
+  margin: 8px 0;
+  padding: 10px;
+}
+
+.trg-prime .affliction-stage .small-button {
+  margin-top: 6px;
+  height: 26px;
+  padding: 0 10px;
+  font-size: 0.68rem;
+}
+
+/* Actions tab (3.78.0 — condensed grid layout, per Graham directly:
+   structure follows a reference image, but colors stay entirely
+   within this project's own existing palette). */
+.trg-prime .sheet-tab-panel[data-tab="actions"] .item-section h2 {
+  margin: 0 0 6px;
+}
+
+.trg-prime .action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 4px;
+  padding: 8px;
+}
+
+.trg-prime .action-grid .empty-state {
+  grid-column: 1 / -1;
+}
+
+.trg-prime .action-pill {
+  display: flex;
+  align-items: center;
+  /* FOUNDRY'S OWN button RULE CENTRES A BUTTON'S CONTENTS, and this class
+     never said otherwise — so each pill's badge and name floated to the
+     middle of a stretched grid cell, no two badges in a column. That is
+     what Graham reported at 3.249.2: "centralised and messy". The
+     text-align below was already left and could do nothing about it,
+     because a flex container is aligned by justify-content. .gold-button
+     sets it deliberately; this one had simply been left to inherit. */
+  justify-content: flex-start;
+  gap: 6px;
+  min-height: 30px;
+  padding: 3px 7px 3px 0;
+  border: 1px solid var(--trg-gold-dark);
+  border-radius: 6px;
+  background: var(--trg-burgundy-dark);
+  color: var(--trg-parchment-light);
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: left;
+  cursor: pointer;
+}
+
+.trg-prime .action-pill:hover {
+  border-color: var(--trg-gold);
+  box-shadow: 0 0 0 1px var(--trg-gold);
+}
+
+.trg-prime .action-pill-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  width: 20px;
+  flex: 0 0 auto;
+  color: var(--trg-parchment-light);
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.trg-prime .action-pill-name {
+  overflow-wrap: break-word;
+}
+
+.trg-prime .action-badge-attack .action-pill-badge {
+  background: var(--trg-red);
+}
+
+.trg-prime .action-badge-defence .action-pill-badge {
+  background: var(--trg-blue);
+}
+
+.trg-prime .action-badge-movement .action-pill-badge {
+  background: var(--trg-green);
+}
+
+.trg-prime .action-badge-concentrate .action-pill-badge {
+  background: var(--trg-gold-dark);
+}
+
+.trg-prime .action-badge-free .action-pill-badge {
+  background: var(--trg-muted);
+}
+
+.trg-prime .action-badge-other .action-pill-badge {
+  background: var(--trg-parchment-dark);
+  color: var(--trg-ink);
+}
+
+/* Check card: Conviction Bonus button and GM DC-setting control (3.17.0) */
+.trg-prime.trg-check-card .conviction-bonus-control {
+  margin-top: 6px;
+  display: flex;
+  justify-content: center;
+}
+
+.trg-prime.trg-check-card .conviction-bonus-control .small-button {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 0.7rem;
+}
+
+.trg-prime.trg-check-card .set-dc-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.trg-prime.trg-check-card .dc-input {
+  width: 70px;
+  height: 26px;
+  text-align: center;
+}
+
+.trg-prime.trg-check-card .set-dc-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  font-size: 0.68rem;
+  border: 1px solid var(--trg-gold, #75541f);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--trg-burgundy, #4b1019);
+  cursor: pointer;
+}
+
+.trg-prime.trg-check-card .set-dc-button:hover {
+  background: var(--trg-gold, #75541f);
+  color: #fffbe8;
+}
+
+/* Ability score point-pool banner (Chapter 1 framework pass) */
+.trg-prime .ability-point-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+  padding: 8px 14px;
+  border: 1px solid var(--trg-gold, #75541f);
+  border-radius: 6px;
+  background: rgba(117, 84, 31, 0.08);
+  font-size: 0.8rem;
+}
+
+.trg-prime .ability-point-banner strong {
+  color: var(--trg-burgundy, #4b1019);
+}
+
+.trg-prime .ability-point-banner .hint {
+  flex-basis: 100%;
+  font-size: 0.72rem;
+  color: var(--trg-muted);
+}
+
+/* Max HP formula panel (Chapter 1 framework pass) */
+.trg-prime .hp-formula-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 14px;
+  padding: 8px 14px;
+  border: 1px solid var(--trg-gold, #75541f);
+  border-radius: 6px;
+  background: rgba(117, 84, 31, 0.08);
+  font-size: 0.8rem;
+}
+
+.trg-prime .hp-formula-banner label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trg-prime .hp-formula-banner input[type="number"] {
+  width: 56px;
+}
+
+/* Fatigue threshold warning (Chapter 8 framework pass) */
+.trg-prime .fatigue-warning {
+  margin-bottom: 8px;
+  padding: 8px 14px;
+  border: 1px solid #8a1c1c;
+  border-radius: 6px;
+  background: rgba(138, 28, 28, 0.12);
+  color: #8a1c1c;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+/* The same banner, but inside the sheet HEADER, which is dark burgundy.
+   Dark red on dark burgundy is very nearly invisible — the level-drift
+   warning a companion shows (3.233.3) was legible only if you already
+   knew it was there, and the Fatigue warning this class was written for
+   lives in the same place and had the same problem. Light text on a
+   deeper red instead, so a warning reads as one. */
+.trg-prime .sheet-header .fatigue-warning {
+  border-color: #f0a3a3;
+  background: rgba(190, 40, 40, 0.42);
+  color: #ffe4e4;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+
+/* Feats & Abilities: feat-pick reference banner (Chapter 5 framework pass) */
+.trg-prime .feat-picks-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 10px;
+  padding: 8px 14px;
+  border: 1px solid var(--trg-gold, #75541f);
+  border-radius: 6px;
+  background: rgba(117, 84, 31, 0.08);
+  font-size: 0.8rem;
+}
+
+.trg-prime .feat-picks-banner .hint {
+  flex-basis: 100%;
+  font-size: 0.72rem;
+  color: var(--trg-muted);
+}
+
+/* Feats & Abilities: two-column layout */
+.trg-prime .features-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+@media (max-width: 760px) {
+  .trg-prime .features-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.trg-prime .features-column {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.trg-prime .compact-feature-card h3 {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+}
+
+.trg-prime .compact-feature-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin: 0 0 6px;
+}
+
+.trg-prime .compact-feature-heading h3 {
+  margin: 0;
+}
+
+.trg-prime .compact-feature-heading button {
+  flex: 0 0 auto;
+  border: 1px solid var(--trg-gold, #75541f);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--trg-burgundy, #4b1019);
+  cursor: pointer;
+  padding: 2px 6px;
+  font-size: 0.72rem;
+}
+
+.trg-prime .compact-feature-heading button:hover {
+  background: var(--trg-gold, #75541f);
+  color: #fffbe8;
+}
+
+.trg-prime .feature-header.compact {
+  grid-template-columns: 1fr auto auto;
+}
+
+.trg-prime .feature-row.compact {
+  grid-template-columns: 1fr auto auto;
+}
+
+.trg-prime .empty-state-compact {
+  margin: 4px 0;
+  font-size: 0.78rem;
+  color: var(--trg-muted);
+  font-style: italic;
+}
+
+/* Duplicate item slot warning (Chapter 11 framework pass) */
+.trg-prime .duplicate-slot-warning {
+  margin: 0 0 6px;
+  padding: 6px 10px;
+  border: 1px solid #8a1c1c;
+  border-radius: 6px;
+  background: rgba(138, 28, 28, 0.1);
+  color: #8a1c1c;
+  font-size: 0.75rem;
+}
+
+/*
+ * General dialog background fallback. Every DialogV2 popup in this
+ * project uses classes: ["trg-prime"] with nothing else — only the
+ * actor/item sheets (which also carry the "sheet" class) pick up the
+ * parchment background defined above. Without this, a bare dialog
+ * renders dark ink text on whatever Foundry's own default dialog
+ * chrome happens to be, which is not reliably readable. Scoped to
+ * exclude .sheet so the more elaborate sheet background isn't
+ * overridden.
+ */
+.trg-prime:not(.sheet) .window-content {
+  background: var(--trg-parchment);
+
+  /* ----------------------------------------------------------------
+   * A RULE THAT PAINTS A BACKGROUND OWNS THE FOREGROUND.
+   *
+   * Graham, 12 Aug 2026: "The warping options on Shape of the Animal
+   * are too light and can barely be seen. I have addressed this
+   * before."
+   *
+   * He had. spell-warp.mjs wraps every option in
+   * `.form-group.warp-option` with a comment saying the wrapper makes
+   * the label "inherit the dialog's readable theme colour", and the
+   * `.warp-option` rules below say the same thing. NEITHER RULE EVER
+   * SET A COLOUR. The fix was believed rather than measured, and the
+   * labels were never readable at any point.
+   *
+   * What was actually happening: the line above forces a parchment
+   * background but left the FOREGROUND to Foundry, and Foundry's
+   * `theme-dark` sets `--color-form-label: #d0b8a3` — a pale tan meant
+   * for its own dark chrome. Foundry's `.standard-form label` rule
+   * (which wins over inheritance, so the parent being ink did not
+   * help) painted every dialog label in it.
+   *
+   * Measured live, Shape Of The Animal's warp chooser:
+   *   #d0b8a3 on #e9dcc0 = 1.4:1 contrast. Readable body text needs
+   *   4.5:1. After this block: 12.4:1.
+   *
+   * WHY THE VARIABLES AND NOT `label { color: … }`. Because a
+   * per-element rule is exactly what has been tried twice — first on
+   * the warp option, then on the form group — and each time the next
+   * dialog that used a shape nobody had listed went pale again.
+   * Foundry paints from these variables everywhere; redefining them at
+   * the one place this system overrides the background fixes every
+   * dialog at once, including ones not written yet.
+   *
+   * ONLY DIALOGS. Sheets are excluded because they already set their
+   * own colours throughout — measured at 12.4:1 — and do not read
+   * these variables at all.
+   *
+   * The theme dependency is why this looked fixed before: in Foundry's
+   * LIGHT theme `--color-form-label` is already dark and everything
+   * reads fine. A check done in the light theme proves nothing about
+   * the dark one, which is what Graham's world runs.
+   * ---------------------------------------------------------------- */
+  color: var(--trg-ink);
+  --color-form-label: var(--trg-ink);
+  --color-form-label-hover: var(--trg-ink);
+  --color-form-hint: var(--trg-muted);
+  --color-form-hint-hover: var(--trg-muted);
+  --color-text-primary: var(--trg-ink);
+  --color-text-secondary: var(--trg-muted);
+  --color-text-subtle: var(--trg-muted);
+  --color-text-emphatic: var(--trg-ink);
+}
+
+/* ------------------------------------------------------------------
+ * EVERY DIALOG MUST FIT ON THE SCREEN, AND ITS BUTTONS MUST BE REACHABLE.
+ *
+ * Graham, 3.248.2: "when adding magical armour or weapons, I cannot add
+ * after the customise box. I have noticed this on a few menus that we
+ * have fixed" — and it had been fixed twice, one dialog at a time, by
+ * making that dialog shorter. This is the general version.
+ *
+ * The fault: a DialogV2 given a fixed pixel height renders
+ * `.window-content` at that height with `overflow: hidden`, so content
+ * taller than the box is simply CLIPPED — and the button footer lives at
+ * the bottom of that content. Measured on the customise dialog: a 700px
+ * window holding 788px of content, with 126px of it — including Apply
+ * and Cancel — outside the box and unclickable. On a shorter screen than
+ * mine, more of it goes.
+ *
+ * Three rules, and they apply to every dialog this system opens:
+ *   1. never taller than the window it is drawn in
+ *   2. the content scrolls INSIDE the dialog rather than being clipped
+ *   3. the footer sticks to the bottom, so the buttons are always there
+ *      however far down the content you are
+ * ------------------------------------------------------------------ */
+.application.trg-prime {
+  max-height: calc(100vh - 24px);
+}
+
+.trg-prime:not(.sheet) .window-content {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.trg-prime:not(.sheet) .window-content > .form-footer,
+.trg-prime:not(.sheet) .window-content > form > .form-footer,
+.trg-prime:not(.sheet) .window-content > .dialog-buttons,
+.trg-prime:not(.sheet) .window-content > form > .dialog-buttons {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding-top: 6px;
+  background: var(--trg-parchment);
+}
+
+/*
+ * Item picker dialog (Add from Compendium). Unlike the actor/item
+ * sheets, a DialogV2 window never picks up the .sheet-scoped parchment
+ * background rules above — without its own explicit background this
+ * renders as dark ink text on the ambient (near-transparent) Foundry
+ * dialog chrome, effectively invisible.
+ */
+.trg-prime.trg-item-picker .window-content {
+  padding: 0;
+  background: var(--trg-parchment);
+  /* Owned here as well as by the general dialog rule above, which
+     already covers this selector. Stated rather than inherited because
+     the pairing is the invariant — a rule that sets this surface's
+     background and leaves its foreground to Foundry's theme is exactly
+     what made the warp options unreadable. */
+  color: var(--trg-ink);
+}
+
+.trg-prime .trg-item-picker-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  max-height: 60vh;
+  background: var(--trg-parchment);
+  color: var(--trg-ink);
+}
+
+.trg-prime .trg-picker-search {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border: 1px solid var(--trg-gold-dark);
+  border-radius: 4px;
+  background: var(--trg-parchment-light);
+  color: var(--trg-ink);
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+.trg-prime .trg-picker-search:focus {
+  outline: 1px solid var(--trg-gold);
+  border-color: var(--trg-burgundy);
+}
+
+.trg-prime .trg-picker-list {
+  flex: 0 1 auto;
+  max-height: 340px;
+  overflow-y: auto;
+  border: 1px solid var(--trg-line);
+  border-radius: 4px;
+  background: var(--trg-parchment-light);
+}
+
+.trg-prime .trg-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 9px;
+  border-bottom: 1px solid var(--trg-line);
+  color: var(--trg-ink);
+  cursor: pointer;
+}
+
+.trg-prime .trg-picker-row:last-child {
+  border-bottom: none;
+}
+
+.trg-prime .trg-picker-row:hover {
+  background: rgb(198 162 82 / 18%);
+}
+
+.trg-prime .trg-picker-row input[type="radio"] {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.trg-prime .trg-picker-row input[type="radio"]:checked ~ span {
+  font-weight: 700;
+  color: var(--trg-burgundy);
+}
+
+.trg-prime .trg-picker-row img {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--trg-gold-dark);
+  border-radius: 3px;
+  object-fit: cover;
+}
+
+.trg-prime .trg-picker-row span {
+  flex: 1 1 auto;
+  font-size: 0.85rem;
+}
+
+.trg-prime .trg-picker-row .trg-picker-price {
+  flex: 0 0 auto;
+  color: var(--trg-gold-dark);
+  font-weight: 700;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+/* Prepare Spells / Prepare Cantrips — the bulk memorisation checklist
+ * (memorisation-workflow.mjs). Deliberately reuses .trg-item-picker-body/
+ * .trg-picker-list/.trg-picker-row wholesale (Graham: "keep original
+ * css") — only the checkbox-specific and toolbar rules below are new. */
+.trg-prime .trg-picker-row input[type="checkbox"] {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.trg-prime .trg-picker-row input[type="checkbox"]:checked ~ span {
+  font-weight: 700;
+  color: var(--trg-burgundy);
+}
+
+.trg-prime .trg-prepare-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.trg-prime .trg-prepare-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--trg-gold-dark);
+}
+
+.trg-prime .trg-prepare-filter select {
+  min-width: 130px;
+  font-size: 0.8rem;
+}
+
+.trg-prime .trg-prepare-count {
+  flex: 0 0 auto;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--trg-ink);
+}
+
+.trg-prime .trg-prepare-count.trg-prepare-count-matched {
+  color: var(--trg-burgundy);
+}
+
+.trg-prime .trg-prepare-row-prepared {
+  background: rgb(198 162 82 / 14%);
+}
+
+.trg-prime .trg-prepare-row .trg-prepare-prev {
+  flex: 0 0 auto;
+  font-style: italic;
+  font-size: 0.72rem;
+  color: var(--trg-gold-dark);
+}
+
+/* Item customisation dialog (Quality/Material/Superior Traits) */
+.trg-prime .trg-customise-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px;
+  color: var(--trg-ink);
+  /* The whole body scrolls as a fallback. Without this the dialog grew
+     past the bottom of the window and took Apply and Cancel with it —
+     seventeen weapon runes is a lot taller than three superior traits. */
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.trg-prime .trg-customise-body .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.trg-prime .trg-customise-body .form-group label {
+  color: var(--trg-gold-dark);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.trg-prime .trg-customise-body select {
+  padding: 6px 9px;
+  border: 1px solid var(--trg-gold-dark);
+  border-radius: 4px;
+  background: var(--trg-parchment-light);
+  color: var(--trg-ink);
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+.trg-prime .trg-customise-traits-group > label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--trg-gold-dark);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.trg-prime .trg-customise-traits {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--trg-line);
+  border-radius: 4px;
+  background: var(--trg-parchment-light);
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.trg-prime .trg-customise-trait {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.82rem;
+}
+
+.trg-prime .trg-customise-trait input:disabled {
+  opacity: 0.4;
+}
+
+/* The rune chooser (Chapter 11), inside the customisation dialog.
+   Seventeen weapon runes stack to well over a screen, so the list is its
+   own scroll box — the same treatment the Superior Traits list has — and
+   each rune is ONE grid row rather than three stacked blocks: name, tier,
+   and (for the runes that need a choice made) its parameter. */
+.trg-prime .trg-customise-runes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--trg-line);
+  border-radius: 4px;
+  background: var(--trg-parchment-light);
+  max-height: 230px;
+  overflow-y: auto;
+}
+
+/* The magic item builders (3.248.0). One ability per row: what it is,
+   how much, and which of the chapter's adjustments apply to it. */
+.trg-prime .trg-builder-body { display: flex; flex-direction: column; gap: 6px; }
+
+.trg-prime .trg-builder-abilities {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--trg-gold-dark);
+  border-radius: 4px;
+  background: var(--trg-parchment);
+}
+
+.trg-prime .trg-builder-ability {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) 56px minmax(0, 1fr) minmax(0, 1.2fr) 88px;
+  gap: 6px;
+  align-items: start;
+}
+
+.trg-prime .trg-builder-ability select,
+.trg-prime .trg-builder-ability input,
+.trg-prime .trg-builder-body > .form-group select,
+.trg-prime .trg-builder-body > .form-group input,
+.trg-prime .trg-builder-body select[multiple] {
+  width: 100%;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--trg-gold-dark);
+  border-radius: 4px;
+  background: var(--trg-parchment-light);
+  color: var(--trg-ink);
+  font-family: inherit;
+  font-size: 0.78rem;
+}
+
+.trg-prime .trg-ability-price {
+  align-self: center;
+  color: var(--trg-muted);
+  font-size: 0.74rem;
+  text-align: right;
+}
+
+.trg-prime .trg-builder-check {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.78rem;
+}
+
+.trg-prime .trg-builder-problems p { margin: 2px 0; }
+
+/* ------------------------------------------------------------------
+ * THE BUILDER'S OWN FORM ROWS (3.310.0).
+ *
+ * Graham, 14 Aug 2026: "When building a charged item, the Spells select
+ * box is too small and very hard to see."
+ *
+ * It was, and the markup was not the reason. The builder dialog carries
+ * `["trg-prime", "trg-builder"]` — NOT `trg-check-dialog` — so the
+ * `.trg-check-dialog .form-group` grid further up this file, and the
+ * `.stacked` escape hatch that gives a control its own full-width line,
+ * never reached it. Its form groups fell through to Foundry's own
+ * `.standard-form .form-group` flex row, where the label and the control
+ * share one line and the control is a flex child sized by its content. A
+ * `<select multiple size="10">` in that position is a narrow column of
+ * 0.78rem text: exactly what was reported.
+ *
+ * So the builder gets the same two rules the check dialog has, under its
+ * own class — rather than a one-off width on the spells box, which is the
+ * fix that would have left the next builder control to be reported
+ * separately.
+ * ------------------------------------------------------------------ */
+.trg-prime .trg-builder-body .form-group {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.trg-prime .trg-builder-body .form-group.stacked {
+  display: block;
+}
+
+.trg-prime .trg-builder-body .form-group.stacked > label {
+  display: block;
+  margin-bottom: 4px;
+  line-height: 1.35;
+}
+
+.trg-prime .trg-builder-body .form-group.stacked select,
+.trg-prime .trg-builder-body .form-group.stacked input {
+  width: 100%;
+}
+
+/* A list you PICK FROM is a different thing from a field you fill in, and
+   sizing it like one is what made it unreadable. Tall enough to compare
+   options without scrolling for each, and at reading size rather than the
+   compact control size. */
+.trg-prime .trg-builder-spells {
+  min-height: 260px;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  padding: 2px;
+}
+
+.trg-prime .trg-builder-spells option {
+  padding: 3px 6px;
+  border-radius: 3px;
+}
+
+/* A multi-select gives no other sign of what is in the item. The browser's
+   own selected colour is the OS accent over parchment, which is the second
+   half of "very hard to see". */
+.trg-prime .trg-builder-spells option:checked {
+  background: var(--trg-gold-dark);
+  color: var(--trg-parchment-light);
+  font-weight: 600;
+}
+
+.trg-prime .trg-builder-spell-filter {
+  margin-bottom: 4px;
+}
+
+/* The built-in warp panel: one row per chosen spell (3.310.0). */
+.trg-prime .trg-builder-warps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 190px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--trg-gold-dark);
+  border-radius: 4px;
+  background: var(--trg-parchment);
+  color: var(--trg-ink);
+}
+
+.trg-prime .trg-builder-warp-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) 110px 104px;
+  gap: 6px;
+  align-items: center;
+}
+
+.trg-prime .trg-builder-warp-row .trg-warp-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trg-prime .trg-builder-warp-row .trg-warp-cost {
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+.trg-prime .trg-builder-warp-row .trg-warp-edit {
+  font-size: 0.74rem;
+  padding: 2px 6px;
+  line-height: 1.4;
+}
+
+/* The notes span the row beneath it — a warp's text is a sentence, not a
+   cell, and truncating it hides the very thing being paid for. */
+.trg-prime .trg-builder-warp-row .trg-warp-notes {
+  grid-column: 1 / -1;
+  color: var(--trg-muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+/* The picker's own filter row (3.248.0). Filters belong on the list you
+   are choosing from, not the list of what you already own. */
+.trg-prime .trg-picker-facets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 6px 0 4px;
+}
+
+.trg-prime .trg-picker-facet {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  color: var(--trg-muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.trg-prime .trg-picker-facet select {
+  min-width: 0;
+  max-width: 150px;
+  padding: 2px 6px;
+  border: 1px solid var(--trg-gold-dark);
+  border-radius: 4px;
+  background: var(--trg-parchment-light);
+  color: var(--trg-ink);
+  font-family: inherit;
+  font-size: 0.76rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.trg-prime .trg-picker-count {
+  margin: 4px 0 0;
+  text-align: right;
+}
+
+/* Over the investment limit (Chapter 11). Marked rather than merely
+   printed — investItem refuses to take you past the cap, but a GM edit
+   or an import can, and a badge that reads the same either way is a
+   number nobody reads twice. */
+.trg-prime .encumbrance-badge.investment-over {
+  border-color: var(--trg-danger, #a33);
+  color: var(--trg-danger, #a33);
+  font-weight: 600;
+}
+
+/* Filter rows above an item table (3.247.0). Matches the spell table's
+   own filter row, so every filtered list on the sheet reads the same. */
+.trg-prime .list-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 6px;
+}
+
+.trg-prime .list-filter-row label {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  color: var(--trg-muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.trg-prime .list-filter-row select {
+  min-width: 0;
+  padding: 2px 6px;
+  border: 1px solid var(--trg-gold-dark);
+  border-radius: 4px;
+  background: var(--trg-parchment-light);
+  color: var(--trg-ink);
+  font-family: inherit;
+  font-size: 0.76rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.trg-prime .trg-rune-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 116px) minmax(0, 116px);
+  gap: 6px;
+  align-items: center;
+}
+
+/* A rune with no parameter leaves the third column empty rather than
+   stretching its tier select across it, so every row's controls line up. */
+.trg-prime .trg-rune-row > .trg-rune-name {
+  color: var(--trg-ink);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: help;
+}
+
+.trg-prime .trg-rune-row select,
+.trg-prime .trg-rune-row input[type="text"] {
+  width: 100%;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--trg-gold-dark);
+  border-radius: 4px;
+  background: var(--trg-parchment-light);
+  color: var(--trg-ink);
+  font-family: inherit;
+  font-size: 0.78rem;
+}
+
+/* The parameter box was inheriting the dialog's dark input styling and
+   read as a black bar with unreadable placeholder text. */
+.trg-prime .trg-rune-row input[type="text"]::placeholder {
+  color: var(--trg-muted);
+  opacity: 1;
+}
+
+/* SPELL EFFECT takes three controls, not two — the spell and how often
+   it may be cast — so its row wraps onto a second line rather than
+   squeezing the spell names into a 116px column. */
+.trg-prime .trg-rune-row-spell {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 116px) minmax(0, 116px);
+  grid-template-areas:
+    "name tier frequency"
+    "spell spell spell";
+  row-gap: 4px;
+}
+
+.trg-prime .trg-rune-row-spell > .trg-rune-name { grid-area: name; }
+.trg-prime .trg-rune-row-spell > .trg-rune-tier { grid-area: tier; }
+.trg-prime .trg-rune-row-spell > .trg-rune-frequency { grid-area: frequency; }
+.trg-prime .trg-rune-row-spell > .trg-rune-spell { grid-area: spell; }
+
+.trg-prime .trg-rune-allowance {
+  color: var(--trg-muted);
+  font-size: 0.68rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The activated runes' buttons (Chapter 11, group 2), on the item sheet's
+   Runes card. One row per rune: the button, then what it does. */
+.trg-prime .trg-rune-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.trg-prime .trg-rune-action {
+  display: grid;
+  grid-template-columns: minmax(0, 150px) minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.trg-prime .trg-rune-action-name {
+  color: var(--trg-ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.trg-prime .trg-rune-action-note {
+  color: var(--trg-muted);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.trg-prime .trg-rune-problems:empty {
+  display: none;
+}
+
+.trg-prime .trg-rune-problems .hint {
+  margin: 2px 0;
+  color: var(--trg-burgundy);
+  font-size: 0.74rem;
+}
+
+.trg-prime .trg-customise-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--trg-gold-dark);
+  border-radius: 6px;
+  background: rgb(198 162 82 / 14%);
+}
+
+.trg-prime .trg-customise-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+}
+
+.trg-prime .trg-customise-summary span {
+  color: var(--trg-muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.trg-prime .trg-customise-summary strong {
+  color: var(--trg-burgundy);
+  font-size: 1.1rem;
+}
+
+/* Customisation summary bar on the item sheet itself (Weapon/Armour/
+   Shield sections) — distinct from the dialog's own summary above. */
+.trg-prime .trg-item-customise-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--trg-line);
+  border-radius: 6px;
+  background: rgb(198 162 82 / 8%);
+  font-size: 0.8rem;
+}
+
+.trg-prime .trg-item-customise-summary strong {
+  color: var(--trg-gold-dark);
+  font-weight: 700;
+}
+
+.trg-prime .trg-item-customise-summary .small-button {
+  margin-left: auto;
+  height: 26px;
+  padding: 0 10px;
+  font-size: 0.68rem;
+}
+}
+
+/* Immunity field: what each entry resolved into. An unrecognised entry
+   is called out rather than left looking like it works. */
+.trg-prime .trg-defence-summary {
+  list-style: none;
+  margin: 2px 0 6px;
+  padding: 0 0 0 2px;
+  font-size: 0.85em;
+  opacity: 0.85;
+}
+
+.trg-prime .trg-defence-summary li {
+  line-height: 1.4;
+}
+
+.trg-prime .trg-defence-summary .trg-defence-unresolved {
+  color: #a33;
+  opacity: 1;
+}
+
+.trg-prime .trg-defence-summary .trg-defence-unresolved strong {
+  text-decoration: underline wavy #a33;
+}
+
+/* ---- Effect sheet ---------------------------------------------------
+   Foundry's own ActiveEffect config is a form about attribute paths.
+   This is the same information wearing the rest of the system's clothes,
+   with the mechanical half behind the GM tab's toggle. */
+.trg-prime-sheet.trg-effect-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+.trg-effect-sheet .effect-hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.trg-effect-sheet .effect-portrait {
+  width: 64px;
+  height: 64px;
+  border: 2px solid rgba(120, 84, 40, 0.55);
+  border-radius: 8px;
+  object-fit: cover;
+  cursor: pointer;
+}
+
+.trg-effect-sheet .effect-hero-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.trg-effect-sheet .effect-name-input {
+  font-size: 1.25em;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(120, 84, 40, 0.35);
+  padding: 2px 0;
+}
+
+.trg-effect-sheet .effect-name-input[readonly] {
+  border-bottom-style: dotted;
+  opacity: 0.85;
+  cursor: default;
+}
+
+.trg-effect-sheet .eyebrow {
+  color: var(--trg-ink);
+  opacity: 0.55;
+}
+
+.trg-effect-sheet .effect-hero-meta {
+  margin: 0;
+  font-size: 0.85em;
+  opacity: 0.75;
+}
+
+.trg-prime .change-header,
+.trg-prime .change-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 2fr) 1fr 0.9fr 1fr 64px 34px;
+  gap: 6px;
+  align-items: center;
+}
+
+.trg-effect-sheet .card-heading {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.trg-effect-sheet .card-heading .gold-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.trg-effect-sheet .effect-internals-extra {
+  margin-top: 8px;
+}
+
+.trg-effect-sheet .effect-internals-note {
+  margin: 0 4px 6px;
+  font-style: italic;
+  opacity: 0.8;
+}
+
+/* ---- Add Effect dialog ---------------------------------------------- */
+.trg-prime .trg-add-effect-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trg-prime .trg-add-effect-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.6;
+  font-variant: small-caps;
+}
+
+.trg-prime .trg-add-effect-divider::before,
+.trg-prime .trg-add-effect-divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid rgba(120, 84, 40, 0.35);
+}
+
+.trg-prime .checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.trg-prime .checkbox-field input[type="checkbox"] {
+  flex: 0 0 auto;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Universal Modifier                                                      */
+/* ---------------------------------------------------------------------- */
+
+.trg-universal-modifier .um-root {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  overflow: hidden;
+}
+
+.trg-universal-modifier .um-targetbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 2px;
+  border-bottom: 1px solid var(--color-border-light-tertiary, #999);
+}
+
+.trg-universal-modifier .um-targetbar select {
+  width: auto;
+  max-width: 200px;
+}
+
+.trg-universal-modifier .um-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.trg-universal-modifier .um-chip {
+  background: rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--color-border-light-tertiary, #999);
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 0.85em;
+}
+
+.trg-universal-modifier .um-chip-empty {
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.trg-universal-modifier .um-tabs {
+  display: flex;
+  gap: 12px;
+  border-bottom: 1px solid var(--color-border-light-tertiary, #999);
+  padding: 0 2px 4px 2px;
+}
+
+.trg-universal-modifier .um-tab {
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px 4px 0 0;
+}
+
+.trg-universal-modifier .um-tab.active {
+  font-weight: bold;
+  text-shadow: 0 0 8px var(--color-shadow-primary, #ff6400);
+}
+
+.trg-universal-modifier .um-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 2px;
+}
+
+.trg-universal-modifier .um-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 6px 0;
+  align-items: flex-end;
+}
+
+.trg-universal-modifier .um-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.9em;
+}
+
+.trg-universal-modifier .um-row label.um-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+
+.trg-universal-modifier .um-row input[type="number"],
+.trg-universal-modifier .um-row input[type="text"] {
+  width: 140px;
+}
+
+.trg-universal-modifier .um-current,
+.trg-universal-modifier .um-currentblock {
+  margin: 6px 0;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.05);
+  border-left: 3px solid var(--color-border-highlight, #ff6400);
+}
+
+.trg-universal-modifier .um-kind {
+  opacity: 0.65;
+  font-size: 0.85em;
+  margin-left: 6px;
+}
+
+.trg-universal-modifier .um-note {
+  font-size: 0.85em;
+  opacity: 0.75;
+  margin: 4px 0;
+}
+
+.trg-universal-modifier .um-actions {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.trg-universal-modifier .um-actions button {
+  width: auto;
+  padding: 2px 14px;
+}
+
+.trg-universal-modifier .um-primary {
+  font-weight: bold;
+}
+
+.trg-universal-modifier .um-preview {
+  margin-top: 4px;
+}
+
+.trg-universal-modifier .um-line {
+  margin: 2px 0;
+}
+
+.trg-universal-modifier .um-ok {
+  color: var(--color-level-success, #1a6a1a);
+  font-weight: bold;
+}
+
+.trg-universal-modifier .um-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 2px 0 8px 0;
+}
+
+.trg-universal-modifier .um-table td {
+  padding: 2px 6px;
+  border-bottom: 1px dotted rgba(0, 0, 0, 0.15);
+}
+
+.trg-universal-modifier .um-badge {
+  background: var(--color-border-highlight, #ff6400);
+  color: #fff;
+  border-radius: 6px;
+  padding: 0 5px;
+  font-size: 0.75em;
+}
+
+.trg-universal-modifier .um-txn {
+  border: 1px solid var(--color-border-light-tertiary, #999);
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin: 6px 0;
+}
+
+.trg-universal-modifier .um-txn-undone {
+  opacity: 0.6;
+}
+
+.trg-universal-modifier .um-txn-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.trg-universal-modifier .um-txn-head button {
+  width: auto;
+  padding: 1px 10px;
+}
+
+.trg-universal-modifier .um-undone {
+  font-size: 0.85em;
+  font-style: italic;
+}
+
+/* Inputs whose value includes a live Active Effect contribution are locked
+   so the bonus cannot be baked into the stored base by a form submit. */
+.trg-prime input.effect-modified {
+  border-color: var(--color-border-highlight, #ff6400);
+  background: rgba(255, 100, 0, 0.08);
+}
+
+
+/* Locked bonus slots read as locked: dimmed, not editable. `disabled`
+   (not `readonly`) is what keeps them out of the submitted form data —
+   see actor-sheet.mjs _onRender. Selects as well as inputs: a race sets
+   size through the Identity dropdown. */
+.trg-prime input.effect-modified:disabled,
+.trg-prime select.effect-modified:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.trg-prime select.effect-modified {
+  border-color: var(--color-border-highlight, #ff6400);
+  background: rgba(255, 100, 0, 0.08);
+}
+
+/* ---------------------------------------------------------------- */
+/* Languages (Chapter 2)                                            */
+/* ---------------------------------------------------------------- */
+
+.trg-prime .trg-language-panel {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border-light-tertiary, #7a7971);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.trg-prime .trg-language-panel.is-over {
+  border-color: var(--color-border-highlight, #ff6400);
+  background: rgba(255, 100, 0, 0.07);
+}
+
+.trg-prime .trg-language-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.trg-prime .trg-language-header > span:first-child {
+  flex: 0 0 auto;
+}
+
+.trg-prime .trg-language-count {
+  flex: 1 1 auto;
+  font-weight: 400;
+  font-size: 0.9em;
+}
+
+.trg-prime .trg-language-count strong {
+  font-size: 1.05em;
+}
+
+.trg-prime .trg-language-count em {
+  font-style: italic;
+  opacity: 0.75;
+  margin-left: 6px;
+}
+
+.trg-prime .trg-language-panel.is-over .trg-language-count em {
+  color: var(--color-border-highlight, #ff6400);
+  opacity: 1;
+  font-weight: 600;
+}
+
+.trg-prime .trg-language-header button {
+  flex: 0 0 auto;
+  padding: 2px 10px;
+  font-size: 0.85em;
+}
+
+.trg-prime .trg-language-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-height: 26px;
+}
+
+.trg-prime .trg-language-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid var(--color-border-light-tertiary, #7a7971);
+  border-radius: 10px;
+  font-size: 0.9em;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.trg-prime .trg-language-chip em {
+  font-size: 0.78em;
+  font-style: italic;
+  opacity: 0.65;
+}
+
+.trg-prime .trg-language-chip.is-core {
+  background: rgba(0, 0, 0, 0.08);
+  font-weight: 600;
+}
+
+.trg-prime .trg-language-chip.is-off-list {
+  border-style: dashed;
+  border-color: var(--color-border-highlight, #ff6400);
+}
+
+/* Manager dialog */
+.trg-prime .trg-language-manager {
+  max-height: 560px;
+  overflow-y: auto;
+}
+
+.trg-prime .trg-language-summary {
+  margin: 6px 0 10px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.trg-prime .trg-language-summary ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 0.88em;
+  opacity: 0.85;
+}
+
+.trg-prime .trg-language-group {
+  margin: 0 0 10px;
+  padding: 6px 10px 8px;
+  border: 1px solid var(--color-border-light-tertiary, #7a7971);
+  border-radius: 4px;
+}
+
+.trg-prime .trg-language-group legend {
+  padding: 0 6px;
+  font-weight: 600;
+}
+
+.trg-prime .trg-language-row.is-core label {
+  opacity: 0.7;
+}
+
+.trg-prime .trg-language-tag {
+  font-size: 0.75em;
+  font-style: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.trg-prime .trg-language-tag.off-list {
+  background: rgba(255, 100, 0, 0.18);
+}
+
+.trg-prime .trg-language-chip.is-temporary {
+  border-style: dotted;
+  font-style: italic;
+}
+
+.trg-prime .trg-language-tag.racial {
+  background: rgba(0, 0, 0, 0.08);
+  opacity: 0.8;
+}
+
+.trg-prime .trg-language-split {
+  display: block;
+  margin-left: 0;
+  font-size: 0.82em;
+  opacity: 0.6;
+}
+
+/* ------------------------------------------------------------------ *
+ * Class progression table (item sheet)
+ *
+ * Twenty rows of nine numbers, read-only. The class item is where a
+ * character's BAB, defence, saves, HP, PP and caster level now come
+ * from, so this table is the one place a GM can see the whole shape of
+ * a class at once — it wants to be dense and scannable rather than
+ * pretty, and it must not stretch the sheet horizontally.
+ * ------------------------------------------------------------------ */
+.trg-prime .progression-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+  margin: 4px 0 8px;
+  table-layout: fixed;
+}
+
+.trg-prime .progression-table th,
+.trg-prime .progression-table td {
+  padding: 1px 3px;
+  text-align: center;
+  border: 1px solid var(--trg-rule, rgba(0, 0, 0, 0.15));
+}
+
+.trg-prime .progression-table th {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* The level column is the one a reader scans down, so it is anchored
+   left and given the only emphasis on the row. */
+.trg-prime .progression-table td:first-child {
+  font-weight: 600;
+}
+
+.trg-prime .progression-table tbody tr:nth-child(even) {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* ------------------------------------------------------------------ *
+ * Class-skill cell (Skills tab)
+ *
+ * The Class column was a number input and is now a tickbox plus what it
+ * is worth. That matters for layout: `.skill-row input` sets
+ * `width: 100%; height: 37px` on every input in the row — right for the
+ * numeric columns, and it inflated the checkbox to fill the whole cell
+ * and shoved the value out into the Racial column beside it. So the
+ * checkbox gets its own size back, and the cell takes over the column
+ * separator and full height the input used to provide.
+ * ------------------------------------------------------------------ */
+.trg-prime .skill-row .class-skill-cell {
+  display: flex;
+  height: 37px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 0 4px;
+  /* The same hairline every other column in the row draws on its input. */
+  border-left: 1px solid rgb(91 61 31 / 14%);
+  cursor: pointer;
+}
+
+/* Drawn rather than left to the browser. Foundry's own control is a
+   dark filled block, which on a parchment sheet reads as a heavy smudge
+   in the middle of a pale table — and the row rule above had already
+   stripped its border and background, so there was nothing left to make
+   an unticked box look like a box. */
+.trg-prime .skill-row .class-skill-cell input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--trg-gold-dark);
+  border-radius: 2px;
+  background: var(--trg-parchment-light);
+  box-shadow: none;
+  display: inline-grid;
+  place-content: center;
+}
+
+.trg-prime .skill-row .class-skill-cell input[type="checkbox"]::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  transform: scale(0);
+  transition: transform 90ms ease-in-out;
+  background: var(--trg-burgundy);
+  /* A tick, not a square — clip-path keeps it crisp at this size where a
+     glyph would sit half a pixel out. */
+  clip-path: polygon(14% 47%, 0 61%, 39% 100%, 100% 20%, 85% 8%, 37% 71%);
+}
+
+.trg-prime .skill-row .class-skill-cell input[type="checkbox"]:checked {
+  border-color: var(--trg-burgundy);
+}
+
+.trg-prime .skill-row .class-skill-cell input[type="checkbox"]:checked::before {
+  transform: scale(1);
+}
+
+.trg-prime .skill-row .class-skill-cell input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--trg-gold-dark);
+  outline-offset: 1px;
+}
+
+/* Disabled means another source already made this a class skill —
+   unticking it would do nothing, so it should read as stated rather than
+   broken. Full opacity, a dimmer border, and a help cursor pointing at
+   the tooltip that names the source. */
+.trg-prime .skill-row .class-skill-cell input[type="checkbox"]:disabled {
+  opacity: 1;
+  cursor: help;
+  border-color: var(--trg-burgundy);
+  background: var(--trg-parchment);
+}
+
+.trg-prime .skill-row .class-skill-cell:has(input:disabled) {
+  cursor: help;
+}
+
+/* What the tick is worth, and — separately — any flat class bonus a feat
+   has written into the old numeric slot. Both are small, tabular and
+   allowed to shrink rather than overflow the column. */
+.trg-prime .class-skill-value,
+.trg-prime .class-skill-flat {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.trg-prime .class-skill-value {
+  color: var(--trg-burgundy);
+  font-weight: 700;
+}
+
+/* Dimmer than the class-skill value, because it is a different thing:
+   a flat class bonus from a feat, stacking on top. */
+.trg-prime .class-skill-flat {
+  color: var(--trg-muted);
+}
+
+/* Maximum PP in the resource header reads out rather than being typed:
+   it is derived from 3.206.0 (base + the class table's PP column + your
+   magical ability score). Styled to match the number input beside it, so
+   the pair does not read as one editable and one broken. */
+.trg-prime .resource-values output.pp-max {
+  width: 43px;
+  color: #fff5dc;
+  font-weight: 700;
+  font-size: 1rem;
+  text-align: center;
+}
+
+
+/* ------------------------------------------------------------------ */
+/* The proficiency panel (3.215.2)                                     */
+/*                                                                     */
+/* Was a row of chips under the Combat heading. A Druid produced        */
+/* thirteen of them — their armour and shields are named individually   */
+/* rather than by category — which wrapped onto three rows and pushed   */
+/* the tab's actual content down the page. It is reference: read once,  */
+/* checked occasionally. Behind an icon now.                            */
+/* ------------------------------------------------------------------ */
+
+/* The window itself. `classes: ["trg-prime", "trg-proficiency-dialog"]`
+   on the DialogV2 is what makes the parchment rule match; this states
+   the background and the ink colour outright as well, so the panel does
+   not depend on inheriting either. It shipped in 3.215.2 relying on
+   both, and rendered as dark text over the sheet behind it. */
+.trg-prime.trg-proficiency-dialog .window-content {
+  background: var(--trg-parchment);
+  color: var(--trg-ink);
+}
+
+.trg-prime .trg-proficiency-panel {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 2px 4px;
+  color: var(--trg-ink);
+}
+
+.trg-prime .trg-proficiency-panel .prof-group {
+  margin-bottom: 14px;
+}
+
+.trg-prime .trg-proficiency-panel .prof-group:last-child {
+  margin-bottom: 0;
+}
+
+.trg-prime .trg-proficiency-panel h4 {
+  margin: 0 0 5px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--trg-line);
+  color: var(--trg-gold-dark);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.trg-prime .trg-proficiency-panel ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trg-prime .trg-proficiency-panel li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 3px 2px;
+  border-bottom: 1px solid rgb(94 63 31 / 10%);
+  font-size: 0.82rem;
+}
+
+.trg-prime .trg-proficiency-panel li:last-child {
+  border-bottom: 0;
+}
+
+.trg-prime .trg-proficiency-panel .prof-what {
+  min-width: 0;
+}
+
+/* The source, held to the right and quiet — "where did this come from"
+   is the follow-up question, not the first one. */
+.trg-prime .trg-proficiency-panel .prof-from {
+  flex: 0 0 auto;
+  max-width: 45%;
+  overflow: hidden;
+  color: var(--trg-muted);
+  font-size: 0.68rem;
+  font-style: italic;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trg-prime .trg-proficiency-panel .prof-problems h4 {
+  color: #a1401f;
+  border-bottom-color: rgb(161 64 31 / 35%);
+}
+
+.trg-prime .trg-proficiency-panel .prof-note {
+  margin: 5px 0 0;
+  color: var(--trg-muted);
+  font-size: 0.68rem;
+  font-style: italic;
+}
+
+/* The rulebook's own sentence, kept at the bottom as provenance for
+   everything above it. */
+.trg-prime .trg-proficiency-panel .prof-printed {
+  margin: 14px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--trg-line);
+  color: var(--trg-muted);
+  font-size: 0.7rem;
+  font-style: italic;
+}
+
+/* ------------------------------------------------------------------
+ * PARTY SHEET (3.293.0)
+ *
+ * A roster the GM curates and a loot pile players take from. Reuses the
+ * actor sheet's card, tab and header classes so the two read as one
+ * system; only the pieces that have no equivalent are new.
+ *
+ * Colours come from the palette rather than fresh hex values, for the
+ * reason the dialog block above the item picker gives — a surface that
+ * invents its own colours is a surface that drifts from the rest.
+ * ------------------------------------------------------------------ */
+
+.trg-prime .party-sheet .party-count {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.trg-prime .party-empty {
+  padding: 10px 4px;
+  font-style: italic;
+}
+
+/* --- roster rows --- */
+.trg-prime .party-member {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px;
+  margin-bottom: 6px;
+  border: 1px solid var(--trg-parchment-dark);
+  border-radius: 6px;
+  background: var(--trg-parchment-light);
+}
+
+.trg-prime .party-member-missing {
+  border-style: dashed;
+  opacity: 0.8;
+}
+
+.trg-prime .party-member-portrait {
+  flex: 0 0 56px;
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border: 1px solid var(--trg-gold-dark);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.trg-prime .party-member-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.trg-prime .party-member-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.trg-prime .party-member-name {
+  font-weight: 700;
+  font-size: 1.05rem;
+  cursor: pointer;
+  color: var(--trg-ink);
+}
+
+.trg-prime .party-member-name:hover {
+  text-decoration: underline;
+}
+
+.trg-prime .party-member-level,
+.trg-prime .party-member-tag {
+  font-size: 0.72rem;
+  color: var(--trg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.trg-prime .party-member-tag {
+  padding: 1px 6px;
+  border: 1px solid var(--trg-parchment-dark);
+  border-radius: 10px;
+}
+
+.trg-prime .party-member-identity {
+  font-size: 0.8rem;
+  color: var(--trg-muted);
+  margin-bottom: 4px;
+}
+
+/* --- the HP and PP bars --- */
+.trg-prime .party-bar-row {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.trg-prime .party-bar-label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: var(--trg-muted);
+}
+
+.trg-prime .party-bar {
+  height: 9px;
+  border: 1px solid var(--trg-parchment-dark);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+/* A zero-width fill still has to be a valid box, or an empty bar
+   renders as a 1px sliver of colour rather than nothing. */
+.trg-prime .party-bar-fill {
+  height: 100%;
+  min-width: 0;
+  border-radius: 4px 0 0 4px;
+}
+
+.trg-prime .party-bar-hp { background: #8a1c1c; }
+.trg-prime .party-bar-pp { background: #3c5a8a; }
+
+.trg-prime .party-bar-value {
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--trg-ink);
+}
+
+.trg-prime .party-temp { color: #3c5a8a; font-weight: 700; }
+
+.trg-prime .party-conditions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.trg-prime .party-condition {
+  font-size: 0.68rem;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(138, 28, 28, 0.12);
+  color: #8a1c1c;
+  border: 1px solid rgba(138, 28, 28, 0.3);
+}
+
+.trg-prime .party-remove {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--trg-muted);
+}
+
+.trg-prime .party-remove:hover { color: #8a1c1c; }
+
+/* --- loot --- */
+.trg-prime .party-coin-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.trg-prime .party-coin { display: flex; flex-direction: column; gap: 2px; }
+
+.trg-prime .party-coin label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--trg-muted);
+}
+
+.trg-prime .party-coin input { width: 5em; text-align: right; }
+
+.trg-prime .party-coin-total {
+  margin-left: auto;
+  text-align: right;
+  font-weight: 700;
+}
+
+.trg-prime .party-coin-total label {
+  display: block;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  color: var(--trg-muted);
+}
+
+.trg-prime .party-loot-table { width: 100%; border-collapse: collapse; }
+
+.trg-prime .party-loot-table th {
+  text-align: left;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--trg-muted);
+  border-bottom: 1px solid var(--trg-parchment-dark);
+  padding: 2px 4px;
+}
+
+.trg-prime .party-loot-table td {
+  padding: 3px 4px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  font-variant-numeric: tabular-nums;
+}
+
+.trg-prime .loot-name { display: flex; align-items: center; gap: 6px; }
+
+.trg-prime .loot-name img {
+  width: 22px;
+  height: 22px;
+  object-fit: cover;
+  border: 1px solid var(--trg-parchment-dark);
+  border-radius: 3px;
+}
+
+.trg-prime .party-loot-actions { text-align: right; white-space: nowrap; }
+
+.trg-prime .party-loot-actions button,
+.trg-prime .party-take-coin {
+  background: none;
+  border: 1px solid var(--trg-parchment-dark);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--trg-ink);
+  padding: 2px 8px;
+}
+
+.trg-prime .party-loot-actions button:hover,
+.trg-prime .party-take-coin:hover { background: var(--trg-parchment-dark); }
+
+.trg-prime .party-loot-total { float: right; font-weight: 400; }
+
+/* ------------------------------------------------------------------
+ * A USES COUNTER YOU CAN PUT BACK (3.311.3).
+ *
+ * Graham, 14 Aug 2026: "Innate spells with the Focus trait have no way of
+ * being reset." The figure was plain text, so the only affordance on the
+ * row spent uses and nothing returned them. It is a button now, and it has
+ * to LOOK like one without turning the Magic tab into a wall of chrome —
+ * so it reads as text until pointed at.
+ * ------------------------------------------------------------------ */
+.trg-prime .uses-set {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font: inherit;
+  color: inherit;
+  line-height: 1.3;
+  cursor: pointer;
+  width: auto;
+}
+
+.trg-prime .uses-set:hover,
+.trg-prime .uses-set:focus-visible {
+  border-color: var(--trg-gold-dark);
+  background: var(--trg-parchment-light);
+}
+
+/* Nothing left to give back — shown, not hidden, so the row does not
+   change shape as uses are spent and restored. */
+.trg-prime .item-controls button[data-action="restoreItemUse"][disabled] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ------------------------------------------------------------------
+ * PARTY REWARDS TAB (3.619.0; Chapter 12) — the encounter builder, the
+ * accomplishment awards, the treasure guide and Begin Session.
+ * ------------------------------------------------------------------ */
+.trg-prime .party-encounter-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.trg-prime .party-encounter-head select { margin-left: 6px; }
+.trg-prime .party-encounter-table input[type="number"] { width: 3.5em; }
+.trg-prime .party-over {
+  margin-left: 6px;
+  color: var(--trg-burgundy);
+  font-weight: 700;
+  font-size: 0.85em;
+}
+.trg-prime .party-reward-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.trg-prime .party-reward-buttons button { flex: 0 1 auto; }
+.trg-prime .party-reward-buttons input[type="number"] { width: 6em; }
+.trg-prime .endeavour-award { margin-top: 4px; }
+
+/* A PERIL'S OLD SINGLE SKILL AND DC, UNDER A PRINTED LINE (3.629.2): the
+   fields are disabled because the Detection or Disable line replaces them;
+   they should also look it. Found on the 3.629.1 live test. */
+.trg-prime .trg-peril-card input:disabled,
+.trg-prime .trg-peril-card select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

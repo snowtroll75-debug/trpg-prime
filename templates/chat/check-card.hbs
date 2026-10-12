@@ -1,0 +1,127 @@
+<div class="trg-prime trg-check-card degree-{{degreeKey}}{{#if compact}} compact{{/if}}">
+
+  <header class="check-header">
+    <div class="check-heading">
+      <span class="check-actor">{{actorName}}</span>
+      <h3>{{label}}</h3>
+      {{#if subtitle}}<span class="check-subtitle">{{subtitle}}</span>{{/if}}
+    </div>
+    <div class="check-total" data-tooltip="Total result">
+      <span>{{outcome.total}}</span>
+    </div>
+  </header>
+
+  <div class="check-details-wrapper">
+    {{#if compact}}
+      <div class="compact-summary-row">
+        <span class="compact-summary">{{compactSummary}}</span>
+        <i class="fa-solid fa-list-ul check-details-icon" aria-label="Full breakdown" role="button" tabindex="0"></i>
+      </div>
+    {{/if}}
+
+    <div class="check-details">
+      {{#if extraDetailLines.length}}
+        {{#each extraDetailLines as |extraLine|}}
+          {{{extraLine}}}
+        {{/each}}
+      {{/if}}
+
+      {{#if showDegree}}
+      {{#if outcome.degree}}
+        <div class="degree-banner">
+          <span class="degree-label">{{degreeLabel}}</span>
+          {{#if showDC}}<span class="degree-margin">{{marginText}}</span>{{/if}}
+        </div>
+      {{else}}
+        <div class="degree-banner degree-unknown">
+          <span class="degree-label">Awaiting Difficulty</span>
+          <span class="degree-margin">Compare the total against the GM's DC</span>
+          {{#if showDCInput}}
+            <div class="gm-only-control set-dc-control">
+              <input type="number" name="checkDCInput" placeholder="Set DC" class="dc-input">
+              <button type="button" data-action="checkSetDC" class="set-dc-button">
+                <i class="fa-solid fa-check"></i> Set DC
+              </button>
+            </div>
+          {{/if}}
+        </div>
+      {{/if}}
+      {{/if}}
+
+      {{#if outcome.chaos}}
+        <div class="chaos-banner">
+          <i class="fa-solid fa-bolt"></i>
+          <span>Chaos Result &mdash; the GM introduces an unpredictable outcome.</span>
+        </div>
+      {{/if}}
+
+      <div class="check-dice">
+        {{#each chains as |chain|}}
+          <div class="dice-chain{{#if chain.chosen}} chosen{{else}} discarded{{/if}}">
+            {{#each chain.faces as |entry|}}
+              {{#if entry.operator}}<span class="chain-operator">{{entry.operator}}</span>{{/if}}
+              <span class="die-face">{{entry.face}}</span>
+            {{/each}}
+            <span class="chain-total">= {{chain.total}}</span>
+          </div>
+        {{/each}}
+        <div class="dice-tags">
+          {{#if biasLabel}}<span class="bias-tag">{{biasLabel}}</span>{{/if}}
+          {{#if exploded}}<span class="open-ended-tag">Open-ended</span>{{/if}}
+          {{#if flat}}<span class="open-ended-tag">Flat check</span>{{/if}}
+        </div>
+      </div>
+
+      {{#if percentile}}
+        {{!-- A d100 bias REORDERS the two digits it rolled; it does not
+              roll a second tens die. When the bias moved them, show what
+              was rolled and what it became, so the swap is visible
+              rather than a number the player cannot account for. --}}
+        <div class="percentile-detail">
+          <span>Tens</span>
+          <span class="die-face small chosen">{{percentile.tens}}</span>
+          <span>Units</span>
+          <span class="die-face small">{{percentile.unit}}</span>
+          {{#if percentile.swapped}}
+            <span class="percentile-swap">&mdash; rolled {{percentile.drawn.[0]}}{{percentile.drawn.[1]}}, reordered</span>
+          {{/if}}
+        </div>
+      {{/if}}
+
+      {{#if modifiers.length}}
+        <ul class="check-modifiers">
+          {{#each modifiers as |modifier|}}
+            <li class="{{#unless modifier.applied}}suppressed{{/unless}}"
+                {{#if modifier.suppressed}}data-tooltip="{{modifier.suppressed}}"{{/if}}>
+              <span class="modifier-label">{{modifier.label}}</span>
+              <span class="modifier-type">{{modifier.typeLabel}}</span>
+              <span class="modifier-value">{{modifier.display}}</span>
+            </li>
+          {{/each}}
+        </ul>
+      {{/if}}
+
+      <footer class="check-footer">
+        <span>Dice {{diceTotal}}</span>
+        <span>Modifiers {{modifierTotalDisplay}}</span>
+        {{#if showDC}}<span>DC {{outcome.dc}}</span>{{/if}}
+        {{#if difficulty}}<span>{{difficulty}}</span>{{/if}}
+      </footer>
+    </div>
+  </div>
+
+  {{#if bonusEligible}}
+    <div class="conviction-bonus-control">
+      <button type="button" data-action="checkAddBonus" class="gold-button small-button">
+        <i class="fa-solid fa-star"></i> Spend Conviction (+1d6) &mdash; {{bonusPointsRemaining}} left
+      </button>
+    </div>
+  {{/if}}
+
+  {{#if showBonusCheck}}
+    <div class="bonus-check">
+      Bonus Check grants a <strong>{{bonusCheckDisplay}}</strong> circumstance modifier
+    </div>
+  {{/if}}
+
+</div>

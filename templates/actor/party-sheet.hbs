@@ -1,0 +1,244 @@
+<div class="trg-prime-sheet actor-sheet party-sheet">
+  <header class="sheet-header">
+    <div class="portrait-frame">
+      <img class="profile-img" src="{{actor.img}}" alt="{{actor.name}}" data-action="editImage" data-tooltip="Click to change portrait">
+    </div>
+    <div class="identity">
+      <div class="title-row">
+        <div class="name-field">
+          <span class="eyebrow">Party</span>
+          <input class="actor-name" type="text" name="name" value="{{actor.name}}" placeholder="Party Name" {{#unless isGM}}disabled{{/unless}}>
+        </div>
+        <div class="level-seal">
+          <label>Members</label>
+          <span class="party-count">{{memberCount}}</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="sheet-tabs" data-group="primary" role="tablist" aria-label="Party sheet tabs">
+    {{#each tabList as |tab|}}
+      <button type="button" class="sheet-tab {{tab.cssClass}}" data-action="selectTab"
+              data-group="primary" data-tab="{{tab.id}}" data-tooltip="{{tab.label}}"
+              role="tab" aria-selected="{{tab.active}}">
+        <i class="{{tab.icon}}"></i><span>{{tab.label}}</span>
+      </button>
+    {{/each}}
+  </nav>
+
+  <main class="sheet-body">
+
+    {{!-- ---------------------------------------------------------- --}}
+    {{!-- ROSTER                                                      --}}
+    {{!-- ---------------------------------------------------------- --}}
+    <section class="tab sheet-tab-panel {{tabs.roster.cssClass}}" data-group="primary" data-tab="roster">
+      <article class="ornate-card">
+        <h2><i class="fa-solid fa-users"></i> Roster</h2>
+
+        {{#unless hasMembers}}
+          <p class="hint party-empty">
+            {{#if isGM}}Drag a character or NPC from the sidebar onto this sheet to add them.
+            {{else}}The GM has not added anyone to this party yet.{{/if}}
+          </p>
+        {{/unless}}
+
+        {{#each members as |m|}}
+          <div class="party-member{{#if m.missing}} party-member-missing{{/if}}" data-uuid="{{m.uuid}}">
+            {{#if m.missing}}
+              <div class="party-member-main">
+                <span class="party-member-name">{{m.name}}</span>
+                <span class="hint">This actor has been deleted from the world.</span>
+              </div>
+            {{else}}
+              <img class="party-member-portrait" src="{{m.img}}" alt="{{m.name}}"
+                   data-action="openMember" data-tooltip="Open {{m.name}}'s sheet">
+              <div class="party-member-main">
+                <div class="party-member-head">
+                  <span class="party-member-name" data-action="openMember">{{m.name}}</span>
+                  <span class="party-member-level">Level {{m.level}}</span>
+                  {{#if m.isNPC}}<span class="party-member-tag">NPC</span>{{/if}}
+                </div>
+                <div class="party-member-identity">{{m.race}} &middot; {{m.class}}</div>
+
+                <div class="party-bar-row">
+                  <span class="party-bar-label">HP</span>
+                  <div class="party-bar"><div class="party-bar-fill party-bar-hp" style="width:{{m.hp.pct}}%"></div></div>
+                  <span class="party-bar-value">{{m.hp.value}} / {{m.hp.max}}{{#if m.hp.temp}} <span class="party-temp">+{{m.hp.temp}}</span>{{/if}}</span>
+                </div>
+
+                <div class="party-bar-row">
+                  <span class="party-bar-label">PP</span>
+                  <div class="party-bar"><div class="party-bar-fill party-bar-pp" style="width:{{m.pp.pct}}%"></div></div>
+                  <span class="party-bar-value">{{m.pp.value}} / {{m.pp.max}}</span>
+                </div>
+
+                {{#if m.conditions.length}}
+                  <div class="party-conditions">
+                    {{#each m.conditions as |c|}}<span class="party-condition">{{c}}</span>{{/each}}
+                  </div>
+                {{/if}}
+              </div>
+            {{/if}}
+
+            {{#if isGM}}
+              <button type="button" class="party-remove" data-action="removeMember"
+                      data-tooltip="Remove from roster"><i class="fa-solid fa-user-minus"></i></button>
+            {{/if}}
+          </div>
+        {{/each}}
+      </article>
+    </section>
+
+    {{!-- ---------------------------------------------------------- --}}
+    {{!-- LOOT                                                        --}}
+    {{!-- ---------------------------------------------------------- --}}
+    <section class="tab sheet-tab-panel {{tabs.loot.cssClass}}" data-group="primary" data-tab="loot">
+
+      <article class="ornate-card">
+        <h2><i class="fa-solid fa-coins"></i> Party Coin</h2>
+        <div class="party-coin-row">
+          {{#each coinKeys as |key|}}
+            <div class="party-coin">
+              <label>{{key}}</label>
+              <input type="number" name="system.currency.{{key}}" value="{{lookup ../currency key}}"
+                     min="0" {{#unless ../isGM}}disabled{{/unless}}>
+            </div>
+          {{/each}}
+          <div class="party-coin-total">
+            <label>Total</label>
+            <span>{{currencyGP}} gp</span>
+          </div>
+        </div>
+        <button type="button" class="party-take-coin" data-action="takeCoin">
+          <i class="fa-solid fa-hand-holding-dollar"></i> Take Coin
+        </button>
+      </article>
+
+      <article class="ornate-card">
+        <h2><i class="fa-solid fa-sack-dollar"></i> Party Loot
+          <span class="hint party-loot-total">{{loot.count}} items &middot; {{loot.totalWeight}} lb</span>
+        </h2>
+
+        {{#if loot.empty}}
+          <p class="hint party-empty">
+            {{#if isGM}}Drag gear, weapons, armour or consumables onto this sheet to add them to the pile.
+            {{else}}The party has no loot to share right now.{{/if}}
+          </p>
+        {{else}}
+          <table class="party-loot-table">
+            <thead>
+              <tr><th>Name</th><th>Qty</th><th>Wt.</th><th class="party-loot-actions"></th></tr>
+            </thead>
+            <tbody>
+              {{#each loot.rows as |row|}}
+                <tr class="loot-row" data-item-id="{{row.id}}">
+                  <td class="loot-name"><img src="{{row.img}}" alt=""><span>{{row.name}}</span></td>
+                  <td>{{row.quantity}}</td>
+                  <td>{{row.totalWeight}}</td>
+                  <td class="party-loot-actions">
+                    <button type="button" data-action="takeItem" data-tooltip="Take this">
+                      <i class="fa-solid fa-hand-holding"></i>
+                    </button>
+                    {{#if ../isGM}}
+                      <button type="button" data-action="deleteLoot" data-tooltip="Remove from the pile">
+                        <i class="fa-solid fa-trash"></i>
+                      </button>
+                    {{/if}}
+                  </td>
+                </tr>
+              {{/each}}
+            </tbody>
+          </table>
+        {{/if}}
+      </article>
+    </section>
+
+    {{!-- ---------------------------------------------------------- --}}
+    {{!-- REWARDS (3.619.0; Chapter 12, pages 389-393)                --}}
+    {{!-- ---------------------------------------------------------- --}}
+    <section class="tab sheet-tab-panel {{tabs.rewards.cssClass}}" data-group="primary" data-tab="rewards">
+
+      <article class="ornate-card party-rewards">
+        <h2><i class="fa-solid fa-dragon"></i> Encounter
+          <span class="hint party-loot-total">APL {{rewards.apl.apl}}{{#if rewards.apl.members}} ({{rewards.apl.exact}} across {{rewards.apl.members}}){{/if}}</span>
+        </h2>
+        <div class="party-encounter-head">
+          <label>Threat Level
+            <select name="system.encounter.threat" {{#unless isGM}}disabled{{/unless}}>
+              {{#each rewards.threatOptions as |t|}}<option value="{{t.key}}" {{#if t.selected}}selected{{/if}}>{{t.label}}</option>{{/each}}
+            </select>
+          </label>
+          <span class="party-encounter-budget">Budget <strong>{{rewards.summary.budget}}</strong> XP &middot; Total <strong>{{rewards.summary.total}}</strong> XP{{#if rewards.summary.over}} <span class="party-over">over budget</span>{{/if}}</span>
+        </div>
+        {{#if rewards.summary.actualThreat}}<p class="hint">As built, the encounter is <strong>{{rewards.summary.actualThreat}}</strong> for this party.</p>{{/if}}
+
+        {{#if rewards.creatures.length}}
+          <table class="party-loot-table party-encounter-table">
+            <thead><tr><th>Adversary</th><th>EL</th><th>No.</th><th>XP each</th><th>XP</th><th></th></tr></thead>
+            <tbody>
+              {{#each rewards.creatures as |c|}}
+                <tr data-creature-uuid="{{c.uuid}}">
+                  <td class="loot-name">{{#if c.img}}<img src="{{c.img}}" alt="">{{/if}}<span>{{c.name}}</span>
+                    {{#if c.beyond}}<span class="party-over" data-tooltip="Effective Level {{c.difference}} from the party's — off Chapter 12's table">beyond the table</span>{{/if}}</td>
+                  <td>{{c.el}}</td>
+                  <td><input type="number" min="0" value="{{c.count}}" data-encounter-count {{#unless ../isGM}}disabled{{/unless}}></td>
+                  <td>{{c.xpEach}}</td>
+                  <td>{{c.xp}}</td>
+                  <td class="party-loot-actions">{{#if ../isGM}}<button type="button" data-action="removeEncounterCreature" data-tooltip="Remove"><i class="fa-solid fa-trash"></i></button>{{/if}}</td>
+                </tr>
+              {{/each}}
+            </tbody>
+          </table>
+        {{else}}
+          <p class="hint party-empty">{{#if isGM}}With this tab open, drag adversaries (actors or perils) onto the sheet, or select their tokens and add them. Each is worth XP by its Effective Level against the party's (Chapter 12).{{else}}No encounter is being built.{{/if}}</p>
+        {{/if}}
+
+        {{#if isGM}}
+          <div class="party-reward-buttons">
+            <button type="button" data-action="addSelectedTokens"><i class="fa-solid fa-crosshairs"></i> Add Selected Tokens</button>
+            <button type="button" data-action="clearEncounter"><i class="fa-solid fa-eraser"></i> Clear</button>
+            <button type="button" data-action="awardEncounterXP" {{#unless rewards.summary.total}}disabled{{/unless}}>
+              <i class="fa-solid fa-trophy"></i> Award {{rewards.summary.total}} XP ({{rewards.split.each}} each)
+            </button>
+          </div>
+        {{/if}}
+      </article>
+
+      <article class="ornate-card">
+        <h2><i class="fa-solid fa-star"></i> Accomplishments</h2>
+        <p class="hint">Split evenly across the party (Chapter 12).</p>
+        {{#if isGM}}
+          <div class="party-reward-buttons">
+            {{#each rewards.accomplishments as |a|}}
+              <button type="button" data-action="awardAccomplishment" data-award="{{a.key}}">{{a.label}} {{a.xp}}</button>
+            {{/each}}
+          </div>
+          <div class="party-reward-buttons">
+            <input type="number" min="1" placeholder="XP" data-custom-xp>
+            <button type="button" data-action="awardCustomXP"><i class="fa-solid fa-gift"></i> Award</button>
+          </div>
+        {{/if}}
+      </article>
+
+      <article class="ornate-card">
+        <h2><i class="fa-solid fa-gem"></i> Treasure by Level</h2>
+        {{#if rewards.treasure}}
+          <p>A party of APL {{rewards.treasure.apl}} would expect about <strong>{{rewards.treasure.gp}} gp</strong> of total wealth and <strong>{{rewards.treasure.items}} magic items</strong>.</p>
+        {{else}}
+          <p class="hint">First-level characters start with the wealth from Chapter 6; the guide begins at APL 2.</p>
+        {{/if}}
+        <p class="hint">A guide for the GM only (Chapter 12) — nothing here is counted or enforced.</p>
+      </article>
+
+      {{#if isGM}}
+        <article class="ornate-card">
+          <h2><i class="fa-solid fa-dice-d20"></i> Session</h2>
+          <button type="button" data-action="beginSession" data-tooltip="Hero's Resolve: each member with the feat regains a conviction point at the beginning of each game session.">
+            <i class="fa-solid fa-sun"></i> Begin Session
+          </button>
+        </article>
+      {{/if}}
+    </section>
+  </main>
+</div>

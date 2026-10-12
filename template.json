@@ -1,0 +1,1218 @@
+{
+  "Actor": {
+    "types": [
+      "character",
+      "npc",
+      "companion",
+      "familiar",
+      "party"
+    ],
+    "templates": {
+      "creature": {
+        "identity": {
+          "level": 1,
+          "classBonus": 2,
+          "race": "",
+          "heritage": "",
+          "background": "",
+          "class": "",
+          "archetype": "",
+          "ethics": "",
+          "deity": "",
+          "size": "medium",
+          "xp": {
+            "value": 10000,
+            "max": 20000
+          },
+          "gender": "",
+          "age": "",
+          "height": "",
+          "weight": "",
+          "languages": "",
+          "loyalties": "",
+          "endeavourSkillPoints": 0,
+          "endeavourFeats": {
+            "general": 0,
+            "racial": 0,
+            "class": 0
+          }
+        },
+        "resources": {
+          "hp": {
+            "value": 30,
+            "max": 30,
+            "temp": 0,
+            "hpPerLevel": 0,
+            "other": 0
+          },
+          "endeavour": {
+            "value": 0,
+            "spent": 0
+          },
+          "pp": {
+            "value": 0,
+            "base": 0,
+            "max": 0,
+            "locked": 0
+          },
+          "ap": {
+            "value": 3,
+            "max": 3
+          },
+          "reactions": {
+            "value": 1,
+            "max": 1
+          },
+          "conviction": {
+            "value": 1,
+            "max": 1
+          },
+          "luck": {
+            "value": 15
+          }
+        },
+        "attributes": {
+          "strength": {
+            "base": 0,
+            "racial": 0,
+            "class": 0,
+            "item": 0,
+            "magic": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0
+          },
+          "dexterity": {
+            "base": 0,
+            "racial": 0,
+            "class": 0,
+            "item": 0,
+            "magic": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0
+          },
+          "constitution": {
+            "base": 0,
+            "racial": 0,
+            "class": 0,
+            "item": 0,
+            "magic": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0
+          },
+          "intelligence": {
+            "base": 0,
+            "racial": 0,
+            "class": 0,
+            "item": 0,
+            "magic": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0
+          },
+          "wisdom": {
+            "base": 0,
+            "racial": 0,
+            "class": 0,
+            "item": 0,
+            "magic": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0
+          },
+          "charisma": {
+            "base": 0,
+            "racial": 0,
+            "class": 0,
+            "item": 0,
+            "magic": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0
+          }
+        },
+        "combat": {
+          "bab": {
+            "base": 0,
+            "class": 0,
+            "other": 0,
+            "total": 0
+          },
+          "bdb": {
+            "class": 0,
+            "other": 0,
+            "total": 0
+          },
+          "attack": {
+            "base": 0,
+            "abilityKey": "strength",
+            "ability": 0,
+            "class": 0,
+            "item": 0,
+            "status": 0,
+            "circumstance": 0,
+            "other": 0,
+            "total": 0
+          },
+          "defence": {
+            "base": 10,
+            "ability": 0,
+            "class": 0,
+            "item": 0,
+            "status": 0,
+            "circumstance": 0,
+            "other": 0,
+            "total": 10
+          },
+          "armour": {
+            "dr": 0,
+            "hardness": 0,
+            "rending": 0
+          },
+          "naturalArmourFlat": {
+            "natural": 0,
+            "total": 0
+          },
+          "naturalArmourBase": {
+            "natural": 0,
+            "total": 0
+          },
+          "naturalArmour": {
+            "dr": 0
+          },
+          "shield": {
+            "dr": 0,
+            "blockDR": 0,
+            "hardness": 0,
+            "db": 0,
+            "dbLost": 0
+          },
+          "initiative": {
+            "ability": 0,
+            "class": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0
+          },
+          "saves": {
+            "fortitude": {
+              "ability": 0,
+              "racial": 0,
+              "class": 0,
+              "item": 0,
+              "status": 0,
+              "other": 0,
+              "total": 0
+            },
+            "reflex": {
+              "ability": 0,
+              "racial": 0,
+              "class": 0,
+              "item": 0,
+              "status": 0,
+              "other": 0,
+              "total": 0
+            },
+            "will": {
+              "ability": 0,
+              "racial": 0,
+              "class": 0,
+              "item": 0,
+              "status": 0,
+              "other": 0,
+              "total": 0
+            }
+          },
+          "deathState": 5,
+          "movement": {
+            "land": {
+              "base": 30,
+              "item": 0,
+              "status": 0,
+              "circumstance": 0,
+              "other": 0,
+              "total": 30
+            },
+            "fly": {
+              "base": 0,
+              "item": 0,
+              "status": 0,
+              "circumstance": 0,
+              "other": 0,
+              "total": 0
+            },
+            "swim": {
+              "base": 0,
+              "item": 0,
+              "status": 0,
+              "circumstance": 0,
+              "other": 0,
+              "total": 0
+            },
+            "climb": {
+              "base": 0,
+              "item": 0,
+              "status": 0,
+              "circumstance": 0,
+              "other": 0,
+              "total": 0
+            },
+            "burrow": {
+              "base": 0,
+              "item": 0,
+              "status": 0,
+              "circumstance": 0,
+              "other": 0,
+              "total": 0
+            }
+          },
+          "reach": 5,
+          "map": 0,
+          "resistances": "",
+          "immunities": "",
+          "weaknesses": "",
+          "criticalResistance": 0,
+          "armourCriticalResistance": 0,
+          "acp": {
+            "total": 0
+          }
+        },
+        "skills": {
+          "acrobatics": {
+            "label": "Acrobatics",
+            "ability": "dexterity",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "arcana": {
+            "label": "Arcana",
+            "ability": "intelligence",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "artistry": {
+            "label": "Artistry",
+            "ability": "intelligence",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "athletics": {
+            "label": "Athletics",
+            "ability": "strength",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "climbing": {
+            "label": "Climbing",
+            "ability": "dexterity",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "crafting": {
+            "label": "Crafting",
+            "ability": "intelligence",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "culture": {
+            "label": "Culture",
+            "ability": "intelligence",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "deception": {
+            "label": "Deception",
+            "ability": "charisma",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "diplomacy": {
+            "label": "Diplomacy",
+            "ability": "charisma",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "handleAnimal": {
+            "label": "Handle Animal",
+            "ability": "wisdom",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "intimidate": {
+            "label": "Intimidate",
+            "ability": "charisma",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "linguistics": {
+            "label": "Linguistics",
+            "ability": "intelligence",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "medicine": {
+            "label": "Medicine",
+            "ability": "wisdom",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "meditation": {
+            "label": "Meditation",
+            "ability": "wisdom",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "mentalFocus": {
+            "label": "Mental Focus",
+            "ability": "wisdom",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "nature": {
+            "label": "Nature",
+            "ability": "wisdom",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "occultism": {
+            "label": "Occultism",
+            "ability": "intelligence",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "perception": {
+            "label": "Perception",
+            "ability": "wisdom",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "perform": {
+            "label": "Perform",
+            "ability": "charisma",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "planes": {
+            "label": "Planes",
+            "ability": "intelligence",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "powerManipulation": {
+            "label": "Power Manipulation",
+            "ability": "intelligence",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "religion": {
+            "label": "Religion",
+            "ability": "wisdom",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "senseMotive": {
+            "label": "Sense Motive",
+            "ability": "wisdom",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "stealth": {
+            "label": "Stealth",
+            "ability": "dexterity",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "survival": {
+            "label": "Survival",
+            "ability": "wisdom",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "thievery": {
+            "label": "Thievery",
+            "ability": "dexterity",
+            "classSkill": false,
+            "ranks": 0,
+            "class": 0,
+            "racial": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          }
+        },
+        "specialistSkills": {},
+        "magic": {
+          "tradition": "",
+          "castingAbility": "intelligence",
+          "casterLevel": 0,
+          "bsb": 0,
+          "spellcraft": {
+            "ability": 0,
+            "racial": 0,
+            "class": 0,
+            "item": 0,
+            "status": 0,
+            "other": 0,
+            "total": 0,
+            "dc": 10
+          },
+          "focus": "",
+          "focusCasting": false,
+          "focusReady": true,
+          "controlBonusPerLevel": 0,
+          "controlLevels": 0,
+          "controlLevelsUsed": 0,
+          "notes": ""
+        },
+        "currency": {
+          "mp": 0,
+          "pp": 0,
+          "gp": 0,
+          "sp": 0,
+          "cp": 0
+        },
+        "encumbrance": {
+          "value": 0,
+          "max": 0,
+          "stowage": {
+            "stowed": 0,
+            "capacity": 0,
+            "count": 0,
+            "over": 0,
+            "hasStash": false
+          }
+        },
+        "details": {
+          "traits": "",
+          "biography": "",
+          "appearance": "",
+          "personality": "",
+          "ideals": "",
+          "bonds": "",
+          "flaws": "",
+          "notes": ""
+        },
+        "gm": {
+          "challenge": 0,
+          "dp": 0,
+          "role": "",
+          "faction": "",
+          "disposition": "neutral",
+          "treasure": "",
+          "notes": "",
+          "isMook": false,
+          "peril": {
+            "enabled": false,
+            "detectionSkill": "perception",
+            "detectionDC": 0,
+            "minRank": 0,
+            "disableSkills": "thievery",
+            "disableDC": 0,
+            "successes": 1,
+            "progress": 0,
+            "state": "armed",
+            "actionType": "reaction",
+            "trigger": "",
+            "routine": "",
+            "reset": "",
+            "detection": "",
+            "disable": "",
+            "onDisable": "disabled",
+            "suppressFor": "",
+            "suppressedUntil": null,
+            "counteractLevel": 0,
+            "counteractDC": 0,
+            "anchor": "",
+            "resolution": "",
+            "effectText": "",
+            "disableBonuses": "",
+            "spiritPresence": false,
+            "noBody": false,
+            "automation": ""
+          }
+        }
+      }
+    },
+    "character": {
+      "templates": [
+        "creature"
+      ]
+    },
+    "npc": {
+      "templates": [
+        "creature"
+      ]
+    },
+    "companion": {
+      "templates": [
+        "creature"
+      ],
+      "companion": {
+        "masterId": "",
+        "masterName": "",
+        "baseCreature": "",
+        "startingSize": "",
+        "maximumSize": "",
+        "syncedAtLevel": 0
+      }
+    },
+    "familiar": {
+      "templates": [
+        "creature"
+      ],
+      "familiar": {
+        "masterId": "",
+        "masterName": "",
+        "form": "",
+        "syncedAtLevel": 0,
+        "mirror": {
+          "level": 0,
+          "source": "",
+          "fortitude": 0,
+          "reflex": 0,
+          "will": 0,
+          "bab": 0,
+          "bdb": 0,
+          "maxHP": 0,
+          "skills": {}
+        }
+      }
+    },
+    "party": {
+      "members": [],
+      "encounter": {
+        "threat": "medium",
+        "creatures": []
+      },
+      "currency": {
+        "mp": 0,
+        "pp": 0,
+        "gp": 0,
+        "sp": 0,
+        "cp": 0
+      },
+      "details": {
+        "notes": ""
+      }
+    }
+  },
+  "Item": {
+    "types": [
+      "weapon",
+      "armour",
+      "shield",
+      "gear",
+      "consumable",
+      "ammunition",
+      "spell",
+      "feat",
+      "ability",
+      "skill",
+      "class",
+      "race",
+      "heritage",
+      "background",
+      "origin",
+      "divine-aspect",
+      "wizard-school",
+      "affliction",
+      "creature-type"
+    ],
+    "templates": {
+      "physical": {
+        "quantity": 1,
+        "weight": 0,
+        "price": 0,
+        "equipped": false,
+        "invested": false,
+        "hp": {
+          "value": 0,
+          "max": 0
+        },
+        "traits": "",
+        "description": "",
+        "stowed": false
+      },
+      "feature": {
+        "source": "",
+        "category": "",
+        "tier": "",
+        "level": 0,
+        "prerequisites": "",
+        "active": true,
+        "description": ""
+      },
+      "usable": {
+        "usesPerDay": "",
+        "bonusUses": 0,
+        "usesValue": 0
+      }
+    },
+    "weapon": {
+      "templates": [
+        "physical"
+      ],
+      "attackBonus": 0,
+      "damage": "1d6",
+      "damageType": "",
+      "baseDamage": 0,
+      "twoHandedGrip": false,
+      "range": "",
+      "armourRending": 0,
+      "proficiency": "",
+      "fumbleDC": 5,
+      "attackMode": "melee",
+      "rangeIncrement": 0,
+      "group": "",
+      "category": "",
+      "size": "medium",
+      "itemLevel": 0,
+      "quality": "standard",
+      "material": "",
+      "superiorTraits": "",
+      "runes": "",
+      "loaded": true,
+      "magazine": 0,
+      "reloadProgress": 0,
+      "usedQuickLoadThisRound": false,
+      "spinBonus": 0,
+      "attackedThisTurn": false,
+      "natural": false,
+      "ammunitionFamily": "",
+      "thrownDamage": false,
+      "foundAmmunitionPenalty": 0,
+      "reloadHands": 0,
+      "reachFeet": 0,
+      "noAdjacent": false,
+      "unarmed": false,
+      "mountedUse": "",
+      "recoveredAsAmmunition": false
+    },
+    "armour": {
+      "templates": [
+        "physical"
+      ],
+      "category": "",
+      "material": "",
+      "dragonType": "",
+      "isHelmet": false,
+      "dr": 0,
+      "hardness": 0,
+      "penalty": 0,
+      "proficiency": "",
+      "maxDexBonus": -1,
+      "maxDexModifier": 0,
+      "speedPenalty": 0,
+      "itemLevel": 0,
+      "quality": "standard",
+      "superiorTraits": "",
+      "runes": "",
+      "coversTorso": true,
+      "coversArms": false,
+      "coversLegs": false
+    },
+    "shield": {
+      "templates": [
+        "physical"
+      ],
+      "dr": 0,
+      "hardness": 0,
+      "brokenThreshold": 0,
+      "proficiency": "",
+      "penalty": 0,
+      "defenceBonus": 0,
+      "category": "",
+      "metal": false,
+      "itemLevel": 0,
+      "quality": "standard",
+      "material": "",
+      "dragonType": "",
+      "superiorTraits": "",
+      "runes": "",
+      "size": "medium",
+      "shieldBashDamage": "1d4",
+      "shieldBashFumbleDC": 6,
+      "shieldBashDamageType": "bludgeoning",
+      "handBound": false,
+      "fightDefensivelyPenalty": 0
+    },
+    "gear": {
+      "templates": [
+        "physical"
+      ],
+      "slot": "",
+      "uses": {
+        "value": 0,
+        "max": 0
+      },
+      "itemSize": "M",
+      "itemLevel": 0,
+      "heldHands": 0,
+      "formulae": "",
+      "spellbookContainer": false,
+      "runes": ""
+    },
+    "consumable": {
+      "templates": [
+        "physical"
+      ],
+      "uses": {
+        "value": 1,
+        "max": 1
+      },
+      "activation": "",
+      "itemLevel": 0
+    },
+    "ammunition": {
+      "templates": [
+        "physical"
+      ],
+      "damage": "",
+      "armourRending": 0,
+      "compatibleWeaponGroup": "",
+      "itemLevel": 0,
+      "damageTypeOverride": "",
+      "rangeIncrementBonus": 0,
+      "attackModifier": 0,
+      "damageModifier": 0,
+      "extraDamage": "",
+      "extraDamageType": "",
+      "splashDamage": 0,
+      "allowsSubdual": false,
+      "batchSize": 1,
+      "removesTraits": "",
+      "runes": ""
+    },
+    "spell": {
+      "templates": [
+        "usable"
+      ],
+      "tradition": "",
+      "availability": "common",
+      "category": "utility",
+      "level": 0,
+      "ppCost": 0,
+      "castAP": 2,
+      "range": "",
+      "area": "",
+      "targets": "",
+      "duration": "",
+      "defence": "",
+      "damageScope": "",
+      "baseDamage": "",
+      "damage": {
+        "formula": "",
+        "type": "",
+        "persistent": "",
+        "persistentOn": ""
+      },
+      "casterLevelMods": [],
+      "effects": [],
+      "warps": [],
+      "apOptions": [],
+      "prepared": false,
+      "sustained": false,
+      "sustainType": "",
+      "sustainGrowth": {
+        "stepFeet": 0,
+        "maxFeet": 0
+      },
+      "sustainChoices": [],
+      "areaTargeting": "all",
+      "areaChoice": false,
+      "kindGate": "",
+      "specialist": false,
+      "specialistClass": "",
+      "innate": false,
+      "components": {
+        "somatic": false,
+        "verbal": false,
+        "material": false,
+        "focus": false
+      },
+      "traits": "",
+      "description": "",
+      "modeLabel": "",
+      "modePrompt": ""
+    },
+    "feat": {
+      "templates": [
+        "feature",
+        "usable"
+      ],
+      "sourceRace": "",
+      "sourceClass": "",
+      "sourceArchetype": "",
+      "traits": "",
+      "repeatable": false,
+      "grantedSpells": "",
+      "grantedAbilities": "",
+      "grantedFeats": "",
+      "grantedWeapons": "",
+      "repeatLimit": ""
+    },
+    "ability": {
+      "templates": [
+        "feature",
+        "usable"
+      ],
+      "sourceRace": "",
+      "sourceClass": "",
+      "traits": "",
+      "grantedSpells": "",
+      "grantedAbilities": "",
+      "grantedFeats": ""
+    },
+    "skill": {
+      "templates": [
+        "feature"
+      ],
+      "ability": "intelligence",
+      "ranks": 0,
+      "racial": 0,
+      "item": 0,
+      "status": 0,
+      "other": 0
+    },
+    "class": {
+      "templates": [
+        "feature"
+      ],
+      "classType": "",
+      "keyAbilityScores": "",
+      "classSkills": "",
+      "grantedFeats": "",
+      "classAbilities": "",
+      "proficiencies": "",
+      "hitPoints": 0,
+      "skillPoints": 0,
+      "skillPointAbility": "",
+      "magicalTradition": "",
+      "magicalAbility": "",
+      "casterStyle": "",
+      "repertoireCategory": "",
+      "memorisationStyle": "",
+      "cantripsPerDay": 0,
+      "cantripsKnown": 0,
+      "spellBookFirstPicks": 0,
+      "grantedGear": "",
+      "grantedSpells": "",
+      "progression": [],
+      "wealth": ""
+    },
+    "race": {
+      "templates": [
+        "feature"
+      ],
+      "abilityModifiers": "",
+      "maximumSize": "",
+      "languages": "",
+      "grantedFeats": "",
+      "racialAbilities": "",
+      "grantedWeapons": "",
+      "grantedSpells": "",
+      "specialistSkills": "",
+      "coreLanguages": "",
+      "additionalLanguages": "",
+      "languageChoices": ""
+    },
+    "heritage": {
+      "templates": [
+        "feature"
+      ],
+      "sourceRace": "",
+      "grantedFeats": "",
+      "racialAbilities": "",
+      "removedAbilities": "",
+      "loyalties": "",
+      "specialistSkills": "",
+      "abilityModifiers": "",
+      "coreLanguages": "",
+      "additionalLanguages": "",
+      "languageChoices": "",
+      "grantedSpells": ""
+    },
+    "background": {
+      "templates": [
+        "feature"
+      ],
+      "grantedFeats": "",
+      "skillBonuses": "",
+      "specialistSkill": "",
+      "special": "",
+      "grantedSpells": "",
+      "coreLanguages": "",
+      "additionalLanguages": "",
+      "languageChoices": "",
+      "wealth": ""
+    },
+    "origin": {
+      "templates": [
+        "feature"
+      ],
+      "traits": "",
+      "sourceRace": "",
+      "benefit": "",
+      "contact": "",
+      "obligation": "",
+      "suggestedPurchases": "",
+      "grantedFeats": "",
+      "skillBonuses": "",
+      "specialistSkill": "",
+      "special": "",
+      "grantedSpells": "",
+      "coreLanguages": "",
+      "additionalLanguages": "",
+      "languageChoices": ""
+    },
+    "divine-aspect": {
+      "templates": [
+        "feature"
+      ],
+      "traits": "",
+      "edicts": "",
+      "anathema": "",
+      "suggestedEthics": "",
+      "classSkill": "",
+      "favouredWeapon": "",
+      "specialistSpells": "",
+      "bonusSpells": ""
+    },
+    "wizard-school": {
+      "templates": [
+        "feature"
+      ],
+      "traits": "",
+      "classSkill": "",
+      "specialistSpells": "",
+      "uniqueAbility": "",
+      "uniqueAbilityName": ""
+    },
+    "creature-type": {
+      "templates": [
+        "feature"
+      ],
+      "traits": "",
+      "abilityModifiers": "",
+      "grantedAbilities": "",
+      "deathState": 0,
+      "noDeathState": false,
+      "criticalResistance": 0,
+      "naturalDR": 0,
+      "elementalImmunity": "",
+      "elementalWeakness": "",
+      "critImmune": false,
+      "noFlanking": false,
+      "blindsight": false,
+      "critOnlyDamage": false
+    },
+    "affliction": {
+      "templates": [
+        "physical"
+      ],
+      "afflictionType": "poison",
+      "traits": "",
+      "level": 1,
+      "savingThrow": "fortitude",
+      "rarity": "common",
+      "rarityModifier": 0,
+      "incubation": "",
+      "duration": "",
+      "maxStage": 3,
+      "stages": [
+        {
+          "effect": "",
+          "interval": "",
+          "conditions": [],
+          "conditionDuration": "",
+          "damage": "",
+          "criticalOnFailure": false,
+          "criticalDamageType": "poison"
+        }
+      ],
+      "incubating": true,
+      "currentStage": 0,
+      "description": ""
+    }
+  }
+}

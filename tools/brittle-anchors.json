@@ -1,0 +1,9 @@
+{
+  "_what": "Mutation anchors carrying a whole line they do not change, where the core alone already matches exactly once in the tree \u2014 so the context buys nothing and the anchor dies the day a line is inserted beside it.",
+  "_why": "verify-mutation-anchors A5 holds this as a FROZEN BASELINE, the way tools/uncalled-exports.json holds its backlog. New brittleness fails the check. Lower a number when you narrow an anchor, delete the entry at zero, and never raise one.",
+  "_history": "113 at 3.526.0, narrowed to 3 in the same release once the rule existed to find them. mutate-spell-degrees dropped to 0 at 3.605.0 and its entry was removed: the ratchet's own rule is that a beaten baseline is lowered, because a stale ceiling waves through the next brittle anchor. mutate-hazard-terrain dropped to 0 at 3.612.0 (Web's entry-check loop, inserted above the hazard loop, made the context line no longer redundant) and its entry was removed.",
+  "total": 1,
+  "counts": {
+    "mutate-emanation-growth.mjs": 1
+  }
+}
