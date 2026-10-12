@@ -14,6 +14,7 @@
 import { isActingGM } from "./acting-gm.mjs";
 import { turnStartAnnouncements } from "./creature-turn-start.mjs";
 import { regenerationIsAutomatic, regenerationLockedOut } from "./creature-ability-rules.mjs";
+import { negatedByTypes, regenerationNegatedBy } from "./regeneration-rules.mjs";
 
 const SYSTEM_ID = "trg-prime";
 const line = (html) => `<p>${html}</p>`;
@@ -41,25 +42,39 @@ export async function announceTurnStart(tokenDocument) {
   // cleared either way, so the next turn asks its own question.
   const damageSince = Number(actor.getFlag?.(SYSTEM_ID, "damageSinceTurn") ?? 0) || 0;
   if (actor.getFlag?.(SYSTEM_ID, "damageSinceTurn") !== undefined) await actor.unsetFlag(SYSTEM_ID, "damageSinceTurn");
+  // THE NEGATING TYPE (3.634.0, F&F 3.0 block 4 R2): "(Evil)" damage since
+  // its last turn negates the heal this turn. Cleared like the amount.
+  const typesSince = actor.getFlag?.(SYSTEM_ID, "damageTypesSinceTurn") ?? [];
+  if (actor.getFlag?.(SYSTEM_ID, "damageTypesSinceTurn") !== undefined) await actor.unsetFlag(SYSTEM_ID, "damageTypesSinceTurn");
   const autoRegen = regenerationIsAutomatic(Array.from(actor.items ?? []));
 
   for (const a of announcements) {
     if (a.kind === "regeneration" && autoRegen) {
+      const regenItem = Array.from(actor.items ?? []).find((i) => i.name === a.ability);
+      const negatedBy = regenerationNegatedBy(regenItem);
+      const negated = negatedByTypes(negatedBy, typesSince);
       const locked = regenerationLockedOut(damageSince, a.amount);
       let healed = 0;
-      if (!locked && a.amount > 0) {
+      if (!locked && !negated && a.amount > 0) {
         const { healActor } = await import("./magic/spell-effects.mjs");
         healed = Number(await healActor(actor, a.amount, { magical: false })) || 0;
+        // RAISED FROM 0 (3.634.0): a creature regeneration held at 0 HP wakes.
+        if (Number(actor.system?.resources?.hp?.value ?? 0) > 0 && actor.hasCondition?.("unconscious")) {
+          const { clearUnconsciousIfConscious } = await import("./combat/death-state.mjs");
+          await clearUnconsciousIfConscious(actor);
+        }
       }
       await ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor }),
         content: `<div class="trg-prime trg-check-card"><header class="check-header">`
           + `<div class="check-heading"><span class="check-actor">${actor.name}</span>`
           + `<h3>${a.ability}</h3></div></header>`
-          + (locked
+          + (negated
+            ? line(`<strong>Negated this turn</strong> — it took ${negatedBy.join(" or ")} damage since its last turn.`)
+            : locked
             ? line(`<strong>Disabled this turn</strong> — it took ${damageSince} damage since its last turn, at least its regeneration of ${a.amount}.`)
             : line(`Regains <strong>${healed} HP</strong> (regeneration ${a.amount}).`))
-          + line("<em>Injured is reduced by its value every 10 minutes (the rest rail); a negating damage type is the GM's call.</em>")
+          + line(`<em>Injured is reduced by its value every 10 minutes (the rest rail)${negatedBy.length ? `; negated by ${negatedBy.join(" or ")} damage` : ""}.</em>`)
           + `</div>`
       });
       continue;

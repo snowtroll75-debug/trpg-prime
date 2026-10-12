@@ -39,7 +39,10 @@ export function normaliseVersusDamage(raw) {
   if (!raw || typeof raw !== "object") return null;
   if (raw.kind !== undefined && text(raw.kind) !== "versusDamage") return null;
   const vsTypes = (Array.isArray(raw.vsTypes) ? raw.vsTypes : []).map(lower).filter(Boolean);
-  if (!vsTypes.length) return null;
+  // AGAINST AN ALIGNMENT (3.634.0, F&F 3.0 block 4 R1): the Seraphim Aura's
+  // "+2-status bonus to … base damage against evil creatures".
+  const vsAlignments = (Array.isArray(raw.vsAlignments) ? raw.vsAlignments : []).map(lower).filter(Boolean);
+  if (!vsTypes.length && !vsAlignments.length) return null;
   const max = int(raw.max) > 0 ? int(raw.max) : null;
   const value = int(raw.value);
   if (value <= 0) return null;
@@ -49,6 +52,7 @@ export function normaliseVersusDamage(raw) {
     max,
     bonusType: lower(raw.bonusType) || "status",
     vsTypes,
+    vsAlignments,
     discharge: Math.max(0, int(raw.discharge)),
     castId: text(raw.castId)
   };
@@ -60,10 +64,11 @@ export function normaliseVersusDamage(raw) {
  * @param {Array<object>} records normalised
  * @param {string[]} targetTypes the target's creature types
  */
-export function versusDamageReaching(records, targetTypes = []) {
+export function versusDamageReaching(records, targetTypes = [], targetAlignments = []) {
   const types = new Set((targetTypes ?? []).map(lower));
+  const alignments = new Set((targetAlignments ?? []).map(lower));
   return (Array.isArray(records) ? records : [])
-    .filter((r) => r && r.vsTypes.some((t) => types.has(t)))
+    .filter((r) => r && (r.vsTypes.some((t) => types.has(t)) || (r.vsAlignments ?? []).some((a) => alignments.has(a))))
     .sort((a, b) => b.value - a.value);
 }
 

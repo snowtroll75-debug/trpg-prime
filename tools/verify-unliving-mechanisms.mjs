@@ -86,7 +86,7 @@ const gave = await relay.performRelay({ action: relay.RELAY_ACTIONS.AFFLICTION, 
 equal("B14c the GM's client marks the day and exposes the creature", [gave.ok, seen], [true, [["mark", "Actor.g:ghoul fever (disease)", 500], ["expose", "Ghoul Fever (Disease)", 9]]]);
 const forged = await relay.performRelay({ action: relay.RELAY_ACTIONS.AFFLICTION, uuid: "x", payload: { data: { type: "weapon", name: "Vorpal" } } }, deps);
 equal("B14d and refuses anything that is not an affliction", forged.ok, false);
-ok("B15 the attack path runs them after the rune after-strikes, with the critical's severity", /applyRuneAfterStrikes\(actor, weapon, targetActor, \{ critical: Boolean\(critical\) \}\)\) \{\s*lines\.push\(line\(afterLine\)\);\s*\}\s*\/\/ …AND THE ATTACKER'S OWN[\s\S]{0,300}applyDeclaredAfterStrikes\(actor, weapon, targetActor, \{ critical: critical \|\| null \}\)/.test(aw));
+ok("B15 the attack path runs them after the rune after-strikes, with the critical's severity", /applyRuneAfterStrikes\(actor, weapon, targetActor, \{ critical: Boolean\(critical\) \}\)\) \{\s*lines\.push\(line\(afterLine\)\);\s*\}\s*\/\/ …AND THE ATTACKER'S OWN[\s\S]{0,300}applyDeclaredAfterStrikes\(actor, weapon, targetActor, \{ critical: critical \|\| null[,}]/.test(aw));
 
 /* C. Felling a foe */
 const of = await mod("combat/on-fell.mjs");

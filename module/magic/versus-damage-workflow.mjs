@@ -5,7 +5,7 @@
  * other flat additions to a weapon's formula.
  */
 
-import { creatureTypesOf } from "../aligned.mjs";
+import { alignedTraitsOf, creatureTypesOf } from "../aligned.mjs";
 import {
   VERSUS_DAMAGE_FLAG, normaliseVersusDamage, versusDamageBonus, versusDamageLine, versusDamageReaching
 } from "./versus-damage.mjs";
@@ -32,7 +32,7 @@ function recordsOn(actor) {
  */
 export async function versusDamageFor(attacker, targetActor) {
   if (!attacker || !targetActor) return { value: 0, line: "" };
-  const reaching = versusDamageReaching(recordsOn(attacker), creatureTypesOf(targetActor.system ?? {}));
+  const reaching = versusDamageReaching(recordsOn(attacker), creatureTypesOf(targetActor.system ?? {}), alignedTraitsOf(targetActor.system ?? {}));
   if (!reaching.length) return { value: 0, line: "" };
   const best = reaching[0];
   let discharge = false;

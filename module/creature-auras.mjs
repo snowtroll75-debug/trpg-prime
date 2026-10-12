@@ -36,6 +36,7 @@
 import { runeAurasOf } from "./codex-runes.mjs";
 import { declaredRuneAuras, afterStrikeOutcome } from "./rune-declarations.mjs";
 import { declaredConditionTag } from "./combat/declared-after-strikes.mjs";
+import { allyEffectOf } from "./ally-aura-effects.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -250,6 +251,9 @@ export function normaliseAura(raw, source = {}, index = 0, level = 0) {
     emitterState: String(raw.emitterState ?? "").trim().toLowerCase(),
     exemptTraits: (Array.isArray(raw.exemptTraits) ? raw.exemptTraits : []).map((t) => String(t ?? "").trim().toLowerCase()).filter(Boolean),
     traitEffect: normaliseTraitEffect(raw.traitEffect),
+    // AN ALLY AURA'S STANDING EFFECT (3.634.0, F&F 3.0 block 4 R1): the
+    // effect laid on each ally inside — see ally-aura-effects.mjs.
+    allyEffect: kind === "ally" ? allyEffectOf(raw.allyEffect) : null,
     text: String(raw.text ?? ""),
     sourceId: String(source.id ?? ""),
     sourceName: String(source.name ?? "")

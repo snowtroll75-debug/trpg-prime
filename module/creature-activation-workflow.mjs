@@ -48,6 +48,27 @@ export async function useCreatureAbility(actor, item) {
     const { declaredAreaUse } = await import("./creature-area.mjs");
     const use = declaredAreaUse(item, { worldTime: Number(game.time?.worldTime ?? 0) });
     if (use.refusal) { ui.notifications?.warn(`${item.name}: ${use.refusal}`); return false; }
+    // A TYPE CHOSEN ON USE (3.634.0, F&F 3.0 block 4 R7): Radiant Eyes.
+    const { areaDamageChoices, withChosenDamageType } = await import("./creature-area.mjs");
+    const choices = areaDamageChoices(use.spec);
+    if (choices.length) {
+      const picked = await foundry.applications.api.DialogV2.wait({
+        window: { title: `${item.name} — damage type` }, classes: [SYSTEM_ID],
+        content: `<div class="trg-prime trg-check-dialog"><p>${item.name}: which energy?</p></div>`,
+        buttons: choices.map((c, i) => ({ action: c, label: c.charAt(0).toUpperCase() + c.slice(1), default: i === 0 })),
+        rejectClose: false
+      });
+      if (!picked) return false;
+      use.spec = withChosenDamageType(use.spec, picked);
+    }
+    // AN AREA ABILITY WITH A USE COUNT SPENDS ONE (3.635.0, F&F 3.0 block 5
+    // R7): the Ankheg's Acidic Spittle is Focus — one use until it Refocuses.
+    // Refused before an AP is spent when none remain.
+    const { itemUsesMax, itemUsesRemaining } = await import("./uses-workflow.mjs");
+    const usesMax = itemUsesMax(item);
+    const counted = Number.isFinite(usesMax) && usesMax !== null;
+    const usesLeft = counted ? itemUsesRemaining(item) : null;
+    if (counted && usesLeft <= 0) { ui.notifications?.warn(`${item.name}: no uses remain — Refocus or rest to restore it.`); return false; }
     const activation = item.flags?.[SYSTEM_ID]?.creatureAbility?.activation ?? {};
     const apCost = Number(activation.ap ?? activation.actionPoints ?? use.ap) || 0;
     if ((activation.kind === "action" || (!activation.kind && use.ap)) && apCost > 0) {
@@ -77,6 +98,10 @@ export async function useCreatureAbility(actor, item) {
     const { recordBreath } = await import("./breath-memory-workflow.mjs");
     await recordBreath(actor, item, use, results);
     if (use.cooldownSeconds) await item.setFlag(SYSTEM_ID, "lastUsedAt", Number(game.time?.worldTime ?? 0));
+    if (counted) {
+      await item.update({ "system.usesValue": usesLeft - 1 });
+      rolled.push(`<p style="margin:2px 0"><em>${usesLeft - 1} of ${usesMax} use(s) left${/\bfocus\b/i.test(String(item.system?.traits ?? "")) ? " — Refocus restores it" : ""}.</em></p>`);
+    }
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor }),
       content: `<div class="trg-prime trg-check-card"><header class="check-header">`
