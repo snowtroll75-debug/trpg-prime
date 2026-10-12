@@ -1,10 +1,9 @@
-name: Package Foundry System
+name: Publish Foundry System
 
 on:
-  workflow_dispatch:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -14,27 +13,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Verify manifest version matches tag
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Identify system version
+        id: version
+        shell: bash
         run: |
-          node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync('system.json')); if ('v'+m.version !== process.env.GITHUB_REF_NAME) process.exit(1)"
-      - name: Package installable files
-        run: |
-          mkdir -p dist/trg-prime
-          cp system.json template.json dist/trg-prime/
-          for dir in assets lang module packs scripts styles templates; do
-            if [ -d "$dir" ]; then cp -a "$dir" dist/trg-prime/; fi
-          done
-          cd dist
-          zip -qr ../trg-prime.zip trg-prime
-      - name: Attach zip to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
+          version=$(node -p "JSON.parse(require('fs').readFileSync('system.json', 'utf8')).version")
+          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+      - name: Check release doesn't already exist
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes "TRG Prime Foundry VTT system release"
-          gh release upload "$GITHUB_REF_NAME" trg-prime.zip --clobber
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; no changes published."
+            echo "skip=true" >> "$GITHUB_ENV"
+          fi
+      - name: Build installable ZIP
+        if: env.skip != 'true'
+        run: |
+          mkdir -p dist
+          cp system.json template.json dist/
+          for dir in assets lang module packs scripts styles templates; do
+            if [ -d "$dir" ]; then cp -a "$dir" dist/; fi
+          done
+          cd dist
+          zip -qr ../trg-prime.zip .
+          cd ..
+          unzip -p trg-prime.zip system.json | node -e "let s='';process.stdin.on('data',b=>s+=b).on('end',()=>{const m=JSON.parse(s);if(m.id!=='trg-prime')process.exit(1);})"
+      - name: Create tagged GitHub release
+        if: env.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          gh release create "$TAG" trg-prime.zip --target "$GITHUB_SHA" --title "$TAG" --notes "TRG Prime Foundry VTT system $TAG"
       - uses: actions/upload-artifact@v4
+        if: env.skip != 'true'
         with:
           name: trg-prime-package
           path: trg-prime.zip
