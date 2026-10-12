@@ -1,397 +1,395 @@
-﻿{
-    "id":  "trg-prime",
-    "title":  "TRG Prime",
-    "description":  "The official Foundry Virtual Tabletop system foundation for TRG Prime by Traris Games.",
-    "version":  "3.635.0",
-    "compatibility":  {
-                          "minimum":  "14",
-                          "verified":  "14.367"
-                      },
-    "authors":  [
-                    {
-                        "name":  "Traris Games",
-                        "url":  "https://www.trarisgames.co.uk/"
-                    }
-                ],
-    "esmodules":  [
-                      "scripts/trg-prime.mjs"
-                  ],
-    "styles":  [
-                   "styles/trg-prime.css"
-               ],
-    "languages":  [
-                      {
-                          "lang":  "en",
-                          "name":  "English",
-                          "path":  "lang/en.json"
-                      }
-                  ],
-    "documentTypes":  {
-                          "Actor":  {
-                                        "character":  {
-                                                          "htmlFields":  [
-                                                                             "details.biography",
-                                                                             "details.appearance",
-                                                                             "details.notes",
-                                                                             "gm.notes"
-                                                                         ]
-                                                      },
-                                        "npc":  {
-                                                    "htmlFields":  [
-                                                                       "details.biography",
-                                                                       "details.appearance",
-                                                                       "details.notes",
-                                                                       "gm.notes"
-                                                                   ]
-                                                },
-                                        "companion":  {
-                                                          "htmlFields":  [
-                                                                             "details.biography",
-                                                                             "details.appearance",
-                                                                             "details.notes",
-                                                                             "gm.notes"
-                                                                         ]
-                                                      },
-                                        "familiar":  {
-
-                                                     }
-                                    },
-                          "Item":  {
-                                       "weapon":  {
-                                                      "htmlFields":  [
-                                                                         "description"
-                                                                     ]
-                                                  },
-                                       "armour":  {
-                                                      "htmlFields":  [
-                                                                         "description"
-                                                                     ]
-                                                  },
-                                       "shield":  {
-                                                      "htmlFields":  [
-                                                                         "description"
-                                                                     ]
-                                                  },
-                                       "gear":  {
-                                                    "htmlFields":  [
-                                                                       "description"
-                                                                   ]
-                                                },
-                                       "consumable":  {
-                                                          "htmlFields":  [
-                                                                             "description"
-                                                                         ]
-                                                      },
-                                       "ammunition":  {
-                                                          "htmlFields":  [
-                                                                             "description"
-                                                                         ]
-                                                      },
-                                       "spell":  {
-                                                     "htmlFields":  [
-                                                                        "description"
-                                                                    ]
-                                                 },
-                                       "feat":  {
-                                                    "htmlFields":  [
-                                                                       "description"
-                                                                   ]
-                                                },
-                                       "ability":  {
-                                                       "htmlFields":  [
-                                                                          "description"
-                                                                      ]
-                                                   },
-                                       "skill":  {
-                                                     "htmlFields":  [
-                                                                        "description"
-                                                                    ]
-                                                 },
-                                       "class":  {
-                                                     "htmlFields":  [
-                                                                        "description"
-                                                                    ]
-                                                 },
-                                       "race":  {
-                                                    "htmlFields":  [
-                                                                       "description"
-                                                                   ]
-                                                },
-                                       "heritage":  {
-                                                        "htmlFields":  [
-                                                                           "description"
-                                                                       ]
-                                                    },
-                                       "background":  {
-                                                          "htmlFields":  [
-                                                                             "description"
-                                                                         ]
-                                                      },
-                                       "origin":  {
-                                                      "htmlFields":  [
-                                                                         "description"
-                                                                     ]
-                                                  },
-                                       "divine-aspect":  {
-                                                             "htmlFields":  [
-                                                                                "description",
-                                                                                "edicts",
-                                                                                "anathema"
-                                                                            ]
-                                                         },
-                                       "affliction":  {
-                                                          "htmlFields":  [
-                                                                             "description"
-                                                                         ]
-                                                      }
-                                   }
-                      },
-    "initiative":  "1d100 + @combat.initiative.total",
-    "packs":  [
-                  {
-                      "name":  "macros",
-                      "label":  "Macros (TRG Prime)",
-                      "path":  "packs/macros",
-                      "type":  "Macro"
-                  },
-                  {
-                      "name":  "races",
-                      "label":  "Races (TRG Prime)",
-                      "path":  "packs/races",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "heritages",
-                      "label":  "Heritages (TRG Prime)",
-                      "path":  "packs/heritages",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "backgrounds",
-                      "label":  "Backgrounds (TRG Prime)",
-                      "path":  "packs/backgrounds",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "origins",
-                      "label":  "Campaign Origins (TRG Prime)",
-                      "path":  "packs/origins",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "classes",
-                      "label":  "Classes (TRG Prime)",
-                      "path":  "packs/classes",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "divine-aspects",
-                      "label":  "Divine Aspects (TRG Prime)",
-                      "path":  "packs/divine-aspects",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "wizard-schools",
-                      "label":  "Wizard Schools (TRG Prime)",
-                      "path":  "packs/wizard-schools",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "creature-types",
-                      "label":  "Creature Types (TRG Prime)",
-                      "path":  "packs/creature-types",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "creature-classes",
-                      "label":  "Creature Classes (TRG Prime)",
-                      "path":  "packs/creature-classes",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "creature-attacks",
-                      "label":  "Creature Attacks (TRG Prime)",
-                      "path":  "packs/creature-attacks",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "creature-abilities",
-                      "label":  "Creature Abilities (TRG Prime)",
-                      "path":  "packs/creature-abilities",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "companions",
-                      "label":  "Animal Companions (TRG Prime)",
-                      "path":  "packs/companions",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "abilities",
-                      "label":  "Abilities (TRG Prime)",
-                      "path":  "packs/abilities",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "feats",
-                      "label":  "Feats (TRG Prime)",
-                      "path":  "packs/feats",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "spells",
-                      "label":  "Spells (TRG Prime)",
-                      "path":  "packs/spells",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "weapons",
-                      "label":  "Weapons (TRG Prime)",
-                      "path":  "packs/weapons",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "armour",
-                      "label":  "Armour (TRG Prime)",
-                      "path":  "packs/armour",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "shields",
-                      "label":  "Shields (TRG Prime)",
-                      "path":  "packs/shields",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "ammunition",
-                      "label":  "Ammunition (TRG Prime)",
-                      "path":  "packs/ammunition",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "gear",
-                      "label":  "Gear (TRG Prime)",
-                      "path":  "packs/gear",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "consumables",
-                      "label":  "Consumables (TRG Prime)",
-                      "path":  "packs/consumables",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "alchemical",
-                      "label":  "Alchemical Items (Chapter 6)",
-                      "path":  "packs/alchemical",
-                      "type":  "Item",
-                      "system":  "trg-prime",
-                      "ownership":  {
-                                        "PLAYER":  "OBSERVER",
-                                        "ASSISTANT":  "OWNER"
-                                    }
-                  },
-                  {
-                      "name":  "afflictions",
-                      "label":  "Afflictions (TRG Prime)",
-                      "path":  "packs/afflictions",
-                      "type":  "Item",
-                      "system":  "trg-prime",
-                      "ownership":  {
-                                        "PLAYER":  "OBSERVER",
-                                        "ASSISTANT":  "OWNER"
-                                    }
-                  },
-                  {
-                      "name":  "vehicles",
-                      "label":  "Vehicles (TRG Prime)",
-                      "path":  "packs/vehicles",
-                      "type":  "Actor"
-                  },
-                  {
-                      "name":  "familiars",
-                      "label":  "Familiar Abilities",
-                      "path":  "packs/familiars",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "runes",
-                      "label":  "Runes",
-                      "path":  "packs/runes",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "charged-items",
-                      "label":  "Charged Items",
-                      "path":  "packs/charged-items",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "wondrous",
-                      "label":  "Wondrous Items",
-                      "path":  "packs/wondrous",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "specific-items",
-                      "label":  "Specific Magic Armour \u0026 Weapons",
-                      "path":  "packs/specific-items",
-                      "type":  "Item"
-                  },
-                  {
-                      "name":  "test-items",
-                      "label":  "Test Items (Chapter 11)",
-                      "path":  "packs/test-items",
-                      "type":  "Item"
-                  }
-              ],
-    "packFolders":  [
-                        {
-                            "name":  "Core Rulebook",
-                            "sorting":  "m",
-                            "color":  "#6f0f17",
-                            "packs":  [
-                                          "macros",
-                                          "races",
-                                          "heritages",
-                                          "backgrounds",
-                                          "origins",
-                                          "classes",
-                                          "divine-aspects",
-                                          "wizard-schools",
-                                          "creature-types",
-                                          "creature-classes",
-                                          "creature-attacks",
-                                          "creature-abilities",
-                                          "companions",
-                                          "abilities",
-                                          "feats",
-                                          "spells",
-                                          "weapons",
-                                          "armour",
-                                          "shields",
-                                          "ammunition",
-                                          "gear",
-                                          "consumables",
-                                          "alchemical",
-                                          "vehicles",
-                                          "familiars",
-                                          "runes",
-                                          "charged-items",
-                                          "wondrous",
-                                          "specific-items",
-                                          "test-items"
-                                      ]
-                        }
-                    ],
-    "grid":  {
-                 "distance":  5,
-                 "units":  "ft"
-             },
-    "primaryTokenAttribute":  "resources.hp",
-    "secondaryTokenAttribute":  "resources.pp",
-    "socket":  true,
-    "url":  "https://www.trarisgames.co.uk/core/",
-    "manifest":  "https://raw.githubusercontent.com/snowtroll75-debug/trpg-prime/main/system.json",
-    "download":  "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.635.0/trg-prime.zip"
+{
+  "id": "trg-prime",
+  "title": "TRG Prime",
+  "description": "The official Foundry Virtual Tabletop system foundation for TRG Prime by Traris Games.",
+  "version": "3.635.0",
+  "compatibility": {
+    "minimum": "14",
+    "verified": "14.367"
+  },
+  "authors": [
+    {
+      "name": "Traris Games",
+      "url": "https://www.trarisgames.co.uk/"
+    }
+  ],
+  "esmodules": [
+    "scripts/trg-prime.mjs"
+  ],
+  "styles": [
+    "styles/trg-prime.css"
+  ],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "documentTypes": {
+    "Actor": {
+      "character": {
+        "htmlFields": [
+          "details.biography",
+          "details.appearance",
+          "details.notes",
+          "gm.notes"
+        ]
+      },
+      "npc": {
+        "htmlFields": [
+          "details.biography",
+          "details.appearance",
+          "details.notes",
+          "gm.notes"
+        ]
+      },
+      "companion": {
+        "htmlFields": [
+          "details.biography",
+          "details.appearance",
+          "details.notes",
+          "gm.notes"
+        ]
+      },
+      "familiar": {}
+    },
+    "Item": {
+      "weapon": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "armour": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "shield": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "gear": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "consumable": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "ammunition": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "spell": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "feat": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "ability": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "skill": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "class": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "race": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "heritage": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "background": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "origin": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "divine-aspect": {
+        "htmlFields": [
+          "description",
+          "edicts",
+          "anathema"
+        ]
+      },
+      "affliction": {
+        "htmlFields": [
+          "description"
+        ]
+      }
+    }
+  },
+  "initiative": "1d100 + @combat.initiative.total",
+  "packs": [
+    {
+      "name": "macros",
+      "label": "Macros (TRG Prime)",
+      "path": "packs/macros",
+      "type": "Macro"
+    },
+    {
+      "name": "races",
+      "label": "Races (TRG Prime)",
+      "path": "packs/races",
+      "type": "Item"
+    },
+    {
+      "name": "heritages",
+      "label": "Heritages (TRG Prime)",
+      "path": "packs/heritages",
+      "type": "Item"
+    },
+    {
+      "name": "backgrounds",
+      "label": "Backgrounds (TRG Prime)",
+      "path": "packs/backgrounds",
+      "type": "Item"
+    },
+    {
+      "name": "origins",
+      "label": "Campaign Origins (TRG Prime)",
+      "path": "packs/origins",
+      "type": "Item"
+    },
+    {
+      "name": "classes",
+      "label": "Classes (TRG Prime)",
+      "path": "packs/classes",
+      "type": "Item"
+    },
+    {
+      "name": "divine-aspects",
+      "label": "Divine Aspects (TRG Prime)",
+      "path": "packs/divine-aspects",
+      "type": "Item"
+    },
+    {
+      "name": "wizard-schools",
+      "label": "Wizard Schools (TRG Prime)",
+      "path": "packs/wizard-schools",
+      "type": "Item"
+    },
+    {
+      "name": "creature-types",
+      "label": "Creature Types (TRG Prime)",
+      "path": "packs/creature-types",
+      "type": "Item"
+    },
+    {
+      "name": "creature-classes",
+      "label": "Creature Classes (TRG Prime)",
+      "path": "packs/creature-classes",
+      "type": "Item"
+    },
+    {
+      "name": "creature-attacks",
+      "label": "Creature Attacks (TRG Prime)",
+      "path": "packs/creature-attacks",
+      "type": "Item"
+    },
+    {
+      "name": "creature-abilities",
+      "label": "Creature Abilities (TRG Prime)",
+      "path": "packs/creature-abilities",
+      "type": "Item"
+    },
+    {
+      "name": "companions",
+      "label": "Animal Companions (TRG Prime)",
+      "path": "packs/companions",
+      "type": "Item"
+    },
+    {
+      "name": "abilities",
+      "label": "Abilities (TRG Prime)",
+      "path": "packs/abilities",
+      "type": "Item"
+    },
+    {
+      "name": "feats",
+      "label": "Feats (TRG Prime)",
+      "path": "packs/feats",
+      "type": "Item"
+    },
+    {
+      "name": "spells",
+      "label": "Spells (TRG Prime)",
+      "path": "packs/spells",
+      "type": "Item"
+    },
+    {
+      "name": "weapons",
+      "label": "Weapons (TRG Prime)",
+      "path": "packs/weapons",
+      "type": "Item"
+    },
+    {
+      "name": "armour",
+      "label": "Armour (TRG Prime)",
+      "path": "packs/armour",
+      "type": "Item"
+    },
+    {
+      "name": "shields",
+      "label": "Shields (TRG Prime)",
+      "path": "packs/shields",
+      "type": "Item"
+    },
+    {
+      "name": "ammunition",
+      "label": "Ammunition (TRG Prime)",
+      "path": "packs/ammunition",
+      "type": "Item"
+    },
+    {
+      "name": "gear",
+      "label": "Gear (TRG Prime)",
+      "path": "packs/gear",
+      "type": "Item"
+    },
+    {
+      "name": "consumables",
+      "label": "Consumables (TRG Prime)",
+      "path": "packs/consumables",
+      "type": "Item"
+    },
+    {
+      "name": "alchemical",
+      "label": "Alchemical Items (Chapter 6)",
+      "path": "packs/alchemical",
+      "type": "Item",
+      "system": "trg-prime",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "afflictions",
+      "label": "Afflictions (TRG Prime)",
+      "path": "packs/afflictions",
+      "type": "Item",
+      "system": "trg-prime",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "vehicles",
+      "label": "Vehicles (TRG Prime)",
+      "path": "packs/vehicles",
+      "type": "Actor"
+    },
+    {
+      "name": "familiars",
+      "label": "Familiar Abilities",
+      "path": "packs/familiars",
+      "type": "Item"
+    },
+    {
+      "name": "runes",
+      "label": "Runes",
+      "path": "packs/runes",
+      "type": "Item"
+    },
+    {
+      "name": "charged-items",
+      "label": "Charged Items",
+      "path": "packs/charged-items",
+      "type": "Item"
+    },
+    {
+      "name": "wondrous",
+      "label": "Wondrous Items",
+      "path": "packs/wondrous",
+      "type": "Item"
+    },
+    {
+      "name": "specific-items",
+      "label": "Specific Magic Armour & Weapons",
+      "path": "packs/specific-items",
+      "type": "Item"
+    },
+    {
+      "name": "test-items",
+      "label": "Test Items (Chapter 11)",
+      "path": "packs/test-items",
+      "type": "Item"
+    }
+  ],
+  "packFolders": [
+    {
+      "name": "Core Rulebook",
+      "sorting": "m",
+      "color": "#6f0f17",
+      "packs": [
+        "macros",
+        "races",
+        "heritages",
+        "backgrounds",
+        "origins",
+        "classes",
+        "divine-aspects",
+        "wizard-schools",
+        "creature-types",
+        "creature-classes",
+        "creature-attacks",
+        "creature-abilities",
+        "companions",
+        "abilities",
+        "feats",
+        "spells",
+        "weapons",
+        "armour",
+        "shields",
+        "ammunition",
+        "gear",
+        "consumables",
+        "alchemical",
+        "vehicles",
+        "familiars",
+        "runes",
+        "charged-items",
+        "wondrous",
+        "specific-items",
+        "test-items"
+      ]
+    }
+  ],
+  "grid": {
+    "distance": 5,
+    "units": "ft"
+  },
+  "primaryTokenAttribute": "resources.hp",
+  "secondaryTokenAttribute": "resources.pp",
+  "socket": true,
+  "url": "https://www.trarisgames.co.uk/core/",
+  "manifest": "https://raw.githubusercontent.com/snowtroll75-debug/trpg-prime/main/system.json",
+  "download": "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.635.0/trg-prime.zip"
 }
