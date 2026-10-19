@@ -71,8 +71,8 @@ const MUTATIONS = [
     // RE-ANCHORED 3.612.0: `reroll()` (Lucky Break) throws the dice with the
     // same line, so the find carries the line after it in `evaluate()` too.
     extra: {
-      find: "    this.dice = this.die === \"d100\" ? await this.#rollD100() : await this.#rollD20();\n\n    const difficulty = DIFFICULTY_BY_KEY[this.difficulty];",
-      replace: "    this.dice = this.die === \"d100\" ? await this.#rollD100() : await this.#rollD20();\n    await this.#takeCuttingWords();\n\n    const difficulty = DIFFICULTY_BY_KEY[this.difficulty];"
+      find: "      : this.die === \"d100\" ? await this.#rollD100() : await this.#rollD20();\n\n    const difficulty = DIFFICULTY_BY_KEY[this.difficulty];",
+      replace: "      : this.die === \"d100\" ? await this.#rollD100() : await this.#rollD20();\n    await this.#takeCuttingWords();\n\n    const difficulty = DIFFICULTY_BY_KEY[this.difficulty];"
     },
     breaks: "F5/F6 — a modifier added after buildOutcome prints and changes no degree"
   },

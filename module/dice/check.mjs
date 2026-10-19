@@ -1,3 +1,4 @@
+import { withCheckModifiers } from "./check-modifiers.mjs";
 import {
   CHAIN_PROFILES,
   OPEN_ENDED,
@@ -23,6 +24,7 @@ import {
   awardConviction,
   getConvictionState,
   luckOfHeroes,
+  markConvictionSpent,
   spendConvictionAdvantage
 } from "../conviction.mjs";
 import { roguishSkillPicks, scoundrelsLuckBonus, scoundrelsLuckRefund } from "../rogue.mjs";
@@ -192,6 +194,12 @@ export class TRGCheck {
     this.compactSummary = config.compactSummary ?? "";
     this.extraDetailLines = config.extraDetailLines ?? [];
     this.allowConviction = config.allowConviction !== false;
+    // ONE ROLL, MANY DEFENCES (3.649.0; F&F 3.0 block 16 R5). Lightning
+    // Strike "makes a single melee strike, comparing the result to the DB of
+    // all creatures within range": the first creature's check rolls the die,
+    // and each further one is handed that same die (`presetDice`) to meet its
+    // own DB with. Nothing is rolled again, so nothing can differ.
+    this.presetDice = config.presetDice ?? null;
     this.convictionAdvantage = Boolean(config.convictionAdvantage);
     // LUCK ASKED FOR IN THE DIALOG (3.624.0, block 40's R11). Luck armed
     // from the sheet is read off the actor instead; see applyLuckToCheck.
@@ -250,6 +258,8 @@ export class TRGCheck {
     // workflow holding both actors can know it, and a sheet roll leaves
     // it blank, at which point a target-scoped entry matches nothing.
     this.targetUuid = config.targetUuid ?? "";
+    // MELEE OR RANGED (3.650.0) — an attack check's, for the conditionals.
+    this.attackMode = config.attackMode ?? "";
     this.conditionalsResolved = Boolean(config.conditionalsResolved);
 
     // THE SAVE-ADVANTAGE FAMILY (Chapter 5): Evasion, Juggernaut and
@@ -578,7 +588,9 @@ export class TRGCheck {
     await this.#takeInspireCompetence();
     await this.#takeSeersVision();
 
-    this.dice = this.die === "d100" ? await this.#rollD100() : await this.#rollD20();
+    this.dice = this.presetDice
+      ? this.presetDice
+      : this.die === "d100" ? await this.#rollD100() : await this.#rollD20();
 
     const difficulty = DIFFICULTY_BY_KEY[this.difficulty];
     const chaosEnabled = setting("chaosResults", false);
@@ -657,13 +669,27 @@ export class TRGCheck {
    */
   applyExtraModifier(modifier) {
     this.modifiers.push(modifier);
-    this.outcome = applyDegreeShift(buildOutcome({
+    // A CONDITION'S FORCED RESULT SURVIVES A LATE MODIFIER (3.645.0). An
+    // Immobilised Reflex save that a Conviction die is added to still fails.
+    this.outcome = this.#conditionForced(applyDegreeShift(buildOutcome({
       dieTotal: this.dice.total,
       modifiers: this.modifiers,
       dc: this.dc,
       ...(this._outcomeArgs ?? {})
-    }), this.degreeShift);
+    }), this.degreeShift));
     return this.outcome;
+  }
+
+  /** Whether +6, the most a Conviction die can add, would change the degree. */
+  convictionCouldMove() {
+    if (!this.outcome?.degree?.key) return false;
+    const best = this.#conditionForced(applyDegreeShift(buildOutcome({
+      dieTotal: this.dice.total,
+      modifiers: [...this.modifiers, { label: "probe", value: 6, type: "untyped" }],
+      dc: this.dc,
+      ...(this._outcomeArgs ?? {})
+    }), this.degreeShift));
+    return best?.degree?.key !== this.outcome.degree.key;
   }
 
   /**
@@ -716,7 +742,7 @@ export class TRGCheck {
 
     const bonusEligible =
       this.allowConviction && !this.luckUsed &&
-      !this.flat &&
+      !this.flat && !this.convictionDecided &&
       CONVICTION_SPENDS.bonus.checkTypes.includes(this.type);
     const conviction =
       bonusEligible && this.actor ? getConvictionState(this.actor) : null;
@@ -741,7 +767,7 @@ export class TRGCheck {
       showDCInput: !this.suppressDegree && this.outcome?.dc === null,
       bonusEligible: Boolean(bonusEligible && conviction?.ok),
       bonusPointsRemaining: conviction?.value ?? 0,
-      bonusUsed: false
+      bonusUsed: Boolean(this.convictionBonusSpent)
     };
   }
 
@@ -844,7 +870,9 @@ export class TRGCheck {
               difficulty: this.difficulty,
               chaosArg: this._outcomeArgs?.chaos ?? false,
               autoArg: this._outcomeArgs?.auto ?? null,
-              bonusUsed: false,
+              // DECIDED BEFORE THE RESULT WAS READ (3.645.0): the card offers
+              // no second chance at a die the workflow could no longer see.
+              bonusUsed: Boolean(this.convictionDecided),
               // LUCK CHANGED THIS CHECK (3.624.0, R12): no Conviction Bonus,
               // no reroll from another fortune effect.
               luckUsed: Boolean(this.luckUsed),
@@ -866,6 +894,21 @@ export class TRGCheck {
    * @returns {Promise<TRGCheck>}
    */
   static async roll(config = {}) {
+    /*
+     * A SAVE OR A SKILL CHECK WITH NO MODIFIERS ROLLS THE CREATURE'S OWN
+     * (3.653.1; found live testing 3.653.0, 16 October 2026). The Medusa's
+     * Petrifying Gaze re-save came out "19 = 19 … Modifiers +0": the
+     * end-of-turn escape save asked for a Fortitude save and passed nothing
+     * to add to the die, so the Brave's +9 was never rolled. Nine more paths
+     * did the same — a rune's after-strike save, Improved Reposition, Chance
+     * of Redemption, the Elemental Nexus, an emanation's entry save, Directed
+     * Strike, a recurring ladder and a prison's escape. A caller that states
+     * its modifiers keeps them; one that states none gets the creature's own
+     * save or skill rows, exactly as `withCheckModifiers` gives them.
+     */
+    if (config?.actor && !Array.isArray(config.modifiers) && (config.type === "save" || config.type === "skill")) {
+      config = withCheckModifiers(config);
+    }
     const check = new TRGCheck(config);
 
     // Automatic conditionals. Most checks in the system never open the
@@ -911,7 +954,8 @@ export class TRGCheck {
           // that DID get the uuid, and looking correct in play is what
           // kept the silent half hidden. See conditionals.mjs's header.
           sourceUuid: check.sourceUuid,
-          targetUuid: check.targetUuid
+          targetUuid: check.targetUuid,
+          attackMode: check.attackMode
         });
         check.modifiers.push(...applied.modifiers);
         if (applied.kinds.length) {
@@ -945,7 +989,10 @@ export class TRGCheck {
       const { applyPendingSelections, consumePendingModifiers, pendingModifierRows } =
         await import("../pending-modifiers.mjs");
       const { resolveBias } = await import("../conditionals.mjs");
-      const auto = pendingModifierRows(check.actor).filter((row) => row.auto);
+      // A ROW SCOPED TO A KIND OF CHECK (3.650.0; block 17 R8) waits for one:
+      // Prankster's Cruelty's "-2 to its next ATTACK" is not spent on a save.
+      const auto = pendingModifierRows(check.actor).filter((row) => row.auto
+        && (!Array.isArray(row.checkTypes) || !row.checkTypes.length || row.checkTypes.includes(check.type)));
       if (auto.length) {
         const taken = applyPendingSelections(auto, auto.map((row) => row.id));
         check.modifiers.push(...taken.modifiers);
@@ -1157,6 +1204,31 @@ export class TRGCheck {
 
     await check.evaluate();
 
+    // DUAL MINDS (3.647.0, F&F 3.0 block 15 R9): a mental effect that catches
+    // an Ettin with others reaches both heads, "which each then get a separate
+    // save" — rolled again, and the better stands, as one free head keeps
+    // control. A mental effect aimed at it alone never gets here: the spell
+    // and action gates find it immune.
+    if (check.type === "save" && check.actor && !check.flat && check.outcome?.degree?.key) {
+      const { dualMindsVerdict } = await import("../dual-minds.mjs");
+      if (dualMindsVerdict(check.actor.items, check.traits ?? "", Infinity) === "twoSaves") {
+        const first = { dice: check.dice, outcome: check.outcome, args: check._outcomeArgs };
+        await check.reroll();
+        const rank = (o) => Number(o?.degree?.rank ?? -1);
+        const keptFirst = rank(first.outcome) > rank(check.outcome)
+          || (rank(first.outcome) === rank(check.outcome) && Number(first.outcome?.total ?? 0) >= Number(check.outcome?.total ?? 0));
+        const second = check.outcome;
+        if (keptFirst) {
+          check.dice = first.dice;
+          check.outcome = first.outcome;
+          check._outcomeArgs = first.args;
+        }
+        check.firstOutcome = null;
+        check.extraDetailLines = [...(check.extraDetailLines ?? []),
+          `Dual Minds: each head saves — ${first.outcome?.degree?.label ?? "?"} (${first.outcome?.total}) and ${second?.degree?.label ?? "?"} (${second?.total}); the better stands.`];
+      }
+    }
+
     // Scoundrel's Luck (Rogue, 1st): "you do not expend the conviction
     // used when gaining advantage on a skill modified by Roguish Skill
     // if the result of the check is a failure." Failure, Fumble or
@@ -1187,6 +1259,9 @@ export class TRGCheck {
       check.extraDetailLines = [...(check.extraDetailLines ?? []),
         degreeShiftLine("Fateful Temptation", from, check.outcome.degree.label)];
     }
+
+    // THE CONVICTION BONUS, BEFORE ANYBODY READS THE RESULT (3.645.0, F2).
+    if (check.actor && !check.flat) await offerConvictionBonusNow(check);
 
     // A DECLARED SUCCESS (3.630.0) — Prism Lotus (Fate). Asked before any
     // reroll or conversion, because a declared Success leaves none to make.
@@ -1263,6 +1338,68 @@ export class TRGCheck {
  * Which sense a Perception check needs, asked of a Blinded or Deafened
  * creature (3.621.0). Returns {sense, visionOnly}.
  */
+/**
+ * THE CONVICTION BONUS, OFFERED WHILE IT CAN STILL CHANGE SOMETHING
+ * (3.645.0, F2 of Graham's 14 October session).
+ *
+ * The +1d6 used to be a button on the posted card only. A card rebuilds its
+ * own total, but an attack, a cast or a workflow's save has already been read
+ * by then — the hit, the spell's degree, the damage halved — so the card said
+ * the total rose and nothing that mattered moved. The die is now asked for
+ * here, between the dice and the workflow reading them, whenever the result
+ * is read at once:
+ *
+ * - an attack or a Spellcraft check, always (an attack's margin sets its
+ *   critical, a cast's sets warping) — except an unmodified 1 on an attack,
+ *   which misses whatever is added;
+ * - a save or a skill check with its DC known, when +6 could move the degree.
+ *
+ * A save or skill check still waiting on the GM's DC keeps the card button,
+ * which works there: nothing has read the card yet.
+ */
+async function offerConvictionBonusNow(check) {
+  if (!check.allowConviction || check.luckUsed) return;
+  if (!CONVICTION_SPENDS.bonus.checkTypes.includes(check.type)) return;
+  if (!check.outcome) return;
+  const readsNow = check.type === "attack" || check.type === "spellcraft";
+  const dc = check.outcome.dc;
+  if (!readsNow && (dc === null || dc === undefined)) return;
+  check.convictionDecided = true;
+  if (check.type === "attack" && Number(check.dice?.unmodified) === 1) return;
+  if (!(game.user?.isGM || check.actor.isOwner)) return;
+  const state = getConvictionState(check.actor);
+  if (!state.ok) return;
+  if (!readsNow && !check.convictionCouldMove()) return;
+
+  const DialogV2 = foundry.applications?.api?.DialogV2;
+  if (!DialogV2) return;
+  const total = check.outcome.total;
+  const against = dc === null || dc === undefined
+    ? ""
+    : check.type === "attack"
+      ? ` against DB <strong>${dc}</strong>`
+      : ` against DC <strong>${dc}</strong> — <strong>${check.outcome.degree?.label ?? ""}</strong>`;
+  const spend = await DialogV2.confirm({
+    window: { title: `${check.actor.name}: Conviction` },
+    content: `<p><strong>${check.label ?? "Check"}</strong>: total <strong>${total}</strong>${against}.</p>`
+      + `<p>Spend a conviction point to add <strong>+1d6</strong> before this resolves? (${state.value} left)</p>`,
+    rejectClose: false
+  });
+  if (!spend) return;
+  // ASKED AGAIN AT THE SPEND, as the card button does: another window may
+  // have spent this round's point while the dialog was open.
+  if (!getConvictionState(check.actor).ok) return;
+  const roll = await new Roll("1d6").evaluate();
+  // ONE ROLL, ON THE MESSAGE AS IT IS CREATED — Dice So Nice shows it once.
+  check.rolls.push(roll);
+  check.applyExtraModifier({ label: "Conviction (+1d6)", value: roll.total, type: "untyped" });
+  check.convictionBonusSpent = true;
+  await markConvictionSpent(check.actor);
+  check.extraDetailLines = [...(check.extraDetailLines ?? []),
+    `Conviction: +1d6 rolled <strong>${roll.total}</strong> before the result was read — the total is now <strong>${check.outcome.total}</strong>.`];
+  await luckOfHeroes(check.actor, "bonus");
+}
+
 async function askPerceptionSense(check, { blinded, deafened }) {
   const DialogV2 = globalThis.foundry?.applications?.api?.DialogV2;
   if (!DialogV2) return { sense: "other", visionOnly: true };

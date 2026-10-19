@@ -513,7 +513,10 @@ ok("F4 every emanation is swept when any token moves",
   /await refreshAllEmanations\(\)/.test(moveHook),
   "the caster moving takes the circle; anyone else moving crosses its edge");
 ok("F5 the hooks are guarded by the acting GM, not by isGM",
-  (flow.match(/isActingGM\(\)/g) ?? []).length >= 3,
+  // 3.645.0: each hook by name — the player-side requests added more
+  // isActingGM() calls, so a bare count no longer saw a hook lose its guard.
+  ["updateToken", "createToken", "deleteToken"].every((hook) =>
+    new RegExp(`Hooks\\.on\\("${hook}", async \\([^)]*\\) => \\{\\n    if \\(!isActingGM\\(\\)\\) return;`).test(flow)),
   "a hook fires on every client; two GMs would reconcile twice");
 ok("F6 the hooks are registered at boot",
   /registerEmanations\(\)/.test(boot) && /emanation-workflow\.mjs/.test(boot));
@@ -584,7 +587,8 @@ ok("G10 adoption stamps rather than re-creates",
 ok("G11 recording an emanation adopts what the cast placed",
   // 3.609.1: the guard also reads `reconcile`, false only for the save
   // write-back inside a refresh (F3 of the 3.609.0 live test).
-  /if \(!descriptor\?\.frozen && reconcile\) \{[\s\S]{0,200}adoptCastEffects\(castId\)/.test(flow),
+  // 3.645.0: a player's cast hands the adoption to the GM's client first.
+  /if \(!descriptor\?\.frozen && reconcile\) \{[\s\S]{0,420}adoptCastEffects\(castId\)/.test(flow),
   "and a frozen one keeps its cast-placed effects, unowned and permanent");
 
 // THE CONJUNCTION, not two strings near each other. The first draft

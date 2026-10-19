@@ -92,7 +92,8 @@ const ADJACENT_FEET = 5;
 /** The trait whose casting intensifies the thorns. */
 const INTENSIFY_TRAIT = "essence";
 
-const DICE_OR_FLAT = /^(?:[1-9]\d*d[1-9]\d*|[1-9]\d*)$/i;
+// "3d8+10" (3.640.0, the Balor's flames) as well as "1d6" and "1".
+const DICE_OR_FLAT = /^(?:[1-9]\d*d[1-9]\d*(?:[+-]\d+)?|[1-9]\d*)$/i;
 const text = (value) => String(value ?? "").trim();
 
 /**
@@ -166,8 +167,36 @@ export function normaliseThorns(raw) {
      * arrive after the damage it is meant to halve. Named on the card so a
      * table can apply it rather than silently dropped.
      */
-    save: text(raw.save)
+    save: typeof raw.save === "string" ? text(raw.save) : "",
+    /*
+     * A SAVE THAT IS ROLLED (3.640.0; Fiends & Fables 3.0 block 10, R4).
+     * The Aroch's Reactive Slime — "the attacker must make a basic Reflex
+     * save against 2d6 acid damage" — and the Balor's flames on whoever
+     * strikes it, where "this saving throw does not lessen the damage".
+     * A creature's own ability, so its DC is printed and its save is rolled
+     * for the attacker rather than left on the card:
+     *
+     *   save: { key: "reflex", dc: 21, basic: true, avoidsCriticalOnly: false }
+     */
+    saveRoll: raw.save && typeof raw.save === "object" && ["fortitude", "reflex", "will"].includes(text(raw.save.key).toLowerCase())
+      ? { key: text(raw.save.key).toLowerCase(), dc: Math.max(0, Math.trunc(Number(raw.save.dc) || 0)), basic: raw.save.basic !== false, avoidsCriticalOnly: raw.save.avoidsCriticalOnly === true }
+      : null,
+    // "R: Trigger …" — a REACTION: spent from the creature's pool, and
+    // refused in combat when none is left.
+    reaction: raw.reaction === true,
+    // MOLTEN BLOOD (3.644.0, F&F 3.0 block 14 R4): "struck for a critical
+    // hit in melee" — only a critical blow sets it off.
+    criticalOnly: raw.criticalOnly === true
   };
+}
+
+/**
+ * A rolled thorns save's effect on the damage (3.640.0): the basic save's
+ * multiplier, never below full when the save only avoids the critical.
+ */
+export function thornsSaveMultiplier(spec, basicMultiplier) {
+  const m = Number(basicMultiplier) || 0;
+  return spec?.saveRoll?.avoidsCriticalOnly ? Math.max(1, m) : m;
 }
 
 /**
@@ -180,9 +209,10 @@ export function normaliseThorns(raw) {
  * @param {boolean} blow.unarmed      was it an unarmed attack?
  * @param {number|null} blow.distanceFeet  measured distance, or null
  */
-export function thornsTriggered(spec, { hit, melee, unarmed, distanceFeet } = {}) {
+export function thornsTriggered(spec, { hit, melee, unarmed, distanceFeet, critical = false } = {}) {
   if (!spec) return false;
   if (!hit || !melee) return false;
+  if (spec.criticalOnly && !critical) return false;
   // The second printed route, which needs no geometry.
   if (unarmed) return true;
   if (distanceFeet === null || distanceFeet === undefined) return false;

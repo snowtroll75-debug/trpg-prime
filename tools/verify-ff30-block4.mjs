@@ -75,12 +75,12 @@ const src = {
   act: read("module", "creature-activation-workflow.mjs"), codex: read("module", "codex-actions-workflow.mjs"), cast: read("module", "magic", "cast-workflow.mjs")
 };
 ok("B1 damage records its types, and active regeneration holds at 0 HP", /await actor\.setFlag\("trg-prime", "damageTypesSinceTurn", withDamageTypes\(/.test(src.dying) && /const regenHeld = regenerationHolds\(Array\.from\(actor\.items \?\? \[\]\), \{/.test(src.dying) && /return \{ case: "regeneration-holds", guard: regenHeld\.label, newHP: 0 \};/.test(src.dying));
-ok("B2 the turn start negates by type, and wakes a creature its heal raises", /const negated = negatedByTypes\(negatedBy, typesSince\);/.test(src.turn) && /if \(!locked && !negated && a\.amount > 0\) \{/.test(src.turn) && /await clearUnconsciousIfConscious\(actor\);/.test(src.turn));
+ok("B2 the turn start negates by type, and wakes a creature its heal raises", /const negated = negatedByTypes\(negatedBy, typesSince\);/.test(src.turn) && /if \(!locked && !negated && a\.amount > 0\) \{/.test(src.turn) && /if \(!locked && !negated && a\.amount > 0\) \{[\s\S]{0,800}?\n {10}await clearUnconsciousIfConscious\(actor\);/.test(src.turn));
 ok("B3 aligned packets meet alignment defences and report their alignment", /sourceTraits: alignedPacketTraits\(rune\)/.test(src.attack) && /damageTypes: \[String\(rune\.type \?\? ""\)\.trim\(\)\.toLowerCase\(\), \.\.\.alignedPacketTraits\(rune\)\]/.test(src.attack));
 ok("B4 ally-aura effects are kept in step on moves and are registered", /if \("x" in changed \|\| "y" in changed \|\| "disposition" in changed \|\| "width" in changed\) syncAllyAuraEffects\(\);/.test(src.sync) && /await actor\.createEmbeddedDocuments\("ActiveEffect", delta\.add\.map\(\(g\) => allyGrantEffectData\(g\)\)\);/.test(src.sync) && /registerAllyAuraEffectHooks\(\);/.test(src.init));
 ok("B5 versus damage asks the target's alignments", /alignedTraitsOf\(targetActor\.system \?\? \{\}\)\);/.test(src.vdw));
 ok("B6 the Use button asks for the damage type when one is offered", /use\.spec = withChosenDamageType\(use\.spec, picked\);/.test(src.act));
-ok("B7 Harmonize is a codex action and its aid reaches the innate save DC", /eternalSummons, trample, draconicShifting, harmonize \}\);/.test(src.codex) && /\+ harmonyHere;/.test(src.cast) && /if \(harmonyRecord && actor\.unsetFlag\) await actor\.unsetFlag\(SYSTEM_ID, HARMONIZE_FLAG\);/.test(src.cast));
+ok("B7 Harmonize is a codex action and its aid reaches the innate save DC", /eternalSummons, trample, draconicShifting, harmonize[,}]/.test(src.codex) && /\+ harmonyHere;/.test(src.cast) && /if \(harmonyRecord && actor\.unsetFlag\) await actor\.unsetFlag\(SYSTEM_ID, HARMONIZE_FLAG\);/.test(src.cast));
 
 const EXPECTED = 19;
 equal("Z the suite ran every check it is meant to", checks + 1, EXPECTED);

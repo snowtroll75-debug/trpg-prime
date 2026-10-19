@@ -196,7 +196,12 @@ const KIND_VALUES = Object.freeze(Object.values(CONDITIONAL_KINDS));
  */
 export const SCOPE_AXES = Object.freeze([
   "checkTypes", "subjects", "actions", "traits", "traditions", "sourceTypes",
-  "targetTypes", "sourceUuids", "targetUuids"
+  "targetTypes", "sourceUuids", "targetUuids",
+  // MELEE OR RANGED (3.650.0; F&F 3.0 block 17 R5): the Glimmerwick's
+  // Irritating Glamour is "-1 to Perception checks and RANGED attacks". An
+  // attack check knows which it is; nothing else does, so an entry scoped to
+  // it matches no other roll.
+  "attackModes"
 ]);
 
 /**
@@ -218,7 +223,8 @@ export const AXIS_CONTEXT_KEYS = Object.freeze({
   sourceTypes: "sourceTypes",
   targetTypes: "targetTypes",
   sourceUuids: "sourceUuid",
-  targetUuids: "targetUuid"
+  targetUuids: "targetUuid",
+  attackModes: "attackMode"
 });
 
 /**
@@ -560,6 +566,10 @@ export function matchesCheck(entry, context = {}) {
     .map((t) => String(t ?? "").trim())
     .filter(Boolean);
 
+  // MELEE OR RANGED (3.650.0): "melee" or "ranged" on an attack check,
+  // nothing on any other.
+  const attackModes = [String(context.attackMode ?? "").trim().toLowerCase()].filter(Boolean);
+
   // Exclusions are tested first and apply even to an `always` entry —
   // "everywhere except X" is a shape worth being able to write.
   //
@@ -595,6 +605,7 @@ export function matchesCheck(entry, context = {}) {
   if (excludes(excluded.targetTypes, targetTypes)) return false;
   if (excludes(excluded.sourceUuids, sourceUuids)) return false;
   if (excludes(excluded.targetUuids, targetUuids)) return false;
+  if (excludes(excluded.attackModes, attackModes)) return false;
 
   if (entry.always) return true;
 
@@ -602,7 +613,8 @@ export function matchesCheck(entry, context = {}) {
     checkTypes, subjects, actions,
     traits: wanted, traditions: wantedTraditions, sourceTypes: wantedSourceTypes,
     targetTypes: wantedTargetTypes,
-    sourceUuids: wantedSourceUuids, targetUuids: wantedTargetUuids
+    sourceUuids: wantedSourceUuids, targetUuids: wantedTargetUuids,
+    attackModes: wantedAttackModes
   } = entry.when ?? {};
 
   if (checkTypes && !checkTypes.includes(checkType)) return false;
@@ -629,6 +641,7 @@ export function matchesCheck(entry, context = {}) {
   // applying it anyway would penalise the enemy's every swing at
   // everybody — the Stone Shield defect with the sign flipped.
   if (wantedTargetUuids && !wantedTargetUuids.some((t) => targetUuids.includes(t))) return false;
+  if (wantedAttackModes && !wantedAttackModes.some((t) => attackModes.includes(t))) return false;
 
   return true;
 }

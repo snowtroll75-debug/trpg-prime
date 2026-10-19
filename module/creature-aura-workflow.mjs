@@ -30,6 +30,8 @@
  * way — see module/acting-gm.mjs.
  */
 
+import { fearfulPowerBonus } from "./fearful-power-workflow.mjs";
+import { auraSwitchStates } from "./aura-switch.mjs";
 import {
   DEFAULT_IMMUNITY_SECONDS, aurasCatching, aurasOf, auraReachFeet, withAuraImmunity,
   immuneToAuraEffect,
@@ -122,7 +124,12 @@ export function auraEmitters() {
       widthFeet: tokenWidthFeet(token.document),
       // THE EMITTER'S STATE (3.633.0): "submerged" while the underwater
       // rail's effect is on it — Mucus Cloud's "in its aquatic environment".
-      states: Array.from(token.actor?.effects ?? []).some((e) => !e.disabled && e.getFlag?.(SYSTEM_ID, "submerged")) ? ["submerged"] : [],
+      // AN AURA SWITCHED ON (3.658.0; F&F 3.0 block 25 R6 — Soul Eclipse):
+      // the state its ability's Use button laid, while that effect lasts.
+      states: [
+        ...(Array.from(token.actor?.effects ?? []).some((e) => !e.disabled && e.getFlag?.(SYSTEM_ID, "submerged")) ? ["submerged"] : []),
+        ...auraSwitchStates(Array.from(token.actor?.effects ?? []), Number(game.time?.worldTime ?? 0))
+      ],
       auras
     });
   }
@@ -155,14 +162,19 @@ export function allyAuraConditionalsFor(actor) {
   if (!tokens.length) return [];
   const token = tokens.find((t) => t.controlled) ?? tokens[0];
   if (!token?.document) return [];
-  return allyConditionalsInForce({
+  // FEARFUL POWER (3.659.0; block 28 R9): "a status bonus to all of its
+  // attacks … equal to the highest frightened value within this radius".
+  const fearful = fearfulPowerBonus(actor);
+  const own = fearful > 0 ? [{ kind: "modifier", value: fearful, type: "status", label: "Fearful Power", scope: "attacks (the highest frightened value within 30 feet)",
+    auto: true, when: { checkTypes: ["attack"] }, sourceName: "Fearful Power" }] : [];
+  return [...own, ...allyConditionalsInForce({
     subject: {
       id: token.id,
       centreFeet: tokenCentreFeet(token.document),
       disposition: token.document.disposition
     },
     emitters: auraEmitters()
-  });
+  })];
 }
 
 /** A token's own immunity record, and the world time to measure against. */
@@ -584,6 +596,10 @@ async function rollAuraSave(subjectToken, aura, emitterToken) {
       return { lines: [`<em>${actor?.name ?? "It"} is not a living creature — ${aura.name} does not reach it.</em>`], succeeded: false, skipped: true };
     }
   }
+  const blindedBy = (aura.immuneIf ?? []).find((key) => actor?.hasCondition?.(key));
+  if (blindedBy) {
+    return { lines: [`<em>${actor?.name ?? "It"} is ${blindedBy} — ${aura.name} does not reach it.</em>`], succeeded: false, skipped: true };
+  }
   if (aura.appliesToTraits?.length) {
     const { alignedTraitsOf } = await import("./aligned.mjs");
     const have = alignedTraitsOf(actor?.system ?? {}).map((t) => String(t).toLowerCase());
@@ -621,14 +637,38 @@ async function rollAuraSave(subjectToken, aura, emitterToken) {
     await actor.update({ "system.resources.hp.value": 0 });
     lines.push(`${actor.name} collapses — reduced to <strong>0 HP</strong>.`);
   }
-  const conditionTags = tags.filter((t) => t.key && !t.zeroHP).map(({ resave, zeroHP, ...tag }) => tag);
+  // "IT CAN ATTEMPT A NEW SAVE AT THE END OF EACH OF ITS TURNS" (3.636.0,
+  // F&F 3.0 block 6 R8 — Petrifying Gaze's Partial): the escape-save rail,
+  // at the aura's DC, carried on the tag as an after-strike's is.
+  // A LADDER RE-SAVE DECLARED ON THE ROW (3.653.0; block 20 R2 — the
+  // Medusa's Petrifying Gaze, the Gorgon's ladder from block 17): made against
+  // this aura's own DC, as the area rail's is.
+  const conditionTags = tags.filter((t) => t.key && !t.zeroHP).map(({ resave, zeroHP, ...tag }) => (resave
+    ? { ...tag, conditionSave: { save, onSuccess: "end", label: aura.name, saveDC: dc } }
+    : tag.conditionSave ? { ...tag, conditionSave: { save, label: aura.name, ...tag.conditionSave, saveDC: dc } } : tag));
   if (conditionTags.length) {
     const { applyConditionTags, formatAppliedTags } = await import("./combat/effect-application-workflow.mjs");
     const { conditionLabel } = await import("./conditions/condition-rules.mjs");
     const applied = await applyConditionTags(actor, conditionTags.map((t) => ({ ...t, label: conditionLabel(t.key) })), {});
     lines.push(`Applied: ${formatAppliedTags(applied)}.`);
-  } else if (!tags.length && !aura.damage && !auraTraitEffectLands(aura, degree?.key ?? "failure")) {
+    for (const tag of conditionTags.filter((t) => t.conditionSave)) {
+      if (!applied.some((a) => a.key === tag.key && !a.immune)) continue;
+      lines.push(`<em>${actor.name} may attempt a new ${save} save (DC ${dc}) at the end of each of its turns to end it.</em>`);
+    }
+  } else if (!tags.length && !aura.damage && !aura.damageByDegree && !aura.criticals && !auraTraitEffectLands(aura, degree?.key ?? "failure") && !(aura.rollOutcomes && text)
+    // A RUNG THAT LIMITS MOVEMENT IS NOT "UNAFFECTED" (3.651.1, found live —
+    // Shifting Aura's Success said both "difficult terrain" and "Unaffected").
+    && !aura.moveLimits?.[String(degree?.key ?? "failure")]) {
+    // An outcome-only ladder (3.640.1, found live): its printed line IS the
+    // result — "Unaffected" is added only when the rung prints nothing.
     lines.push("<em>Unaffected.</em>");
+  }
+  // A RUNG THAT LIMITS MOVEMENT (3.651.0, block 18 R8 — Shifting Aura):
+  // laid on the creature as an effect the movement hook reads.
+  {
+    const { moveLimitFor } = await import("./combat/aura-move-limits.mjs");
+    const kind = moveLimitFor(aura.moveLimits, degree?.key ?? "failure");
+    if (kind) lines.push(await layAuraMoveLimit(actor, kind, aura, emitterToken));
   }
   // A TRAIT FOR A WHILE (3.633.0, F&F 3.0 R7): Mucus Cloud's failure —
   // Mucus-Bound, the Aquatic trait for 2 hours. See aura-trait-effect-workflow.
@@ -642,7 +682,38 @@ async function rollAuraSave(subjectToken, aura, emitterToken) {
   if (aura.damage) {
     lines.push(await applyAuraDamage(actor, aura, degree, check, emitterToken));
   }
+  // DAMAGE AND A CRITICAL BY DEGREE (3.658.0; block 25 R6 — Soul Eclipse).
+  if (aura.damageByDegree || aura.criticals) {
+    lines.push(...await applyAuraDegreeEffect(actor, aura, degree, emitterToken));
+  }
   return { lines, succeeded: Boolean(degree?.success) };
+}
+
+/** Lay an aura rung's movement limit on the creature it caught; the card line. */
+async function layAuraMoveLimit(actor, kind, aura, emitterToken) {
+  const { AURA_MOVE_LIMIT_FLAG, auraMoveLimitRecord, limitTurn } = await import("./combat/aura-move-limits.mjs");
+  const combat = game.combat?.started ? game.combat : null;
+  const own = combat?.combatants?.find?.((c) => c.actor?.id === actor.id) ?? null;
+  const ownIndex = own ? combat.turns.findIndex((c) => c.id === own.id) : -1;
+  const forRound = combat ? limitTurn({ round: combat.round, turn: combat.turn, ownTurnIndex: ownIndex, acting: combat.combatant?.actor?.id === actor.id }) : 0;
+  const record = auraMoveLimitRecord({ kind, emitterTokenId: emitterToken?.id ?? "", emitterName: emitterToken?.name ?? aura.name,
+    radiusFeet: aura.radius, label: aura.name, forRound });
+  if (!record) return "";
+  // UNTIL ITS NEXT TURN BEGINS (difficult) / FOR ITS TURN (noApproach): both
+  // are swept by the next round's turn starts; the noApproach record binds
+  // only on the turn it names (approachLimitLive).
+  const timing = combat
+    ? { conditionExpiresRound: (kind === "noApproach" ? forRound : Number(combat.round ?? 0)) + 1 }
+    : { spellEffect: true, spellEffectEnd: Number(game.time?.worldTime ?? 0) + 6 };
+  const { createEffectsOn } = await import("./combat/target-relay-workflow.mjs");
+  await createEffectsOn(actor, [{
+    name: `${aura.name} (${kind === "difficult" ? "difficult ground" : "cannot approach"})`,
+    img: kind === "difficult" ? "icons/svg/net.svg" : "icons/svg/barrier.svg",
+    flags: { [SYSTEM_ID]: { [AURA_MOVE_LIMIT_FLAG]: record, ...timing } }
+  }]);
+  return kind === "difficult"
+    ? `${actor.name}: the ground within ${record.radiusFeet} feet of ${record.emitterName} is <strong>difficult terrain</strong> to it until its next turn.`
+    : `${actor.name} <strong>cannot move towards ${record.emitterName}</strong> for the rest of its turn.`;
 }
 
 /** Everything that catches this token right now, for one trigger. */
@@ -662,22 +733,75 @@ async function applyAuraDamage(actor, aura, degree, check, emitterToken) {
     total += bonus.total;
     parts.push(`${bs.criticalSeverity ?? "failed badly"}: +${bs.bonusBaseDamage} base (${bonus.total})`);
   }
-  const amount = Math.floor(total * bs.damageMultiplier);
+  // FULL DAMAGE AND THE HOLD (3.640.0, F&F 3.0 block 10 R3 — Aura of Flames):
+  // the save avoids only the critical; a creature the emitter holds takes it
+  // twice.
+  const { auraDamageMultiplier, reactiveAuraType } = await import("./creature-auras.mjs");
+  const emitterActor = emitterToken?.actor ?? null;
+  const grabbedByEmitter = Boolean(emitterActor && actor.hasCondition?.("grabbed")
+    && String(actor.getFlag?.(SYSTEM_ID, "grabbedBy")?.uuid ?? "") === String(emitterActor.uuid));
+  const multiplier = auraDamageMultiplier(aura.damage, bs.damageMultiplier, { grabbedByEmitter });
+  if (aura.damage.fullDamage && bs.damageMultiplier < 1) parts.push("(the save avoids only the critical — full damage)");
+  if (grabbedByEmitter && aura.damage.doubleIfGrabbedBy) parts.push(`(doubled — held by ${emitterActor.name})`);
+  const amount = Math.floor(total * multiplier);
   if (amount <= 0) { parts.push("— no damage."); return parts.join(" "); }
-  const { applyTypedDamage, describeDamage } = await import("./combat/damage-workflow.mjs");
+  const { applyTypedDamage, describeDamage, resolveAgainstDefences } = await import("./combat/damage-workflow.mjs");
   const level = Math.max(0, Math.floor(Number(emitterToken?.actor?.system?.identity?.level ?? 0) || 0));
-  const dealt = await applyTypedDamage(actor, { amount, type: aura.damage.type, sourceLevel: level, sourceName: aura.name });
+  // REACTIVE EVIL (3.640.0, R5): a creature whose resistance or immunity
+  // lessens the aura's own type turns it "evil and fire" until the emitter's
+  // next turn; while it is turned, each creature takes whichever type hurts
+  // it more.
+  let type = aura.damage.type;
+  if (aura.damage.reactiveType) {
+    const { ownedCreatureTypeSystem } = await import("./creature-type-rules.mjs");
+    const probe = (t) => Number(resolveAgainstDefences(actor.system ?? {}, { amount, type: t, creatureTypeSystem: ownedCreatureTypeSystem(actor), targetItems: Array.from(actor.items ?? []) })?.taken ?? 0);
+    const turned = emitterActor?.getFlag?.(SYSTEM_ID, AURA_REACTIVE_FLAG) ?? {};
+    const pick = reactiveAuraType(aura.damage, { ownTaken: probe(aura.damage.type), reactiveTaken: probe(aura.damage.reactiveType), active: Boolean(turned[aura.id]) });
+    type = pick.type;
+    if (pick.triggers && emitterActor?.setFlag) {
+      await emitterActor.setFlag(SYSTEM_ID, AURA_REACTIVE_FLAG, { ...turned, [aura.id]: true });
+      parts.push(`<strong>${actor.name} resisted the ${aura.damage.type} — ${aura.name} is ${aura.damage.reactiveType} and ${aura.damage.type} until ${emitterActor.name}'s next turn.</strong>`);
+    } else if (type !== aura.damage.type) parts.push(`(${aura.name} is ${aura.damage.reactiveType} and ${aura.damage.type})`);
+  }
+  const dealt = await applyTypedDamage(actor, { amount, type, sourceLevel: level, sourceName: aura.name });
   parts.push(`— ${describeDamage(dealt.packet, actor.name)}`);
   return parts.join(" ");
 }
 
-export async function resolveAuras(tokenDocument, trigger) {
+/** Roll and apply what one degree of a by-degree aura deals; the card lines. */
+async function applyAuraDegreeEffect(actor, aura, degree, emitterToken) {
+  const { auraDegreeEffect } = await import("./creature-auras.mjs");
+  const { formula, type, severity } = auraDegreeEffect(aura, degree?.key ?? "failure");
+  const out = [];
+  if (formula) {
+    const roll = await new Roll(formula).evaluate();
+    const amount = Math.max(0, Math.floor(roll.total));
+    const { applyTypedDamage, describeDamage } = await import("./combat/damage-workflow.mjs");
+    const level = Math.max(0, Math.floor(Number(emitterToken?.actor?.system?.identity?.level ?? 0) || 0));
+    const dealt = await applyTypedDamage(actor, { amount, type, sourceLevel: level, sourceName: aura.name });
+    out.push(`<strong>${type} damage:</strong> ${roll.total} (${formula}) — ${describeDamage(dealt.packet, actor.name)}`);
+  }
+  if (severity) {
+    const { rollCriticalInjury } = await import("./combat/attack-workflow.mjs");
+    await rollCriticalInjury(emitterToken?.actor ?? actor, { targetActor: actor, damageType: type || "bludgeoning", severity, attackBonus: 0 });
+    out.push(`A <strong>${severity}</strong> critical injury.`);
+  }
+  return out;
+}
+
+/** An emitter's reactive auras turned this round (3.640.0): aura id → true. */
+const AURA_REACTIVE_FLAG = "auraReactive";
+
+export async function resolveAuras(tokenDocument, trigger, { from = null } = {}) {
   const token = tokenDocument?.object;
   if (!token || !isActingGM()) return [];
+  // "UNTIL THE BEGINNING OF ITS NEXT TURN" — the emitter's own turn start
+  // ends a reactive turn (3.640.0, Reactive Evil).
+  if (trigger === "turnStart" && token.actor?.getFlag?.(SYSTEM_ID, AURA_REACTIVE_FLAG)) await token.actor.unsetFlag(SYSTEM_ID, AURA_REACTIVE_FLAG);
   const { immunities, now } = immunityState(token);
   const caught = aurasCatching({
     trigger,
-    subject: { id: token.id, centreFeet: tokenCentreFeet(tokenDocument), widthFeet: tokenWidthFeet(tokenDocument), immunities, traits: creatureTraits(token.actor?.system ?? {}).map((t) => String(t).toLowerCase()) },
+    subject: { id: token.id, centreFeet: tokenCentreFeet(tokenDocument), fromCentreFeet: from ? tokenCentreFeet(from) : null, widthFeet: tokenWidthFeet(tokenDocument), immunities, traits: creatureTraits(token.actor?.system ?? {}).map((t) => String(t).toLowerCase()) },
     emitters: auraEmitters(),
     now
   });
@@ -742,12 +866,22 @@ export function registerAuraHooks() {
   // MOVED INTO THE RADIUS — after the move, because where the creature
   // ended up is the question. `preMoveToken` is already spoken for by
   // the AP/opportunity machinery and answers a different one.
+  // WHERE EACH TOKEN STOOD BEFORE ITS MOVE (3.637.0): "enter" is crossing
+  // into an aura, so the move's start is remembered here — on the acting GM,
+  // who resolves auras — from the canvas loading, a token's creation and
+  // every move it makes. A token not yet seen moves under the old reading.
+  const lastPlace = new Map();
+  const remember = (doc) => { if (doc?.id) lastPlace.set(doc.id, { x: Number(doc.x ?? 0), y: Number(doc.y ?? 0), width: Number(doc.width ?? 1), height: Number(doc.height ?? 1) }); };
+  Hooks.on("canvasReady", () => { lastPlace.clear(); for (const t of canvas?.tokens?.placeables ?? []) remember(t.document); });
+  Hooks.on("createToken", (doc) => remember(doc));
   Hooks.on("updateToken", async (tokenDocument, changed) => {
     if (!isActingGM()) return;
     const moved = "x" in changed || "y" in changed;
     if (!moved) return;
+    const from = lastPlace.get(tokenDocument.id) ?? null;
+    remember(tokenDocument);
     await refreshAuraRegions(tokenDocument);
-    await resolveAuras(tokenDocument, "enter");
+    await resolveAuras(tokenDocument, "enter", { from });
   });
 
   // BEGINS ITS TURN — the only moment Foundry announces a turn starting.

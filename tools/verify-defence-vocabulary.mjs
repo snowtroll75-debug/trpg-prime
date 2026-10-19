@@ -467,7 +467,9 @@ ok("W3 A WEAPON STRIKE DECLARES ITSELF TARGETED",
  * it, which is worth recording rather than quietly fixing.
  */
 ok("W4 THE INJURY ROLL IS GATED ON THE IMMUNITY",
-  /outcome\.critical\s*&&\s*!outcome\.critical\.injuryImmune/.test(attackSrc),
+  // 3.650.0: anchored on the injury's own gate — a second line (the critical
+  // replacement's offer) now asks the same question first.
+  /if \((?:!grabOnly\s*&&\s*|strikeLands\s*&&\s*)?outcome\.critical\s*&&\s*!outcome\.critical\.injuryImmune\s*&&\s*!injuryReplaced\) \{/.test(attackSrc),
   "C1c proves attackOutcome sets the flag; without this, nothing proves the workflow "
   + "reads it, and a flag nobody reads is the whole subject of this release");
 

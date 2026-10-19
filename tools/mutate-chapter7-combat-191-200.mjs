@@ -237,7 +237,7 @@ const MUTATIONS = [
   { file: MOVEWF, name: "R15: the surcharge is never charged",
     // RE-ANCHORED AT 3.606.0: the sum is named `surcharged` now, because a
     // Spirit Trap's difficult-terrain floor is applied to it next.
-    from: "  const surcharged = measured + Math.max(0, Number(space.surcharge) || 0);", to: "  const surcharged = measured;", breaks: "O7" },
+    from: "  const surcharged = measured + Math.max(0, Number(space.surcharge) || 0) + Math.max(0, Number(auraLimits.surcharge) || 0);", to: "  const surcharged = measured + Math.max(0, Number(auraLimits.surcharge) || 0);", breaks: "O7" },
   { file: MOVEWF, name: "R15: the Tumble marker survives the turn",
     from: "  for (const flag of [MOVED_FLAG, ARMED_FLAG, TUMBLE_FLAG, ...LEGACY_FLAGS]) {",
     to: "  for (const flag of [MOVED_FLAG, ARMED_FLAG, ...LEGACY_FLAGS]) {", breaks: "O8" },

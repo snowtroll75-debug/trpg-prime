@@ -50,6 +50,14 @@ function withImpliedTraits(list = []) {
 }
 
 /**
+ * A trait string's traits with those they imply (3.647.0): Fear and Emotion
+ * bring Mental. The question Dual Minds asks of an effect.
+ */
+export function traitsWithImplied(traits) {
+  return withImpliedTraits(traitList(traits));
+}
+
+/**
  * Split a trait string into normalised trait names.
  *
  * @param {string} traits A comma-separated trait string.

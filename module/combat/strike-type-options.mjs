@@ -62,6 +62,16 @@ export function declaredStrikeTypeOptions(effects = []) {
   return out;
 }
 
+/**
+ * A WEAPON'S OWN ALTERNATE TYPES (3.643.0; F&F 3.0 block 13 R6). Xithra
+ * deals "8d6 mental or force": `flags.trg-prime.strikeTypes: ["mental"]`
+ * beside its damage type, asked as Versatile is.
+ */
+export function weaponStrikeTypeOptions(weapon) {
+  const raw = weapon?.flags?.[SYSTEM_ID]?.strikeTypes;
+  return (Array.isArray(raw) ? raw : []).map((t) => normaliseStrikeTypeOption({ type: t, label: String(weapon?.name ?? ""), scope: "any" })).filter(Boolean);
+}
+
 /** Does this option reach a strike with this weapon? */
 function optionReaches(option, weaponSystem = {}) {
   if (!option) return false;

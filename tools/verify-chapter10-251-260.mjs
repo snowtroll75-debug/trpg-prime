@@ -566,12 +566,13 @@ ok("F3 Channel The Aspect offers its four aspects",
   (sysOf("channel the aspect")?.apOptions ?? []).length === 4);
 ok("F4 three of them grant +4 status and the fourth grants an action",
   (sysOf("channel the aspect")?.apOptions ?? [])
-    .filter((o) => o.effects.some((e) => e.kind === "bonus" && e.value === 4)).length === 3,
-  "Limbs is quickened, and 'only for a Move or a Strike' is a restriction nothing can enforce");
-ok("F5 Limbs grants no bonus row at all",
-  (sysOf("channel the aspect")?.apOptions ?? [])
-    .find((o) => /Limbs/.test(o.label))?.effects.every((e) => e.kind === "note"),
-  "a row granting the action without the restriction would be a wrong rule, not a partial one");
+    .filter((o) => o.effects.some((e) => (e.kind === "bonus" && e.value === 4)
+      || (e.kind === "conditional" && e.grants?.some((g) => g.value === 4 && g.bonusType === "status")))).length === 3,
+  "Body, Mind and Spirit; Mind's is a conditional on Recall Knowledge and Awareness (3.648.0)");
+ok("F5 Limbs is Quickened, its extra AP for a Move or a Strike only",
+  JSON.stringify((sysOf("channel the aspect")?.apOptions ?? [])
+    .find((o) => /Limbs/.test(o.label))?.effects) === JSON.stringify([{ kind: "condition", target: "self", condition: "quickened", apFor: ["move", "strike"] }]),
+  "3.648.0: the restriction this check once said nothing could enforce is enforced by combat/restricted-ap.mjs");
 // THE `??` TRAP, and it had been live on Barkskin since it was authored.
 ok("F6 no mode blanks its spell's printed range",
   ["brawn", "channel the aspect", "barkskin"].every(

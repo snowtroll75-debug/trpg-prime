@@ -92,20 +92,57 @@ export async function announceTurnStart(tokenDocument) {
       a.condition ? line(`<em>${a.condition}</em>`) : "",
       ...a.lines.map((l) => line(l))
     ].join("");
+    // REGENERATION THE GM PRESSES (3.654.0; block 21 R10 — the Nightray's
+    // "Moonlight only"): core cannot tell the condition, so the card carries
+    // a button that applies the heal once.
+    const regenButton = a.kind === "regeneration" && a.amount > 0;
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor }),
       content: `<div class="trg-prime trg-check-card"><header class="check-header">`
         + `<div class="check-heading"><span class="check-actor">${actor.name}</span>`
         + `<h3>${a.ability}</h3></div></header>${body}`
+        + (regenButton ? `<button type="button" data-trg-regenerate>Regain ${a.amount} HP</button>` : "")
         + line("<em>Applied by the GM — see the ability's own wording.</em>")
-        + `</div>`
+        + `</div>`,
+      ...(regenButton ? { flags: { [SYSTEM_ID]: { regenerate: { actorUuid: actor.uuid, amount: a.amount, ability: a.ability } } } } : {})
     });
   }
   return announcements.length;
 }
 
+/** Press the regeneration button: heal once, wake a creature held at 0 HP, and say so. */
+async function pressRegenerate(message, button) {
+  const spec = message.getFlag?.(SYSTEM_ID, "regenerate");
+  if (!spec || spec.used) { button.disabled = true; return; }
+  button.disabled = true;
+  const doc = await fromUuid(String(spec.actorUuid ?? "")).catch(() => null);
+  const actor = doc?.actor ?? doc;
+  if (!actor) { ui.notifications?.warn("That creature is no longer there."); return; }
+  await message.setFlag(SYSTEM_ID, "regenerate", { ...spec, used: true });
+  const { healActor } = await import("./magic/spell-effects.mjs");
+  const healed = Number(await healActor(actor, Number(spec.amount) || 0, { magical: false })) || 0;
+  if (Number(actor.system?.resources?.hp?.value ?? 0) > 0 && actor.hasCondition?.("unconscious")) {
+    const { clearUnconsciousIfConscious } = await import("./combat/death-state.mjs");
+    await clearUnconsciousIfConscious(actor);
+  }
+  await ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor }),
+    content: `<div class="trg-prime trg-check-card"><header class="check-header">`
+      + `<div class="check-heading"><span class="check-actor">${actor.name}</span>`
+      + `<h3>${spec.ability ?? "Regeneration"}</h3></div></header>`
+      + line(`Regains <strong>${healed} HP</strong> (regeneration ${spec.amount}).`)
+      + `</div>`
+  });
+}
+
 /** Wire the hook. Called once, from the system's init pass. */
 export function registerTurnStartHooks() {
+  Hooks.on("renderChatMessageHTML", (message, html) => {
+    const button = html.querySelector?.("[data-trg-regenerate]");
+    if (!button) return;
+    if (message.getFlag?.(SYSTEM_ID, "regenerate")?.used) { button.disabled = true; return; }
+    button.addEventListener("click", () => pressRegenerate(message, button));
+  });
   Hooks.on("updateCombat", async (combat, changed) => {
     if (!isActingGM()) return;
     if (!("turn" in changed) && !("round" in changed)) return;

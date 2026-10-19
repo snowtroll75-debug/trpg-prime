@@ -12,6 +12,9 @@
  */
 import { parseApCost, computeApSpend, canAffordAP } from "./action-points.mjs";
 import { battleReadinessBonus, battleReadinessSpendBlock, reactionQualifies } from "../fighter.mjs";
+import {
+  AP_GRANT_FLAG, actionsText, apAvailable, grantOf, restrictedHeld, spendPlan, useKindsOf
+} from "./restricted-ap.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -53,18 +56,27 @@ export function actorInCombat(actor) {
  *
  * @returns {Promise<boolean>} true to proceed.
  */
-export async function ensureActionPoints(actor, apCost, actionName = "This action") {
+export async function ensureActionPoints(actor, apCost, actionName = "This action", { use = null, traits = "" } = {}) {
   if (!actorInCombat(actor)) return true;
 
-  const currentAP = Number(actor.system?.resources?.ap?.value ?? 0);
+  // BONUS AP THAT ONLY BUYS CERTAIN ACTIONS (3.648.0; see restricted-ap.mjs):
+  // Haste's point is not there for a spell, and Fast Attack's is not there
+  // for a Stride. What this action may draw on is the general points plus
+  // any restricted point that serves it.
+  const kinds = useKindsOf(actionName, { use, traits });
+  const currentAP = apAvailable(actor, kinds);
   const { cost, affordable, shortfall } = canAffordAP(currentAP, apCost);
   if (!cost || affordable) return true;
+  const barred = restrictedHeld(actor).filter((e) => !e.actions.some((a) => kinds.includes(a)));
+  const barredLine = barred.length
+    ? `<p>${barred.map((e) => `${e.value} AP from ${e.label} may only be spent on ${actionsText(e.actions)}`).join("; ")}, so it does not count here.</p>`
+    : "";
 
   const proceed = await foundry.applications.api.DialogV2.confirm({
     window: { title: `${actionName} — Not Enough AP` },
     classes: ["trg-prime"],
     content: `<div class="trg-prime trg-check-dialog">
-      <p><strong>${actionName}</strong> costs <strong>${cost} AP</strong>, and ${actor.name} has <strong>${currentAP}</strong> — ${shortfall} short.</p>
+      <p><strong>${actionName}</strong> costs <strong>${cost} AP</strong>, and ${actor.name} has <strong>${currentAP}</strong> to spend on it — ${shortfall} short.</p>${barredLine}
       <p class="hint">Proceed anyway? Take this only for a GM override or a bonus-AP source the sheet does not model. The pool will still be reduced to 0.</p>
     </div>`,
     yes: { icon: "fa-solid fa-triangle-exclamation", label: "Proceed anyway" },
@@ -89,7 +101,7 @@ export async function ensureActionPoints(actor, apCost, actionName = "This actio
  * @param {string|number} apCost e.g. "1", "3", "Free", "Reaction".
  * @param {string} [actionName] For the warning message, if any.
  */
-export async function spendActionPoints(actor, apCost, actionName = "This action") {
+export async function spendActionPoints(actor, apCost, actionName = "This action", { use = null, traits = "" } = {}) {
   if (!actorInCombat(actor)) return;
 
   const cost = parseApCost(apCost);
@@ -97,6 +109,15 @@ export async function spendActionPoints(actor, apCost, actionName = "This action
 
   const currentAP = Number(actor.system?.resources?.ap?.value ?? 0);
   const result = computeApSpend(currentAP, cost);
+  // RESTRICTED POINTS FIRST, AND ONLY FOR WHAT THEY SERVE (3.648.0). A
+  // Strike spends Fast Attack's or Haste's point before a general one; a
+  // spell never touches them unless it overruns the general points.
+  const grant = grantOf(actor);
+  const grantUpdate = {};
+  if (grant && (grant.entries ?? []).length) {
+    const plan = spendPlan(currentAP, grant.entries, cost, useKindsOf(actionName, { use, traits }));
+    grantUpdate[`flags.${SYSTEM_ID}.${AP_GRANT_FLAG}.entries`] = plan.entries;
+  }
 
   // THE ROUND THIS ACTOR LAST SPENT AP IN (3.619.0; Chapter 12, Graham's
   // R10): Boost Your Defence is spent "at the start of any combat round",
@@ -106,7 +127,8 @@ export async function spendActionPoints(actor, apCost, actionName = "This action
     "system.resources.ap.value": result.newValue,
     // AND THE TURN (3.622.0; Graham's R11 of block 39): a Word spell "must
     // be used as your opening action", and every AP spent passes here.
-    [`flags.${SYSTEM_ID}.apSpentRound`]: { combatId: game.combat.id, round: game.combat.round, turn: game.combat.turn }
+    [`flags.${SYSTEM_ID}.apSpentRound`]: { combatId: game.combat.id, round: game.combat.round, turn: game.combat.turn },
+    ...grantUpdate
   });
 
   // SHARED AP (page 200; the block-19 audit's D13, Graham's R13 of 21
@@ -173,7 +195,9 @@ export async function refundActionCost(actor, apCost) {
   const cost = parseApCost(apCost);
   if (!cost) return;
   const current = Number(actor.system?.resources?.ap?.value ?? 0);
-  const max = Number(actor.system?.resources?.ap?.max ?? 0);
+  // THE TURN'S BONUS AP COUNTS (3.648.0): a hasted creature's 4 is not
+  // clamped back to 3 by a cancelled spell.
+  const max = Number(actor.system?.resources?.ap?.max ?? 0) + (Number(grantOf(actor)?.bonus) || 0);
   const restored = Math.min(Math.max(0, max), Math.max(0, current) + cost);
   if (restored === current) return;
   await actor.update({ "system.resources.ap.value": restored });
@@ -236,9 +260,9 @@ export async function spendReaction(actor, actionName = "This action", { traits 
  * @param {string|number} apCost
  * @param {string} [actionName]
  */
-export async function spendActionCost(actor, apCost, actionName = "This action", { traits = "" } = {}) {
+export async function spendActionCost(actor, apCost, actionName = "This action", { traits = "", use = null } = {}) {
   if (String(apCost ?? "").trim().toLowerCase() === "reaction") {
     return spendReaction(actor, actionName, { traits });
   }
-  return spendActionPoints(actor, apCost, actionName);
+  return spendActionPoints(actor, apCost, actionName, { use, traits });
 }

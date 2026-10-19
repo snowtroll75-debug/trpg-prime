@@ -12,7 +12,6 @@ import { clearUnconsciousIfConscious, healingWhileDying, reapDead } from "./deat
 import { resolveAgainstDefences } from "./damage-workflow.mjs";
 import {
   hasNoDeathState,
-  isCritOnlyDamage,
   ownedCreatureTypeSystem
 } from "../creature-type-rules.mjs";
 import {
@@ -289,18 +288,18 @@ async function applyDamageDirect(
 
   const creatureTypeSystem = ownedCreatureTypeSystem(actor);
 
-  // Creature Type: Plant — "only take damage and bleed from critical
-  // injuries." Non-critical damage never reaches HP at all. The book's own
-  // exception (a critical description that wouldn't "directly affect
-  // their anatomy") is a GM judgement call with nothing in a critical's
-  // data to test automatically, so it isn't automated here — see
-  // isCritOnlyDamage in creature-type-rules.mjs.
-  if (isCritOnlyDamage(creatureTypeSystem) && !isCritical) {
-    return {
-      case: "no-damage-not-critical",
-      newHP: Number(actor.system?.resources?.hp?.value ?? 0)
-    };
-  }
+  /*
+   * A PLANT TAKES ORDINARY DAMAGE (3.662.1; found live in the block 31
+   * test). Until this release a non-critical blow never reached a Plant's
+   * HP, read from the creature type's "Plants only take damage and bleed
+   * from critical injuries". That sentence is about what a critical INJURY
+   * does to a plant, and Fiends & Fables 3.0 says so outright: "Creatures of
+   * the plant type always suffer additional HP damage, bleed and recurring
+   * damage results. Other critical results only affect them if the result
+   * is appropriate to their anatomy." The block 1 audit read it the same
+   * way, and Plant Resistance (attack-workflow, 3.631.0) already filters
+   * the critical's other results. A Thornkin hit for 3 stayed at 117/117.
+   */
 
   // Temporary HP absorbs first, before any of the dying machinery runs:
   // damage stopped by a temporary pool never reached the character, so
@@ -324,9 +323,6 @@ async function applyDamageDirect(
    * placed above the pool would be spent on a blow its ally shrugged off.
    * A one-round ward lost to a scratch that never landed is the same
    * waste `shieldCatches` refuses for a zero blow.
-   *
-   * BELOW THE PLANT CHECK FOR THE SAME REASON: non-critical damage to a
-   * Plant never reaches HP, so there is nothing there to redirect.
    *
    * AND ABOVE THE DYING MACHINERY, because the caster's five points are
    * meant to be the five the ally does not take — deciding Massive Damage

@@ -30,7 +30,7 @@ import {
   perilEntryMatches, perilCanAct, perilStateAfterTrigger, perilHasNoBody,
   perilRearmDue, perilCounteract, perilCounteractable
 } from "./peril.mjs";
-import { perilEffectSpec, perilEffectOutcome, perilIncreaseRows } from "./peril-effect.mjs";
+import { perilEffectSpec, perilEffectOutcome, perilIncreaseRows, areaReachFeet, extraPacketLands } from "./peril-effect.mjs";
 import { tokenSquares } from "./combat/geometry.mjs";
 
 const SYSTEM_ID = "trg-prime";
@@ -408,11 +408,15 @@ function effectTargets(peril, spec, chosen = null) {
     if (!token) return { actors: [], note: `${peril.name} has no token on the scene, so its ${spec.radiusFeet}-foot reach cannot be measured — target the creatures and use its routine instead.` };
     const origin = token.object?.center ?? null;
     const actors = [];
+    // THE FOOTPRINTS COUNT (3.640.1): the radius runs from the user's edge
+    // to the target's — see peril-effect.mjs `areaReachFeet`.
+    const squareFeet = Number(canvas?.scene?.grid?.distance ?? 5) || 5;
+    const emitterWidth = (Number(token.width) || 1) * squareFeet;
     for (const t of token.parent?.tokens ?? []) {
       if (t.id === token.id || !t.actor || isPeril(t.actor)) continue;
       const centre = t.object?.center ?? null;
       const distance = origin && centre ? canvas?.grid?.measurePath?.([origin, centre])?.distance ?? null : null;
-      if (distance === null || distance <= spec.radiusFeet) actors.push(t.actor);
+      if (distance === null || distance <= areaReachFeet(spec.radiusFeet, emitterWidth, (Number(t.width) || 1) * squareFeet)) actors.push(t.actor);
     }
     return { actors, note: "" };
   }
@@ -447,6 +451,18 @@ async function runPerilEffect(peril, spec, { title = "", targets = null, results
   const level = levelOf(peril);
   const dc = Number(spec.dc) || levelDC(level);
   if (spec.intro) lines.push(line(`<em>${spec.intro}</em>`));
+  // AN AREA THAT EXPOSES TO AN AFFLICTION (3.655.0; F&F 3.0 block 22 R1 —
+  // the Oryceps's Emit Spores): each creature it reaches is exposed, and the
+  // affliction's own save follows on its own card.
+  if (!spec.save && spec.expose?.affliction) {
+    const { actors, note } = effectTargets(peril, spec, targets);
+    if (note) { lines.push(line(`<strong>${note}</strong>`)); return lines; }
+    if (!actors.length) { lines.push(line("Nobody is within its reach.")); return lines; }
+    const { exposeFromArea } = await import("./combat/declared-after-strikes-workflow.mjs");
+    for (const target of actors) for (const l of await exposeFromArea(peril, target, { label: title || peril.name, expose: spec.expose }, level)) lines.push(line(l));
+    for (const n of spec.notes ?? []) lines.push(line(`<em>${n}</em>`));
+    return lines;
+  }
   if (!spec.save) {
     for (const n of spec.notes ?? []) lines.push(line(`<em>${n}</em>`));
     return lines;
@@ -462,7 +478,7 @@ async function runPerilEffect(peril, spec, { title = "", targets = null, results
   const { applyConditionTags, formatAppliedTags } = await import("./combat/effect-application-workflow.mjs");
   const { relayConditionTags } = await import("./combat/target-relay-workflow.mjs");
   const { conditionLabel } = await import("./conditions/condition-rules.mjs");
-  const { declaredConditionTag } = await import("./combat/declared-after-strikes.mjs");
+  const { declaredConditionTag, withRolledRounds } = await import("./combat/declared-after-strikes.mjs");
   const clock = { combatRound: game.combat?.started ? Number(game.combat.round ?? 0) : null, worldTime: now() };
 
   let damageRoll = null;
@@ -478,13 +494,21 @@ async function runPerilEffect(peril, spec, { title = "", targets = null, results
   for (const extra of spec.extraDamage ?? []) {
     const roll = await new Roll(extra.formula).evaluate();
     extraRolls.push({ ...extra, roll });
-    lines.push(line(`…plus <strong>${roll.total}</strong> ${extra.type} (${extra.formula}).`));
+    lines.push(line(`…plus <strong>${roll.total}</strong> ${extra.type} (${extra.formula})${extra.on ? ` on a ${extra.on.join(" or ")}` : ""}.`));
   }
 
   for (const actor of actors) {
     if (spec.livingOnly && !isLivingCreature(actor.system ?? {})) {
       lines.push(line(`${actor.name}: not a living creature — unaffected.`));
       continue;
+    }
+    // "EACH NON-DEMON CREATURE" (3.640.0): passed over by kind.
+    {
+      const { excludedKind } = await import("./peril-effect.mjs");
+      const { creatureTraits } = await import("./creature-traits.mjs");
+      const kinds = [...creatureTraits(actor.system ?? {}), ...Array.from(actor.items ?? []).filter((i) => ["race", "heritage", "creature-type"].includes(i.type)).map((i) => i.name)];
+      const passed = excludedKind(spec, kinds);
+      if (passed) { lines.push(line(`${actor.name}: has the ${passed.charAt(0).toUpperCase() + passed.slice(1)} trait — unaffected.`)); continue; }
     }
     const immune = (spec.immuneIf ?? []).find((key) => actor.hasCondition?.(key));
     if (immune) {
@@ -542,7 +566,10 @@ async function runPerilEffect(peril, spec, { title = "", targets = null, results
       }
     }
     const outcome = perilEffectOutcome(spec, key, clock);
-    if (Number(spec.immunitySeconds) > 0 && actor.setFlag) {
+    // IMMUNITY ON CHOSEN RUNGS (3.650.0; block 17 R5): Irritating Glamour's
+    // ten minutes are the Critical's alone. Absent, any save grants it.
+    const immunityRungs = Array.isArray(spec.immunityOn) ? spec.immunityOn.map((r) => String(r).toLowerCase()) : null;
+    if (Number(spec.immunitySeconds) > 0 && actor.setFlag && (!immunityRungs || immunityRungs.includes(key))) {
       await actor.setFlag(SYSTEM_ID, "areaImmunities", { ...windows, [windowKey]: now() + Number(spec.immunitySeconds) });
     }
     // WHO TOOK WHAT (3.631.0): a breath's follow-ups read this next turn.
@@ -558,10 +585,41 @@ async function runPerilEffect(peril, spec, { title = "", targets = null, results
     // "Increase Frightened by 1", and what spills past its cap.
     const increased = perilIncreaseRows(outcome.rows, (k) => Number(actor.getConditionValue?.(k) ?? 0), spec.overflow)
       .map((r) => declaredConditionTag(r, clock));
-    const tags = [...outcome.tags, ...increased].map((t) => ({ ...t, label: conditionLabel(t.key) }));
+    // A VALUE THAT IS DICE (3.640.0) is rolled once as it lands.
+    const { isDiceValue } = await import("./peril-effect.mjs");
+    const tags = [];
+    for (const t of [...outcome.tags, ...increased]) {
+      const tag = { ...t, label: conditionLabel(t.key) };
+      if (isDiceValue(tag.value)) { const r = await new Roll(String(tag.value)).evaluate(); parts.push(`${conditionLabel(t.key)} ${tag.value} → ${r.total}.`); tag.value = r.total; }
+      // A DURATION THAT IS DICE (3.662.0; block 31 R2), rolled for each
+      // creature it lands on.
+      if (tag.roundsDice) { const r = await new Roll(tag.roundsDice).evaluate(); parts.push(`${conditionLabel(t.key)} for ${tag.roundsDice} → ${r.total} round${r.total === 1 ? "" : "s"}.`); tags.push(withRolledRounds(tag, r.total, clock)); continue; }
+      tags.push(tag);
+    }
+    // AN ESCAPE SAVE ON A RUNG'S CONDITION (3.650.0; block 17 R4) is made
+    // against this effect's own DC.
+    for (const tag of tags) if (tag.conditionSave) tag.conditionSave = { label: title || peril.name, ...tag.conditionSave, saveDC: dc };
     if (tags.length) {
       const applied = await relayConditionTags(actor, tags, {}, () => applyConditionTags(actor, tags, {}));
       parts.push(`Applied: ${formatAppliedTags(applied ?? [])}.`);
+    }
+
+    // A TIMED PENALTY BY RUNG (3.650.0; block 17 R5): Irritating Glamour's
+    // "-1 circumstance to Perception checks and ranged attacks until the
+    // start of the Glimmerwick's next turn". Conditionals on an effect of
+    // their own, on the rung's clock.
+    const penaltyRows = spec.penalties?.[key] ?? spec.penalties?.[FALLBACK_RUNG[key] ?? ""] ?? null;
+    if (Array.isArray(penaltyRows) && penaltyRows.length) {
+      const rounds = Math.max(1, Math.trunc(Number(spec.penaltyRounds) || 1));
+      const timing = game.combat?.started
+        ? { conditionExpiresRound: Number(game.combat.round ?? 0) + rounds }
+        : { spellEffect: true, spellEffectEnd: now() + rounds * 6 };
+      const { createEffectsOn } = await import("./combat/target-relay-workflow.mjs");
+      await createEffectsOn(actor, [{
+        name: title || peril.name, img: "icons/svg/downgrade.svg",
+        flags: { [SYSTEM_ID]: { conditionals: penaltyRows.map((r) => ({ auto: true, ...r, label: r.label || title || peril.name })), ...timing } }
+      }]);
+      parts.push(`${penaltyRows.map((r) => `${r.value > 0 ? "+" : ""}${r.value} ${r.type || ""} to ${r.scope || "the named checks"}`).join("; ")} (${rounds} round${rounds === 1 ? "" : "s"}).`);
     }
 
     // A CRITICAL INJURY BY RUNG (3.631.0): Crush — "Partial … and a Minor
@@ -599,17 +657,40 @@ async function runPerilEffect(peril, spec, { title = "", targets = null, results
         const { applyTypedDamage, describeDamage, setResistanceBypass, clearResistanceBypass } = await import("./combat/damage-workflow.mjs");
         // PENETRATING BREATH (3.631.0): "bypasses DR … and ignores Energy Resistance".
         if (spec.ignoreResistance) setResistanceBypass([spec.damage.type], 5);
-        const dealt = await applyTypedDamage(actor, { amount, type: spec.damage.type, drBypassed: spec.drBypassed === true, sourceLevel: level, sourceName: peril.name, extraResistance: scaly?.resist ? spec.damage.type : "",
+        // ANOTHER TYPE AGAINST THE IMMUNE (3.654.0, block 21 R8): Dream Weave
+        // Breath's mental is force to a creature immune to mental.
+        const { damageTypeAgainst } = await import("./peril-effect.mjs");
+        const { actorDefences } = await import("./creature-traits.mjs");
+        const { ownedCreatureTypeSystem } = await import("./creature-type-rules.mjs");
+        const takenType = damageTypeAgainst(spec.damage, actorDefences(actor.system ?? {}, ownedCreatureTypeSystem(actor)).immunities);
+        if (takenType !== spec.damage.type) parts.push(`Immune to ${spec.damage.type}: it takes <strong>${takenType}</strong> instead.`);
+        // …OR AN IMMUNITY IT BYPASSES FOR NAMED KINDS (3.657.0, block 24 R5).
+        const { immunityBypassedFor } = await import("./peril-effect.mjs");
+        const { creatureTraits } = await import("./creature-traits.mjs");
+        const bypassKind = immunityBypassedFor(spec, [...creatureTraits(actor.system ?? {}), ...Array.from(actor.items ?? []).filter((i) => ["race", "heritage", "creature-type"].includes(i.type)).map((i) => i.name)]);
+        const dealt = await applyTypedDamage(actor, { amount, type: takenType, drBypassed: spec.drBypassed === true, sourceLevel: level, sourceName: peril.name, extraResistance: scaly?.resist ? spec.damage.type : "",
+          ignoreImmunityTo: bypassKind ? takenType : "",
           // A creature's declared area is an area effect; a Swarm's attack halves DR (3.632.0).
           area: spec.isCreatureArea === true, attackerIsSwarm: spec.scope === "sharedSpace" });
         if (spec.ignoreResistance) clearResistanceBypass();
         record.damage = Number(dealt?.applied ?? 0) || 0;
         parts.push(describeDamage(dealt.packet, actor.name));
+        if (bypassKind) parts.push(`<em>${cap(bypassKind)}: its immunity to ${takenType} does not apply.</em>`);
+        // THE POISON LINGERS (3.650.0; block 17 R3): "Any creature that
+        // initially takes damage … must make a saving throw at the beginning
+        // of each of their turns or suffer the same damage again."
+        if (spec.lingering && record.damage > 0) {
+          const { recordLingering } = await import("./magic/lingering-damage-workflow.mjs");
+          const kept = await recordLingering(actor, { label: title || peril.name, amount: damageRoll.total, type: spec.damage.type,
+            save: spec.save, dc, basic: spec.basic !== false, rounds: spec.lingering.rounds, sourceName: peril.name, sourceLevel: level });
+          if (kept) parts.push(`<em>It lingers: ${kept.roundsLeft} round(s), a save at the start of each turn.</em>`);
+        }
       } else {
         parts.push("No damage.");
       }
       // …AND EACH FURTHER PACKET, under the same save's multiplier.
       for (const extra of extraRolls) {
+        if (!extraPacketLands(extra, key)) continue;
         const extraAmount = Math.floor(extra.roll.total * bs.damageMultiplier);
         if (extraAmount <= 0) continue;
         const { applyTypedDamage, describeDamage } = await import("./combat/damage-workflow.mjs");
@@ -618,6 +699,26 @@ async function runPerilEffect(peril, spec, { title = "", targets = null, results
         record.damage += Number(dealt?.applied ?? 0) || 0;
         parts.push(describeDamage(dealt.packet, actor.name));
       }
+    }
+    // A CONDITION BY CRITICAL SEVERITY (3.657.0; block 24 R3 — Raven Beaks:
+    // "a serious or higher severity critical … blinded until the end of the
+    // next turn"). Read from the basic save's own critical.
+    if (spec.onCriticalSeverity && spec.basic && damageRoll) {
+      const { basicSavingThrow: bst } = await import("./dice/resolution.mjs");
+      const { severityConditions } = await import("./peril-effect.mjs");
+      const sev = bst(key, check?.outcome?.margin ?? null)?.criticalSeverity ?? null;
+      const rows = severityConditions(spec, sev).map((r) => ({ ...declaredConditionTag(r, clock), label: conditionLabel(r.key) }));
+      if (rows.length) {
+        const appliedSev = await relayConditionTags(actor, rows, {}, () => applyConditionTags(actor, rows, {}));
+        parts.push(`A ${sev} critical: ${formatAppliedTags(appliedSev ?? [])}.`);
+      }
+    }
+    // AN AFFLICTION FOR THOSE IT DAMAGED (3.657.0; block 24 R2 — the Rat
+    // Swarm: "Any target that takes damage from the attack is also subjected
+    // to Filth Fever").
+    if (spec.exposeOnDamage?.affliction && record.damage > 0) {
+      const { exposeFromArea } = await import("./combat/declared-after-strikes-workflow.mjs");
+      for (const l of await exposeFromArea(peril, actor, { label: title || peril.name, expose: spec.exposeOnDamage }, level)) parts.push(l);
     }
     lines.push(line(parts.join(" ")));
 

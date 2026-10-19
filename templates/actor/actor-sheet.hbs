@@ -295,7 +295,7 @@
 
         <div class="resource ap" style="--resource-pct: {{system.resources.ap.pct}}%;">
           <span class="resource-icon"><i class="fa-solid fa-bolt"></i></span>
-          <label data-tooltip="Action Points">AP</label>
+          <label data-tooltip="Action Points{{#if system.resources.ap.restricted}}: {{system.resources.ap.restrictedText}}{{/if}}">AP{{#if system.resources.ap.restricted}} <span class="ap-restricted" data-tooltip="{{system.resources.ap.restrictedText}}">({{system.resources.ap.restricted}}★)</span>{{/if}}</label>
           <div class="resource-values">
             <input
               type="number"

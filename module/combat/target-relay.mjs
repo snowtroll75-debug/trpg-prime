@@ -171,7 +171,13 @@ export async function performRelay(request, deps) {
       return { ok: true, result };
     }
     case RELAY_ACTIONS.CONDITIONS: {
+      const carried = payload.options && typeof payload.options === "object" ? payload.options : {};
       const applied = await deps.applyConditionTags(target, payload.tags ?? [], {
+        duration: carried.duration ?? null,
+        spellEffect: carried.spellEffect === true,
+        spellEffectEnd: carried.spellEffectEnd ?? null,
+        castId: carried.castId ?? null,
+        sourceTraits: carried.sourceTraits ?? null,
         expiresRound: payload.expiresRound ?? null
       });
       return { ok: true, result: applied };

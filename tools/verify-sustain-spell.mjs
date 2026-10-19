@@ -197,7 +197,7 @@ ok("D7 and no longer calls the storage primitive directly",
 // THE ACTION MUST NOT PAY TWICE. Its branch has to return before the
 // generic checkType:"none" path spends the cost itself.
 const branchAt = actions.indexOf('action.key === "sustainASpell"');
-const genericSpendAt = actions.indexOf('if (!(await ensureActionPoints(actor, action.apCost, action.name))) return null;\n    if (preparedPaysFor)');
+const genericSpendAt = actions.indexOf('if (!(await ensureActionPoints(actor, action.apCost, action.name, { traits: action.traits }))) return null;\n    if (preparedPaysFor)');
 ok("D8 both positions were located", branchAt > 0 && genericSpendAt > 0,
   `branch@${branchAt} genericSpend@${genericSpendAt}`);
 ok("D9 the action's branch returns before the generic AP spend",

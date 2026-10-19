@@ -195,6 +195,24 @@ export function abilityElementalStrikes(items = []) {
 }
 
 /** The element an elemental ability's own name carries, or "". */
+/**
+ * WHETHER TWO FOOTPRINTS TOUCH (3.641.1, found live in block 11). Elemental
+ * Blood splashes "all targets adjacent to it". Adjacency was measured centre
+ * to centre against half the two widths, which is right on a straight line
+ * between two Medium creatures and wrong off it: a Boar beside the Cave
+ * Sovereign's 4×4 flank, one row below its centre line, measured 15 ft
+ * against 12.5 and was "nobody". Two footprints are adjacent when the gap
+ * between them is no more than nothing on both axes — edge or corner.
+ *
+ * @param {{x:number,y:number,w:number,h:number}} a squares
+ * @param {{x:number,y:number,w:number,h:number}} b squares
+ */
+export function footprintsAdjacent(a, b) {
+  const gapX = Math.max(Number(b.x) - (Number(a.x) + Number(a.w)), Number(a.x) - (Number(b.x) + Number(b.w)));
+  const gapY = Math.max(Number(b.y) - (Number(a.y) + Number(a.h)), Number(a.y) - (Number(b.y) + Number(b.h)));
+  return gapX <= 0.001 && gapY <= 0.001;
+}
+
 export function elementOfName(name) {
   const n = String(name ?? "").toLowerCase();
   if (/\bcaustic\b/.test(n)) return "acid";
@@ -203,6 +221,36 @@ export function elementOfName(name) {
   if (/\bshocking\b/.test(n)) return "electricity";
   if (/\btoxic\b/.test(n)) return "poison";
   return "";
+}
+
+/**
+ * A CREATURE'S OWN JUMP COST (3.654.0; F&F 3.0 block 21 R9 — the
+ * Nimblespring's Ether Leap: "all jump actions cost the Nimblespring 1 AP and
+ * do not provoke reactions"). Declared as `derives.jump = { ap: 1,
+ * noProvoke: true }`; the AP it pays with no difficulty raised, and whether
+ * the jump provokes. Null when nothing is declared.
+ */
+export function abilityJump(items = []) {
+  for (const { item, derives } of abilityDerives(items)) {
+    const j = derives.jump;
+    if (j && typeof j === "object" && Number.isFinite(Number(j.ap)) && Number(j.ap) >= 0) {
+      return { ap: Math.trunc(Number(j.ap)), noProvoke: j.noProvoke === true, source: String(item?.name ?? "") };
+    }
+  }
+  return null;
+}
+
+/**
+ * ADVANTAGE ON AN EXHAUSTION CHECK IN THE HEAT (3.653.0; F&F 3.0 block 20
+ * R4 — the Camel's Enduring Reserves: "advantage on any Exhaustion checks
+ * brought on by natural heat-based environments"). Declared as
+ * `derives.heatExhaustionAdvantage`; read when the check is rolled for
+ * Extreme Heat, the environment the GM chooses.
+ */
+export function heatExhaustionAdvantage(items = [], environment = "") {
+  if (String(environment ?? "") !== "extremeHeat") return null;
+  for (const { item, derives } of abilityDerives(items)) if (derives.heatExhaustionAdvantage === true) return String(item?.name ?? "Heat endurance");
+  return null;
 }
 
 /** Regeneration that applies itself: `{ auto: true }` on the turn-start derive. */

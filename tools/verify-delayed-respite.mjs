@@ -125,7 +125,7 @@ ok("P1b and it returns before HP move",
 const at = {
   gate: direct.indexOf("const held = await catchWithRespite"),
   temp: direct.indexOf("const absorbed = await spendTemporaryHP"),
-  plant: direct.indexOf("if (isCritOnlyDamage(creatureTypeSystem)")
+  plant: direct.indexOf("if (hasNoDeathState(creatureTypeSystem))")
 };
 ok("P2 IT IS ASKED BEFORE TEMPORARY HP IS SPENT",
   at.gate > 0 && at.temp > 0 && at.gate < at.temp,

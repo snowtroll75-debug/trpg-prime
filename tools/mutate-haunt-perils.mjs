@@ -47,7 +47,7 @@ const MUTATIONS = [
   { name: "the basic flag is lost", file: EFFECT, from: "    basic: Boolean(saveM?.[1]),", to: "    basic: false,", breaks: "D5" },
   { name: "the overflow is not read", file: EFFECT, from: "    if (from && into) spec.overflow =", to: "    if (false) spec.overflow =", breaks: "D6" },
   { name: "any clause after 'As Fumble' times what it inherits", file: EFFECT, from: "      const clock = /^\\s*(?:for|until)\\b/i.test(rest) ? clockOf(rest.split(/(?<=\\.)\\s+/)[0] ?? \"\") : {};", to: "      const clock = clockOf(rest.split(/(?<=\\.)\\s+/)[0] ?? \"\");", breaks: "D9" },
-  { name: "an automation's chosen creatures are ignored", file: WF, from: "  const { actors, note } = effectTargets(peril, spec, targets);", to: "  const { actors, note } = effectTargets(peril, spec);", breaks: "F20" },
+  { name: "an automation's chosen creatures are ignored", file: WF, from: "  }\n  const { actors, note } = effectTargets(peril, spec, targets);", to: "  }\n  const { actors, note } = effectTargets(peril, spec);", breaks: "F20" },
   { name: "'As Fumble' inherits nothing", file: EFFECT, from: "      rows = resolveRung(as[1].toLowerCase(), seen).map((r) => ({ ...r }));", to: "      rows = [];", breaks: "D7" },
   { name: "an increase ignores what is held", file: EFFECT, from: "    let next = Number(held(row.key) || 0) + Number(row.increase);", to: "    let next = Number(row.increase);", breaks: "E3" },
   { name: "no cap on an increase", file: EFFECT, from: "    if (overflow && overflow.key === row.key && next > overflow.cap) {", to: "    if (false) {", breaks: "E3" },

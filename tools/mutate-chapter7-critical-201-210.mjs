@@ -128,7 +128,7 @@ const MUTATIONS = [
     from: "  const critDice = criticalDice === null || criticalDice === undefined\n    ? (CRITICAL_BONUS_DICE[critical] ?? 0)\n    : Math.max(0, Math.floor(Number(criticalDice) || 0));",
     to: "  const critDice = Number.isFinite(Number(criticalDice))\n    ? Math.max(0, Math.floor(Number(criticalDice)))\n    : (CRITICAL_BONUS_DICE[critical] ?? 0);", breaks: "D5" },
   { file: ATTACKWF, name: "D4: the damage path stops gating the critical dice",
-    from: "    criticalDice: critDiceKept,", to: "", breaks: "D6" },
+    from: "    criticalDice: drainDice ? 0 : critDiceKept,", to: "", breaks: "D6" },
 
   { file: ATTACK, name: "D5 THE DEFECT: armour-granted CR is never bypassed",
     from: "  if (!declaredLocation || locationArmoured || !fromArmour) {", to: "  if (true) {", breaks: "E1" },

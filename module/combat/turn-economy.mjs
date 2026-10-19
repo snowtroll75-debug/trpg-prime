@@ -27,12 +27,16 @@ export function computeAPRegain({
   stunned = 0,
   slowed = 0,
   quickened = false,
-  base = BASE_AP
+  base = BASE_AP,
+  // FAST ATTACK (3.648.0): bonus AP granted beside Quickened's, met by
+  // Stunned and Slowed the same way.
+  extra = 0
 } = {}) {
   const stunnedValue = Math.max(0, Math.floor(Number(stunned) || 0));
   const slowedValue = Math.max(0, Math.floor(Number(slowed) || 0));
   const quickenedBonus = quickened ? 1 : 0;
-  const pool = Math.max(0, Math.floor(Number(base) || 0)) + quickenedBonus;
+  const extraBonus = Math.max(0, Math.floor(Number(extra) || 0));
+  const pool = Math.max(0, Math.floor(Number(base) || 0)) + quickenedBonus + extraBonus;
 
   // "reduce the number you regain by your Stunned value, then reduce your
   // Stunned value by the number of AP you lost."
@@ -59,7 +63,8 @@ export function computeAPRegain({
     apLostToStunned,
     apLostToSlowed,
     reactionLost,
-    quickenedBonus
+    quickenedBonus,
+    extraBonus
   };
 }
 

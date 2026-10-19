@@ -192,7 +192,7 @@ const MUTATIONS = [
   {
     file: WF,
     name: "R3 the roll is no longer reported beside the result",
-    from: "      + `${spec.damageType} (${formula} rolled ${roll.total}`",
+    from: "      + `${spec.damageType} (${formula} rolled ${rawTotal}${rawTotal !== roll.total ? `, ${roll.total} after the save` : \"\"}`",
     to: "      + `${spec.damageType} (${formula}`",
     breaks: "G5 — an immunity becomes indistinguishable from a bad die"
   },

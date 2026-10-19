@@ -1,4 +1,5 @@
 import { SKILLS, WEAPON_GROUPS, blankSpecialistSkill, slugifyKey, uniqueKey } from "./config.mjs";
+import { generalAP } from "./combat/restricted-ap.mjs";
 import { lastStanceRoundIn, stanceStamp } from "./traits-workflow.mjs";
 import { isCantripSpell } from "./magic/casting.mjs";
 import { findSpecialistSkillByLabel } from "./specialist-grants.mjs";
@@ -1621,7 +1622,7 @@ async function enterFeatStance(actor, item, { name, apCost = 1, description, cha
   // must apply to a free entry exactly as it does to a bought one.
   if (actor.getFlag?.(SYSTEM_ID, "reactiveStanceFree")) apCost = 0;
 
-  const ap = Number(actor.system.resources?.ap?.value ?? 0);
+  const ap = generalAP(actor); // 3.648.0: not Haste's or Fast Attack's point
   if (game.combat?.started && apCost > 0 && ap < apCost) {
     ui.notifications.warn(`${name}: ${apCost} AP required.`);
     return;
@@ -1639,7 +1640,7 @@ async function enterFeatStance(actor, item, { name, apCost = 1, description, cha
   }
 
   if (game.combat?.started && apCost > 0) {
-    await actor.update({ "system.resources.ap.value": ap - apCost });
+    await actor.update({ "system.resources.ap.value": Number(actor.system.resources?.ap?.value ?? 0) - apCost });
   }
   if (round !== null) await actor.setFlag(SYSTEM_ID, "lastStanceRound", stanceStamp());
 
@@ -2414,12 +2415,12 @@ export const FEAT_AUTOMATION = {
       }
       // "You can activate or suppress this ability as an action" — the
       // same 1 AP in combat that every other action costs.
-      const ap = Number(actor.system.resources?.ap?.value ?? 0);
+      const ap = generalAP(actor); // 3.648.0: not Haste's or Fast Attack's point
       if (game.combat?.started && ap < 1) {
         ui.notifications.warn("Galad-Iar: 1 AP required to activate or suppress the light.");
         return;
       }
-      if (game.combat?.started) await actor.update({ "system.resources.ap.value": ap - 1 });
+      if (game.combat?.started) await actor.update({ "system.resources.ap.value": Number(actor.system.resources?.ap?.value ?? 0) - 1 });
       await replaceFeatEffect(actor, item, {
         name: "Galad-Iar: dim light (5 ft)",
         img: item.img,
@@ -4255,7 +4256,7 @@ export const FEAT_AUTOMATION = {
       const shiftCost = actor.items.some(
         (i) => i.type === "feat" && normalise(i.name) === "sudden form"
       ) ? 0 : 1;
-      const ap = Number(actor.system.resources?.ap?.value ?? 0);
+      const ap = generalAP(actor); // 3.648.0: not Haste's or Fast Attack's point
       if (inCombat && ap < shiftCost) {
         ui.notifications.warn("Hybrid Transformation: 1 AP required to shift.");
         return;
@@ -4263,7 +4264,7 @@ export const FEAT_AUTOMATION = {
 
       if (inForm) {
         // Return to humanoid form: remove the bite and the form effect.
-        if (inCombat && shiftCost) await actor.update({ "system.resources.ap.value": ap - shiftCost });
+        if (inCombat && shiftCost) await actor.update({ "system.resources.ap.value": Number(actor.system.resources?.ap?.value ?? 0) - shiftCost });
         const bite = actor.items.get(inForm.biteId);
         if (bite) await bite.delete();
         const stale = Array.from(actor.effects ?? [])
@@ -4277,7 +4278,7 @@ export const FEAT_AUTOMATION = {
         return;
       }
 
-      if (inCombat && shiftCost) await actor.update({ "system.resources.ap.value": ap - shiftCost });
+      if (inCombat && shiftCost) await actor.update({ "system.resources.ap.value": Number(actor.system.resources?.ap?.value ?? 0) - shiftCost });
       // HULKING FORM (Chapter 5, Beastman, level 10) RIDES THIS SHIFT.
       //
       // "While in your hybrid form, you gain the effects of the Enlarge
@@ -5489,12 +5490,12 @@ export const FEAT_AUTOMATION = {
         return;
       }
       const inCombat = Boolean(game.combat?.started);
-      const ap = Number(actor.system.resources?.ap?.value ?? 0);
+      const ap = generalAP(actor); // 3.648.0: not Haste's or Fast Attack's point
       if (inCombat && ap < 2) {
         ui.notifications.warn("Wings of the Wyrm: 2 AP required.");
         return;
       }
-      if (inCombat) await actor.update({ "system.resources.ap.value": ap - 2 });
+      if (inCombat) await actor.update({ "system.resources.ap.value": Number(actor.system.resources?.ap?.value ?? 0) - 2 });
       await item.update({ "system.usesValue": uses - 1 });
 
       // speedValue, not Number(): a pooled speed reads NaN, and this one
@@ -5668,13 +5669,13 @@ export const FEAT_AUTOMATION = {
       const { traitGate, recordTraitUsage } = await import("./traits-workflow.mjs");
       if (!traitGate(actor, item.system, item.name)) return;
 
-      const ap = Number(actor.system.resources?.ap?.value ?? 0);
+      const ap = generalAP(actor); // 3.648.0: not Haste's or Fast Attack's point
       if (game.combat?.started && ap < 1) {
         ui.notifications.warn("Shadow Stance: 1 AP required.");
         return;
       }
       if (game.combat?.started) {
-        await actor.update({ "system.resources.ap.value": ap - 1 });
+        await actor.update({ "system.resources.ap.value": Number(actor.system.resources?.ap?.value ?? 0) - 1 });
       }
       // "UNTIL THE START OF YOUR NEXT TURN" IS A CLOCK, and until 3.552.0
       // this applied Concealed with no clock at all: it stayed until
@@ -5932,12 +5933,12 @@ export const FEAT_AUTOMATION = {
   "smite evil": {
     hint: "1 AP: your Blade Ally Strikes deal +1d6 good damage until your next turn.",
     async use(actor, item) {
-      const ap = Number(actor.system.resources?.ap?.value ?? 0);
+      const ap = generalAP(actor); // 3.648.0: not Haste's or Fast Attack's point
       if (game.combat?.started && ap < 1) {
         ui.notifications.warn("Smite Evil: 1 AP required.");
         return;
       }
-      if (game.combat?.started) await actor.update({ "system.resources.ap.value": ap - 1 });
+      if (game.combat?.started) await actor.update({ "system.resources.ap.value": Number(actor.system.resources?.ap?.value ?? 0) - 1 });
       await replaceFeatEffect(actor, item, {
         name: "Smite Evil (+1d6 good)",
         img: item.img,
@@ -5952,12 +5953,12 @@ export const FEAT_AUTOMATION = {
   "smite good": {
     hint: "1 AP: your Blade Ally Strikes deal +1d6 evil damage until your next turn.",
     async use(actor, item) {
-      const ap = Number(actor.system.resources?.ap?.value ?? 0);
+      const ap = generalAP(actor); // 3.648.0: not Haste's or Fast Attack's point
       if (game.combat?.started && ap < 1) {
         ui.notifications.warn("Smite Good: 1 AP required.");
         return;
       }
-      if (game.combat?.started) await actor.update({ "system.resources.ap.value": ap - 1 });
+      if (game.combat?.started) await actor.update({ "system.resources.ap.value": Number(actor.system.resources?.ap?.value ?? 0) - 1 });
       await replaceFeatEffect(actor, item, {
         name: "Smite Good (+1d6 evil)",
         img: item.img,
@@ -6266,13 +6267,13 @@ export const FEAT_AUTOMATION = {
   "guarded move": {
     hint: "1 AP: Stride with your guard up — +4 circumstance to DB against attacks provoked by the movement.",
     async use(actor, item) {
-      const ap = Number(actor.system.resources?.ap?.value ?? 0);
+      const ap = generalAP(actor); // 3.648.0: not Haste's or Fast Attack's point
       if (game.combat?.started && ap < 1) {
         ui.notifications.warn("Guarded Move: 1 AP required.");
         return;
       }
       if (game.combat?.started) {
-        await actor.update({ "system.resources.ap.value": ap - 1 });
+        await actor.update({ "system.resources.ap.value": Number(actor.system.resources?.ap?.value ?? 0) - 1 });
       }
       await replaceFeatEffect(actor, item, {
         name: "Guarded Move (+4 vs provoked attacks)",
@@ -6405,7 +6406,7 @@ export const FEAT_AUTOMATION = {
       const dice = 1 + Math.floor(ranks / 6);
       await postCard(actor, "Stealthy Strike", [
         line(`Against a <strong>flanked or flat-footed</strong> target, your agile/finesse melee or ranged attacks deal <strong>+${dice}d6 precision damage</strong> (Stealth ${ranks} ranks).`),
-        line("<em>Thrown melee weapons must also be agile or finesse. Add the dice to the damage roll when the condition holds.</em>")
+        line("<em>Thrown melee weapons must also be agile or finesse. Rolled automatically on a qualifying Strike (3.651.0), as Sneak Attack is.</em>")
       ]);
     }
   },
@@ -6907,13 +6908,13 @@ export const FEAT_AUTOMATION = {
       const targetName = markedToken?.name ??
         await enterText("Death Mark", "Creature to mark (you must see and hear it)", "e.g. Varrok the Cruel");
       if (!targetName) return;
-      const ap = Number(actor.system.resources?.ap?.value ?? 0);
+      const ap = generalAP(actor); // 3.648.0: not Haste's or Fast Attack's point
       if (game.combat?.started && ap < 3) {
         ui.notifications.warn("Death Mark: 3 AP required.");
         return;
       }
       if (game.combat?.started) {
-        await actor.update({ "system.resources.ap.value": ap - 3 });
+        await actor.update({ "system.resources.ap.value": Number(actor.system.resources?.ap?.value ?? 0) - 3 });
       }
       /*
        * THE MARK IS A UUID (3.586.3). Everything that can scope a rule to
@@ -6954,13 +6955,13 @@ export const FEAT_AUTOMATION = {
       const dc = target
         ? 10 + Number(target.actor?.system?.combat?.saves?.reflex?.total ?? 0)
         : Number.parseInt(await enterText("Agile Display", "Adjacent creature's Reflex DC", "e.g. 16") ?? "", 10);
-      const ap = Number(actor.system.resources?.ap?.value ?? 0);
+      const ap = generalAP(actor); // 3.648.0: not Haste's or Fast Attack's point
       if (game.combat?.started && ap < 1) {
         ui.notifications.warn("Agile Display: 1 AP required.");
         return;
       }
       if (game.combat?.started) {
-        await actor.update({ "system.resources.ap.value": ap - 1 });
+        await actor.update({ "system.resources.ap.value": Number(actor.system.resources?.ap?.value ?? 0) - 1 });
       }
       const skill = actor.system.skills?.acrobatics;
       const check = await TRGCheck.roll({
@@ -7034,14 +7035,14 @@ export const FEAT_AUTOMATION = {
       const target = game.user?.targets?.first?.();
       const { levelDC } = await import("./dice/resolution.mjs");
       const dc = target ? levelDC(Number(target.actor?.system?.identity?.level ?? 0)) : null;
-      const ap = Number(actor.system.resources?.ap?.value ?? 0);
+      const ap = generalAP(actor); // 3.648.0: not Haste's or Fast Attack's point
       const cost = Number(time);
       if (game.combat?.started && ap < cost) {
         ui.notifications.warn(`Sense Weakness: ${cost} AP required.`);
         return;
       }
       if (game.combat?.started) {
-        await actor.update({ "system.resources.ap.value": ap - cost });
+        await actor.update({ "system.resources.ap.value": Number(actor.system.resources?.ap?.value ?? 0) - cost });
       }
       const skill = actor.system.skills?.[skillKey];
       const modifiers = [...(skill?.checkModifiers ?? [
@@ -7462,13 +7463,13 @@ export const FEAT_AUTOMATION = {
   "moment of clarity": {
     hint: "1 AP: Concentrate actions are permitted (despite Rage) until the end of your turn.",
     async use(actor, item) {
-      const ap = Number(actor.system.resources?.ap?.value ?? 0);
+      const ap = generalAP(actor); // 3.648.0: not Haste's or Fast Attack's point
       if (game.combat?.started && ap < 1) {
         ui.notifications.warn("Moment of Clarity: 1 AP required.");
         return;
       }
       if (game.combat?.started) {
-        await actor.update({ "system.resources.ap.value": ap - 1 });
+        await actor.update({ "system.resources.ap.value": Number(actor.system.resources?.ap?.value ?? 0) - 1 });
       }
       await replaceFeatEffect(actor, item, {
         name: "Moment of Clarity",

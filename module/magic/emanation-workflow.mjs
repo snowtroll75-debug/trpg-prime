@@ -116,7 +116,50 @@ function holdersOf(castId) {
  * otherwise both read the old state.
  */
 export function refreshEmanation(record) {
+  // ON THE GM'S CLIENT (3.645.0, F3 of Graham's 14 October session). The
+  // sweep writes to every creature in the circle — Song Of Despair's floor
+  // raises an enemy's frightened, Bless hands an ally its bonus — and a
+  // player owns none of them. Run on the caster's client, the first write
+  // threw "lacks permission to create ActiveEffect", the cast unwound before
+  // its Result card, and the spell never registered to be sustained. The
+  // movement sweeps already ran on the acting GM only; the cast-time and
+  // Sustain reconciles now ask that same client.
+  if (!isActingGM()) return askGMClient("emanation.refresh", { castId: record?.entry?.id ?? "" });
   return serialiseByKey(`emanation:${record?.entry?.id}`, () => refreshEmanationNow(record));
+}
+
+/** The socket the emanation requests travel on — the target relay's channel. */
+const EMANATION_SOCKET = "system.trg-prime";
+
+/** Hand an emanation write to the acting GM's client; nothing waits on it. */
+function askGMClient(action, payload) {
+  if (!game.users?.activeGM) {
+    ui.notifications?.warn("No GM is connected — the spell's area cannot reach the creatures in it until one is.");
+    return Promise.resolve();
+  }
+  game.socket?.emit(EMANATION_SOCKET, { action, ...payload });
+  return Promise.resolve();
+}
+
+/** The GM's side: the record is looked for a few times, as the caster's flag write may still be arriving. */
+async function answerEmanationRequest(data) {
+  if (!isActingGM()) return;
+  if (data?.action === "emanation.end") {
+    await endEmanationEverywhere(String(data.castId ?? ""), data.emanation ?? null);
+    return;
+  }
+  if (data?.action !== "emanation.refresh") return;
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const record = runningEmanations().find((r) => r.entry.id === data.castId);
+    if (record) {
+      if (data.adopt) {
+        const { adoptCastEffects } = await import("./emanation-effects.mjs");
+        await adoptCastEffects(data.castId);
+      }
+      return refreshEmanation(record);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
 }
 
 async function refreshEmanationNow({ actor, token, entry, emanation }) {
@@ -336,6 +379,12 @@ export async function recordEmanation(actor, castId, descriptor, { reconcile = t
   // this the creatures caught at the cast are held by an owner that
   // cannot let go — see adoptCastEffects.
   if (!descriptor?.frozen && reconcile) {
+    // ADOPTING AND RECONCILING BOTH WRITE TO OTHER PEOPLE'S CREATURES
+    // (3.645.0, F3), so a player's cast hands both to the GM's client.
+    if (!isActingGM()) {
+      await askGMClient("emanation.refresh", { castId, adopt: true });
+      return entry;
+    }
     const { adoptCastEffects } = await import("./emanation-effects.mjs");
     await adoptCastEffects(castId);
     /*
@@ -450,6 +499,12 @@ export async function growEmanation(actor, castId) {
  * @returns {Promise<number>} how many creatures were cleared
  */
 export async function endEmanationEverywhere(castId, emanation = null) {
+  // A PLAYER ENDING THEIR OWN EMANATION (3.645.0, F3): the creatures in it
+  // and its Region are the GM's to write, so the GM's client clears them.
+  if (!isActingGM()) {
+    await askGMClient("emanation.end", { castId, emanation: emanation ? { regionId: emanation.regionId ?? null } : null });
+    return 0;
+  }
   const { removeEmanationEffectsFrom } = await import("./emanation-effects.mjs");
   let cleared = 0;
   for (const token of canvas?.tokens?.placeables ?? []) {
@@ -471,6 +526,12 @@ export async function endEmanationEverywhere(castId, emanation = null) {
  * logged in an isGM guard reconciles twice and races itself.
  */
 export function registerEmanations() {
+  // THE REQUESTS A PLAYER'S CLIENT SENDS (3.645.0, F3) — see refreshEmanation.
+  game.socket?.on(EMANATION_SOCKET, (data) => {
+    if (!String(data?.action ?? "").startsWith("emanation.")) return;
+    answerEmanationRequest(data).catch((error) => console.error("TRG Prime | emanation request failed", error));
+  });
+
   // ANY token moving can change ANY emanation's membership: the caster
   // moving takes the circle with it, and anybody else moving walks into
   // or out of every circle on the scene. So the sweep is over all of

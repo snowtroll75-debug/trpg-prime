@@ -250,10 +250,94 @@ function cleanRow(row) {
  * @param {object|string|null} effect
  * @param {string} [fallbackText]
  */
+/**
+ * A CONDITION VALUE THAT IS DICE (3.640.0; F&F 3.0 block 10 R6): "2d8
+ * recurring piercing" — rolled once when it lands. True for "2d8", "1d6+1".
+ */
+export function isDiceValue(value) {
+  return typeof value === "string" && /^\s*\d+d\d+(\s*[+-]\s*\d+)?\s*$/i.test(value);
+}
+
+/**
+ * Is this creature one the area passes over (3.640.0, R6 — Stunning
+ * Screech: "each non-demon creature")? Matched against its traits and the
+ * names of its race and heritage items, lower-cased.
+ */
+export function excludedKind(spec, kinds = []) {
+  const want = (Array.isArray(spec?.excludeKinds) ? spec.excludeKinds : []).map((k) => String(k ?? "").trim().toLowerCase()).filter(Boolean);
+  if (!want.length) return "";
+  const have = new Set((kinds ?? []).map((k) => String(k ?? "").trim().toLowerCase()));
+  return want.find((k) => have.has(k)) ?? "";
+}
+
+/**
+ * AN IMMUNITY THE AREA IGNORES FOR NAMED KINDS (3.657.0; F&F 3.0
+ * block 24 R5 — the Sequoia Allium's Garlic Breath "affects vampires normally
+ * and bypasses their immunity to poison"). `bypassImmunityFor: ["vampire"]`:
+ * the kind that matched, or "".
+ */
+export function immunityBypassedFor(spec, kinds = []) {
+  const want = (Array.isArray(spec?.bypassImmunityFor) ? spec.bypassImmunityFor : []).map((k) => String(k ?? "").trim().toLowerCase()).filter(Boolean);
+  if (!want.length) return "";
+  const have = new Set((kinds ?? []).map((k) => String(k ?? "").trim().toLowerCase()));
+  return want.find((k) => have.has(k) || [...have].some((h) => h.split(/[\s,()]+/).includes(k))) ?? "";
+}
+
+/** AN AREA'S CONDITION BY CRITICAL SEVERITY (3.657.0; block 24 R3 — Raven Beaks, "a serious or higher severity critical … blinded"). */
+const SEVERITY_ORDER = Object.freeze(["minor", "serious", "deadly"]);
+export function severityConditions(spec, severity) {
+  const rule = spec?.onCriticalSeverity;
+  if (!rule || typeof rule !== "object" || !severity) return [];
+  const at = SEVERITY_ORDER.indexOf(String(severity).toLowerCase());
+  const min = SEVERITY_ORDER.indexOf(String(rule.min ?? "minor").toLowerCase());
+  if (at < 0 || at < Math.max(0, min)) return [];
+  return (Array.isArray(rule.conditions) ? rule.conditions : []).filter((c) => c && String(c.key ?? "").trim());
+}
+
+/**
+ * HOW FAR A CREATURE'S AREA REACHES, CENTRE TO CENTRE (3.640.1; found live on
+ * the Vrock's Cloud of Spores — "all adjacent creatures", radius 5 — reaching
+ * nobody beside a Large vrock). Measured as an aura is (creature-auras.mjs
+ * `auraReachFeet`): the radius from the emitter's edge, to the target's
+ * near edge.
+ */
+export function areaReachFeet(radiusFeet, emitterWidthFeet = 5, targetWidthFeet = 5) {
+  const radius = Math.max(0, Number(radiusFeet) || 0);
+  const emitter = Math.max(0, Number(emitterWidthFeet) || 0);
+  const target = Math.max(0, Number(targetWidthFeet) || 0);
+  return radius + emitter / 2 + Math.max(0, target - 5) / 2;
+}
+
+/**
+ * THE TYPE A CREATURE TAKES (3.654.0; F&F 3.0 block 21 R8 — Graham, 16
+ * October 2026: "Go with your recommendations"). The Somnichan's Dream Weave
+ * Breath: "20d10 mental damage. Any creature with mental immunity instead
+ * takes force damage". A packet may declare `ifImmune`: the type used against
+ * a creature immune to its own.
+ *
+ * @param {{type: string, ifImmune?: string}} damage
+ * @param {Iterable<string>} immunities the creature's immune damage types
+ */
+export function damageTypeAgainst(damage, immunities = []) {
+  const type = String(damage?.type ?? "").trim().toLowerCase();
+  const swap = String(damage?.ifImmune ?? "").trim().toLowerCase();
+  if (!swap || !type) return type;
+  return new Set(Array.from(immunities ?? [], (t) => String(t).trim().toLowerCase())).has(type) ? swap : type;
+}
+
+/** Does a further packet land on this degree? One with no `on` always does. */
+export function extraPacketLands(packet, degree) {
+  const on = Array.isArray(packet?.on) ? packet.on : null;
+  return !on || on.includes(String(degree ?? "").toLowerCase());
+}
+
 /** Declared further damage packets, each `{formula, type}`; [] when none. */
 function normaliseExtraDamage(raw) {
   return (Array.isArray(raw) ? raw : [])
-    .map((p) => ({ formula: String(p?.formula ?? p?.dice ?? "").replace(/\s+/g, ""), type: String(p?.type ?? "").trim().toLowerCase() }))
+    .map((p) => ({ formula: String(p?.formula ?? p?.dice ?? "").replace(/\s+/g, ""), type: String(p?.type ?? "").trim().toLowerCase(),
+      // ONLY ON THESE DEGREES (3.659.0; F&F 3.0 block 28 R6 — Necrotic Scream:
+      // "an additional 2d6 essence damage on a result of failure or less").
+      ...(Array.isArray(p?.on) && p.on.length ? { on: p.on.map((d) => String(d ?? "").trim().toLowerCase()).filter(Boolean) } : {}) }))
     .filter((p) => /^\d+d\d+([+-]\d+)?$/i.test(p.formula) && /^[a-z]+$/.test(p.type));
 }
 

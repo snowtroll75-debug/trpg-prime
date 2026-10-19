@@ -13,7 +13,7 @@ let pending = null;
 async function syncNow() {
   const { auraEmitters, tokenCentreFeet, tokenWidthFeet } = await import("./creature-aura-workflow.mjs");
   const tokens = Array.from(canvas?.tokens?.placeables ?? []).filter((t) => t.actor);
-  const emitters = auraEmitters().filter((e) => (e.auras ?? []).some((a) => a.kind === "ally" && a.allyEffect));
+  const emitters = auraEmitters().filter((e) => (e.auras ?? []).some((a) => a.kind === "ally" && (a.allyEffect || a.enemyEffect)));
   const subjects = tokens.map((t) => ({ id: t.id, centreFeet: tokenCentreFeet(t.document), widthFeet: tokenWidthFeet(t.document), disposition: t.document.disposition }));
   const wanted = wantedAllyGrants({ subjects, emitters });
   for (const token of tokens) {

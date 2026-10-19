@@ -1,5 +1,5 @@
 import { DAMAGE_TYPES, SIZE_TABLE } from "../config.mjs";
-import { alignedPacketTraits, creatureSecondaryPackets } from "./creature-secondary.mjs";
+import { actionDamagePackets, alignedPacketTraits, creatureSecondaryPackets } from "./creature-secondary.mjs";
 import { TRGCheck } from "../dice/check.mjs";
 import {
   armourRendingValue,
@@ -90,7 +90,8 @@ import { criticalRowRiders, typeRecurringTags } from "./critical-riders.mjs";
 import { MINUTE_ROUNDS } from "./critical-durations.mjs";
 import { loseAirToEvent } from "../drowning-workflow.mjs";
 import { tokenIsUnderwater } from "./underwater-workflow.mjs";
-import { hasFreeHandAvailable, itemRequiredHands, twoHandedStrengthApplies } from "../held-items.mjs";
+import { hasFreeHandAvailable, heldInTwoHandGrip, itemRequiredHands, twoHandedStrengthApplies } from "../held-items.mjs";
+import { steppedCreatureDamage } from "../creature-attacks.mjs";
 import { applyConditionTags, applySelfDamage, formatAppliedTags } from "./effect-application-workflow.mjs";
 import { resolveEffectiveConditions, selectArmourClause, effectivePersistence, extractConditionTags, extractConditionalConditions, extractSelfDamage, extractTextDuration, applySerratedBonus, applySavageStrikes, criticalAmendmentApplies, extractPushDistance, applySkeweringStrikes } from "../effect-parser.mjs";
 import { pushButtonsHtml, resolvePushTokens } from "./forced-movement-workflow.mjs";
@@ -143,10 +144,11 @@ import {
 } from "../fighter.mjs";
 import {
   attackIsFromATrap,
-  hasSneakAttack,
+  hasSneakDice,
   killersEdgeAllowance,
+  sneakDiceLabel,
   opportunistsStrikeBonus,
-  sneakAttackDice,
+  sneakDiceFor,
   sneakAttackTargetQualifies,
   sneakAttackWeaponEligible,
   targetFlankedByAllies,
@@ -175,7 +177,8 @@ import { armouredFistProfile } from "../armour-descriptions.mjs";
 import { stoneFistProfile } from "../elixirs.mjs";
 import { isBuckler } from "../buckler.mjs";
 import { fumbleTableFor, isUnarmedAttack } from "./unarmed.mjs";
-import { declaredStrikeTypeOptions, strikeTypeChoices, strikeTypeIsMagical } from "./strike-type-options.mjs";
+import { weaponStrikeRefused } from "../codex-action-rules.mjs";
+import { declaredStrikeTypeOptions, strikeTypeChoices, strikeTypeIsMagical, weaponStrikeTypeOptions } from "./strike-type-options.mjs";
 import { applyDeclaredAfterStrikes, applyOnFell } from "./declared-after-strikes-workflow.mjs";
 import { deathMarkDeadly, deathMarkQualifies, markedUuidOf } from "./death-mark.mjs";
 import { mountedAttackBonus, mountedDefenceOffer, mountedReach, mountedState, mountedWeaponRefusal } from "./mounted.mjs";
@@ -525,6 +528,20 @@ export async function maybePromptPressTheAdvantage(actor, trigger) {
  * towards it, so asking again would be asking twice.
  */
 /**
+ * Whether a strike is made outside its maker's own turn (3.645.0, F4): a
+ * started combat in which this creature has a place, on someone else's turn.
+ * Outside combat, or for a creature not in it, there is no turn to be off.
+ */
+function strikeIsOffTurn(actor) {
+  const combat = game.combat;
+  if (!combat?.started || !actor) return false;
+  const mine = combat.combatants?.filter?.((c) => c.actor === actor || (c.actorId === actor.id && c.token?.actorLink)) ?? [];
+  if (!mine.length) return false;
+  const current = combat.combatant;
+  return !mine.some((c) => c.id === current?.id);
+}
+
+/**
  * SHOVE AND TRIP WITH A WEAPON (Chapter 6 traits): "uses your attack bonus
  * with the weapon instead of your unarmed attack bonus."
  *
@@ -590,6 +607,11 @@ export async function rollWeaponAttack(actor, weapon, {
   // multiple attack penalty at -2" (a fixed MAP for every strike of the
   // action), Pack Attack's precision die. See combat/compound-action.mjs.
   extraBaseDice = 0,
+  // STORM OF BLADES (3.640.0, F&F 3.0 block 10 R8): a compound strike's
+  // flat extra damage, and what a critical does to it (`criticalBoost`:
+  // { severityUp, extraDamageMultiplier }) — see combat/compound-action.mjs.
+  extraFlatDamage = 0,
+  criticalBoost = null,
   mapOverride = null,
   extraPrecisionDice = 0,
   // SHIELDED STRIDE'S ONE FACT (fixed 3.365.0, found live). This was read
@@ -612,8 +634,27 @@ export async function rollWeaponAttack(actor, weapon, {
   // and `stationaryReactors` already measured it to decide who could be
   // offered a strike at all — so re-measuring here is two places deciding
   // one question, and the second one holds stale geometry.
-  reachAlreadyEstablished = false
+  reachAlreadyEstablished = false,
+  // XITHRA AND SCREECH (3.643.0, F&F 3.0 block 13 R6): a weapon marked
+  // `viaAbility` is struck only through that ability's Use.
+  viaAbility = false,
+  // AN ACTION'S OWN EXTRA DAMAGE (3.649.0; F&F 3.0 block 16 R4/R5): the
+  // Cloud Giant's Thundering Strike "+2d12 bludgeoning", Lightning Strike's
+  // "+3d12 electricity" — typed packets of their own, met by the struck
+  // creature's defences like a weapon's printed secondary damage.
+  extraTypedDamage = [],
+  // ONE ROLL, MANY DEFENCES (3.649.0, R5): the die the first creature's
+  // check rolled, met here by this creature's DB; and the damage dice the
+  // first hit rolled, shared by formula. See codex-actions-workflow.mjs
+  // `sweepingStrike`.
+  presetDice = null,
+  sharedDamage = null
 } = {}) {
+  const viaRefused = weaponStrikeRefused(weapon, viaAbility);
+  if (viaRefused) {
+    ui.notifications?.warn(`${weapon.name} is used through ${viaRefused} — use that ability.`);
+    return null;
+  }
   // BROKEN WEAPONS DO NOT ATTACK (3.573.0). Chapter 6, the Broken
   // Condition: "a broken object can't be used for its normal function."
   // A weapon's normal function is this. Graham ruled on 18 September 2026
@@ -952,6 +993,18 @@ export async function rollWeaponAttack(actor, weapon, {
     }
   }
 
+  // FOR HELD PREY ONLY (3.651.0; block 18 R6, the Kraken's Bite): refused
+  // unless the target is Grabbed by this attacker. See grab-gate.mjs.
+  {
+    const { grabbedOnlyRefusal } = await import("./grab-gate.mjs");
+    const refusal = grabbedOnlyRefusal(weapon, targetActor ? {
+      name: targetActor.name,
+      grabbed: Boolean(targetActor.hasCondition?.("grabbed")),
+      grabbedByUuid: targetActor.getFlag?.(SYSTEM_ID, "grabbedBy")?.uuid ?? ""
+    } : null, { name: actor.name, uuid: actor.uuid });
+    if (refusal) { ui.notifications.warn(refusal); return null; }
+  }
+
   /*
    * UNDERWATER COMBAT (page 201; Graham's R2 of 21 September 2026).
    *
@@ -1105,18 +1158,31 @@ export async function rollWeaponAttack(actor, weapon, {
   // "take a single attack action", so the first Strike inside the stance
   // is already paid for. Counted rather than merely allowed: a SECOND
   // Strike in the same stance pays its own way.
+  // OFF ITS MAKER'S TURN (3.646.0; Graham, 15 October 2026): an Attack of
+  // Opportunity and a readied Strike spend a reaction through their own
+  // doors; "any other weapon swing made outside of a turn should be free but
+  // prompt a GM authorisation". Asked here — after every refusal the weapon
+  // itself can make, before anything is spent — and the swing happens only
+  // on the GM's yes.
+  const offTurn = strikeIsOffTurn(actor);
+  const offTurnFree = offTurn && !isReaction && !apPaid;
+  if (offTurnFree) {
+    const { requestGMAuthorisation } = await import("./gm-authorisation.mjs");
+    const what = `a Strike with ${weapon.name}${targetActor ? ` against ${targetActor.name}` : ""}`;
+    if (!(await requestGMAuthorisation(actor, what))) return null;
+  }
   const fightDefensivelyPays = fightDefensivelyCoversAttack(
     isFightingDefensively(actor),
     Number(actor?.getFlag?.(SYSTEM_ID, FIGHT_DEFENSIVELY_ATTACK_FLAG) ?? 0)
-  ) && !isReaction && !apPaid;
+  ) && !isReaction && !apPaid && !offTurnFree;
 
   if (fightDefensivelyPays) {
     await actor.setFlag(
       SYSTEM_ID, FIGHT_DEFENSIVELY_ATTACK_FLAG,
       Number(actor.getFlag(SYSTEM_ID, FIGHT_DEFENSIVELY_ATTACK_FLAG) ?? 0) + 1
     );
-  } else if (!isReaction && !apPaid) {
-    await spendActionPoints(actor, "1", `${weapon.name} — Strike`);
+  } else if (!isReaction && !apPaid && !offTurnFree) {
+    await spendActionPoints(actor, "1", `${weapon.name} — Strike`, { use: "strike" });
   }
   await recordTraitUsage(actor, strikeTraits);
 
@@ -1306,10 +1372,17 @@ export async function rollWeaponAttack(actor, weapon, {
   // higher of the pair's two counters, and the actor's own when it is
   // riding nothing.
   const attackIndex = await sharedMapCount(actor);
+  // OFF ITS OWN TURN, A STRIKE CARRIES NO MULTIPLE ATTACK PENALTY (3.645.0,
+  // F4 of Graham's 14 October session). The penalty counts the attacks made
+  // during your turn; the counter is only cleared when your next turn
+  // starts, so a strike made between — an Attack of Opportunity rolled from
+  // the weapon row, a readied Strike — read last turn's count. Throngar's
+  // opportunity swing took −10 as "attack 5". Nor does such a strike add to
+  // the count. (`offTurn` is read above, where the GM is asked.)
   // ownsFeat was declared above, before AP was spent (the range-increment
   // check needs it too).
   // Agile Strikes (Class, Chapter 5): the agile MAP ladder tightens to -3/-6.
-  const baseMap = isReaction ? 0
+  const baseMap = (isReaction || offTurn) ? 0
     : Number.isFinite(Number(mapOverride)) && mapOverride !== null ? Number(mapOverride)
       : mapPenalty(attackIndex, agile, agile && ownsFeat("agile strikes"));
   // Relentless Hunter (Ranger, Hunter's Method): "your multiple attack
@@ -1648,7 +1721,8 @@ export async function rollWeaponAttack(actor, weapon, {
   const wildShapeBonus = wildShapeAttackBonus({
     actor,
     weaponName: weapon.name,
-    weaponNatural: Boolean(weaponData.natural)
+    weaponNatural: Boolean(weaponData.natural),
+    shapeWeapon: Boolean(weapon.flags?.["trg-prime"]?.shapeWeapon)
   });
   if (wildShapeBonus) {
     modifiers.push({ label: "Wild Shape (natural weapon)", value: wildShapeBonus, type: "class" });
@@ -1931,7 +2005,7 @@ export async function rollWeaponAttack(actor, weapon, {
   // "am I flanking", so what remains is "is the target flanked by any
   // PAIR of my allies" — which is also the only flank a ranged attacker
   // can shoot into.
-  const rogueAsks = hasSneakAttack(actor) ||
+  const rogueAsks = hasSneakDice(actor) ||
     Array.from(actor.items ?? []).some(
       (i) => i.type === "ability" && String(i.name).trim().toLowerCase() === "opportunist's strike"
     );
@@ -1966,13 +2040,14 @@ export async function rollWeaponAttack(actor, weapon, {
   // Sneak Attack's dice ride the damage roll; decided here, where the
   // target is known, and handed through to resolveWeaponDamage.
   let sneakDice = 0;
-  if (hasSneakAttack(actor) && sneakTargetQualifies &&
+  // STEALTHY STRIKE TOO (3.651.0): the general feat is this rule — see hasSneakDice.
+  if (hasSneakDice(actor) && sneakTargetQualifies &&
     sneakAttackWeaponEligible({
       isRanged,
       isThrownMelee: thrownByDistance,
       traits: weaponData.traits
     })) {
-    sneakDice = sneakAttackDice(system.skills?.stealth?.ranks ?? 0);
+    sneakDice = sneakDiceFor(actor, system.skills?.stealth?.ranks ?? 0);
   }
 
   // Precision Hunter (Ranger, Hunter's Method): "Once per round, the
@@ -2166,8 +2241,16 @@ export async function rollWeaponAttack(actor, weapon, {
   const pierce = targetActor
     ? defencePierceFor(defencePiercesOn(actor), weapon?.id, targetActor.system?.combat?.defence)
     : { amount: 0, slots: [], labels: [] };
+  // FEARFUL POWER (3.659.0; block 28 R9): the Tenebrax's status bonus to DB,
+  // less any status bonus its DB already carries (they do not stack).
+  let fearfulDB = 0;
+  if (targetActor) {
+    const { fearfulPowerBonus } = await import("../fearful-power-workflow.mjs");
+    const { statusBonusOver } = await import("../fearful-power.mjs");
+    fearfulDB = statusBonusOver(fearfulPowerBonus(targetActor), Number(targetActor.system?.combat?.defence?.breakdown?.byType?.status ?? 0));
+  }
   const db = Number.isFinite(baseDB)
-    ? baseDB + coverBonus + wardenDB + arrowCatchingDB + dragonhideDB + shieldedStrideDB + typedDefence.total
+    ? baseDB + coverBonus + wardenDB + arrowCatchingDB + dragonhideDB + shieldedStrideDB + typedDefence.total + fearfulDB
       + trapFinderDB + (aidDefence?.amount ?? 0) - pierce.amount
     : null;
 
@@ -2216,7 +2299,7 @@ export async function rollWeaponAttack(actor, weapon, {
   // AND ANY TYPE THE ATTACKER DECLARES FOR THIS KIND OF STRIKE (3.627.0):
   // Essence Attacks' "you may have the attack deal essence damage instead".
   // Asked in the same breath as Versatile; see combat/strike-type-options.mjs.
-  const strikeTypeOptions = declaredStrikeTypeOptions(Array.from(actor.appliedEffects ?? actor.effects ?? []));
+  const strikeTypeOptions = [...declaredStrikeTypeOptions(Array.from(actor.appliedEffects ?? actor.effects ?? [])), ...weaponStrikeTypeOptions(weapon)];
   const damageTypeChoices = strikeTypeChoices(weaponData, strikeTypeOptions, versatileAlternate);
   if (damageTypeChoices.length > 1) {
     versatileDamageType = await promptVersatileDamageType(weapon.name, damageTypeChoices);
@@ -2270,10 +2353,16 @@ export async function rollWeaponAttack(actor, weapon, {
     // creature — the same pairing the source side has carried since
     // 3.406.0. Blank with nothing targeted, for the same reason.
     targetTypes: creatureTypesOf(targetActor?.system ?? {}),
+    // MELEE OR RANGED (3.650.0) — a conditional scoped to ranged attacks
+    // (Irritating Glamour's penalty) asks this.
+    attackMode: isRanged ? "ranged" : "melee",
     // "All attacks against you gain advantage if you cannot move" (3.621.0).
     // Handed in as the starting bias, so a disadvantage from anywhere else
     // cancels against it through `resolveBias` as the Advantage trait says.
     ...(conditionTerms?.advantage ? { bias: "advantage" } : {}),
+    // THE SAME DIE, NOT A NEW ONE (3.649.0): a shared strike's later
+    // creatures. Conviction was offered on the first; this is that roll.
+    ...(presetDice ? { presetDice, allowConviction: false } : {}),
     suppressDegree: true,
     modifiers,
     toMessage: false
@@ -2306,7 +2395,7 @@ export async function rollWeaponAttack(actor, weapon, {
   // penalty, make two Strikes" — both swings are rolled at the penalty
   // that stood when the action began, and the action then advances the
   // counter by two itself ("this counts as two attacks").
-  if (!isReaction && !mapFrozen) {
+  if (!isReaction && !mapFrozen && !offTurn) {
     const mapSteps = powerAttack && !isRanged && !ownsFeat("furious focus") ? 2 : 1;
     await setSharedMapCount(actor, attackIndex + mapSteps);
   }
@@ -2443,7 +2532,7 @@ export async function rollWeaponAttack(actor, weapon, {
   // Focused Strike (Class, Chapter 5): a strike "only counts towards
   // your multiple attack penalty if it hits your target" — the counter
   // was advanced before the roll (as always), so a miss rolls it back.
-  if (!isReaction && outcome.resolved && !outcome.hits && ownsFeat("focused strike")) {
+  if (!isReaction && !offTurn && outcome.resolved && !outcome.hits && ownsFeat("focused strike")) {
     await setSharedMapCount(actor, attackIndex);
   }
 
@@ -2594,6 +2683,7 @@ export async function rollWeaponAttack(actor, weapon, {
   }
   // SAID ON THE CARD, like every other defender-side bonus above it — a
   // DB that moved with nothing to explain it reads as a fault.
+  if (fearfulDB) lines.push(line(`<em>${targetActor?.name ?? "The target"}'s Fearful Power: +${fearfulDB} status to DB (the highest frightened value within 30 feet).</em>`));
   if (dragonhideDB) {
     lines.push(
       line(
@@ -2716,9 +2806,61 @@ export async function rollWeaponAttack(actor, weapon, {
   let armourAmended = false;
   let locationArmoured = true;
   let hitLocation = null;
+  // A STRIKE THAT ONLY GRABS (3.652.0; block 19 R4, the Giant Chameleon's
+  // Tongue): a hit Grabs, and rolls neither injury nor damage. See
+  // grab-only.mjs.
+  const { isGrabOnly, grabOnlyLine } = await import("./grab-only.mjs");
+  const grabOnly = isGrabOnly(weapon);
+  if (grabOnly && outcome.hits && targetActor) {
+    await applyConditionTags(targetActor, [{ key: "grabbed", label: "Grabbed" }], {});
+    if (targetActor.setFlag) await targetActor.setFlag(SYSTEM_ID, "grabbedBy", { uuid: actor.uuid, name: actor.name, round: Number(game.combat?.round ?? 0) });
+    await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }),
+      content: `<div class="trg-prime trg-check-card">${line(grabOnlyLine(actor.name, targetActor.name, weapon.name, Boolean(outcome.critical)))}</div>` });
+  }
+  // A STRIKE THAT ONLY LAYS A CONDITION (3.661.0; block 30 R2, the spiders'
+  // Web): a hit lays it, and rolls neither injury nor damage.
+  const { hitConditionOf, hitConditionLine } = await import("./grab-only.mjs");
+  const hitCondition = hitConditionOf(weapon);
+  if (hitCondition && outcome.hits && targetActor) {
+    const { conditionLabel } = await import("../conditions/condition-rules.mjs");
+    const label = conditionLabel(hitCondition.key);
+    await applyConditionTags(targetActor, [{ key: hitCondition.key, label }], {});
+    await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }),
+      content: `<div class="trg-prime trg-check-card">${line(hitConditionLine(actor.name, targetActor.name, weapon.name, label, Boolean(outcome.critical)))}</div>` });
+  }
+  // A STRIKE THAT CARRIES A SPELL (3.655.0; block 22 R5, Pixie Bow Casting):
+  // a hit offers the archer's spells; one chosen lands instead of the arrow,
+  // with no damage and no injury. See bow-casting.mjs.
+  let spellCarried = false;
+  if (!grabOnly && !hitCondition && outcome.hits && targetActor) {
+    const { bowCastingFor } = await import("../bow-casting.mjs");
+    const bowCast = bowCastingFor(Array.from(actor.items ?? []), weapon);
+    if (bowCast) {
+      const { castThroughStrike } = await import("../bow-casting-workflow.mjs");
+      spellCarried = await castThroughStrike(actor, weapon, targetActor, bowCast, outcome.critical?.severity ?? null);
+    }
+  }
+  const strikeLands = !grabOnly && !hitCondition && !spellCarried;
+  // THE GRAB TRAIT (3.657.0; block 24 R6): a landed hit also Grabs, with the
+  // same mark a Grapple writes, so Constrict and the grabbed-only gates read it.
+  {
+    const { hasGrabTrait, grabTraitLine } = await import("./grab-only.mjs");
+    if (strikeLands && outcome.hits && targetActor && hasGrabTrait(weapon)) {
+      await applyConditionTags(targetActor, [{ key: "grabbed", label: "Grabbed" }], {});
+      if (targetActor.setFlag) await targetActor.setFlag(SYSTEM_ID, "grabbedBy", { uuid: actor.uuid, name: actor.name, round: Number(game.combat?.round ?? 0) });
+      await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="trg-prime trg-check-card">${line(grabTraitLine(actor.name, targetActor.name, weapon.name))}</div>` });
+    }
+  }
   // THE INJURY IS WHAT THE IMMUNITY STOPS (3.548.0) — the bonus dice
   // above have already been counted, per Graham's ruling.
-  if (outcome.critical && !outcome.critical.injuryImmune) {
+  // A CRITICAL REPLACEMENT (3.650.0; block 17 R8, Prankster's Cruelty): the
+  // attacker may trade the injury for a lesser effect, asked before it rolls.
+  let injuryReplaced = false;
+  if (strikeLands && outcome.critical && !outcome.critical.injuryImmune && targetActor) {
+    const { offerCriticalReplacement } = await import("../creature-reactions-workflow.mjs");
+    injuryReplaced = await offerCriticalReplacement(actor, weapon, targetActor);
+  }
+  if (strikeLands && outcome.critical && !outcome.critical.injuryImmune && !injuryReplaced) {
     const isMook = targetActor?.type === "npc" && Boolean(targetActor?.system?.gm?.isMook);
     if (isMook) {
       await rollQuickCrit(targetActor, {
@@ -2775,13 +2917,19 @@ export async function rollWeaponAttack(actor, weapon, {
   // damage — none of which `outcome` can answer, because it reports the
   // ATTACK and not its consequences.
   let damageOutcome = null;
-  if (outcome.hits) {
+  if (outcome.hits && strikeLands) {
     // Precision Hunter's window is "the first time you DAMAGE your
     // hunted prey" — the marker burns here, on a hit that rolls
     // damage, not on the attempt.
     if (precisionDice) {
       await actor.setFlag(SYSTEM_ID, "precisionHunterUsed", true);
     }
+    // A COMPOUND STRIKE'S FLAT DAMAGE AND ITS CRITICAL (3.640.0).
+    const { compoundFlatDamage, steppedCriticalSeverity } = await import("./compound-action.mjs");
+    const strikeCritical = outcome.critical?.severity ?? null;
+    const boostedCritical = strikeCritical && criticalBoost?.severityUp ? steppedCriticalSeverity(strikeCritical, criticalBoost.severityUp) : strikeCritical;
+    const flatExtra = compoundFlatDamage(extraFlatDamage, strikeCritical, criticalBoost);
+    const flatLines = flatExtra ? [`+${flatExtra} damage (the action's${strikeCritical && criticalBoost ? `, doubled on the critical${boostedCritical !== strikeCritical ? ` — ${strikeCritical} raised to ${boostedCritical}` : ""}` : ""})`] : [];
     const ridersBurnt = ridersBurnUpdate(damageRiders, actor.getFlag?.(SYSTEM_ID, RIDERS_USED_FLAG) ?? {});
     if (ridersBurnt) await actor.setFlag(SYSTEM_ID, RIDERS_USED_FLAG, ridersBurnt);
     // CONDITIONALS SCOPED TO THE DAMAGE ROLL (3.626.1): the `auto` rows
@@ -2795,7 +2943,9 @@ export async function rollWeaponAttack(actor, weapon, {
       deathMarkBonus: mark.damageBonus,
       declaredBonus: declaredDamage.bonus,
       declaredBonusLines: declaredDamage.lines,
-      critical: outcome.critical?.severity ?? null,
+      compoundFlat: flatExtra,
+      compoundFlatLines: flatLines,
+      critical: boostedCritical,
       glancing: Boolean(outcome.glancing),
       locationArmoured,
       armourAmended,
@@ -2809,6 +2959,8 @@ export async function rollWeaponAttack(actor, weapon, {
       // FIST OF ROCK'S 1d6 (3.577.0): `resolveWeaponDamage` reads the
       // weapon's own die, which for the Unarmed Strike is 1d4.
       damageOverride: stoneFist?.damage ?? extraBaseDiceOverride(weaponData.damage, extraBaseDice),
+      extraTypedDamage,
+      sharedDamage,
       usedTwoHanded,
       spinBonus: spinCarried,
       ammo: ammoSystem,
@@ -2817,6 +2969,14 @@ export async function rollWeaponAttack(actor, weapon, {
       powerAttack: powerAttack && !isRanged,
       sneakDice,
       precisionDice: precisionDice + compoundPrecision,
+      // EACH SOURCE NAMED (3.663.3; found in the block 34 live test): Pack
+      // Attack's die was printed as "Precision Hunter — first damage against
+      // your hunted prey", the only label the card had for precision dice.
+      precisionParts: [
+        precisionDice ? { dice: precisionDice, label: "Precision Hunter", why: "first damage against your hunted prey this round" } : null,
+        Math.max(0, Math.floor(Number(extraPrecisionDice) || 0)) ? { dice: Math.max(0, Math.floor(Number(extraPrecisionDice) || 0)), label: "The action", why: "its own precision dice" } : null,
+        packDice ? { dice: packDice, label: "Pack Attack", why: "the target is within reach of at least two of its allies" } : null
+      ].filter(Boolean),
       // THE BIGGER THEY ARE (3.377.0) needs the target's size, and this
       // damage function had no target reference at all — the only thing
       // standing between the feat and the formula. Passed as the SIZE
@@ -2958,7 +3118,11 @@ export async function rollWeaponAttack(actor, weapon, {
   // rolled below — and Double Slice's "if either attack fumbles" needs
   // the confirmed answer, not the risk.
   let confirmedFumble = false;
-  if (outcome.fumbleRisk) {
+  // ONE SWING FUMBLES ONCE (3.649.1; found live on Lightning Strike, 15
+  // October 2026). A shared strike's later creatures meet the first's die, so
+  // an unmodified 1 is the same 1: its fumble check and table were rolled on
+  // the first creature, and are not rolled again for each one after it.
+  if (outcome.fumbleRisk && !presetDice) {
     const fumbled = await rollFumbleCheck(actor, weapon, { dcHalved: outcome.fumbleDcHalved, weaponData, thrown: thrownAttack });
     confirmedFumble = Boolean(fumbled);
 
@@ -2995,6 +3159,16 @@ export async function rollWeaponAttack(actor, weapon, {
         });
       }
     }
+  }
+
+  // A MISS THE DEFENDER MAY ANSWER BY MOVING (3.650.0; block 17 R7,
+  // Gleam-Dart Escape): offered on its own card, as every reaction is.
+  // OUTSIDE THE FUMBLE BRANCH (3.650.1, found live): 3.650.0 put it beside
+  // Reactive Disarm, inside `if (outcome.fumbleRisk …)`, so only a miss on
+  // an unmodified 1 ever offered it.
+  if (outcome.resolved && !outcome.hits && targetActor) {
+    const { offerMissedReactions } = await import("../creature-reactions-workflow.mjs");
+    await offerMissedReactions(targetActor, actor).catch(() => []);
   }
 
   // Attack of Opportunity (Chapter 4): making a ranged attack while within
@@ -4464,7 +4638,7 @@ export async function rollFumbleCheck(actor, weapon, { dcHalved = false, weaponD
 async function resolveWeaponDamage(
   actor,
   weapon,
-  { critical = null, glancing = false, locationArmoured = true, armourAmended = false, distance = null, damageTypeOverride = null, damageOverride = null, usedTwoHanded = false, hitLocation = null, ammo = null, ammoName = "", ammoCoat = null, powerAttack = false, sneakDice = 0, precisionDice = 0, damageRiders = [], targetSize = null, meleeDistance = null, spinBonus = null, targetTokenOverride = null, deathMarkBonus = 0, declaredBonus = 0, declaredBonusLines = [] } = {}
+  { critical = null, glancing = false, locationArmoured = true, armourAmended = false, distance = null, damageTypeOverride = null, damageOverride = null, usedTwoHanded = false, hitLocation = null, ammo = null, ammoName = "", ammoCoat = null, powerAttack = false, sneakDice = 0, precisionDice = 0, precisionParts = null, damageRiders = [], targetSize = null, meleeDistance = null, spinBonus = null, targetTokenOverride = null, deathMarkBonus = 0, declaredBonus = 0, declaredBonusLines = [], compoundFlat = 0, compoundFlatLines = [], extraTypedDamage = [], sharedDamage = null } = {}
 ) {
   /*
    * WHETHER THIS BLOW TREATS ITS TARGET AS UNARMOURED (3.585.0).
@@ -4560,10 +4734,26 @@ async function resolveWeaponDamage(
   const critDiceKept = criticalPrecisionDice(critical, {
     immune: precisionImmune, resisted: precisionResisted
   });
-  let formula = buildWeaponDamageFormula(damageOverride ?? weaponData.damage, {
+  // HAND & A HALF, HELD IN TWO HANDS (3.645.0, F5 of Graham's 14 October
+  // session): "This increases weapons damage as if it were a size larger."
+  // The die climbs one rung of the size ladder — a Bastard Sword's 1d8
+  // becomes 1d10 — as the weapon one size larger would roll. The ×1.5
+  // Strength of a two-handed larger weapon still applies below. Before this
+  // only the Strength half was read, and the die never moved.
+  // A Vital Strike's extra base dice arrive as an override and step too.
+  const handAndAHalfDamage = usedTwoHanded && heldInTwoHandGrip(weapon)
+    ? steppedCreatureDamage(damageOverride ?? weaponData.damage, 1)
+    : null;
+  // REAVER BLADE (3.659.0; block 28 R8): the critical's bonus dice become
+  // Soul Drain — kept off the blow, rolled after it lands.
+  const { criticalDiceAsDrain, damageDieOf, ignoresResistanceInMelee } = await import("./reaver-strikes.mjs");
+  const drainDice = criticalDiceAsDrain(weapon, critical, critDiceKept);
+  // UNSTOPPABLE FORCE (3.659.0; block 28 R8), read where the packets resolve below.
+  const unstoppable = (weaponData.attackMode ?? "melee") !== "missile" && ignoresResistanceInMelee(Array.from(actor?.items ?? []));
+  let formula = buildWeaponDamageFormula(handAndAHalfDamage ?? damageOverride ?? weaponData.damage, {
     bab: Number(system.combat?.bab?.total ?? 0),
     critical,
-    criticalDice: critDiceKept,
+    criticalDice: drainDice ? 0 : critDiceKept,
     // QUICK DAMAGE (page 204, optional; R12).
     quickDamage: setting("quickDamage", false),
     quality: weaponData.quality || "standard",
@@ -4770,6 +4960,9 @@ async function resolveWeaponDamage(
   if (declaredDamageTotal) {
     formula += declaredDamageTotal > 0 ? ` + ${declaredDamageTotal}` : ` - ${Math.abs(declaredDamageTotal)}`;
   }
+  // A COMPOUND STRIKE'S FLAT DAMAGE (3.640.0, Storm of Blades' +5 a blade).
+  const compoundFlatTotal = Math.max(0, Math.trunc(Number(compoundFlat) || 0));
+  if (compoundFlatTotal) formula += ` + ${compoundFlatTotal}`;
 
   // Power Attack (Class, Chapter 5): "+2d8 damage... At BAB +12, 3d8
   // and at BAB +18 4d8" — same type as the base damage.
@@ -4844,7 +5037,9 @@ async function resolveWeaponDamage(
     ...improvisedDamagePackets(weaponData, weapon?.name ?? ""),
     // A CREATURE'S PRINTED "plus 2d6 good" (3.633.0, F&F 3.0 R2) — the
     // book's secondary damage, a packet of its own type like the rest.
-    ...creatureSecondaryPackets(weapon, targetActor?.system ?? null)
+    ...creatureSecondaryPackets(weapon, targetActor?.system ?? null),
+    // AN ACTION'S OWN "+2d12 bludgeoning" (3.649.0, block 16 R4/R5).
+    ...actionDamagePackets(extraTypedDamage, weapon)
   ];
 
   // Spin (Chapter 6): whatever bonus was built up by a prior Spin
@@ -4859,7 +5054,7 @@ async function resolveWeaponDamage(
     await weapon.update({ "system.spinBonus": 0 });
   }
 
-  const roll = await new Roll(formula).evaluate();
+  const roll = await sharedRoll(sharedDamage, "strike", formula);
   let total = roll.total;
   if (glancing) total = Math.ceil(total / 2);
 
@@ -4878,6 +5073,7 @@ async function resolveWeaponDamage(
     lines.push(line(`Includes critical bonus dice (${critical}), precision type.`));
   }
   for (const said of Array.isArray(declaredBonusLines) ? declaredBonusLines : []) lines.push(line(said));
+  for (const said of Array.isArray(compoundFlatLines) ? compoundFlatLines : []) lines.push(line(said));
   // SAID OUT LOUD, because dice that silently vanish read as a bug. The
   // player spent Sneak Attack or the once-per-round Precision Hunter die
   // on this strike and has to see where it went.
@@ -4902,10 +5098,11 @@ async function resolveWeaponDamage(
     }
   }
   if (sneak) {
-    lines.push(line(`<strong>Sneak Attack</strong> — +${sneak}d6 precision damage (target flanked or flat-footed).`));
+    lines.push(line(`<strong>${sneakDiceLabel(actor)}</strong> — +${sneak}d6 precision damage (target flanked or flat-footed).`));
   }
   if (precision) {
-    lines.push(line(`<strong>Precision Hunter</strong> — +${precision}d6 precision damage (first damage against your hunted prey this round).`));
+    const parts = Array.isArray(precisionParts) && precisionParts.length ? precisionParts : [{ dice: precision, label: "Precision Hunter", why: "first damage against your hunted prey this round" }];
+    for (const part of parts) lines.push(line(`<strong>${part.label}</strong> — +${part.dice}d6 precision damage (${part.why}).`));
   }
   for (const rider of damageRiders ?? []) {
     lines.push(line(`<strong>${rider.label}</strong> — +${rider.dice} secondary damage${rider.grownBy ? ` (with ${rider.grownBy})` : ""}${rider.oncePerRound ? " (first damage this round)" : ""}.`));
@@ -5116,6 +5313,9 @@ async function resolveWeaponDamage(
       || actorGhostTouch(actor)
     ) && isIncorporeal(targetActor.system);
 
+    // UNSTOPPABLE FORCE (3.659.0; block 28 R8): "bypasses all resistance
+    // with its melee attacks" — the target's resistances are not read.
+    if (unstoppable) lines.push(line(`<em>Unstoppable Force: ${actor.name}'s melee attack bypasses all resistance.</em>`));
     const packet = resolveDamagePacket({
       amount: total,
       type: effectiveDamageType,
@@ -5127,7 +5327,7 @@ async function resolveWeaponDamage(
       // immune to mental damage, a Construct to Essence (Chapter 7).
       // Resolved through one accessor now, so every damage path in the
       // system reads the same defences rather than only this one.
-      resistances: targetDefences.resistances,
+      resistances: unstoppable ? new Set() : targetDefences.resistances,
       immunities: targetDefences.immunities,
       weaknesses: targetDefences.weaknesses,
       immuneTraits: targetDefences.immuneTraits,
@@ -5136,15 +5336,15 @@ async function resolveWeaponDamage(
       // rune is a magical source, so a creature's `mundane` resistance
       // does not halve it; the weapon's special material is what a
       // creature's cold iron / silver / adamantine weakness reads.
-      resistanceCategories: targetDefences.resistanceCategories,
+      resistanceCategories: unstoppable ? [] : targetDefences.resistanceCategories,
       weaknessMaterials: targetDefences.weaknessMaterials,
       // WIRED AT 3.548.0. Computed since 3.547.1, consumed since 3.547.1,
       // and passed by neither damage path in between — so the bracketed
       // material that overcomes a resistance overcame nothing.
       resistanceBypassMaterials: targetDefences.resistanceBypassMaterials,
-      resistanceSources: targetDefences.resistanceSources,
+      resistanceSources: unstoppable ? new Set() : targetDefences.resistanceSources,
       weaknessSources: targetDefences.weaknessSources,
-      resistanceTraits: targetDefences.resistanceTraits,
+      resistanceTraits: unstoppable ? new Set() : targetDefences.resistanceTraits,
       weaknessTraits: targetDefences.weaknessTraits,
       resistanceExcept: targetDefences.resistanceExcept,
       // A RUNED ROUND IS MAGICAL TOO (3.618.0, B1).
@@ -5209,6 +5409,18 @@ async function resolveWeaponDamage(
     });
     finalCase = damageResult?.case ?? null;
     finalHP = Number.isFinite(damageResult?.newHP) ? damageResult.newHP : null;
+    // …AND THE CRITICAL'S DICE AS SOUL DRAIN (3.659.0; Reaver Blade).
+    if (drainDice) {
+      const drainRoll = await new Roll(`${drainDice}d${damageDieOf(weaponData.damage)}`).evaluate();
+      if (drainRoll.total > 0) {
+        const { applyConditionTags, formatAppliedTags } = await import("./effect-application-workflow.mjs");
+        const { relayConditionTags } = await import("./target-relay-workflow.mjs");
+        const { conditionLabel } = await import("../conditions/condition-rules.mjs");
+        const tags = [{ key: "soulDrain", value: drainRoll.total, label: conditionLabel("soulDrain") }];
+        const applied = await relayConditionTags(targetActor, tags, {}, () => applyConditionTags(targetActor, tags, {}));
+        lines.push(line(`<strong>${weapon.name}:</strong> the critical's ${drainDice} bonus dice (${drainDice}d${damageDieOf(weaponData.damage)} = ${drainRoll.total}) become Soul Drain — ${formatAppliedTags(applied)}.`));
+      }
+    }
     // THE STRIKE LOG (3.631.0): Rend ("strikes a target twice with the
     // listed attack type") and Tear Flesh ("using the result of its
     // previous attack") read the creature's last few hits. Six kept.
@@ -5353,7 +5565,10 @@ async function resolveWeaponDamage(
         lines.push(line(`<em>${runeDamageLine(rune, 0)}</em>`));
         continue;
       }
-      const runeRoll = await new Roll(rune.dice).evaluate();
+      const runeRoll = await sharedRoll(sharedDamage, String(rune.type ?? ""), rune.dice);
+      // UNSTOPPABLE FORCE reaches the blow's other packets too (3.659.0).
+      const { setResistanceBypass: bypassFor, clearResistanceBypass: bypassClear } = await import("./damage-workflow.mjs");
+      if (unstoppable) bypassFor([String(rune.type ?? "").toLowerCase()], 5);
       const runePacket = resolveAgainstDefences(targetActor.system, {
         amount: runeRoll.total,
         type: rune.type,
@@ -5374,6 +5589,7 @@ async function resolveWeaponDamage(
         // defences, read against the damage's source traits.
         sourceTraits: alignedPacketTraits(rune)
       });
+      if (unstoppable) bypassClear();
       lines.push(line(runeDamageLine(rune, runeRoll.total)));
       if (runePacket.taken !== runeRoll.total) {
         lines.push(line(
@@ -5483,6 +5699,15 @@ async function resolveWeaponDamage(
     for (const afterLine of await applyDeclaredAfterStrikes(actor, weapon, targetActor, { critical: critical || null, damageTaken: Number(packet?.taken ?? 0) || 0 })) {
       lines.push(line(afterLine));
     }
+    // A WEAPON'S "RECURRING +N" (3.656.0; F&F 3.0 block 23 R5 — the Fire
+    // Primals' Fiery Slam): a hit that reaches the target also lays Recurring
+    // N of the weapon's damage type, through the rule the bombs and spells
+    // use (the stronger of one type is kept).
+    {
+      const { weaponRecurringValue } = await import("../codex-action-rules.mjs");
+      const recurring = weaponRecurringValue(weapon.system?.traits);
+      if (recurring > 0) lines.push(line(await layWeaponRecurring(targetActor, recurring, String(effectiveDamageType ?? weapon.system?.damageType ?? "fire"), Boolean(packet?.immune))));
+    }
     // AND WHAT FELLING THE TARGET GIVES BACK (3.627.0) — Hunger Beyond Pain.
     for (const fellLine of await applyOnFell(actor, weapon, targetActor, finalCase)) {
       lines.push(line(fellLine));
@@ -5496,7 +5721,8 @@ async function resolveWeaponDamage(
     for (const thornLine of await applyThorns(actor, targetActor, {
       melee: isMelee,
       unarmed: isUnarmedAttack(weaponData),
-      distanceFeet: meleeDistance
+      distanceFeet: meleeDistance,
+      critical: Boolean(critical)
     })) {
       lines.push(line(thornLine));
     }
@@ -5597,13 +5823,13 @@ export async function rollWeaponDamage(actor, weapon) {
   // non-finesse melee weapon does not offer the box at all.
   // A melee weapon needs agile/finesse whether swung or hurled, so the
   // melee-traits test already covers the thrown-melee clause here.
-  const sneakOffered = hasSneakAttack(actor) && sneakAttackWeaponEligible({
+  const sneakOffered = hasSneakDice(actor) && sneakAttackWeaponEligible({
     isRanged: ["missile", "thrown"].includes(weaponData.attackMode),
     isThrownMelee: false,
     traits: weaponData.traits
   });
   const sneakOfferDice = sneakOffered
-    ? sneakAttackDice(actor.system?.skills?.stealth?.ranks ?? 0)
+    ? sneakDiceFor(actor, actor.system?.skills?.stealth?.ranks ?? 0)
     : 0;
   // Precision Hunter, same treatment: no target in hand here, so
   // "this damaged my hunted prey, first time this round" is a tickbox;
@@ -5639,7 +5865,7 @@ export async function rollWeaponDamage(actor, weapon) {
         }
         ${
           showHandAndAHalf
-            ? `<p class="hint">Hand &amp; a Half grip: <strong>${weaponData.twoHandedGrip ? "two-handed (×1.5 Str)" : "one-handed"}</strong> — set when the weapon is equipped.</p>`
+            ? `<p class="hint">Hand &amp; a Half grip: <strong>${weaponData.twoHandedGrip ? "two-handed (die one size larger, ×1.5 Str)" : "one-handed"}</strong> — set when the weapon is equipped.</p>`
             : twoHandedHere
               ? `<p class="hint">One size larger than you, held two-handed: <strong>×1.5 Str</strong>.</p>`
               : ""
@@ -5656,7 +5882,7 @@ export async function rollWeaponDamage(actor, weapon) {
         ${
           sneakOffered
             ? `<div class="form-group">
-          <label><input type="checkbox" name="sneakAttack"> Sneak Attack (+${sneakOfferDice}d6) — target was flanked or flat-footed</label>
+          <label><input type="checkbox" name="sneakAttack"> ${sneakDiceLabel(actor)} (+${sneakOfferDice}d6) — target was flanked or flat-footed</label>
         </div>`
             : ""
         }
@@ -5755,6 +5981,22 @@ function actorGhostTouch(actor) {
 }
 
 /** "+1 die of base damage" (Powerful Charge, Trample): the weapon's own formula with its count raised. */
+/*
+ * ONE DAMAGE ROLL FOR EVERY CREATURE A SHARED STRIKE HITS (3.649.0, block 16
+ * R5). Keyed by the packet and its formula: the first hit rolls and records
+ * it, every later hit with the same formula takes the same dice. A formula
+ * that differs — a critical's bonus dice, a bane against this creature — is a
+ * different roll, because it is different dice.
+ */
+async function sharedRoll(shared, key, formula) {
+  if (!shared || typeof shared !== "object") return new Roll(formula).evaluate();
+  const slot = `${key}|${String(formula ?? "").replace(/\s+/g, "")}`;
+  if (shared[slot]) return Roll.fromData(shared[slot]);
+  const roll = await new Roll(formula).evaluate();
+  shared[slot] = roll.toJSON();
+  return roll;
+}
+
 function extraBaseDiceOverride(damage, extra = 0) {
   const n = Math.max(0, Math.floor(Number(extra) || 0));
   if (!n) return null;
@@ -5803,4 +6045,23 @@ function howlingKinshipFor(actor) {
     nearest = Math.min(nearest, Number(distanceBetween(mine, theirs)));
   }
   return howlingKinshipModifier({ masterOwnsFeat: true, partnerFeet: nearest });
+}
+
+/**
+ * A WEAPON'S RECURRING DAMAGE (3.656.0; F&F 3.0 block 23 R5 — "recurring +N"
+ * on the Fire Primals' Fiery Slam): laid through `recurringAfterHit`, the
+ * rule the bombs and the spells use, so a second hit of one type keeps the
+ * stronger rather than adding.
+ */
+async function layWeaponRecurring(targetActor, amount, damageType, immune) {
+  if (immune) return `<em>No recurring ${damageType} damage — ${targetActor.name} is immune to ${damageType}.</em>`;
+  const { recurringAfterHit } = await import("../bombs.mjs");
+  const existingEffect = Array.from(targetActor.effects ?? []).find((e) => e.statuses?.has?.("recurring"));
+  const existing = existingEffect
+    ? { value: Number(existingEffect.getFlag(SYSTEM_ID, "value") ?? 0), damageType: existingEffect.getFlag(SYSTEM_ID, "damageType") ?? "" }
+    : null;
+  const next = recurringAfterHit(existing, amount, damageType);
+  await targetActor.toggleStatusEffect("recurring", { value: next.value, damageType: next.damageType });
+  return `Plus <strong>Recurring ${next.value} ${next.damageType}</strong> on ${targetActor.name} — dealt in its end phase until a flat check ends it`
+    + `${next.replaced ? ", replacing the recurring damage already there" : ""}.`;
 }

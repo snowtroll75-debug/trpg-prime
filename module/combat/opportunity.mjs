@@ -16,7 +16,7 @@
 import { activeToken, distanceBetween, feetFromPointToToken } from "./geometry.mjs";
 import { keepByDisposition } from "../magic/spell-template.mjs";
 import { actorReactionBlock, FLAT_FOOTED_BLOCK } from "./reactions.mjs";
-import { usableAttacks, getOrCreateUnarmedStrike } from "./strike.mjs";
+import { chooseMeleeAttack, usableAttacks, getOrCreateUnarmedStrike } from "./strike.mjs";
 import { weaponReachExtension } from "./attack.mjs";
 import { spendReaction } from "./action-points-workflow.mjs";
 import {
@@ -298,9 +298,15 @@ async function offerAttacksOfOpportunity(provokerToken, found, triggerKind) {
     buttons +
     `</div>`;
 
+  // AND TO EACH REACTOR'S OWN PLAYER (3.646.0). The offer was GM-only, so
+  // the button the 3.645.0 fix showed to a reactor's owner was on a card that
+  // owner never received — found live on 15 October 2026.
+  const reactorOwners = (game.users?.contents ?? Array.from(game.users ?? []))
+    .filter((u) => !u.isGM && reactors.some(({ actor }) => actor?.testUserPermission?.(u, "OWNER")))
+    .map((u) => u.id);
   return ChatMessage.create({
     content,
-    whisper: ChatMessage.getWhisperRecipients("GM").map((u) => u.id),
+    whisper: [...new Set([...ChatMessage.getWhisperRecipients("GM").map((u) => u.id), ...reactorOwners])],
     speaker: ChatMessage.getSpeaker({ actor: provokerToken?.actor ?? null }),
     flags: {
       [SYSTEM_ID]: {
@@ -374,7 +380,10 @@ async function performOpportunityStrike(reactor, { provokerToken = null, trigger
     }
   }
 
-  const weapon = bestMeleeWeapon(reactor) ?? (await getOrCreateUnarmedStrike(reactor));
+  // WHICH WEAPON, ASKED when more than one is ready (3.645.0, F6).
+  const picked = await chooseMeleeAttack(reactor, "Attack of Opportunity");
+  if (picked === null) return null;
+  const weapon = picked ?? bestMeleeWeapon(reactor) ?? (await getOrCreateUnarmedStrike(reactor));
 
   // Attack trait: an AoO always qualifies for the Battle Readiness
   // reaction, which is rather the point of the ability.
@@ -486,7 +495,11 @@ export async function executeAttackOfOpportunity(message, reactorActorId) {
   // or refunded leaves the button live, for the same reason the reaction
   // is given back: nothing was used up.
   const nextUsed = Array.from(new Set([...(card.used ?? []), reactorActorId]));
-  await message.setFlag(SYSTEM_ID, AOO_FLAG, { ...card, used: nextUsed });
+  // A PLAYER MAY NOT WRITE TO ANOTHER'S CARD; their reaction is spent, which
+  // already refuses a second click, so the mark is only the GM's to make.
+  if (message.canUserModify?.(game.user, "update") ?? game.user.isGM) {
+    await message.setFlag(SYSTEM_ID, AOO_FLAG, { ...card, used: nextUsed });
+  }
   return result;
 }
 
@@ -556,8 +569,14 @@ export function registerOpportunityHooks() {
         btn.textContent = btn.textContent.replace(/—.*/, "— reacted");
         return;
       }
-      // Only the GM triggers enemy Attacks of Opportunity.
-      if (!game.user.isGM) {
+      // THE GM, OR THE REACTOR'S OWN PLAYER (3.645.0, F4). This read "only
+      // the GM triggers enemy Attacks of Opportunity" and hid the button
+      // from everyone else — including the player whose character was
+      // offered the strike, who then swung from the weapon row as an
+      // ordinary Strike, paying AP and the multiple attack penalty.
+      const reactorActor = canvas?.tokens?.get?.((card.reactors ?? []).find((r) => r.actorId === actorId)?.tokenId)?.actor
+        ?? game.actors?.get?.(actorId) ?? null;
+      if (!game.user.isGM && !reactorActor?.isOwner) {
         btn.style.display = "none";
         return;
       }

@@ -845,6 +845,13 @@ export class TRGCombat extends Combat {
       lines.push(TRGCombat.#chatLine(burn));
     }
 
+    // AND DAMAGE THAT LINGERS (3.650.0; F&F 3.0 block 17 R3): the Iron
+    // Golem's poison, "a saving throw at the beginning of each of their turns".
+    {
+      const { applyLingeringDamage } = await import("../magic/lingering-damage-workflow.mjs");
+      for (const said of await applyLingeringDamage(actor)) lines.push(TRGCombat.#chatLine(said));
+    }
+
     // AND A WALL OCCUPIED AS THE TURN BEGINS (3.610.0, R9 — Wall Of Fire).
     {
       const { applyWallTurnSaves } = await import("../magic/wall-spell-workflow.mjs");
@@ -1040,7 +1047,24 @@ export class TRGCombat extends Combat {
     // by 1 / 2" — read as a Slowed of that value that never ends, so it
     // meets Stunned and Quickened in computeAPRegain the way the page does.
     const abilitySlow = abilityApPenalty(Array.from(actor.items ?? []));
-    const regain = computeAPRegain({ stunned, slowed: slowed + abilitySlow, quickened, ...(acting.canAct ? {} : { base: 0 }) });
+    // DUAL MINDS (3.647.0, F&F 3.0 block 15 R9): two heads of 2 AP each.
+    const { DUAL_MINDS_AP, hasDualMinds } = await import("../dual-minds.mjs");
+    const dualBase = hasDualMinds(actor.items) ? { base: DUAL_MINDS_AP } : {};
+    /*
+     * BONUS AP AND WHAT IT MAY BUY (3.648.0; see combat/restricted-ap.mjs).
+     * Quickened's point is marked with what its source allows — Haste's
+     * Strike or Stride — and Fast Attack's ("one additional AP each round
+     * which may only be used to make a Strike action") is granted at all,
+     * where until now the feat only raised the sheet's maximum.
+     */
+    const { turnGrant, loseFromRestricted, actionsText, AP_GRANT_FLAG } = await import("../combat/restricted-ap.mjs");
+    const fastAttack = Array.from(actor.items ?? []).some((i) => ["feat", "ability"].includes(i.type)
+      && String(i.name ?? "").trim().toLowerCase() === "fast attack");
+    const quickenedSources = Array.from(actor.effects ?? [])
+      .filter((e) => !e.disabled && e.statuses?.has?.("quickened"))
+      .map((e) => { const f = e.getFlag?.(SYSTEM_ID, "quickenedFor"); return Array.isArray(f) ? f : null; });
+    const grant = turnGrant({ quickened, quickenedSources, fastAttack });
+    const regain = computeAPRegain({ stunned, slowed: slowed + abilitySlow, quickened, extra: fastAttack ? 1 : 0, ...dualBase, ...(acting.canAct ? {} : { base: 0 }) });
     // Surprise round (Chapter 4, Step 3): "up to 2 AP worth of
     // actions" — capped here rather than in computeAPRegain itself,
     // since Stunned/Slowed/Quickened's own interaction with AP is
@@ -1072,6 +1096,10 @@ export class TRGCombat extends Combat {
         .map((i) => i.name)
     });
     const newReactions = acting.canAct ? reactionState.value : 0;
+    // AP LOST AT THE GRANT COMES OUT OF THE RESTRICTED POINTS FIRST: Haste
+    // and Slow 1 leave three ordinary AP, not two and a Strike-or-Stride.
+    const grossPool = (Number(dualBase.base ?? 3) || 0) + grant.bonus;
+    const grantEntries = acting.canAct ? loseFromRestricted(grant.entries, Math.max(0, grossPool - finalAP)) : [];
 
     await actor.update({
       "system.resources.ap.value": finalAP,
@@ -1082,6 +1110,7 @@ export class TRGCombat extends Combat {
       // is only true once the turn's AP has been regained. A Stunned laid on
       // in Phase 1, before this write, is spent by the regain above instead.
       [`flags.${SYSTEM_ID}.apGrantedTurn`]: { combatId: this.id, round: this.round, turn: this.turn },
+      [`flags.${SYSTEM_ID}.${AP_GRANT_FLAG}`]: { combatId: this.id, bonus: acting.canAct ? grant.bonus : 0, entries: grantEntries },
       // The two Fighter per-round trackers reset where the reaction pool
       // refills, because that IS the round boundary the reaction economy
       // uses: Battle Readiness's one unrestricted spend, and Press the
@@ -1179,11 +1208,12 @@ export class TRGCombat extends Combat {
       );
     }
 
-    if (acting.canAct && (stunned || slowed || quickened)) {
+    if (acting.canAct && (stunned || slowed || quickened || fastAttack)) {
       lines.push(
         TRGCombat.#chatLine(
           `Regains <strong>${finalAP} AP</strong>` +
             (regain.quickenedBonus ? " (Quickened +1)" : "") +
+            (regain.extraBonus ? " (Fast Attack +1)" : "") +
             (regain.apLostToStunned
               ? `, losing ${regain.apLostToStunned} to Stunned`
               : "") +
@@ -1193,6 +1223,12 @@ export class TRGCombat extends Combat {
             "."
         )
       );
+    }
+
+    if (grantEntries.length) {
+      lines.push(TRGCombat.#chatLine(grantEntries
+        .map((e) => `<strong>${e.value} AP</strong> of it may only be spent on <strong>${actionsText(e.actions)}</strong> (${e.label}).`)
+        .join(" ")));
     }
 
     if (regain.reactionLost) {

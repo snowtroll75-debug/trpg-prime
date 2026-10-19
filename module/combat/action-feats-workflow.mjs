@@ -16,7 +16,7 @@ import { hasQuickLoadTrait, needsReloading } from "./reload.mjs";
 import { spendActionCost } from "./action-points-workflow.mjs";
 import { activeToken, distanceBetween } from "./geometry.mjs";
 import { hitLocationFromUnitDie } from "./hit-location.mjs";
-import { usableAttacks } from "./strike.mjs";
+import { chooseMeleeAttack, usableAttacks } from "./strike.mjs";
 import {
   ACTION_FEATS,
   SWIPE_MAX_TARGETS,
@@ -242,6 +242,12 @@ function meleeWeapon(actor) {
   return attacks.find((w) => w.system?.attackMode === "melee") ?? attacks[0] ?? null;
 }
 
+/** The action feats whose Strike is made with a melee weapon. */
+const MELEE_WEAPON_FEATS = new Set([
+  "combat grapple", "distracting strike", "quick draw", "reverse strike",
+  "skirmish", "striding charge", "swipe", "vital strike"
+]);
+
 /* ------------------------------------------------------------------ */
 /* The eleven                                                          */
 /* ------------------------------------------------------------------ */
@@ -260,16 +266,18 @@ export async function runActionFeat(actor, item) {
     return null;
   }
   const entry = ACTION_FEATS[state.key];
+  const chosen = MELEE_WEAPON_FEATS.has(state.key) ? await chooseMeleeAttack(actor, entry.label) : undefined;
+  if (chosen === null) return null;
   if (entry.apCost !== "0") {
     await spendActionCost(actor, entry.apCost, entry.label, { traits: entry.traits });
   }
   const run = RUN[state.key];
-  return run ? run(actor, item, entry) : null;
+  return run ? run(actor, item, entry, chosen ?? null) : null;
 }
 
 const RUN = {
-  async "combat grapple"(actor, item, entry) {
-    const weapon = meleeWeapon(actor);
+  async "combat grapple"(actor, item, entry, chosen = null) {
+    const weapon = chosen ?? meleeWeapon(actor);
     const checks = await strikePlan(actor, weapon, "combat grapple");
     const check = checks[0];
     const hit = Boolean(check?.attackOutcome?.hits);
@@ -282,8 +290,8 @@ const RUN = {
     ]);
   },
 
-  async "distracting strike"(actor, item, entry) {
-    const weapon = meleeWeapon(actor);
+  async "distracting strike"(actor, item, entry, chosen = null) {
+    const weapon = chosen ?? meleeWeapon(actor);
     const checks = await strikePlan(actor, weapon, "distracting strike");
     const check = checks[0];
     const result = distractingStrike({
@@ -303,7 +311,7 @@ const RUN = {
     ]);
   },
 
-  async "double shot"(actor, item, entry) {
+  async "double shot"(actor, item, entry, chosen = null) {
     const foes = nearbyEnemies(actor, 999);
     const picks = await chooseMany(entry.label, "Two different targets — tick exactly two:", foes);
     if (picks.length !== 2) {
@@ -320,8 +328,8 @@ const RUN = {
     ]);
   },
 
-  async "quick draw"(actor, item, entry) {
-    const weapon = meleeWeapon(actor);
+  async "quick draw"(actor, item, entry, chosen = null) {
+    const weapon = chosen ?? meleeWeapon(actor);
     const checks = await strikePlan(actor, weapon, "quick draw");
     await card(actor, entry.label, [
       refusedLine(checks),
@@ -329,14 +337,14 @@ const RUN = {
     ]);
   },
 
-  async "reverse strike"(actor, item, entry) {
+  async "reverse strike"(actor, item, entry, chosen = null) {
     const foes = nearbyEnemies(actor, 5);
     const picks = await chooseMany(entry.label, "Two of the enemies flanking you — tick exactly two:", foes);
     if (picks.length !== 2) {
       ui.notifications.warn(`${entry.label}: pick exactly two flanking enemies.`);
       return;
     }
-    const weapon = meleeWeapon(actor);
+    const weapon = chosen ?? meleeWeapon(actor);
     const checks = await strikePlan(actor, weapon, "reverse strike", { targetsPerStrike: picks });
     await card(actor, entry.label, [
       refusedLine(checks),
@@ -346,8 +354,8 @@ const RUN = {
     ]);
   },
 
-  async skirmish(actor, item, entry) {
-    const weapon = meleeWeapon(actor);
+  async skirmish(actor, item, entry, chosen = null) {
+    const weapon = chosen ?? meleeWeapon(actor);
     const checks = await strikePlan(actor, weapon, "skirmish");
     await card(actor, entry.label, [
       refusedLine(checks),
@@ -356,7 +364,7 @@ const RUN = {
     ]);
   },
 
-  async "striding charge"(actor, item, entry) {
+  async "striding charge"(actor, item, entry, chosen = null) {
     const inTheWay = nearbyEnemies(actor, 60);
     const blockers = await chooseMany(entry.label,
       "Tick every creature you are barging through, in the order you meet them:", inTheWay);
@@ -381,12 +389,12 @@ const RUN = {
     ]);
   },
 
-  async swipe(actor, item, entry) {
+  async swipe(actor, item, entry, chosen = null) {
     const foes = nearbyEnemies(actor, 5);
     const picks = await chooseMany(entry.label,
       `Up to ${SWIPE_MAX_TARGETS} adjacent foes to catch in the arc:`, foes);
     if (!picks.length) return;
-    const weapon = meleeWeapon(actor);
+    const weapon = chosen ?? meleeWeapon(actor);
     // TARGET THE FIRST OF THE ARC. Without this the player is asked who
     // is in the arc and then asked AGAIN who to hit — two target
     // questions for one action, found in the live pass. The Strike is
@@ -412,11 +420,11 @@ const RUN = {
     ]);
   },
 
-  async "vital strike"(actor, item, entry) {
+  async "vital strike"(actor, item, entry, chosen = null) {
     const location = await chooseFrom(entry.label, "Aim for which location?",
       Object.entries(VITAL_STRIKE_LOCATIONS).map(([k, v]) => [k, v]));
     if (!location) return;
-    const weapon = meleeWeapon(actor);
+    const weapon = chosen ?? meleeWeapon(actor);
     const checks = await strikePlan(actor, weapon, "vital strike");
     const check = checks[0];
     const critical = Boolean(check?.attackOutcome?.critical);
@@ -431,7 +439,7 @@ const RUN = {
     if (critical) await actor.setFlag(SYSTEM_ID, "vitalStrikeLocation", location);
   },
 
-  async "void step"(actor, item, entry) {
+  async "void step"(actor, item, entry, chosen = null) {
     const watchers = nearbyEnemies(actor, 60);
     const pick = await chooseFrom(entry.label, "Slip out of whose sight?",
       watchers.map((t) => [t.id, t.actor?.name ?? "creature"]));

@@ -4848,6 +4848,26 @@
 .trg-prime .party-reward-buttons button { flex: 0 1 auto; }
 .trg-prime .party-reward-buttons input[type="number"] { width: 6em; }
 .trg-prime .endeavour-award { margin-top: 4px; }
+/* THE ENDEAVOUR BUTTONS, ONE PER ROW (3.646.1; Graham, 15 October 2026 —
+   "The boxes to click are ineligible"). The row borrows the Conviction
+   control's class for its spacing, and with it a fixed 28px height and a
+   single flex row: three long labels in a chat-width card were squeezed
+   into thirds, wrapped to four lines inside 28px and spilled over each
+   other and the Conviction button. Stacked full width, each label gets
+   the card's whole width and the button grows to fit it. */
+.trg-prime.trg-check-card .endeavour-award.conviction-bonus-control {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+.trg-prime.trg-check-card .endeavour-award.conviction-bonus-control .small-button {
+  height: auto;
+  min-height: 26px !important;
+  padding: 4px 8px !important;
+  white-space: normal;
+  line-height: 1.2;
+  text-align: center;
+}
 
 /* A PERIL'S OLD SINGLE SKILL AND DC, UNDER A PRINTED LINE (3.629.2): the
    fields are disabled because the Detection or Disable line replaces them;

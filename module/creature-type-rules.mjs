@@ -75,18 +75,12 @@ export function hasBlindsight(creatureTypeSystem) {
   return Boolean(creatureTypeSystem?.blindsight);
 }
 
-/**
- * Whether this actor's creature type only takes damage from critical
- * hits — Plant: "only take damage and bleed from critical injuries."
- * The book's own exception ("unless the critical description would
- * directly affect their anatomy") is a GM narrative judgement with
- * nothing in a critical's data to test it against, so it isn't
- * automated — a GM who judges a specific critical inapplicable applies
- * that by hand, the same latitude Endeavour's "risk" already gets.
+/*
+ * REMOVED AT 3.662.1: `isCritOnlyDamage`. The Plant type's critical
+ * sentence was read as "non-critical damage never reaches HP"; it describes
+ * what a critical injury does to a plant (see dying-workflow.mjs). The
+ * creature type's `critOnlyDamage` field is no longer read.
  */
-export function isCritOnlyDamage(creatureTypeSystem) {
-  return Boolean(creatureTypeSystem?.critOnlyDamage);
-}
 
 /**
  * Whether this actor's creature type has no Death State at all and is

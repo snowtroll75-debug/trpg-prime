@@ -12,7 +12,7 @@ const m = (...p) => path.join(SYSTEM_ROOT, "module", ...p);
 const CA = m("creature-auras.mjs"), AW = m("creature-aura-workflow.mjs"), DA = m("combat", "declared-after-strikes.mjs");
 const SU = m("sunlight.mjs"), SW = m("sunlight-workflow.mjs"), TS = m("creature-turn-start-workflow.mjs"), CB = m("documents", "combat.mjs");
 const MUTATIONS = [
-  { name: "every aura with a save rolls, Codex ones included", file: CA, from: "  return Boolean(aura?.save && ((aura?.conditions && Object.keys(aura.conditions).length) || aura?.damage || aura?.traitEffect));", to: "  return Boolean(aura?.save);", breaks: "A2" },
+  { name: "every aura with a save rolls, Codex ones included", file: CA, from: "  return Boolean(aura?.save && ((aura?.conditions && Object.keys(aura.conditions).length) || aura?.damage || aura?.damageByDegree || aura?.criticals || aura?.traitEffect\n    || aura?.moveLimits\n    || (aura?.rollOutcomes && Object.keys(aura?.outcomes ?? {}).length)));", to: "  return Boolean(aura?.save);", breaks: "A2" },
   { name: "living-only is dropped in normalising", file: CA, from: "    livingOnly: raw.livingOnly === true,", to: "    livingOnly: false,", breaks: "A1" },
   { name: "the partial window drops nothing", file: CA, from: "    .filter((row) => !partial || String(row.key).trim().toLowerCase() !== partial)\n", to: "", breaks: "A5" },
   { name: "the window opens whatever the result", file: CA, from: "  return aura.immunityOn === \"success\" ? Boolean(degreeSucceeded) : true;", to: "  return true;", breaks: "A8" },

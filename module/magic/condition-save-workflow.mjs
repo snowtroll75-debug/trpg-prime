@@ -53,6 +53,13 @@ export function savableConditions(actor) {
  *
  * @returns {Promise<string[]>} lines for the turn card
  */
+/** The creature's own rows for a save (3.653.1). */
+function saveRowsFor(actor, save) {
+  const stat = actor?.system?.combat?.saves?.[save];
+  if (Array.isArray(stat?.checkModifiers)) return stat.checkModifiers.map((m) => ({ ...m }));
+  return [{ label: `${save.charAt(0).toUpperCase()}${save.slice(1)} save`, value: Number(stat?.total ?? 0) || 0, type: "untyped" }];
+}
+
 export async function rollConditionSaves(actor) {
   const lines = [];
   try {
@@ -68,8 +75,9 @@ export async function rollConditionSaves(actor) {
         type: "save",
         save: spec.save,
         dc,
-        // A STATED MODIFIER ON THIS SAVE (3.630.0).
-        ...(spec.modifier ? { modifiers: [{ label: spec.label, value: spec.modifier, type: spec.modifier < 0 ? "status" : "circumstance" }] } : {})
+        // A STATED MODIFIER ON THIS SAVE (3.630.0) — beside the creature's
+        // own save, not instead of it (3.653.1).
+        ...(spec.modifier ? { modifiers: [...saveRowsFor(actor, spec.save), { label: spec.label, value: spec.modifier, type: spec.modifier < 0 ? "status" : "circumstance" }] } : {})
       });
       const degree = check?.outcome?.degree?.key ?? "failure";
       const outcome = conditionSaveOutcome(spec, degree);
@@ -77,6 +85,19 @@ export async function rollConditionSaves(actor) {
       if (outcome.ends) {
         await actor.toggleStatusEffect(spec.condition, { active: false });
         lines.push(conditionSaveLine(spec, actor.name, degree, outcome));
+        continue;
+      }
+
+      // PERMANENT (3.650.0, the Gorgon's Fumble): no clock, no more saves.
+      if (outcome.permanent) {
+        await effect.update({
+          [`flags.${SYSTEM_ID}.-=${EXPIRY_FLAG}`]: null,
+          [`flags.${SYSTEM_ID}.-=conditionExpiresTime`]: null,
+          [`flags.${SYSTEM_ID}.-=spellEffectEnd`]: null,
+          [`flags.${SYSTEM_ID}.-=${CONDITION_SAVE_FLAG}`]: null,
+          "duration.value": null
+        });
+        lines.push(`<strong>${spec.label}</strong> — ${actor.name} fumbles: <strong>${spec.condition} permanently</strong>. No further saves.`);
         continue;
       }
 

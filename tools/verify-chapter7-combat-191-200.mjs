@@ -702,7 +702,8 @@ eq("O5 a passed Tumble reads its own degree", [
   // RE-POINTED AT 3.606.0: the sum is named `surcharged`, because Spirit
   // Trap's difficult-terrain floor is applied to it on the next line.
   ok("O7 the surcharge is added to the measured cost",
-    /const surcharged = measured \+ Math\.max\(0, Number\(space\.surcharge\) \|\| 0\);/.test(w));
+    // 3.651.0: an aura's difficult ground rides the same sum.
+    /const surcharged = measured \+ Math\.max\(0, Number\(space\.surcharge\) \|\| 0\)( \+ Math\.max\(0, Number\(auraLimits\.surcharge\) \|\| 0\))?;/.test(w));
   ok("O8 the Tumble marker is spent, and cleared each turn",
     /void mover\.unsetFlag\(SYSTEM_ID, TUMBLE_FLAG\);/.test(w)
     && /MOVED_FLAG, ARMED_FLAG, TUMBLE_FLAG/.test(w));

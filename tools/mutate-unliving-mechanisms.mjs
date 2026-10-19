@@ -29,7 +29,7 @@ const MUTATIONS = [
   { name: "a plain hit counts as a critical injury", file: DA, from: "  if ((spec.onCritical || spec.onCriticalInjury) && !ctx.critical) return false;\n", to: "", breaks: "B3" },
   { name: "the weapon is not asked", file: DA, from: "  if (spec.weaponNames.length && !spec.weaponNames.includes(lower(ctx.weaponName))) return false;\n", to: "", breaks: "B4" },
   { name: "a crit-immune target still takes the injury's rider", file: DA, from: "  if (spec.onCriticalInjury && ctx.criticalImmune) return false;\n", to: "", breaks: "B5" },
-  { name: "severity does not raise the DC", file: DA, from: "  return Math.trunc(Number(baseDC) || 0) + (spec?.dcBySeverity?.[lower(severity)] ?? 0);", to: "  return Math.trunc(Number(baseDC) || 0);", breaks: "B6" },
+  { name: "severity does not raise the DC", file: DA, from: "  return base + (spec?.dcBySeverity?.[lower(severity)] ?? 0);", to: "  return base;", breaks: "B6" },
   { name: "outside combat a round has no clock", file: DA, from: "    else tag.expiresTime = Number(worldTime || 0) + rounds * 6;\n", to: "", breaks: "B8" },
   { name: "the day never closes", file: DA, from: "  return Number.isFinite(at) && now - at < DAY_SECONDS;", to: "  return false;", breaks: "B11" },
   { name: "the disease arrives at its printed level", file: DAW, from: "  data.system.level = spec.expose.level === \"actorLevel\" ? level : spec.expose.level;\n", to: "", breaks: "B13" },

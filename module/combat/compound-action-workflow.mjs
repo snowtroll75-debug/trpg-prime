@@ -11,7 +11,8 @@
  * its limit on the actor (`flags.trg-prime.compoundLeg`) and no AP of its
  * own — the action already paid.
  */
-import { compoundOf, compoundLegs, compoundStrikes, compoundMapRule, compoundStrikeOptions, compoundAvailable } from "./compound-action.mjs";
+import { compoundOf, compoundLegs, compoundStrikes, compoundMapRule, compoundStrikeOptions, compoundAvailable, compoundChooseLimit, compoundStrikeAllowed, compoundPickAllowed, compoundStrikeTotal,
+  compoundModes, compoundWithMode, compoundStrikeCount } from "./compound-action.mjs";
 import { bindOnce } from "../dice/check-card-interactions.mjs";
 import { CHANGE_TYPE } from "../effect-change-types.mjs";
 
@@ -33,8 +34,22 @@ export async function armCompoundLeg(actor, leg, label) {
 }
 
 export async function useCompoundAction(actor, item) {
-  const spec = compoundOf(item);
+  let spec = compoundOf(item);
   if (!spec || !actor) return false;
+  // MODES (3.640.0, Storm of Blades): asked first, before any AP.
+  const modes = compoundModes(spec);
+  if (modes.length) {
+    const { DialogV2 } = foundry.applications.api;
+    const picked = await DialogV2.wait({
+      window: { title: item.name },
+      classes: ["trg-prime"],
+      content: `<div class="trg-prime"><p>Which way does ${actor.name} use ${item.name}?</p></div>`,
+      buttons: modes.map((m, i) => ({ action: `mode-${i}`, label: m.label, default: i === 0, callback: () => i })),
+      rejectClose: false
+    }).catch(() => null);
+    if (picked === null || picked === undefined || !modes[picked]) return false;
+    spec = compoundWithMode(spec, modes[picked]);
+  }
   const worldTime = Number(game.time?.worldTime ?? 0);
   const available = compoundAvailable(item, worldTime);
   if (!available.ok) { ui.notifications?.warn(`${item.name}: ${available.reason}.`); return false; }
@@ -50,6 +65,7 @@ export async function useCompoundAction(actor, item) {
   const legs = compoundLegs(spec, speedsOf(actor));
   const { strikes, missing } = compoundStrikes(spec, Array.from(actor.items ?? []));
   const mapRule = compoundMapRule(spec);
+  const choose = compoundChooseLimit(spec);
   const lines = [];
   if (ap > 0) lines.push(line(`<strong>Cost:</strong> ${ap} AP${Number(spec.cooldownSeconds) > 0 ? ` — once every ${Math.round(Number(spec.cooldownSeconds) / 60)} minutes` : ""}.`));
 
@@ -74,9 +90,12 @@ export async function useCompoundAction(actor, item) {
   }
 
   const buttons = [];
+  const targetCount = game.user?.targets?.size ?? 0;
   strikes.forEach((strike, index) => {
+    strike.count = compoundStrikeCount(strike, targetCount);
     for (let n = 0; n < strike.count; n += 1) {
-      const extras = [strike.bonus ? `${strike.bonus.value > 0 ? "+" : ""}${strike.bonus.value} ${strike.bonus.type}` : "", strike.extraBaseDice ? `+${strike.extraBaseDice} base die` : ""].filter(Boolean).join(", ");
+      const extras = [strike.bonus ? `${strike.bonus.value > 0 ? "+" : ""}${strike.bonus.value} ${strike.bonus.type}` : "", strike.extraBaseDice ? `+${strike.extraBaseDice} base die` : "",
+        strike.extraDamage ? `+${strike.extraDamage} damage${strike.onCritical ? `, ×${strike.onCritical.extraDamageMultiplier} and ${strike.onCritical.severityUp ? "deadly" : ""} on a critical` : ""}` : ""].filter(Boolean).join(", ");
       buttons.push(`<button type="button" data-action="compoundStrike" data-strike="${index}" data-nth="${n}">Strike: ${strike.weaponName}${extras ? ` (${extras})` : ""}</button>`);
     }
   });
@@ -85,6 +104,11 @@ export async function useCompoundAction(actor, item) {
     if (strikes.some((s) => s.separateTargets)) notes.push("the strikes must be made against separate targets");
     if (mapRule.kind === "after") notes.push("the multiple attack penalty is counted after all the strikes");
     if (mapRule.kind === "fixed") notes.push(`each strike at a fixed ${mapRule.fixed} multiple attack penalty`);
+    if (strikes.some((st) => st.perTarget)) notes.push(`one strike for each of the ${targetCount || 1} creature(s) targeted when it was used`);
+    if (strikes.some((st) => st.pickGroup !== null && st.pickGroup !== undefined)) notes.push(`pick one of ${strikes.filter((st) => st.pickGroup !== null && st.pickGroup !== undefined).map((st) => st.weaponName).join(", ")} — the others are refused once it is made`);
+    const standIn = strikes.find((st) => st.standsInFor);
+    if (standIn) notes.push(`${actor.name} has no ${standIn.standsInFor}, so its natural Strikes stand in`);
+    if (choose) notes.push(`choose ${choose === 1 ? "one" : choose} of them — the rest are refused once ${choose === 1 ? "it is" : "they are"} made`);
     lines.push(line(`<strong>Strikes:</strong> target each in turn and press its button${notes.length ? ` — ${notes.join("; ")}` : ""}.`));
     lines.push(`<p style="margin:6px 0 2px">${buttons.join(" ")}</p>`);
   }
@@ -92,8 +116,8 @@ export async function useCompoundAction(actor, item) {
 
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
-    content: `<div class="trg-prime trg-check-card"><header class="check-header"><div class="check-heading"><span class="check-actor">${actor.name}</span><h3>${item.name}</h3></div></header>${lines.join("")}</div>`,
-    flags: { [SYSTEM_ID]: { compoundAction: { actorUuid: actor.uuid, itemId: item.id, strikes, mapRule, label: item.name, used: {} } } }
+    content: `<div class="trg-prime trg-check-card"><header class="check-header"><div class="check-heading"><span class="check-actor">${actor.name}</span><h3>${item.name}${spec.modeLabel ? ` — ${spec.modeLabel}` : ""}</h3></div></header>${lines.join("")}</div>`,
+    flags: { [SYSTEM_ID]: { compoundAction: { actorUuid: actor.uuid, itemId: item.id, strikes, mapRule, choose, label: item.name, used: {} } } }
   });
   return true;
 }
@@ -104,6 +128,8 @@ async function pressCompoundStrike(message, strikeIndex, nth) {
   if (!raw) return null;
   const key = `${strikeIndex}:${nth}`;
   if (raw.used?.[key]) return null;
+  if (!compoundPickAllowed(raw.strikes, strikeIndex, raw.used)) { ui.notifications?.warn(`${raw.label}: only one of those strikes may be made.`); return null; }
+  if (!compoundStrikeAllowed(raw.choose, raw.used)) { ui.notifications?.warn(`${raw.label}: only ${Number(raw.choose) === 1 ? "one strike" : `${raw.choose} strikes`} may be made.`); return null; }
   const actorDoc = await fromUuid(raw.actorUuid).catch(() => null);
   const actor = actorDoc?.actor ?? actorDoc;
   const strike = raw.strikes?.[strikeIndex];
@@ -117,7 +143,7 @@ async function pressCompoundStrike(message, strikeIndex, nth) {
   // "Double Strike counts towards multiple attack penalty but not until
   // after the attacks have been resolved": when the last strike has been
   // pressed, the counter advances by the number of strikes made.
-  const total = (raw.strikes ?? []).reduce((n, s) => n + Number(s.count || 1), 0);
+  const total = compoundStrikeTotal(raw.strikes ?? []);
   if (raw.mapRule?.kind === "after" && Object.keys(used).length >= total) {
     const { sharedMapCount, setSharedMapCount } = await import("./mounted-workflow.mjs");
     await setSharedMapCount(actor, (await sharedMapCount(actor)) + total);
@@ -132,6 +158,7 @@ export function registerCompoundHooks() {
     for (const button of html.querySelectorAll?.('[data-action="compoundStrike"]') ?? []) {
       const key = `${button.dataset.strike}:${button.dataset.nth}`;
       if (raw.used?.[key]) { button.disabled = true; button.textContent = `✓ ${button.textContent.replace(/^✓ /, "")}`; continue; }
+      if (!compoundStrikeAllowed(raw.choose, raw.used) || !compoundPickAllowed(raw.strikes, Number(button.dataset.strike), raw.used)) { button.disabled = true; continue; }
       bindOnce(button, "click", async (event) => {
         event.preventDefault();
         button.disabled = true;

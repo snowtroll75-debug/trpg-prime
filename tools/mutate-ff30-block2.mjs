@@ -41,7 +41,7 @@ const MUTATIONS = [
   { name: "a breath is not a breath to its targets", file: ACT, from: "      spec.isBreath = true;", to: "", breaks: "B2" },
   { name: "a swarm bites its own side", file: PERIL, from: "      if (spec.enemiesOnly && t.disposition === token.disposition) continue;", to: "", breaks: "B3" },
   { name: "Scaly Resilience's row is not rolled", file: PERIL, from: "    if (scaly) saveConfig.modifiers = [...(saveConfig.modifiers ?? []), scaly.saveModifier];", to: "", breaks: "B4" },
-  { name: "the one-blow resistance is dropped", file: DMG, from: "  const packet = resolveAgainstDefences(defenderSystem, {", to: "  const packet = resolveAgainstDefences(targetActor.system, {", breaks: "B5" },
+  { name: "the one-blow resistance is dropped", file: DMG, from: "  let packet = resolveAgainstDefences(defenderSystem, {", to: "  let packet = resolveAgainstDefences(targetActor.system, {", breaks: "B5" },
   { name: "a swarm's damage meets full DR", file: PERIL, from: "          area: spec.isCreatureArea === true, attackerIsSwarm: spec.scope === \"sharedSpace\" });\n        if (spec.ignoreResistance) clearResistanceBypass();", to: "          area: spec.isCreatureArea === true });\n        if (spec.ignoreResistance) clearResistanceBypass();", breaks: "B6" },
   { name: "the covenant's +4 is never added", file: ATTACK, from: "    if (covenant.modifier) modifiers.push(covenant.modifier);", to: "", breaks: "B7" },
   { name: "the covenant's crit leaves the bleeding", file: HOOKS, from: "    if (bleeding > 0) await attacker.toggleStatusEffect(\"bleeding\", { active: false });", to: "", breaks: "B7" },

@@ -135,6 +135,30 @@ function traitMatch(fieldTraits, sourceTraits) {
 }
 
 /**
+ * COLDFIRE (3.642.0; F&F 3.0 block 12, Graham's ruling R4 of 14 October
+ * 2026). The Shade Dragon's breath, bite and aura deal coldfire, "both cold
+ * and fire". Graham: resistance and immunity "only come into play if the
+ * target has both fire and cold"; weakness "should apply if the target has
+ * either, although only apply once (not both)".
+ *
+ * An immunity covers its element for the resistance question: a creature
+ * immune to fire and resistant to cold has something against both, so the
+ * coldfire is resisted; immune to both, it is immune.
+ *
+ * @returns {{immune: boolean, resisted: boolean, weak: boolean}}
+ */
+function coldfireDefences({ resistances = [], immunities = [], weaknesses = [] } = {}) {
+  const has = (collection, key) => (collection instanceof Set ? collection.has(key) : Array.from(collection ?? []).includes(key));
+  const immune = has(immunities, "cold") && has(immunities, "fire");
+  const covers = (el) => has(immunities, el) || has(resistances, el);
+  return {
+    immune,
+    resisted: !immune && covers("cold") && covers("fire"),
+    weak: has(weaknesses, "cold") || has(weaknesses, "fire")
+  };
+}
+
+/**
  * Resolve one damage packet.
  *
  * @param {object} options
@@ -227,6 +251,11 @@ export function resolveDamagePacket({
   let value = Math.max(0, Math.floor(Number(amount) || 0));
   steps.push(`${value} ${meta.label ?? type}`);
 
+  // COLDFIRE: its cold and fire meet the target together, by the rule
+  // above — not one at a time through the type or trait paths below, which
+  // would let a fire immunity alone stop the Shade Dragon's breath.
+  const coldfire = type === "coldfire" ? coldfireDefences({ resistances, immunities, weaknesses }) : null;
+  if (coldfire) sourceTraits = Array.from(sourceTraits ?? []).filter((t) => !/^(cold|fire)$/i.test(String(t).trim()));
   const blockingTrait = immuneTraitFor(immuneTraits, sourceTraits);
   /*
    * IMMUNE TO NON-MAGICAL ATTACK FORMS (3.548.0).
@@ -243,13 +272,13 @@ export function resolveDamagePacket({
    * rule needs was wired at 3.547.0 for a different rule entirely.
    */
   const nonMagicalImmune = has(immunities, "non-magical") && !magical && !incorporealTouch;
-  if (has(immunities, type) || blockingTrait || nonMagicalImmune) {
+  if (has(immunities, type) || coldfire?.immune || blockingTrait || nonMagicalImmune) {
     steps.push(
       nonMagicalImmune && !has(immunities, type) && !blockingTrait
         ? "immune to non-magical attack forms — no damage"
         : blockingTrait && !has(immunities, type)
           ? `immune to the ${blockingTrait} trait — no damage`
-          : "immune — no damage"
+          : coldfire?.immune && !has(immunities, type) ? "immune to cold and fire — no damage" : "immune — no damage"
     );
     return {
       taken: 0, drApplied: 0, immune: true, immuneTrait: blockingTrait ?? null,
@@ -322,12 +351,12 @@ export function resolveDamagePacket({
   const sourceWeak = (area && has(weaknessSources, "area"))
     || (targeted && has(weaknessSources, "targeted"));
   const traitWeak = traitMatch(weaknessTraits, sourceTraits);
-  const weakened = has(weaknesses, type) || materialWeak || sourceWeak || Boolean(traitWeak);
+  const weakened = has(weaknesses, type) || Boolean(coldfire?.weak) || materialWeak || sourceWeak || Boolean(traitWeak);
   if (weakened && value > 0) {
     value = Math.floor(value * 1.5);
     steps.push(traitWeak && !has(weaknesses, type) && !materialWeak && !sourceWeak
       ? `weakness to ${traitWeak} +50% -> ${value}`
-      : `weakness +50% -> ${value}`);
+      : coldfire?.weak && !has(weaknesses, type) ? `weakness to cold or fire +50% -> ${value}` : `weakness +50% -> ${value}`);
   }
 
   /*
@@ -374,7 +403,7 @@ export function resolveDamagePacket({
     (area && has(resistanceSources, "area"))
     || (targeted && has(resistanceSources, "targeted")));
   const traitResisted = !bypassed ? traitMatch(resistanceTraits, sourceTraits) : null;
-  const resisted = has(resistances, type) || categoryResisted
+  const resisted = has(resistances, type) || Boolean(coldfire?.resisted) || categoryResisted
     || sourceResisted || Boolean(traitResisted);
   if (resisted && value > 0) {
     value = Math.floor(value / 2);
@@ -385,7 +414,7 @@ export function resolveDamagePacket({
           ? `resistance to ${traitResisted} halves -> ${value}`
           : categoryResisted && !has(resistances, type)
             ? `${magical ? "magic" : "mundane"} resistance halves -> ${value}`
-            : `resistance halves -> ${value}`);
+            : coldfire?.resisted && !has(resistances, type) ? `resistance to cold and fire halves -> ${value}` : `resistance halves -> ${value}`);
   }
 
   return {

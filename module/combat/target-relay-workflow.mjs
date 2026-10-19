@@ -115,9 +115,16 @@ async function announceRelayFailure(target, amount, reason, heading = "Damage no
 
 export async function relayConditionTags(target, tags, options, applyDirect) {
   if (!needsRelay(target)) return applyDirect();
+  // EVERY OPTION TRAVELS (3.646.0): a spell's condition carries its clock,
+  // its cast id and its traits, and the GM's client must lay it the same way.
+  const carried = {};
+  for (const key of ["duration", "spellEffect", "spellEffectEnd", "castId", "sourceTraits"]) {
+    if (options?.[key] !== undefined && options?.[key] !== null) carried[key] = options[key];
+  }
   const reply = await ask(RELAY_ACTIONS.CONDITIONS, target, {
     tags,
-    expiresRound: options?.expiresRound ?? null
+    expiresRound: options?.expiresRound ?? null,
+    options: carried
   });
   return reply.ok ? reply.result : [];
 }
@@ -331,8 +338,9 @@ async function liveDeps() {
     fromUuid: (uuid) => (foundry.utils?.fromUuid ?? globalThis.fromUuid)(uuid),
     applyDamage: (target, amount, options) =>
       applyDamageAndCheckDying(target, amount, options),
+    // `direct` STOPS THE RELAY RECURSING — the GM already owns the target.
     applyConditionTags: (target, tags, options) =>
-      applyConditionTags(target, tags, options),
+      applyConditionTags(target, tags, { ...options, direct: true }),
     toggleStatus: (target, status, options) => target.toggleStatusEffect(status, options),
     setHpZero: (target) => target.update({ "system.resources.hp.value": 0 }),
     createEffects: (target, effects) => target.createEmbeddedDocuments("ActiveEffect", effects),

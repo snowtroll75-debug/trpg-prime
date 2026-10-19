@@ -68,7 +68,8 @@ const WORLD_SCHEMA_SETTING = "worldSchemaVersion";
  * RAISED TO 3.627.1 for the declared effect repairs (the Undead creature
  * type's disease immunity). The stamp equals the newest pass, as above.
  */
-export const TRG_SCHEMA_VERSION = "3.627.1";
+// 3.648.0: the pack-copy pass re-gated for Channel The Aspect's aspects.
+export const TRG_SCHEMA_VERSION = "3.648.0";
 
 /**
  * Register the hidden world setting used to determine whether a migration is
@@ -760,7 +761,8 @@ export async function migrateWorldData(fromVersion = "") {
   // world already past 3.435.0 — which is all of them — would have skipped
   // them. `verify-pack-repairs` F1b caught it the moment the entries landed,
   // which is the whole reason that check exists.
-  const packCopies = (await runIf("3.618.0", "stale owned copies of repaired pack items",
+  // RE-VERSIONED TO 3.648.0: Channel The Aspect's four aspects.
+  const packCopies = (await runIf("3.648.0", "stale owned copies of repaired pack items",
     () => migrateStalePackCopies([...actors, ...tokenActors], Array.from(game.items ?? []))))
     ?? { repaired: [], kept: [] };
   result.packCopies = packCopies;
