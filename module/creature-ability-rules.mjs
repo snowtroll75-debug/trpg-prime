@@ -314,9 +314,18 @@ export function plantResistanceSplit(tags = []) {
   return { keep, gm };
 }
 
-/** Whether a creature has Plant Resistance (declared `derives.plantResistance`). */
+/**
+ * Whether a creature has Plant Resistance: declared `derives.plantResistance`,
+ * or the Plant creature type itself (3.663.4; found in the block 35 live
+ * test). The type prints the same rule — "Plants only take damage and bleed
+ * from critical injuries unless the critical description would directly
+ * affect their anatomy" — and its `critOnlyDamage` flag, misread as a gate
+ * on all damage until 3.662.1, is that sentence. A Xort critically hit was
+ * Stunned; a plant's critical keeps its damage and bleed only.
+ */
 export function hasPlantResistance(items = []) {
-  return abilityDerives(items).some(({ derives }) => derives.plantResistance === true);
+  return abilityDerives(items).some(({ derives }) => derives.plantResistance === true)
+    || Array.from(items ?? []).some((i) => i?.type === "creature-type" && i?.system?.critOnlyDamage === true);
 }
 
 /**

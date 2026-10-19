@@ -79,7 +79,9 @@ export function hasBlindsight(creatureTypeSystem) {
  * REMOVED AT 3.662.1: `isCritOnlyDamage`. The Plant type's critical
  * sentence was read as "non-critical damage never reaches HP"; it describes
  * what a critical injury does to a plant (see dying-workflow.mjs). The
- * creature type's `critOnlyDamage` field is no longer read.
+ * creature type's `critOnlyDamage` field is no longer read here; since
+ * 3.663.4 it marks the type for Plant Resistance's critical filter
+ * (creature-ability-rules.mjs `hasPlantResistance`), which is what it says.
  */
 
 /**
