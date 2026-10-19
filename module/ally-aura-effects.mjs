@@ -51,8 +51,12 @@ export function allyEffectOf(raw) {
   const defenceDC = arr(raw.defenceDC).filter((d) => d && typeof d === "object");
   const versusDamage = raw.versusDamage && typeof raw.versusDamage === "object" ? { ...raw.versusDamage } : null;
   const warpFreeSchool = raw.warpFreeSchool && typeof raw.warpFreeSchool === "object" ? { ...raw.warpFreeSchool } : null;
-  if (!changes.length && !conditionals.length && !defenceDC.length && !versusDamage && !warpFreeSchool) return null;
-  return { changes, conditionals, defenceDC, versusDamage, warpFreeSchool };
+  // AURA OF ASHES (3.644.0, F&F 3.0 block 14 R5): "All creatures within this
+  // 20-foot aura are concealed" — a condition laid while inside, lifted on
+  // leaving, as the rest of the effect is.
+  const statuses = arr(raw.statuses).map((s) => String(s ?? "").trim().toLowerCase()).filter(Boolean);
+  if (!changes.length && !conditionals.length && !defenceDC.length && !versusDamage && !warpFreeSchool && !statuses.length) return null;
+  return { changes, conditionals, defenceDC, versusDamage, warpFreeSchool, statuses };
 }
 
 /** The grant key: one per emitter per aura, so two Dracorals are two grants. */
@@ -70,13 +74,19 @@ export function wantedAllyGrants({ subjects = [], emitters = [] } = {}) {
   for (const subject of subjects) {
     const list = [];
     for (const emitter of emitters) {
-      if (emitter.id === subject.id) continue;
-      if (plainlyOpposed(emitter.disposition, subject.disposition)) continue;
+      const self = emitter.id === subject.id;
+      // AN ENEMY TAKES THE MIRROR (3.640.0): an aura with an `enemyEffect`
+      // lays it on a creature plainly of the other side.
+      const opposed = plainlyOpposed(emitter.disposition, subject.disposition);
       for (const aura of emitter.auras ?? []) {
-        if (aura?.kind !== "ally" || !aura.allyEffect) continue;
+        if (aura?.kind !== "ally") continue;
+        // ITS OWN SOURCE ONLY WHEN DECLARED (3.646.0, `includeSelf`).
+        if (self && !aura.includeSelf) continue;
+        const effect = opposed ? aura.enemyEffect : aura.allyEffect;
+        if (!effect) continue;
         const reach = auraReachFeet(aura.radius, emitter.widthFeet) + Math.max(0, (Number(subject.widthFeet) || 5) - 5) / 2;
         if (!withinAura(emitter.centreFeet, subject.centreFeet, reach)) continue;
-        list.push({ key: allyGrantKey(emitter.id, aura.id), aura, emitter });
+        list.push({ key: `${allyGrantKey(emitter.id, aura.id)}${opposed ? ":enemy" : ""}`, aura, emitter, effect, enemy: opposed });
       }
     }
     out.set(subject.id, list);
@@ -85,17 +95,18 @@ export function wantedAllyGrants({ subjects = [], emitters = [] } = {}) {
 }
 
 /** The ActiveEffect one grant lays. */
-export function allyGrantEffectData({ key, aura, emitter }) {
-  const fx = aura.allyEffect;
+export function allyGrantEffectData({ key, aura, emitter, effect = null, enemy = false }) {
+  const fx = effect ?? aura.allyEffect;
   const flags = { [ALLY_GRANT_FLAG]: key };
   if (fx.conditionals.length) flags.conditionals = fx.conditionals.map((c, i) => ({ id: `${key}:${i}`, ...c, label: c.label ?? aura.name }));
   if (fx.defenceDC.length) flags.defenceDC = fx.defenceDC.map((d) => ({ ...d, label: d.label ?? aura.name }));
   if (fx.versusDamage) flags.versusDamage = { kind: "versusDamage", label: aura.name, ...fx.versusDamage };
   if (fx.warpFreeSchool) flags.warpFreeSchool = { label: aura.name, ...fx.warpFreeSchool };
   return {
-    name: `${aura.name} (${emitter.name})`,
+    name: `${aura.name} (${emitter.name})${enemy ? " — against" : ""}`,
     img: "icons/svg/aura.svg",
     changes: fx.changes.map((c) => ({ key: c.key, value: c.value, type: c.type, priority: c.priority })),
+    ...(fx.statuses?.length ? { statuses: [...fx.statuses] } : {}),
     flags: { [SYSTEM_ID]: flags }
   };
 }

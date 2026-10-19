@@ -28,9 +28,16 @@ const WORKFLOW = path.join(SYSTEM_ROOT, "module", "light-workflow.mjs");
 
 const MUTATIONS = [
   {
+    name: "a declared null cap reads as level 1 again (3.650.0)",
+    file: SRC,
+    from: "  const cap = entry.cap !== null && entry.cap !== undefined && Number.isFinite(Number(entry.cap)) ? clampLevel(Number(entry.cap)) : 10;",
+    to: "  const cap = Number.isFinite(Number(entry.cap)) ? clampLevel(Number(entry.cap)) : 10;",
+    breaks: "C7c — an uncapped source raises nothing"
+  },
+  {
     name: "THE TIDY: the per-source cap becomes the universal sense cap",
     file: SRC,
-    from: "  const cap = Number.isFinite(Number(entry.cap)) ? clampLevel(Number(entry.cap)) : 10;",
+    from: "  const cap = entry.cap !== null && entry.cap !== undefined && Number.isFinite(Number(entry.cap)) ? clampLevel(Number(entry.cap)) : 10;",
     to: "  const cap = 8;",
     breaks: "A4/C7/E2 — a candle reaches Bright Light and the printed ceilings stop meaning anything"
   },

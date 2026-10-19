@@ -295,7 +295,7 @@ const reset = () => { faces.length = 0; notes.length = 0; posted.length = 0; gam
 {
   const sys = JSON.parse(read("system.json"));
   ok("G1 the version is 3.624.0 or later", String(sys.version).localeCompare("3.624.0", undefined, { numeric: true }) >= 0);
-  ok("G2 the schema is past the luck pass (3.627.1, the Undead effect repair, is the newest)", /export const TRG_SCHEMA_VERSION = "3\.627\.1";/.test(read("module", "migration.mjs")));
+  ok("G2 the schema is past the luck pass (3.627.1, the Undead effect repair, is the newest)", (/export const TRG_SCHEMA_VERSION = "([\d.]+)";/.exec(read("module", "migration.mjs"))?.[1] ?? "0").localeCompare("3.627.1", undefined, { numeric: true }) >= 0);
 }
 
 if (failures.length) {

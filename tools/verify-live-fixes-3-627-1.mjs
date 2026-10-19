@@ -62,7 +62,7 @@ ok("E3 a dot in the affliction's name is made safe too", !da.exposureKey("Actor.
 const jumping = await import(new URL("../module/jumping.mjs", import.meta.url));
 equal("L1 the printed cost before the trade is what a checkless leap pays", [jumping.leapApCost("2 (or 1 with a +2 difficulty increase)"), jumping.leapApCost("1"), jumping.leapApCost("Free"), jumping.leapApCost("Reaction")], ["2", "1", "Free", "Reaction"]);
 const aw = read("module", "combat", "action-workflow.mjs");
-ok("L2 the leap spends that cost, not the whole string", /const leapCost = leapApCost\(action\.apCost\);\s*if \(!\(await ensureActionPoints\(actor, leapCost, action\.name\)\)\) return null;\s*await spendActionCost\(actor, leapCost, action\.name/.test(aw));
+ok("L2 the leap spends that cost, not the whole string", /const leapCost = leapApCost\(action\.apCost\);\s*if \(!\(await ensureActionPoints\(actor, leapCost, action\.name(, \{ traits: action\.traits \})?\)\)\) return null;\s*await spendActionCost\(actor, leapCost, action\.name/.test(aw));
 
 /* ------------------------------------------------------------------ *
  * R — the injury records through the relay
@@ -105,7 +105,7 @@ const houseRuled = { name: "Undead: immunities", changes: [...stale.changes, { k
 equal("U4 a GM's own edit is left alone", repairs.effectRepairUpdate(undead, houseRuled), null);
 equal("U5 a different effect is not touched", repairs.effectRepairUpdate(undead, { ...stale, name: "Undead: ability modifiers" }), null);
 const mig = read("module", "migration.mjs");
-ok("U6 the migration runs the pass at 3.627.1 and is stamped there", /runIf\("3\.627\.1", "declared effect repairs on owned items \(Undead disease immunity\)",\s*\(\) => migrateOwnedEffectRepairs\(actors, tokenActors, Array\.from\(game\.items \?\? \[\]\)\)\)\)/.test(mig) && /export const TRG_SCHEMA_VERSION = "3\.627\.1";/.test(mig));
+ok("U6 the migration runs the pass at 3.627.1 and is stamped there", /runIf\("3\.627\.1", "declared effect repairs on owned items \(Undead disease immunity\)",\s*\(\) => migrateOwnedEffectRepairs\(actors, tokenActors, Array\.from\(game\.items \?\? \[\]\)\)\)\)/.test(mig) && (/export const TRG_SCHEMA_VERSION = "([\d.]+)";/.exec(mig)?.[1] ?? "0").localeCompare("3.627.1", undefined, { numeric: true }) >= 0);
 ok("U7 the pass matches by item type and name and writes only what effectRepairUpdate returns", /if \(item\?\.type !== repair\.itemType \|\| lower\(item\?\.name\) !== lower\(repair\.name\)\) continue;/.test(mig) && /const update = effectRepairUpdate\(repair, effect\._source \?\? effect\);\s*if \(!update\) continue;/.test(mig));
 const db = new ClassicLevel(path.join(SYSTEM_ROOT, "packs", "creature-types"), { valueEncoding: "json" });
 let packEffect = null;

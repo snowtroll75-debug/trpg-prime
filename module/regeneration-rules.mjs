@@ -42,6 +42,16 @@ export function regenerationNegatedBy(item) {
   return m ? m[1].split(/[,/]| or /).map(lower).filter(Boolean) : [];
 }
 
+/**
+ * DIVINE DAMAGE, RECORDED (3.659.0; F&F 3.0 block 28 R8 — the Reaver's
+ * "Regeneration 20 (Divine)"). Graham's ruling for "Weakness divine" (3.548.0):
+ * damage from a divinity spell. A source carrying the divinity tradition adds
+ * "divine" to the types its damage is recorded under, so "(Divine)" meets it.
+ */
+export function divineDamageMark(sourceTraits = []) {
+  return (Array.isArray(sourceTraits) ? sourceTraits : []).some((t) => ["divinity", "divine"].includes(lower(t))) ? ["divine"] : [];
+}
+
 /** Is any of these damage types one that negates? */
 export function negatedByTypes(negatedBy, types = []) {
   const have = new Set((types ?? []).map(lower));

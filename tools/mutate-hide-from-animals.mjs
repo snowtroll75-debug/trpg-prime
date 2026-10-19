@@ -101,8 +101,8 @@ const MUTATIONS = [
   {
     file: CAST,
     name: "G4 THE SPELL GATE MOVES ABOVE THE ACTION SPEND",
-    from: "  await spendActionCost(actor, totalCastAP, spell.name);\n\n  /*\n   * AND A SPELL COUNTS AS AN ATTACK (3.503.0).",
-    to: "  if (castEndsHiding(spellData)) {\n    const { endHidingWards } = await import(\"./hide-from-animals-workflow.mjs\");\n    await endHidingWards(actor, \"spell\");\n  }\n  await spendActionCost(actor, totalCastAP, spell.name);\n\n  /*\n   * AND A SPELL COUNTS AS AN ATTACK (3.503.0).",
+    from: "  if (!apPaid) await spendActionCost(actor, totalCastAP, spell.name);\n\n  /*\n   * AND A SPELL COUNTS AS AN ATTACK (3.503.0).",
+    to: "  if (castEndsHiding(spellData)) {\n    const { endHidingWards } = await import(\"./hide-from-animals-workflow.mjs\");\n    await endHidingWards(actor, \"spell\");\n  }\n  if (!apPaid) await spendActionCost(actor, totalCastAP, spell.name);\n\n  /*\n   * AND A SPELL COUNTS AS AN ATTACK (3.503.0).",
     breaks: "G4 — a ward spent on a cast that was then refused"
   },
   {

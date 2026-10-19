@@ -340,8 +340,29 @@ export async function applyConditionTags(
   actor,
   tags,
   { expiresRound = null, duration = null, spellEffect = false, spellEffectEnd = null, castId = null,
-    sourceTraits = null } = {}
+    sourceTraits = null, direct = false } = {}
 ) {
+  /*
+   * A CREATURE THIS CLIENT DOES NOT OWN IS THE GM'S TO WRITE (3.646.0).
+   *
+   * FOUND LIVE, 15 October 2026, testing 3.645.0 as a player: Song Of
+   * Despair still threw "lacks permission to create ActiveEffect" on the
+   * Boars it caught. Every spell's conditions reach their targets through
+   * this helper, straight from `applySpellEffects`, and only the weapon
+   * paths had wrapped it in `relayConditionTags` — so a player's Sleep,
+   * Fear or Song Of Despair on the GM's creature unwound at the first
+   * condition, before the Result card, the register or the Sustain.
+   *
+   * RELAYED HERE, AT THE BOTTOM, as the damage relay is, so every caller is
+   * carried across with every option. `direct` is the GM's own re-entry and
+   * stops it asking again.
+   */
+  if (!direct && actor && actor.isOwner === false) {
+    const { relayConditionTags } = await import("./target-relay-workflow.mjs");
+    return relayConditionTags(actor, tags,
+      { expiresRound, duration, spellEffect, spellEffectEnd, castId, sourceTraits },
+      () => applyConditionTags(actor, tags, { expiresRound, duration, spellEffect, spellEffectEnd, castId, sourceTraits, direct: true }));
+  }
   const applied = [];
 
   /*
@@ -384,6 +405,15 @@ export async function applyConditionTags(
   const raging = Boolean(
     actor?.effects?.some((effect) => effect.name === RAGE_EFFECT_NAME)
   );
+
+  // FEARFUL POWER (3.659.0; F&F 3.0 block 28 R9): frightened gained within
+  // 30 feet of a Tenebrax is one higher.
+  if (tags.some((t) => t?.key === "frightened")) {
+    const { fearfulPowersReaching } = await import("../fearful-power-workflow.mjs");
+    const { boostedFrightenedTag } = await import("../fearful-power.mjs");
+    const powers = fearfulPowersReaching(actor);
+    if (powers.length) tags = tags.map((t) => boostedFrightenedTag(t, powers));
+  }
 
   for (const tag of tags) {
     const def = CONDITIONS[tag.key];
@@ -539,6 +569,23 @@ export async function applyConditionTags(
       });
       if (!wasAlreadyPresent && Array.isArray(sourceTraits) && sourceTraits.length) {
         updates[`flags.${SYSTEM_ID}.${SOURCE_TRAITS_FLAG}`] = sourceTraits;
+      }
+      /*
+       * WHAT QUICKENED'S POINT MAY BUY (3.648.0; combat/restricted-ap.mjs).
+       * One Quickened from two sources is still one AP, spendable on "any
+       * single action permitted by any of the effects" — so a second source
+       * widens the list, and a source that names nothing frees it entirely.
+       * Written here, on the client that writes the effect, so it travels
+       * through the GM relay with the tag.
+       */
+      if (tag.key === "quickened" && tag.apFor !== undefined) {
+        const incoming = Array.isArray(tag.apFor) ? tag.apFor : null;
+        const existing = wasAlreadyPresent ? effect?.getFlag?.(SYSTEM_ID, "quickenedFor") : undefined;
+        let next;
+        if (!wasAlreadyPresent) next = incoming ?? "any";
+        else if (!Array.isArray(existing) || !incoming) next = "any";
+        else next = [...new Set([...existing, ...incoming])];
+        updates[`flags.${SYSTEM_ID}.quickenedFor`] = next;
       }
       if (effect?.update && Object.keys(updates).length) {
         await effect.update(updates);

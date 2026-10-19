@@ -38,6 +38,11 @@ export async function useCreatureAbility(actor, item) {
   const level = Number(actor?.system?.identity?.level ?? 0);
   const lines = activationLines(item, level);
 
+  // AN AURA SWITCHED ON FOR A WHILE (3.658.0; F&F 3.0 block 25 R6 — Soul
+  // Eclipse): the effect that keeps its aura live, and the card.
+  const { auraSwitchOf } = await import("./aura-switch.mjs");
+  if (auraSwitchOf(item)) return useAuraSwitch(actor, item, lines);
+
   // A DECLARED AREA EFFECT (3.631.0): rolled and applied, the cost spent.
   // A module's breath weapon is one too (3.632.0, ruling 16) — read from the
   // breath's own shape or its printed sentence; see creature-area.mjs.
@@ -70,12 +75,18 @@ export async function useCreatureAbility(actor, item) {
     const usesLeft = counted ? itemUsesRemaining(item) : null;
     if (counted && usesLeft <= 0) { ui.notifications?.warn(`${item.name}: no uses remain — Refocus or rest to restore it.`); return false; }
     const activation = item.flags?.[SYSTEM_ID]?.creatureAbility?.activation ?? {};
+    // A PP COST (3.650.0; block 17 R4): "Using the breath weapon costs the
+    // gorgon 10 PP." Refused before anything is spent when the pool is short.
+    const ppCost = Math.max(0, Math.trunc(Number(use.spec?.ppCost ?? activation.pp ?? 0) || 0));
+    const ppHeld = Number(actor.system?.resources?.pp?.value ?? 0);
+    if (ppCost > 0 && ppHeld < ppCost) { ui.notifications?.warn(`${item.name}: it costs ${ppCost} PP, and ${actor.name} has ${ppHeld}.`); return false; }
     const apCost = Number(activation.ap ?? activation.actionPoints ?? use.ap) || 0;
     if ((activation.kind === "action" || (!activation.kind && use.ap)) && apCost > 0) {
       const { ensureActionPoints, spendActionPoints } = await import("./combat/action-points-workflow.mjs");
       if (!(await ensureActionPoints(actor, apCost, item.name))) return false;
       await spendActionPoints(actor, apCost, item.name);
     }
+    if (ppCost > 0) await actor.update({ "system.resources.pp.value": ppHeld - ppCost });
     const { perilEffectSpec } = await import("./peril-effect.mjs");
     const { runDeclaredAreaEffect } = await import("./peril-workflow.mjs");
     const { resolveAreaDamageSource } = await import("./creature-area.mjs");
@@ -121,6 +132,43 @@ export async function useCreatureAbility(actor, item) {
       + `<h3>${item?.name ?? "Ability"}</h3></div></header>`
       + lines.map((l) => line(l.label, l.text, l.degree)).join("")
       + `<p><em>Resolved by the GM — the cost is not spent automatically.</em></p>`
+      + `</div>`
+  });
+  return true;
+}
+
+/** Switch an ability's aura on (3.658.0): the effect, the cost, the card. */
+async function useAuraSwitch(actor, item, lines) {
+  const { auraSwitchOf, auraSwitchRecord, auraSwitchSpan, AURA_SWITCH_FLAG } = await import("./aura-switch.mjs");
+  const sw = auraSwitchOf(item);
+  const now = Number(game.time?.worldTime ?? 0);
+  const activation = item.flags?.[SYSTEM_ID]?.creatureAbility?.activation ?? {};
+  const apCost = Number(activation.ap ?? 0) || 0;
+  if (activation.kind === "action" && apCost > 0) {
+    const { ensureActionPoints, spendActionPoints } = await import("./combat/action-points-workflow.mjs");
+    if (!(await ensureActionPoints(actor, apCost, item.name))) return false;
+    await spendActionPoints(actor, apCost, item.name);
+  }
+  // A fresh use replaces the one running: one effect, its clock restarted.
+  const old = Array.from(actor.effects ?? []).filter((e) => e.getFlag?.(SYSTEM_ID, AURA_SWITCH_FLAG)?.state === sw.state).map((e) => e.id);
+  if (old.length) await actor.deleteEmbeddedDocuments("ActiveEffect", old);
+  const record = auraSwitchRecord(sw, now);
+  await actor.createEmbeddedDocuments("ActiveEffect", [{
+    name: item.name, img: item.img || "icons/svg/aura.svg",
+    duration: { seconds: sw.seconds, startTime: now },
+    flags: { [SYSTEM_ID]: { [AURA_SWITCH_FLAG]: record, spellEffect: true, spellEffectEnd: record.until } }
+  }]);
+  const { auraEmitters } = await import("./creature-aura-workflow.mjs");
+  const emitted = auraEmitters().find((e) => e.token?.actor?.id === actor.id)?.auras?.find((a) => a.emitterState === sw.state);
+  await ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor }),
+    content: `<div class="trg-prime trg-check-card"><header class="check-header">`
+      + `<div class="check-heading"><span class="check-actor">${actor?.name ?? ""}</span>`
+      + `<h3>${item?.name ?? "Ability"}</h3></div></header>`
+      + lines.filter((l) => !l.degree).map((l) => line(l.label, l.text, l.degree)).join("")
+      + `<p><strong>${item.name} is on for ${auraSwitchSpan(sw.seconds)}.</strong>${emitted ? ` Each creature within ${emitted.radius} feet saves at the start of its turn.` : ""}</p>`
+      // A DARKNESS AURA (3.658.1; found live): the light is the GM's to set.
+      + (emitted?.traits?.includes("darkness") ? `<p><em>Its darkness is magical: set the scene's light.</em></p>` : "")
       + `</div>`
   });
   return true;

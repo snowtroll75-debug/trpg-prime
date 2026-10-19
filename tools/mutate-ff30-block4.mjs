@@ -23,8 +23,8 @@ const MUTATIONS = [
   { name: "an aligned packet carries no traits", file: SEC, from: "  return ALIGNED_TRAITS.includes(word) ? [word] : [];", to: "  return [];", breaks: "A4" },
   { name: "an ally aura loses its effect", file: CA, from: "    allyEffect: kind === \"ally\" ? allyEffectOf(raw.allyEffect) : null,", to: "    allyEffect: null,", breaks: "A5" },
   { name: "a bad change key is kept", file: AE, from: "c && typeof c.key === \"string\" && c.key.startsWith(\"system.\") && c.value !== undefined", to: "c && typeof c.key === \"string\" && c.value !== undefined", breaks: "A5" },
-  { name: "the emitter aids itself", file: AE, from: "      if (emitter.id === subject.id) continue;", to: "", breaks: "A6" },
-  { name: "a foe is aided", file: AE, from: "      if (plainlyOpposed(emitter.disposition, subject.disposition)) continue;", to: "", breaks: "A6" },
+  { name: "the emitter aids itself", file: AE, from: "        if (self && !aura.includeSelf) continue;", to: "", breaks: "A6" },
+  { name: "a foe is aided", file: AE, from: "const effect = opposed ? aura.enemyEffect : aura.allyEffect;", to: "const effect = aura.allyEffect;", breaks: "A6" },
   { name: "a large ally is reached only by its centre", file: AE, from: "        const reach = auraReachFeet(aura.radius, emitter.widthFeet) + Math.max(0, (Number(subject.widthFeet) || 5) - 5) / 2;", to: "        const reach = auraReachFeet(aura.radius, emitter.widthFeet);", breaks: "A6" },
   { name: "the healing warp is not laid", file: AE, from: "  if (fx.warpFreeSchool) flags.warpFreeSchool = { label: aura.name, ...fx.warpFreeSchool };", to: "", breaks: "A7" },
   { name: "a departed aura's effect is never lifted", file: AE, from: "    remove: [...have].filter((k) => !want.has(k))", to: "    remove: []", breaks: "A8" },
@@ -42,7 +42,7 @@ const MUTATIONS = [
   { name: "the ally-aura hooks are not registered", file: INIT, from: "  registerAllyAuraEffectHooks();\n", to: "", breaks: "B4" },
   { name: "versus damage asks no alignment", file: VDW, from: ", alignedTraitsOf(targetActor.system ?? {}));", to: ", []);", breaks: "B5" },
   { name: "the picked type is thrown away", file: ACT, from: "      use.spec = withChosenDamageType(use.spec, picked);", to: "", breaks: "B6" },
-  { name: "Harmonize is not a codex action", file: CODEX, from: "draconicShifting, harmonize });", to: "draconicShifting });", breaks: "B7" },
+  { name: "Harmonize is not a codex action", file: CODEX, from: "draconicShifting, harmonize, changeShape, lunaFrenzy, heldAdvantage,", to: "draconicShifting, changeShape, lunaFrenzy, heldAdvantage,", breaks: "B7" },
   { name: "the harmony never reaches the DC", file: CAST, from: "      + harmonyHere;", to: ";", breaks: "B7" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-ff30-block4.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }

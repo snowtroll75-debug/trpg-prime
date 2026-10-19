@@ -114,9 +114,15 @@ export function wildShapeDailyUses({ level = 0, featNames = [], runeUses = 0 } =
  *
  * @returns {number} 1 or 0.
  */
-export function wildShapeAttackBonus({ actor = null, weaponName = "", weaponNatural = false } = {}) {
+export function wildShapeAttackBonus({ actor = null, weaponName = "", weaponNatural = false, shapeWeapon = false } = {}) {
   if (!hasClassAbility(actor, WILD_SHAPE_ABILITY)) return 0;
   if (!weaponNatural) return 0;
   if (String(weaponName ?? "").trim().toLowerCase() === "unarmed strike") return 0;
+  // A CREATURE'S OWN BITE IS NOT A SHAPE'S (3.641.0, F&F 3.0 block 11 R2).
+  // The reasoning above holds for a character, whose sheet carries natural
+  // weapons only while shaped. A creature's sheet carries its printed bite
+  // and claws all the time, so the Forest Dragons rolled every attack at +1.
+  // On an npc the +1 goes only to a weapon marked as granted by a shape.
+  if (String(actor?.type ?? "") === "npc" && !shapeWeapon) return 0;
   return 1;
 }

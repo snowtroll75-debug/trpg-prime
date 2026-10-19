@@ -30,6 +30,7 @@ import { swarmReducedDR } from "../codex-trait-rules.mjs";
 import { ownedCreatureTypeSystem } from "../creature-type-rules.mjs";
 import { applyDamageAndCheckDying } from "./dying-workflow.mjs";
 import { healsFromDamage } from "../creature-ability-rules.mjs";
+import { divineDamageMark } from "../regeneration-rules.mjs";
 
 /**
  * THE RESISTANCE A CAST IGNORES (3.630.0). Blackfire Ivy: the spell it is
@@ -298,7 +299,12 @@ export async function applyTypedDamage(targetActor, {
   // Weakness to area effects, and a Swarm's own attack halves the target's
   // DR — the declared-area rail (peril-workflow) says which it is.
   area = false,
-  attackerIsSwarm = false
+  attackerIsSwarm = false,
+  // AN IMMUNITY THIS BLOW BYPASSES (3.657.0; F&F 3.0 block 24 R5 — Garlic
+  // Breath "affects vampires normally and bypasses their immunity to
+  // poison"): the type is met as if the target were not immune to it, and
+  // its resistances and DR still apply.
+  ignoreImmunityTo = ""
 } = {}) {
   if (!targetActor) return { packet: null, applied: 0, result: null };
 
@@ -319,11 +325,20 @@ export async function applyTypedDamage(targetActor, {
     ? { ...targetActor.system, combat: { ...(targetActor.system?.combat ?? {}),
       resistances: [targetActor.system?.combat?.resistances, extra].filter((v) => String(v ?? "").trim()).join(", ") } }
     : targetActor.system;
-  const packet = resolveAgainstDefences(defenderSystem, {
+  let packet = resolveAgainstDefences(defenderSystem, {
     amount, type, traits, dr, drBypassed, naturalArmourDr, area: Boolean(area), attackerIsSwarm: Boolean(attackerIsSwarm),
     creatureTypeSystem: ownedCreatureTypeSystem(targetActor),
     targetItems: Array.from(targetActor.items ?? [])
   });
+  const bypass = String(ignoreImmunityTo ?? "").trim().toLowerCase();
+  if (packet.immune && bypass && bypass === String(type ?? "").trim().toLowerCase()) {
+    const stripped = String(defenderSystem?.combat?.immunities ?? "").split(",").map((t) => t.trim()).filter((t) => t && t.toLowerCase() !== bypass).join(", ");
+    packet = resolveAgainstDefences({ ...defenderSystem, combat: { ...(defenderSystem?.combat ?? {}), immunities: stripped } }, {
+      amount, type, traits, dr, drBypassed, naturalArmourDr, area: Boolean(area), attackerIsSwarm: Boolean(attackerIsSwarm),
+      creatureTypeSystem: null, targetItems: Array.from(targetActor.items ?? [])
+    });
+    packet.steps = [`immunity to ${bypass} bypassed`, ...(packet.steps ?? [])];
+  }
   if (packet.healsInstead !== undefined) {
     packet.steps.push(await applyHealsInstead(targetActor, packet));
     return { packet, applied: 0, result: null };
@@ -339,7 +354,7 @@ export async function applyTypedDamage(targetActor, {
   const result = await applyDamageAndCheckDying(targetActor, packet.taken, {
     isCritical,
     nonlethal: Boolean(packet.nonlethal),
-    damageTypes: [String(type ?? "").trim().toLowerCase()].filter(Boolean),
+    damageTypes: [String(type ?? "").trim().toLowerCase(), ...divineDamageMark(traits)].filter(Boolean),
     sourceLevel,
     sourceName
   });

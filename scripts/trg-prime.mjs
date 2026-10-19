@@ -28,6 +28,7 @@ import { TRGActorSheet } from "../module/sheets/actor-sheet.mjs";
 import { TRGPartySheet } from "../module/sheets/party-sheet.mjs";
 import { registerPartySocket } from "../module/party-socket.mjs";
 import { registerTargetRelay } from "../module/combat/target-relay-workflow.mjs";
+import { registerGMAuthorisation } from "../module/combat/gm-authorisation.mjs";
 import { registerPerilHooks } from "../module/peril-workflow.mjs";
 import { promptEnvironmentalDamage, registerWeatherConfig } from "../module/environment-workflow.mjs";
 import { TRGItemSheet } from "../module/sheets/item-sheet.mjs";
@@ -147,6 +148,7 @@ import { registerBreathHooks } from "../module/breath-memory-workflow.mjs";
 import { registerCodexActionHooks } from "../module/codex-actions-workflow.mjs";
 import { registerCompoundHooks } from "../module/combat/compound-action-workflow.mjs";
 import { registerReactiveDisarmHooks } from "../module/combat/reactive-disarm-workflow.mjs";
+import { registerCreatureReactionHooks } from "../module/creature-reactions-workflow.mjs";
 import { registerCodexHooks } from "../module/codex-hooks-workflow.mjs";
 import { registerSpawnHooks } from "../module/spawn-workflow.mjs";
 import { registerSwarmHooks } from "../module/swarm-workflow.mjs";
@@ -295,6 +297,7 @@ Hooks.once("init", () => {
   registerCodexActionHooks();
   registerCompoundHooks();
   registerReactiveDisarmHooks();
+  registerCreatureReactionHooks();
   registerCodexHooks();
   registerSpawnHooks();
   registerSwarmHooks();
@@ -874,6 +877,8 @@ Hooks.once("ready", async () => {
   // 3.339.4: lets a player's attack apply damage to a monster they do
   // not own. Without this, damage rolls and dies on application.
   registerTargetRelay();
+  // THE GM'S SAY-SO FOR AN OFF-TURN STRIKE (3.646.0) — see gm-authorisation.mjs.
+  registerGMAuthorisation();
   // A SUPPRESSED HAUNT'S CLOCK (3.629.0): re-armed when game time passes it.
   registerPerilHooks();
   // CODEX INHERITANCE (3.631.0): every Codex ability copy takes its entry's

@@ -108,6 +108,18 @@ export function normaliseConditionSave(raw) {
   // Present only when set, so every older stamp reads as it did.
   const modifier = Math.trunc(Number(raw.modifier) || 0);
   if (modifier) out.modifier = modifier;
+  /*
+   * THE GORGON'S LADDER (3.650.0; F&F 3.0 block 17 R4). Petrifying Breath's
+   * Partial: "petrified for 1 minute. It can attempt a new save at the end of
+   * each of its turns, applying the new results immediately (even if they
+   * are worse)." A Partial is no escape there — it is the rung the creature
+   * is already on — and a Fumble is "petrified permanently".
+   *   partialHolds    a Partial keeps the condition, as a failure does
+   *   fumblePermanent a Fumble or Blunder takes the clock away and ends the
+   *                   saves: the condition stays for good
+   */
+  if (raw.partialHolds === true) out.partialHolds = true;
+  if (raw.fumblePermanent === true) out.fumblePermanent = true;
   return out;
 }
 
@@ -134,7 +146,10 @@ export function conditionSaveOutcome(spec, degree) {
 
   if (key === "critical" || key === "heroic") return { ...nothing, ends: true };
 
-  const succeeded = key === "success" || key === "partial";
+  // PERMANENT ON A FUMBLE (3.650.0): the clock goes, and so do the saves.
+  if (spec.fumblePermanent && (key === "fumble" || key === "blunder")) return { ...nothing, permanent: true };
+
+  const succeeded = key === "success" || (key === "partial" && !spec.partialHolds);
   if (succeeded) {
     if (spec.onSuccess === "end") return { ...nothing, ends: true };
     if (spec.onSuccess === "shorten") return { ...nothing, shortenRounds: spec.amount };

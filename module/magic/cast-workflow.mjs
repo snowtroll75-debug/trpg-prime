@@ -28,6 +28,7 @@ import { resolveAgainstDefences } from "../combat/damage-workflow.mjs";
 import { drainBracers } from "../bracers-workflow.mjs";
 import { innateCastLevel } from "../item-innate-level.mjs";
 import { spellDamageSource, spellSourceTraits } from "./spell-source.mjs";
+import { divineDamageMark } from "../regeneration-rules.mjs";
 import { damageScope, damageScopeLine, inDamageScope } from "./damage-scope.mjs";
 import { ownedCreatureTypeSystem } from "../creature-type-rules.mjs";
 import { creatureTypesOf } from "../aligned.mjs";
@@ -462,7 +463,7 @@ async function promptCastingConditions(spell, { extraInc = null, isAttack = fals
  * means the caller has already set the user's targets to the triggering
  * creature, so the picker is not opened over a roll in progress.
  */
-export async function castSpell(actor, spell, { itemCheck = null, stored = null, ritual = null, reaction = null, presetTargets = false } = {}) {
+export async function castSpell(actor, spell, { itemCheck = null, stored = null, ritual = null, reaction = null, presetTargets = false, apPaid = false, carried = null } = {}) {
   // A DRUNK POTION IS NOT A CAST (3.617.0, Graham's R1 of block 37). The
   // spell inside is released by drinking it, so nothing that forbids
   // CASTING — a Rage, a critical's "cannot cast spells", a lost voice or a
@@ -683,6 +684,18 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     }
   }
 
+  // AN INNATE SPELL'S OWN CLOCK (3.651.0; block 18 R12, the Eclipse Hag's
+  // "Timestop (1/minute)"): refused before anything is committed.
+  {
+    const { innateCooldownLeft } = await import("./innate-frequency.mjs");
+    const { cooldownWords: words } = await import("../rune-timers.mjs");
+    const left = innateCooldownLeft(spell, Number(game.time?.worldTime ?? 0));
+    if (left > 0) {
+      ui.notifications.warn(`${spell.name}: ${actor.name} cannot cast it again for another ${words(left)}.`);
+      return null;
+    }
+  }
+
   // Components (Chapter 9): a somatic spell needs a free hand; a material spell
   // needs a component pouch. Gated before any PP/AP is committed, like the trait
   // gate above. Innate spell-likes are exempt — they carry no components.
@@ -706,6 +719,11 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     ? true
     : isItemCast
     ? componentGate(actor, spellData, spell.name, { materialProvided: true })
+    // A SPELL CARRIED BY A STRIKE (3.655.1; block 22 R5, found live testing
+    // 3.655.0): "cast as part of making a Strike action with a bow" — both
+    // hands are on the bow, and the bow is the somatic hand.
+    : carried && !isInnate
+    ? componentGate(actor, { ...spellData, components: { ...(spellData.components ?? {}), somatic: false } }, spell.name)
     : (isInnate || componentGate(actor, spellData, spell.name));
   if (!componentsOK) return null;
 
@@ -882,7 +900,10 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // where they are really cast from; cast in answer to a save, that card was
   // telling the table it had "no save to answer" beside the save it answered.
   if (reaction && Array.isArray(effEffects)) effEffects = effEffects.filter((e) => !(e?.kind === "note" && e.sheetCastOnly === true));
-  const effCastAP = apMode?.ap ?? spellData.castAP;
+  // A QUICKENED INNATE (3.651.0; block 18 R12, the Frostsnarl's Cold Bolt):
+  // 1 AP less, as Quicken Spell, printed into the spell-like.
+  const { quickenedInnateAP } = await import("./innate-frequency.mjs");
+  const effCastAP = quickenedInnateAP(spell, apMode?.ap ?? spellData.castAP);
 
   // ENOUGH AP TO CAST AT ALL — asked here, before the warp chooser, the
   // conditions prompt, the Spellcraft check and the PP spend, because a
@@ -963,7 +984,7 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       await refuseLongCast(actor, spell.name, effCastAPWithScale);
       return null;
     }
-  } else if (!(await ensureActionPoints(actor, castTimeApCost(effCastAPWithScale), `${spell.name} — Cast a Spell`))) {
+  } else if (!apPaid && !(await ensureActionPoints(actor, castTimeApCost(effCastAPWithScale), `${spell.name} — Cast a Spell`))) {
     return null;
   }
 
@@ -1471,7 +1492,7 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // against. Skipped when the warps left the cast time alone, because
   // then the gate above already asked and asking twice is a dialog for
   // nothing.
-  if (warpedCastAP !== effCastAPWithScale
+  if (warpedCastAP !== effCastAPWithScale && !apPaid
     && !(await ensureActionPoints(actor, castTimeApCost(warpedCastAP), `${spell.name} — Cast a Spell`))) {
     return null;
   }
@@ -2392,7 +2413,11 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   );
   // THE PRINTED PAIR WINS (3.633.0, F&F 3.0 R1): a stat block's "DC 24
   // (+14)" declared on the spell is the creature's own number.
-  const innateAttackHere = innateAttackFor(spell, innateAbility, innateLevel);
+  // …UNLESS A STRIKE CARRIES IT (3.656.0; block 23 R6, Air Blast Magic: "uses
+  // the primals attack bonus rather than innate bonus").
+  const innateAttackHere = Number.isFinite(carried?.attackBonus)
+    ? { value: carried.attackBonus, printed: false, from: String(carried.label ?? "the strike") }
+    : innateAttackFor(spell, innateAbility, innateLevel);
   // AN ITEM'S ATTACK IS THE USER'S, AND IT IS THE ROLL THEY ALREADY MADE.
   //
   // Until 3.312.0 this rolled a flat `+PP` — the item's own level as an
@@ -2514,7 +2539,7 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
         ? await TRGCheck.roll({
           actor,
           label: `${spell.name} — Innate Attack`,
-          subtitle: `Innate spell-like — 0 PP, cast at ${innateLevelWord} with up to ${innateBudget} PP of free warping${tradition ? `, ${tradition}` : ""}. Innate attack +${innateAttackHere.value} (${innateAttackHere.printed ? "printed" : "magical ability + level"})`,
+          subtitle: `Innate spell-like — 0 PP, cast at ${innateLevelWord} with up to ${innateBudget} PP of free warping${tradition ? `, ${tradition}` : ""}. Innate attack +${innateAttackHere.value} (${innateAttackHere.from ? `${innateAttackHere.from}'s attack bonus` : innateAttackHere.printed ? "printed" : "magical ability + level"})`,
           type: "attack",
           ...castContext,
           // NO DEGREE BANNER. This roll has no DC of its own — the comparison
@@ -2529,7 +2554,7 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
           suppressDegree: true,
           modifiers: [
             {
-              label: innateAttackHere.printed ? "Innate Attack (printed)" : "Innate Attack",
+              label: innateAttackHere.from ? `${innateAttackHere.from}'s attack bonus` : innateAttackHere.printed ? "Innate Attack (printed)" : "Innate Attack",
               value: innateAttackHere.value,
               type: "untyped"
             }
@@ -2828,7 +2853,8 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
    * time passed whatever the spell did.
    */
   const totalCastAP = totalCastTime(warpedCastAP, { apDelta: mm.apDelta });
-  await spendActionCost(actor, totalCastAP, spell.name);
+  // A READIED CAST WAS PAID FOR BY READY (3.645.0, F7): its 2 AP bought it.
+  if (!apPaid) await spendActionCost(actor, totalCastAP, spell.name);
 
   /*
    * AND A SPELL COUNTS AS AN ATTACK (3.503.0). "…or attacks any
@@ -2903,6 +2929,14 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     await grantSource.update({
       [`flags.${SYSTEM_ID}.runeState.cooldown.${GRANT_COOLDOWN_KEY}`]: grantCooldownUntil(grantRest, Number(game.time?.worldTime ?? 0))
     });
+  }
+
+  // AND THE INNATE'S OWN CLOCK STARTS (3.651.0, R12).
+  {
+    const { INNATE_COOLDOWN_FLAG, innateCooldownSeconds, innateCooldownUntil } = await import("./innate-frequency.mjs");
+    if (innateCooldownSeconds(spell) > 0) {
+      await spell.update({ [`flags.${SYSTEM_ID}.${INNATE_COOLDOWN_FLAG}`]: innateCooldownUntil(spell, Number(game.time?.worldTime ?? 0)) });
+    }
   }
 
   const lines = [...reagentLines];
@@ -3172,7 +3206,9 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     // Heighten Spell (Chapter 5 metamagic): "treats the PP of the spell
     // for Saving Throw DC purposes as the maximum PP that you can cast."
     // HIGH MAGIC (3.633.0, F&F 3.0 R12) heightens for free.
-    const savePP = heightenedSavePP(totalPP, cap, highMagicHeightens(actor, mm.heightenSave));
+    // …AND A SPELL CARRIED BY A STRIKE (3.655.0, block 22 R5: Pixie Bow
+    // Casting, "Heightened automatically").
+    const savePP = heightenedSavePP(totalPP, cap, highMagicHeightens(actor, mm.heightenSave || carried?.heighten === true));
     const innateSaveHere = isInnate ? innateSaveFor(spell, castingAbility, innateLevel) : null;
     // HARMONIZE (3.634.0, F&F 3.0 block 4 R10): companions' aid waiting for
     // this innate spell's save DC this round; spent by this cast.
@@ -3243,8 +3279,10 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       songAndDance: songAndDanceForCast,
       // A caster's own declared bonus for this spell's traits (3.627.0) — not
       // on an item's spell, which is not "your own spellcasting".
-      declaredBonuses: isItemCast ? [] : declaredSpellDCBonuses(
-        Array.from(actor.appliedEffects ?? actor.effects ?? []), spellData.traits)
+      declaredBonuses: [...(isItemCast ? [] : declaredSpellDCBonuses(
+        Array.from(actor.appliedEffects ?? actor.effects ?? []), spellData.traits)),
+        // THE CARRYING STRIKE'S CRITICAL (3.655.0, block 22 R5): "+1 per level of severity".
+        ...(Number(carried?.dcBonus) > 0 ? [{ label: `${carried.label ?? "Carried"} (${carried.severity} critical)`, value: Number(carried.dcBonus) }] : [])]
     });
     nominalSaveDC = saveDCResult.dc;
     // The card, and the number targets actually roll against, belong to a
@@ -3445,7 +3483,8 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
         // — a Mindless creature in a Fear's cloud is passed by and named.
         const { partitionTraitImmune } = await import("./spell-trait-immunity.mjs");
         const { ownedCreatureTypeSystem } = await import("../creature-type-rules.mjs");
-        const areaImmunity = partitionTraitImmune(areaTargets, spellData.traits ?? "", ownedCreatureTypeSystem);
+        // AN AREA REACHES BOTH OF AN ETTIN'S HEADS (3.647.0, R9): never "one target".
+        const areaImmunity = partitionTraitImmune(areaTargets, spellData.traits ?? "", ownedCreatureTypeSystem, { targetCount: Infinity });
         areaTargets = areaImmunity.kept;
         /*
          * THE HEAT'S WIDER RING (3.609.0, R1). Measured from the same
@@ -5444,7 +5483,7 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
     const applied = await applyDamageAndCheckDying(targetActor, packet.taken, {
       isCritical: Boolean(outcome.critical),
       // For a death guard (3.627.0): the type, and the caster it is opposed by.
-      damageTypes: [String(damageType ?? "").toLowerCase()].filter(Boolean), sourceLevel: Number(actor?.system?.identity?.level ?? 0), sourceName: actor?.name ?? ""
+      damageTypes: [String(damageType ?? "").toLowerCase(), ...divineDamageMark(spellDamageSource(spell).sourceTraits)].filter(Boolean), sourceLevel: Number(actor?.system?.identity?.level ?? 0), sourceName: actor?.name ?? ""
     });
     newHP = applied?.newHP;
   }
@@ -6385,14 +6424,14 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
       if (packet.taken > 0) {
         const applied = await applyDamageAndCheckDying(target, packet.taken, {
           isCritical: Boolean(bs.criticalSeverity),
-          damageTypes: [String(damageType ?? "").toLowerCase()].filter(Boolean), sourceLevel: Number(actor?.system?.identity?.level ?? 0), sourceName: actor?.name ?? ""
+          damageTypes: [String(damageType ?? "").toLowerCase(), ...divineDamageMark(spellDamageSource(spell).sourceTraits)].filter(Boolean), sourceLevel: Number(actor?.system?.identity?.level ?? 0), sourceName: actor?.name ?? ""
         });
         newHP = applied?.newHP;
       }
       if (secondPacket && secondPacket.taken > 0) {
         const appliedSecond = await applyDamageAndCheckDying(target, secondPacket.taken, {
           isCritical: Boolean(bs.criticalSeverity),
-          damageTypes: [String(secondary.type ?? "").toLowerCase()].filter(Boolean), sourceLevel: Number(actor?.system?.identity?.level ?? 0), sourceName: actor?.name ?? ""
+          damageTypes: [String(secondary.type ?? "").toLowerCase(), ...divineDamageMark(spellDamageSource(spell).sourceTraits)].filter(Boolean), sourceLevel: Number(actor?.system?.identity?.level ?? 0), sourceName: actor?.name ?? ""
         });
         newHP = appliedSecond?.newHP ?? newHP;
       }

@@ -32,6 +32,7 @@
  * here so the next reader knows which one is load-bearing.
  */
 
+import { generalAP } from "../combat/restricted-ap.mjs";
 import {
   PENDING_CAST_FLAG, apPaymentForTurn, armedLine, castingHeldLine, castingProgressLine,
   extraApOwed, extraApRemaining, hitPointsLost, interruptedDegree, interruptedLine,
@@ -160,7 +161,8 @@ function pendingCastButtons(record) {
  */
 async function payTowards(actor, record) {
   if (extraApRemaining(record.apOwed, record.apPaid) === 0) return 0;
-  const available = Number(actor?.system?.resources?.ap?.value ?? 0);
+  // NOT HASTE'S OR FAST ATTACK'S POINT (3.648.0): standing still for a spell is neither a Strike nor a Stride.
+  const available = generalAP(actor);
   const payment = apPaymentForTurn(available, record.apOwed, record.apPaid);
   if (payment > 0) {
     await spendActionPoints(actor, payment, `${record.spellName} — extra casting time`);

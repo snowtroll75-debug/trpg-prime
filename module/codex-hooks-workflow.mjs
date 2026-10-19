@@ -50,7 +50,7 @@
  * Every hook is guarded by isActingGM() where it writes — one client acts.
  */
 import { isActingGM } from "./acting-gm.mjs";
-import { abilityDerives, elementOfName } from "./creature-ability-rules.mjs";
+import { abilityDerives, elementOfName, footprintsAdjacent } from "./creature-ability-rules.mjs";
 
 const SYSTEM_ID = "trg-prime";
 const line = (text) => `<p style="margin:2px 0">${text}</p>`;
@@ -89,9 +89,9 @@ function adjacentActors(actor) {
   const out = [];
   for (const other of canvas?.tokens?.placeables ?? []) {
     if (other === token || other.id === token.id || !other.actor) continue;
-    const d = canvas?.grid?.measurePath?.([token.center, other.center])?.distance ?? Infinity;
-    const reach = (Number(canvas?.scene?.grid?.distance ?? 5) || 5) * (Math.max(1, Number(token.document?.width ?? 1)) + Math.max(1, Number(other.document?.width ?? 1))) / 2;
-    if (d <= reach) out.push(other.actor);
+    const size = Number(canvas?.grid?.size ?? 100) || 100;
+    const box = (t) => ({ x: Number(t.document?.x ?? 0) / size, y: Number(t.document?.y ?? 0) / size, w: Math.max(1, Number(t.document?.width ?? 1)), h: Math.max(1, Number(t.document?.height ?? 1)) });
+    if (footprintsAdjacent(box(token), box(other))) out.push(other.actor);
   }
   return out;
 }
@@ -117,6 +117,11 @@ async function basicSaveDamage(source, target, { formula, type, save, title, dcA
 
 async function onCreatureSlain({ victim, sourceName }) {
   if (!isActingGM() || !victim) return;
+  await harvestNearbyDeath(victim);
+  // SPITEFUL STRIKE (3.663.0; F&F 3.0 block 33 R5): the Wight's last blow,
+  // offered on its own death. See spiteful-strike-workflow.mjs.
+  const { offerSpitefulStrike } = await import("./spiteful-strike-workflow.mjs");
+  await offerSpitefulStrike(victim);
   const { isLivingCreature } = await import("./kind-targeting.mjs");
   for (const killer of actorsNamed(sourceName)) {
     const items = Array.from(killer.items ?? []);
@@ -140,6 +145,31 @@ async function onCreatureSlain({ victim, sourceName }) {
       if (victim.isOwner) await victim.setFlag(SYSTEM_ID, "spawnCreator", { uuid: killer.uuid, name: killer.name });
       await card(killer, spawn.item.name, [line(`${victim.name} was slain by ${killer.name}. If the blow was a natural attack that inflicts soul drain, ${victim.name} rises as an undead the following day at dusk — usually the same kind as ${killer.name} — with the Spawn trait.`)]);
     }
+  }
+}
+
+/**
+ * SOUL HARVEST (3.659.0; F&F 3.0 block 28 R7): every creature on the scene
+ * with a death harvest whose reach covers the slain creature's space heals —
+ * whoever dealt the blow. Measured as an aura is: from its own edge.
+ */
+async function harvestNearbyDeath(victim) {
+  const { deathHarvestOf } = await import("./death-harvest.mjs");
+  const { auraReachFeet, withinAura } = await import("./creature-auras.mjs");
+  const { tokenCentreFeet, tokenWidthFeet } = await import("./creature-aura-workflow.mjs");
+  const placed = canvas?.tokens?.placeables ?? [];
+  const where = placed.find((t) => t.actor === victim || t.actor?.id === victim.id);
+  if (!where) return;
+  for (const token of placed) {
+    if (!token.actor || token === where || token.actor.id === victim.id) continue;
+    const harvest = deathHarvestOf(Array.from(token.actor.items ?? []), levelOf(token.actor));
+    if (!harvest) continue;
+    const reach = auraReachFeet(harvest.feet, tokenWidthFeet(token.document)) + Math.max(0, tokenWidthFeet(where.document) - 5) / 2;
+    if (!withinAura(tokenCentreFeet(token.document), tokenCentreFeet(where.document), reach)) continue;
+    const roll = await new Roll(`${harvest.dice}d8`).evaluate();
+    const { healActor } = await import("./magic/spell-effects.mjs");
+    const healed = Number(await healActor(token.actor, roll.total, { magical: true })) || 0;
+    await card(token.actor, harvest.item.name, [line(`${victim.name} died within ${harvest.feet} feet of ${token.actor.name}: healed as a Cure warped to ${harvest.dice * 2} PP — ${harvest.dice}d8 = ${roll.total}, <strong>${healed} HP</strong> regained.`)]);
   }
 }
 
@@ -293,6 +323,7 @@ async function onCriticalInjury({ attacker, target, tags }) {
 export function registerCodexHooks() {
   Hooks.on("trgPrimeCriticalInjury", (ctx) => { onCriticalInjury(ctx ?? {}).catch((e) => console.error(`${SYSTEM_ID} | Crimson Covenant hook`, e)); });
   Hooks.on("trgPrimeCreatureSlain", (ctx) => { onCreatureSlain(ctx).catch((e) => console.error(`${SYSTEM_ID} | Codex kill hook`, e)); });
+  import("./spiteful-strike-workflow.mjs").then(({ registerSpitefulStrike }) => registerSpitefulStrike()).catch((e) => console.error(`${SYSTEM_ID} | Spiteful Strike`, e));
   Hooks.on("trgPrimeSpellCast", (ctx) => { onSpellCast(ctx).catch((e) => console.error(`${SYSTEM_ID} | Codex cast hook`, e)); });
   Hooks.on("trgPrimeSecondaryDamage", (ctx) => { onSecondaryDamage(ctx).catch((e) => console.error(`${SYSTEM_ID} | Codex secondary-damage hook`, e)); });
   Hooks.on("updateCombat", (combat, changed) => { onTurnStart(combat, changed).catch((e) => console.error(`${SYSTEM_ID} | Codex turn-start hook`, e)); });

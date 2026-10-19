@@ -589,7 +589,7 @@ eq("I1 R14: Unconscious and Petrified cannot act; Paralyzed keeps its AP with a 
 {
   const cmb = code("module", "documents", "combat.mjs");
   ok("I2 p.190: no AP and no reaction when it cannot act",
-    /const regain = computeAPRegain\(\{ stunned, slowed: slowed \+ abilitySlow, quickened, \.\.\.\(acting\.canAct \? \{\} : \{ base: 0 \}\) \}\);/.test(cmb)
+    /const regain = computeAPRegain\(\{ stunned, slowed: slowed \+ abilitySlow, quickened, (extra: fastAttack \? 1 : 0, )?(\.\.\.dualBase, )?\.\.\.\(acting\.canAct \? \{\} : \{ base: 0 \}\) \}\);/.test(cmb)
     && /const finalAP = acting\.canAct\s*\? apForTurn\(/.test(cmb) && /const newReactions = acting\.canAct \? reactionState\.value : 0;/.test(cmb));
   ok("I2b and the Phase 1 card says why", /if \(!acting\.canAct\) \{[\s\S]{0,200}cannot act: <strong>no AP and no reaction<\/strong> this turn\./.test(cmb));
 }

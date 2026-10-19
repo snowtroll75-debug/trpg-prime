@@ -169,6 +169,8 @@ export async function promptCheckConfiguration({
   // even be handed is one no caller can ever fix.
   sourceUuid = "",
   targetUuid = "",
+  // MELEE OR RANGED (3.650.0), accepted for the same reason.
+  attackMode = "",
   defaultDifficulty = "medium"
 } = {}) {
   // The Advantage conviction spend covers saving throws and skill checks.
@@ -265,7 +267,7 @@ export async function promptCheckConfiguration({
           .map(
             (entry) => `
           <div class="trg-inline">
-            <input type="checkbox" name="pending" value="${entry.id}"${entry.auto ? " checked" : ""}>
+            <input type="checkbox" name="pending" value="${entry.id}"${entry.auto && (!entry.checkTypes?.length || entry.checkTypes.includes(checkType)) ? " checked" : ""}>
             <span><strong>${escapeHTML(entry.lead)}</strong> — ${escapeHTML(entry.summary)}</span>
           </div>`
           )
@@ -299,7 +301,7 @@ export async function promptCheckConfiguration({
           ),
           {
             checkType, subject, actionKey, traits, traditions,
-            sourceTypes, targetTypes, sourceUuid, targetUuid
+            sourceTypes, targetTypes, sourceUuid, targetUuid, attackMode
           }
         )
       : [];

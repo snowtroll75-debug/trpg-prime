@@ -26,7 +26,7 @@ import { hasFreeHandAvailable, itemRequiredHands } from "../held-items.mjs";
 import { spendReaction } from "./action-points-workflow.mjs";
 import { actorReactionBlock } from "./reactions.mjs";
 import { reactorEligibility } from "./opportunity-rules.mjs";
-import { usableAttacks, getOrCreateUnarmedStrike } from "./strike.mjs";
+import { chooseMeleeAttack, usableAttacks, getOrCreateUnarmedStrike } from "./strike.mjs";
 import { speedValue } from "./speed-pool.mjs";
 import { actorHandle, resolveActorHandle } from "../actor-handle.mjs";
 import {
@@ -230,7 +230,10 @@ function bestMeleeWeapon(actor) {
  */
 async function reactionStrike(reactor, targetToken, { map = "exempt", label = "Reaction" } = {}) {
   if (targetToken) targetToken.setTarget(true, { user: game.user, releaseOthers: true });
-  const weapon = bestMeleeWeapon(reactor) ?? (await getOrCreateUnarmedStrike(reactor));
+  // WHICH WEAPON, ASKED when more than one is ready (3.645.0, F6).
+  const picked = await chooseMeleeAttack(reactor, label);
+  if (picked === null) return null;
+  const weapon = picked ?? bestMeleeWeapon(reactor) ?? (await getOrCreateUnarmedStrike(reactor));
   if (!weapon) {
     ui.notifications.warn(`${label}: ${reactor.name} has no weapon to strike with.`);
     return null;

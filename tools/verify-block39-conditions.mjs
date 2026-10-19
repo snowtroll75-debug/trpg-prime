@@ -143,7 +143,7 @@ const SHEET_HBS = read("templates", "actor", "actor-sheet.hbs");
     /if \(result\.removed \|\| result\.cause\) \{/.test(WATCH));
   ok("C7 A7 — Soul Drain's rise is hit point damage",
     R.soulDrainDamage(2, 6) === 4 && R.soulDrainDamage(6, 2) === 0 && R.soulDrainDamage(0, 5) === 5
-    && /const damage = soulDrainDamage\(before, after\);[\s\S]{0,300}applyDamageAndCheckDying\(actor, damage\)/.test(EVENTS));
+    && /const damage = soulDrainDamage\(before, after\);[\s\S]{0,1200}const owed = soulDrainDamageAfterClamp\(damage, stored, derived\);[\s\S]{0,200}applyDamageAndCheckDying\(actor, owed\)/.test(EVENTS));
   ok("C8 A7 — every valued write reports its before and after",
     /const before = existing \? Number\(existing\.getFlag\?\.\("trg-prime", "value"\) \?\? 1\) : 0;/.test(ACTOR)
     && /await afterValuedCondition\(this, id, before, Number\(value\) \|\| 0\);/.test(ACTOR)
@@ -231,7 +231,8 @@ const ffRow = (defence) => EV.attackTermsAgainst(target(defence), { conditions: 
     && R.reflexAutoFail(new Set(["prone"])) === null);
   ok("F2 the check forces it on a Reflex save, after any shift",
     /this\.outcome = this\.#conditionForced\(applyDegreeShift\(buildOutcome\(/.test(CHECK)
-    && (CHECK.match(/this\.#conditionForced\(applyDegreeShift/g) ?? []).length === 2
+    // 3.645.0: four — the late modifier and the Conviction probe force it too.
+    && (CHECK.match(/this\.#conditionForced\(applyDegreeShift/g) ?? []).length === 4
     && /if \(this\.type === "save" && String\(this\.subject \?\? ""\)\.toLowerCase\(\) === "reflex" && this\.actor\)/.test(CHECK));
   ok("F3 R7 — Perception without the sense it needs",
     R.perceptionBySense(new Set(["blinded"]), "sight").fumble

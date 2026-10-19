@@ -212,9 +212,22 @@ async function soulDrainStrikes(actor, before, after) {
   const damage = soulDrainDamage(before, after);
   if (!damage) return;
   const { applyDamageAndCheckDying } = await import("../combat/dying-workflow.mjs");
-  const hpBefore = Number(actor.system?.resources?.hp?.value ?? 0);
-  const result = await applyDamageAndCheckDying(actor, damage);
-  const hpAfter = Number(result?.newHP ?? actor.system?.resources?.hp?.value ?? 0);
+  // THE FALLEN MAXIMUM IS NOT A SECOND BLOW (3.660.1; found live testing
+  // 3.660.0 — a Brave at 79/79 drained 17 ended at 45/62, not 62/62). The max
+  // falls in preparation, and preparation clamps the current HP under it; that
+  // clamp already took part of this drain, so only the rest is dealt here.
+  const stored = Number(actor._source?.system?.resources?.hp?.value ?? actor.system?.resources?.hp?.value ?? 0);
+  const derived = Number(actor.system?.resources?.hp?.value ?? 0);
+  const { soulDrainDamageAfterClamp } = await import("./soul-drain.mjs");
+  const owed = soulDrainDamageAfterClamp(damage, stored, derived);
+  const hpBefore = Math.max(stored, derived);
+  let hpAfter = derived;
+  if (owed > 0) {
+    const result = await applyDamageAndCheckDying(actor, owed);
+    hpAfter = Number(result?.newHP ?? actor.system?.resources?.hp?.value ?? 0);
+  } else if (stored !== derived) {
+    await actor.update({ "system.resources.hp.value": derived });
+  }
   await postCard(actor, "Soul Drain", [
     line(`Soul Drain ${before || 0} → <strong>${after}</strong>: <strong>${damage}</strong> hit point damage, `
       + `and the maximum falls by the same. HP ${hpBefore} → ${hpAfter}.`)

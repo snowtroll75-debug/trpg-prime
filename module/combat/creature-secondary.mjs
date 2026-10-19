@@ -75,3 +75,29 @@ export function alignedPacketTraits(packet) {
   const word = String(packet?.parameter ?? "").trim().toLowerCase();
   return ALIGNED_TRAITS.includes(word) ? [word] : [];
 }
+
+/**
+ * AN ACTION'S OWN EXTRA DAMAGE (3.649.0; F&F 3.0 block 16 R4/R5) as packets
+ * of the struck creature's damage loop — the Cloud Giant's Thundering Strike
+ * "+2d12 bludgeoning", the Storm Giant's Lightning Strike "+3d12
+ * electricity". The shape `creatureSecondaryPackets` builds for a weapon's
+ * printed "plus 1d6 fire"; magical when the weapon is.
+ *
+ * @param {Array<{dice:string, type:string, label?:string}>} rows
+ * @param {object} [weapon]
+ */
+export function actionDamagePackets(rows = [], weapon = null) {
+  const magical = /\bmagical\b/i.test(String(weapon?.system?.traits ?? ""));
+  const out = [];
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const dice = String(row?.dice ?? "").replace(/\s+/g, "");
+    const type = String(row?.type ?? "").trim().toLowerCase();
+    if (!DICE.test(dice) || !TYPE.test(type) || ALIGNED_TRAITS.includes(type)) continue;
+    out.push({
+      label: `${String(row?.label ?? "").trim() || String(weapon?.name ?? "Strike")} (${dice} ${type})`,
+      dice, type, secondaryCritical: null, conditional: false, resolved: false, applies: true,
+      why: "", parameter: "", against: "", mundane: !magical
+    });
+  }
+  return out;
+}

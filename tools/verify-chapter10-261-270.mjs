@@ -352,7 +352,8 @@ ok("D13 the dialog prints `lead`, not the old signed+type pair",
   /\$\{escapeHTML\(entry\.lead\)\}/.test(code("module", "apps", "check-dialog.mjs"))
   && !/\$\{entry\.signed\}<\/strong> \$\{entry\.type\}/.test(code("module", "apps", "check-dialog.mjs")));
 ok("D14 and it pre-ticks an auto row",
-  /name="pending" value="\$\{entry\.id\}"\$\{entry\.auto \? " checked" : ""\}/
+  // 3.650.0: and only for the kind of check a scoped row waits for.
+  /name="pending" value="\$\{entry\.id\}"\$\{entry\.auto && \(!entry\.checkTypes\?\.length \|\| entry\.checkTypes\.includes\(checkType\)\) \? " checked" : ""\}/
     .test(code("module", "apps", "check-dialog.mjs")));
 ok("D15 the dialog splits ticked rows through the rule rather than looping in place",
   /const selection = applyPendingSelections\(pending, ticked\)/
@@ -499,7 +500,8 @@ ok("F9 the dialog-less path spends one-shots at all",
 ok("F10 and it applies AUTO pending entries there too, but only the auto ones",
   (() => {
     const src = code("module", "dice", "check.mjs");
-    return /pendingModifierRows\(check\.actor\)\.filter\(\(row\) => row\.auto\)/.test(src);
+    // 3.650.0: a row scoped to a kind of check also waits for one.
+    return /pendingModifierRows\(check\.actor\)\.filter\(\(row\) => row\.auto\n\s+&& \(/.test(src);
   })(),
   "a forced save has nobody to ask which roll \"the next check\" meant");
 

@@ -509,7 +509,7 @@ eq("D5 no override is not an override of zero", [
   ok("D6 the damage path gates the critical dice on the target's defences",
     // 3.617.0: the quality-damage comparison passes the same dice, so the
     // check names the formula build it gates.
-    /buildWeaponDamageFormula\(damageOverride \?\? weaponData\.damage, \{[\s\S]{0,200}?\n\s*criticalDice: critDiceKept,/.test(aw)
+    /buildWeaponDamageFormula\((?:handAndAHalfDamage \?\? )?damageOverride \?\? weaponData\.damage, \{[\s\S]{0,200}?\n\s*criticalDice: (?:drainDice \? 0 : )?critDiceKept,/.test(aw)
     && /criticalPrecisionDice\(critical, \{\s*immune: precisionImmune, resisted: precisionResisted\s*\}\)/.test(aw));
   // THE ORDERING IS NOT CHECKED HERE, deliberately. The gate must be
   // resolved above the first formula build or it reads a variable that

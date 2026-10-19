@@ -258,7 +258,7 @@ import { ACTION_IMMUNITIES, actionImmunityKey } from "../temporary-immunity.mjs"
 import { concentrateRefusal, deliberateRefusal } from "../conditions/condition-rules.mjs";
 import { rarityRaiseForAction, rarityRaiseNote } from "../trait-rules.mjs";
 import { creatureTraits } from "../creature-traits.mjs";
-import { abilityMapExemptActions } from "../creature-ability-rules.mjs";
+import { abilityJump, abilityMapExemptActions } from "../creature-ability-rules.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -2012,7 +2012,7 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
       if (jumpSetup.automatic) {
         if (!jumpSetup.freeAction) {
           const leapCost = leapApCost(action.apCost);
-          if (!(await ensureActionPoints(actor, leapCost, action.name))) return null;
+          if (!(await ensureActionPoints(actor, leapCost, action.name, { traits: action.traits }))) return null;
           await spendActionCost(actor, leapCost, action.name, { traits: action.traits });
         }
         await postCard(actor, action.name, [line(naturalLeaperLine(jumpSetup))]);
@@ -2173,7 +2173,10 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
   // directly to rollWeaponAttack, which already spends the single,
   // correct AP cost on its own.
   if (action.key === "strike") {
-    let attacks = usableAttacks(Array.from(actor.items ?? []));
+    // A HELD WEAPON FIRST (3.646.0), so the chooser's default is the sword
+    // in hand rather than the fist — as the feat and reaction choosers do.
+    let attacks = usableAttacks(Array.from(actor.items ?? []))
+      .sort((a, b) => Number(Boolean(a.system?.natural)) - Number(Boolean(b.system?.natural)));
     if (!attacks.length) {
       const unarmed = await getOrCreateUnarmedStrike(actor);
       attacks = [unarmed];
@@ -2185,7 +2188,8 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
       if (!chosen) return null;
     }
 
-    return rollWeaponAttack(actor, chosen, { event });
+    // A STRIKE ALREADY PAID FOR — a readied one (3.645.0, F7) — costs no AP.
+    return rollWeaponAttack(actor, chosen, { event, apPaid: String(action.apCost ?? "").trim() === "0" });
   }
 
   // IMPROVISED ATTACK (3.576.0): the same Strike, with a held item as the
@@ -2228,6 +2232,15 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
       `${action.name}: ${targetActor.name} is immune to the ${traitImmunity.trait} trait.`
     );
     return null;
+  }
+  // DUAL MINDS (3.647.0, F&F 3.0 block 15 R9): an action aims at one creature,
+  // so a mental one reaches one of an Ettin's heads and does nothing.
+  if (targetActor) {
+    const { dualMindsImmuneReason, dualMindsVerdict } = await import("../dual-minds.mjs");
+    if (dualMindsVerdict(targetActor.items, action.traits ?? "", 1) === "immune") {
+      ui.notifications.warn(`${action.name}: ${dualMindsImmuneReason(targetActor.name)}.`);
+      return null;
+    }
   }
 
   // Ambush and Sniping (Chapter 8 reactions): each fires only off a
@@ -2440,6 +2453,19 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
     if (action.key === "ready") {
       const pending = readiedAction(actor);
       if (pending) {
+        // THE TRIGGER IS ANSWERED WITH A REACTION (3.646.0; Graham, 15
+        // October 2026: "Attack of Opportunity and Readied action (after its
+        // initial AP outlay) should use a Reaction"). Asked before anything
+        // else, so a creature with none left — or one Flat-Footed, Confused
+        // or in Full Defence — is told so and keeps what it readied.
+        if (actorInCombat(actor)) {
+          const blocked = actorReactionBlock(actor);
+          const left = Number(actor.system?.resources?.reactions?.value ?? 0);
+          if (blocked || left < 1) {
+            ui.notifications.warn(`Ready: ${actor.name} cannot react right now (${blocked ?? "no reaction left"}) — the readied action waits.`);
+            return null;
+          }
+        }
         const confirmed = await foundry.applications.api.DialogV2.confirm({
           window: { title: "Ready — Trigger?" },
           content: `<p>Has this occurred: <strong>${pending.trigger}</strong>?</p>`,
@@ -2451,8 +2477,18 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
           const spell = await promptReadiedSpell(actor);
           if (!spell) return null;
 
-          await consumeReadiedAction(actor);
-          return castSpell(actor, spell);
+          // PAID FOR, AND KEPT UNTIL IT HAPPENS (3.645.0, F7 of Graham's 14
+          // October session). Ready's 2 AP bought the readied action, so it
+          // is not charged again — off-turn the pool is usually empty, and
+          // the AP gate refused the very action that was paid for. And the
+          // readied action is spent only once something happened: a cast
+          // refused (no target, out of range) leaves it waiting.
+          const cast = await castSpell(actor, spell, { apPaid: true });
+          if (cast) {
+            await consumeReadiedAction(actor);
+            await spendActionCost(actor, "reaction", "Ready", { traits: spell.system?.traits ?? "" });
+          }
+          return cast;
         }
 
         const eligible = [
@@ -2470,11 +2506,15 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
           return null;
         }
 
-        await consumeReadiedAction(actor);
-        return resolveAction(actor, storedAction, {
+        const done = await resolveAction(actor, { ...storedAction, apCost: "0" }, {
           invokedSkillKey: storedAction.invokedSkillKey,
           event
         });
+        if (done) {
+          await consumeReadiedAction(actor);
+          await spendActionCost(actor, "reaction", "Ready", { traits: storedAction.traits ?? "" });
+        }
+        return done;
       }
 
       if (!game.combat) {
@@ -2487,6 +2527,12 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
       }
       const choice = await promptReadyChoice();
       if (!choice) return null;
+      // THE INITIAL OUTLAY (3.646.0; Graham, 15 October 2026: "Readied action
+      // (after its initial AP outlay) should use a Reaction"). Ready printed
+      // 2 AP and charged nothing — found live testing 3.645.0 — so a
+      // character could spend all three AP and Ready besides.
+      if (!(await ensureActionPoints(actor, action.apCost, action.name, { traits: action.traits }))) return null;
+      await spendActionCost(actor, action.apCost, action.name, { traits: action.traits });
       await readyActionAndEndTurn(actor, game.combat, choice);
       const readiedLabel = choice.kind === "spell" ? "a spell (2 AP or less)" : "an action";
       return postCard(actor, "Ready", [
@@ -2512,7 +2558,7 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
     // both — so it resolves as a pair rather than posting a card that
     // describes two attacks the player then makes by hand.
     if (action.key === "doubleSlice") {
-      if (!(await ensureActionPoints(actor, action.apCost, action.name))) return null;
+      if (!(await ensureActionPoints(actor, action.apCost, action.name, { traits: action.traits }))) return null;
       await spendActionCost(actor, action.apCost, action.name, { traits: action.traits });
       await recordTraitUsage(actor, action);
       {
@@ -2656,7 +2702,7 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
       ]);
     }
 
-    if (!(await ensureActionPoints(actor, action.apCost, action.name))) return null;
+    if (!(await ensureActionPoints(actor, action.apCost, action.name, { traits: action.traits }))) return null;
     if (preparedPaysFor) await consumePreparedReaction(actor, action.key);
     else await spendActionCost(actor, action.apCost, action.name, { traits: action.traits });
     await recordTraitUsage(actor, action);
@@ -3246,6 +3292,10 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
   if (apReduction && /^\d+$/.test(String(effectiveApCost ?? "").trim())) {
     effectiveApCost = String(Math.max(0, Number(effectiveApCost) - apReduction));
   }
+  // A CREATURE'S OWN JUMP (3.654.0, block 21 R9 — Ether Leap): the declared
+  // AP, with no difficulty raised for it, and provoking nothing.
+  const ownJump = ["highJump", "longJump"].includes(action.key) ? abilityJump(Array.from(actor.items ?? [])) : null;
+  if (ownJump) effectiveApCost = String(ownJump.ap);
 
   // BORN TO RIDE (3.378.0): one of the three riding actions is Free, once
   // per round. Applied AFTER the reductions above so it sees the cost the
@@ -3298,7 +3348,8 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
   // because the GM sets that DC AFTER the roll and would otherwise never
   // learn that five of it had been bought.
   let tradedDifficultyApplied = false;
-  if (hasTradeoffs(action.key) && !skipDialog(event)) {
+  // A creature's own jump price (Ether Leap) leaves the 1 AP trade nothing to buy.
+  if (hasTradeoffs(action.key) && !ownJump && !skipDialog(event)) {
     // TWO GENERAL FEATS BUY ONE OF THESE OUTRIGHT (3.360.0). Group Coercion
     // frees additional Coerce targets — the first, and one more per 5
     // Intimidate ranks — and Experienced Tracker frees tracking at full
@@ -3603,7 +3654,7 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
   // `effectiveApCost` is what this action actually costs after its own
   // modifiers, and because a rage action defers its cost entirely.
   if (!defersApCost) {
-    if (!(await ensureActionPoints(actor, effectiveApCost, action.name))) return null;
+    if (!(await ensureActionPoints(actor, effectiveApCost, action.name, { traits: action.traits }))) return null;
     if (preparedPaysFor) await consumePreparedReaction(actor, action.key);
     else await spendActionCost(actor, effectiveApCost, action.name, { traits: action.traits });
   }
@@ -3828,6 +3879,10 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
   // to DC 96 without a 10-foot Stride" is the whole argument, printed
   // once, above the roll it produced.
   if (jumpSetup) lines.push(line(jumpNote(jumpSetup)));
+  if (ownJump) lines.push(line(`<em>${ownJump.source}: ${ownJump.ap} AP${ownJump.noProvoke ? ", provoking no reactions" : ""}.</em>`));
+  // …AND THE MOVE IT MAKES PROVOKES NOTHING: the next token move reads this
+  // and clears it, as Improved Reposition's avoidance does.
+  if (ownJump?.noProvoke && game.combat?.started) await actor.setFlag(SYSTEM_ID, "jumpReactionsAvoided", true);
   // What the player bought with the raised DC. Printed even though the
   // DC on the card already includes it: "DC 22" does not tell the table
   // that it is 22 because somebody is shouting at four people at once.

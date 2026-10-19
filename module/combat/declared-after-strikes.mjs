@@ -64,13 +64,35 @@ function normaliseDeclaredAfterStrike(raw) {
   const selfCondition = raw.selfCondition && typeof raw.selfCondition === "object" && String(raw.selfCondition.key ?? "").trim()
     ? { key: String(raw.selfCondition.key).trim(), rounds: Math.max(0, Math.trunc(Number(raw.selfCondition.rounds ?? 1) || 0)), onDamage: raw.selfCondition.onDamage !== false }
     : null;
-  if (!expose && !save && !raw.selfHeal && raw.dispel !== true && !selfCondition) return null;
+  // A CHOICE OF SPELLS CAST AT THE TARGET (3.654.0; F&F 3.0 block 21 R7 —
+  // the Fancalia's Enchanting Touch: "subjected to the effects of either a
+  // sleep, hold kind or confusion spell"), at a printed DC.
+  const castChoice = raw.castChoice && typeof raw.castChoice === "object"
+    && (Array.isArray(raw.castChoice.spells) ? raw.castChoice.spells : []).some((n) => String(n ?? "").trim())
+    ? { spells: raw.castChoice.spells.map((n) => String(n ?? "").trim()).filter(Boolean), dc: Math.max(0, Math.trunc(Number(raw.castChoice.dc) || 0)) }
+    : null;
+  if (!expose && !save && !raw.selfHeal && raw.dispel !== true && !selfCondition && !castChoice) return null;
   const sev = raw.dcBySeverity && typeof raw.dcBySeverity === "object" ? raw.dcBySeverity : {};
   return {
     key: String(raw.key ?? raw.label ?? "").trim() || "afterStrike",
     label: String(raw.label ?? "").trim() || "After the strike",
     save,
     weaponNames: list(raw.weaponNames),
+    // ONLY IN CERTAIN FORMS (3.651.0, block 18 R11 — Huanling Venom: "when
+    // it is in spider or serpent form"): Change Shape form keys.
+    requiresForm: list(raw.requiresForm),
+    // ONLY ON A TARGET LEFT IN A CONDITION (3.652.0; F&F 3.0 block 19 R8 —
+    // the Lycanthropic Curse: "Any humanoid creature that suffers bleed
+    // damage from one of the lycanthropes natural attacks"; Graham, 16
+    // October 2026, "Go with your recommendations": the critical injury that
+    // left it Bleeding). Read after the injury and the damage have landed.
+    requiresTargetCondition: list(raw.requiresTargetCondition),
+    // ONLY A BLOW THAT GOT THROUGH (3.653.0; F&F 3.0 block 20 R2 and R7 —
+    // Graham, 16 October 2026: "Go with your recommendations"). The Medusa's
+    // Snake Venom, "any creature that takes damage from the bite", and Mummy
+    // Rot, "any creature that takes hit point damage from the mummy's slam":
+    // the declaration fires only when the Strike dealt damage.
+    requiresDamage: raw.requiresDamage === true,
     onCritical: raw.onCritical === true,
     onCriticalInjury: raw.onCriticalInjury === true,
     oncePerRound: raw.oncePerRound === true,
@@ -102,13 +124,51 @@ function normaliseDeclaredAfterStrike(raw) {
       ? { key: String(raw.amountBySeverity.key || "soulDrain").trim(), minor: String(raw.amountBySeverity.minor ?? ""), serious: String(raw.amountBySeverity.serious ?? ""), deadly: String(raw.amountBySeverity.deadly ?? "") }
       : null,
     dispel: raw.dispel === true,
+    //   dc                Petrifying Bite (3.639.0, F&F 3.0 block 9 R5) — "a DC 19
+    //                     Fortitude save": a PRINTED DC in place of the attacker's
+    //                     Level DC (the Cockatrice's is 17)
+    //   stack             "Subsequent failed saves intensify the Slowed
+    //                     condition": the declared value ADDS to what the target
+    //                     already has, where Slowed would otherwise keep the higher
+    //   thresholds        "Once a creature's actions are reduced to 0, it becomes
+    //                     petrified": [{ key: "slowed", atLeast: 3, apply:
+    //                     "petrified" }] — once the condition reaches the value,
+    //                     the named one is applied too
+    dc: Math.max(0, Math.trunc(Number(raw.dc) || 0)),
+    stack: raw.stack === true,
+    thresholds: (Array.isArray(raw.thresholds) ? raw.thresholds : [])
+      .map((t) => ({ key: String(t?.key ?? "").trim(), atLeast: Math.trunc(Number(t?.atLeast) || 0), apply: String(t?.apply ?? "").trim() }))
+      .filter((t) => t.key && t.apply && t.atLeast > 0),
     //   selfCondition     Dusty Haze (3.635.0, F&F 3.0 block 5 R5) — "Requirements
     //                     A target the broom has just struck takes damage … granting
     //                     it the concealed condition until the beginning of its next
     //                     turn": a condition on the STRIKER, one round by default,
     //                     only when the blow dealt damage unless `onDamage: false`
-    selfCondition
+    selfCondition,
+    castChoice,
+    //   damageAsDrain     Corruption (3.659.0→3.660.0; F&F 3.0 block 29 R3 — the
+    //                     Spectre): "Success The damage of the attack becomes Soul
+    //                     Drain" — on these degrees the HP the hit took is given
+    //                     back and laid as Soul Drain instead
+    //   immuneOn          "Critical The creature is unaffected and is temporarily
+    //                     immune to spectral corruption for 1 minute": on these
+    //                     degrees the target is immune to THIS rider from THIS
+    //                     creature for `seconds`
+    damageAsDrain: list(raw.damageAsDrain),
+    immuneOn: raw.immuneOn && typeof raw.immuneOn === "object" && list(raw.immuneOn.degrees).length
+      ? { degrees: list(raw.immuneOn.degrees), seconds: Math.max(1, Math.trunc(Number(raw.immuneOn.seconds) || 60)) }
+      : null
   };
+}
+
+/** The immunity record's key for one creature's rider (3.660.0). */
+export function afterStrikeImmunityKey(actorUuid, specKey) {
+  return `${String(actorUuid ?? "")}|${lower(specKey)}`.replace(/\./g, "_");
+}
+
+/** Is the target still immune to this creature's rider? */
+export function afterStrikeImmune(record, key, now) {
+  return Number(record?.[key] ?? 0) > Number(now || 0);
 }
 
 /** Every after-strike on these effects. */
@@ -155,12 +215,18 @@ export function ownAfflictionItem(actor, name) {
 export function declaredAfterStrikeFires(spec, ctx = {}) {
   if (!spec) return false;
   if (spec.weaponNames.length && !spec.weaponNames.includes(lower(ctx.weaponName))) return false;
+  if (spec.requiresForm?.length && !spec.requiresForm.includes(lower(ctx.form ?? "own"))) return false;
   if ((spec.onCritical || spec.onCriticalInjury) && !ctx.critical) return false;
   if (spec.onCriticalInjury && ctx.criticalImmune) return false;
+  if (spec.requiresTargetCondition?.length) {
+    const has = new Set(list(ctx.targetConditions));
+    if (!spec.requiresTargetCondition.some((c) => has.has(c))) return false;
+  }
   if (spec.oncePerRound && ctx.used?.[ctx.marker]) return false;
   // A REACTION TO DAMAGE DEALT (3.635.0): a self-condition that asks for it
   // fires only when the blow got through.
   if (spec.selfCondition?.onDamage && !(Number(ctx.damageTaken) > 0)) return false;
+  if (spec.requiresDamage && !(Number(ctx.damageTaken) > 0)) return false;
   if (spec.targetTypes.length || spec.targetTraits.length) {
     const have = new Set([...(ctx.targetTypes ?? []), ...(ctx.targetTraits ?? [])].map(lower));
     if (!spec.targetTypes.some((t) => have.has(t)) && !spec.targetTraits.some((t) => have.has(t))) return false;
@@ -168,9 +234,32 @@ export function declaredAfterStrikeFires(spec, ctx = {}) {
   return true;
 }
 
-/** The DC: the attacker's Level DC, raised by the injury's severity where printed. */
+/** The DC: the printed DC if one is declared, else the attacker's Level DC; raised by the injury's severity where printed. */
 export function declaredAfterStrikeDC(spec, baseDC, severity) {
-  return Math.trunc(Number(baseDC) || 0) + (spec?.dcBySeverity?.[lower(severity)] ?? 0);
+  const base = Number(spec?.dc) > 0 ? Math.trunc(Number(spec.dc)) : Math.trunc(Number(baseDC) || 0);
+  return base + (spec?.dcBySeverity?.[lower(severity)] ?? 0);
+}
+
+/**
+ * "SUBSEQUENT FAILED SAVES INTENSIFY" (3.639.0): with `stack`, the value a
+ * failed save lays is what the target already has plus the declared one.
+ */
+export function stackedConditionValue(spec, existing, incoming) {
+  const add = Math.max(0, Number(incoming ?? 1) || 0);
+  return spec?.stack ? Math.max(0, Number(existing) || 0) + add : add;
+}
+
+/**
+ * The conditions a threshold adds, given the values the target now has:
+ * `[{ key: "slowed", atLeast: 3, apply: "petrified" }]` with slowed 3 →
+ * ["petrified"]. Each applied once.
+ */
+export function thresholdConditions(spec, values = {}) {
+  const out = [];
+  for (const t of spec?.thresholds ?? []) {
+    if ((Number(values?.[t.key]) || 0) >= t.atLeast && !out.includes(t.apply)) out.push(t.apply);
+  }
+  return out;
 }
 
 /**
@@ -201,7 +290,11 @@ export function exposureBlocked(exposures = {}, key = "", now = 0) {
  */
 export function declaredConditionTag(row, { combatRound = null, worldTime = 0 } = {}) {
   const tag = { key: String(row?.key ?? "").trim(), value: row?.value ?? null };
-  const rounds = Math.trunc(Number(row?.rounds) || 0);
+  // "DEAFENED FOR 1d4 ROUNDS" (3.662.0; F&F 3.0 block 31 R2 — the Storm
+  // Crow's Thunder Strike): a duration that is dice is carried unrolled, and
+  // the workflow that lays the condition rolls it once (`withRolledRounds`).
+  if (diceRounds(row?.rounds)) tag.roundsDice = String(row.rounds).replace(/\s+/g, "").toLowerCase();
+  const rounds = tag.roundsDice ? 0 : Math.trunc(Number(row?.rounds) || 0);
   const minutes = Math.trunc(Number(row?.minutes) || 0);
   if (rounds > 0) {
     if (Number.isFinite(Number(combatRound)) && combatRound !== null) tag.expiresRound = Number(combatRound) + rounds;
@@ -211,12 +304,42 @@ export function declaredConditionTag(row, { combatRound = null, worldTime = 0 } 
   // "FOR AS LONG AS IT REMAINS SICKENED" — the clock is another condition's
   // (combat/linked-conditions-workflow.mjs reads `endsWith`).
   if (row?.endsWith) tag.endsWith = String(row.endsWith).trim();
+  // "2d8 RECURRING PIERCING" (3.640.0, F&F 3.0 block 10 R6 — the Vrock's
+  // Cloud of Spores): a recurring row names its damage type.
+  if (row?.damageType) tag.damageType = String(row.damageType).trim().toLowerCase();
   // "REDUCED TO 0 HIT POINTS" — not a condition; the applier writes the HP.
   // Written as a row keyed `zeroHP`, because the ladder reader keeps only
   // keyed rows (rune-declarations.mjs `afterStrikeOutcome`).
   if (row?.zeroHP === true || tag.key === "zeroHP") tag.zeroHP = true;
   tag.resave = row?.resave === true;
+  // AN ESCAPE SAVE ON THE CONDITION (3.650.0; block 17 R4): the Gorgon's
+  // Partial — "a new save at the end of each of its turns". The applier
+  // stamps it (effect-application-workflow, 3.627.0); the area sets its DC.
+  if (row?.conditionSave && typeof row.conditionSave === "object") tag.conditionSave = { ...row.conditionSave };
+  // WHAT FOLLOWS IT (3.660.0; block 29 R3 — the spectral thrall "is no longer
+  // controlled but becomes injured 10 for 1 hour"): core's follow-on rail.
+  if (row?.followOn && typeof row.followOn === "object" && Array.isArray(row.followOn.tags) && row.followOn.tags.length) tag.followOn = { ...row.followOn };
   return tag;
+}
+
+/** Is this declared duration dice ("1d4", "2d6+1") rather than a number? */
+function diceRounds(value) {
+  return typeof value === "string" && /^\s*\d*d\d+\s*([+-]\s*\d+)?\s*$/i.test(value);
+}
+
+/**
+ * A dice duration, rolled: the tag takes the clock a fixed `rounds` would
+ * have given it — the running combat's round, or six seconds a round of
+ * world time outside one — and loses `roundsDice`.
+ *
+ * @returns {object} the tag with `expiresRound` or `expiresTime`
+ */
+export function withRolledRounds(tag, rolled, { combatRound = null, worldTime = 0 } = {}) {
+  const { roundsDice, ...rest } = tag ?? {};
+  const rounds = Math.max(1, Math.trunc(Number(rolled) || 0));
+  if (Number.isFinite(Number(combatRound)) && combatRound !== null) rest.expiresRound = Number(combatRound) + rounds;
+  else rest.expiresTime = Number(worldTime || 0) + rounds * 6;
+  return rest;
 }
 
 /**

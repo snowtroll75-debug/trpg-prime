@@ -125,10 +125,10 @@ export const CODEX_DECLARATIONS = {
   /* ------------------------------------------------------- compound actions (combat/compound-action.mjs) */
   "Diving Strike": { flags: { creatureAbility: { compound: { ap: 2, legs: [{ move: "fly", times: 2, note: "in a straight line, descending at least 10 feet" }], strikes: [{ weapon: "claw", count: 1, bonus: { value: 2, type: "circumstance", label: "Diving Strike" } }] } } } },
   "Double Strike": { flags: { creatureAbility: { compound: { ap: 1, legs: [], strikes: [{ weapon: ".", count: 2, separateTargets: true }], map: "after", note: "two different limbs, two different targets" } } } },
-  "Draconic Assault": { flags: { creatureAbility: { compound: { ap: 2, legs: [], strikes: [{ weapon: "claw", count: 2 }, { weapon: ".", notWeapon: "claw", count: 1 }] } } } },
-  "Flyby Attack": { flags: { creatureAbility: { compound: { ap: 2, legs: [{ move: "fly", times: 1 }], strikes: [{ weapon: "claw", count: 2, separateTargets: true }] } } } },
+  "Draconic Assault": { flags: { creatureAbility: { compound: { ap: 2, legs: [], strikes: [{ weapon: "claw", count: 2 }, { weapon: ".", notWeapon: "claw", count: 1, pickOne: true }] } } } },
+  "Flyby Attack": { flags: { creatureAbility: { compound: { ap: 2, legs: [{ move: "fly", times: 1 }], strikes: [{ weapon: "claw", count: 2, separateTargets: true, fallbackNatural: true }] } } } },
   "Swimby Attack": { flags: { creatureAbility: { compound: { ap: 2, legs: [{ move: "swim", times: 1 }], strikes: [{ weapon: "bite", count: 2, separateTargets: true }] } } } },
-  "Pouncing Assault": { flags: { creatureAbility: { compound: { ap: 2, legs: [{ move: "land", times: 1, note: "a Jump (Athletics) check first" }], strikes: [{ weapon: "claw", count: 2 }], selfEffect: { label: "Pouncing Assault", defenceCircumstance: -4, rounds: 1, note: "attacks against it take -4 circumstance until its next turn" } } } } },
+  "Pouncing Assault": { flags: { creatureAbility: { compound: { ap: 2, legs: [{ move: "land", times: 1, note: "a Jump (Athletics) check first" }], strikes: [{ weapon: "claw", count: 2 }], selfEffect: { label: "Pouncing Assault", defenceCircumstance: 4, rounds: 1, note: "attacks against it take -4 circumstance until its next turn" } } } } },
   "Powerful Charge": { flags: { creatureAbility: { compound: { ap: 2, legs: [{ move: "land", times: 2 }], strikes: [{ weapon: "gore", count: 1, bonus: { value: 2, type: "circumstance", label: "Powerful Charge" }, extraBaseDice: 1 }] } } } },
   "Surge of Speed": { flags: { creatureAbility: { compound: { ap: 1, legs: [{ move: "land", times: 2 }], strikes: [], cooldownSeconds: 600 } } } },
   "Torrent of Strikes": { flags: { creatureAbility: { compound: { ap: 3, legs: [], strikes: [{ weapon: ".", count: 6 }], map: { fixed: -2 }, note: "one creature or divided among adjacent targets" } } } },
@@ -142,7 +142,7 @@ export const CODEX_DECLARATIONS = {
   "Whispers of the Grave": { flags: { creatureAbility: { action: { kind: "whispersOfTheGrave" } } } },
   "Amorphous Split": { flags: { creatureAbility: { action: { kind: "amorphousSplit" }, note: "Pressed when hit by electricity, piercing or slashing damage (offered, not automatic)." } } },
   "Eternal Summons": { flags: { creatureAbility: { action: { kind: "eternalSummons", ap: 2 } } } },
-  "Trample": { flags: { creatureAbility: { action: { kind: "trample", ap: 3, weapon: "slam" } } } },
+  "Trample": { flags: { creatureAbility: { action: { kind: "trample", ap: 3, weapon: "slam", fallbackWeapons: ["hoof"] } } } },
   "Draconic Shifting": { flags: { creatureAbility: { action: { kind: "draconicShifting", ap: 1 }, derives: { strikesSubdual: true } } } },
   /* ------------------------------------------------------- Wing Buffet (new) is authored below with its area */
 };

@@ -131,7 +131,8 @@ export function isUsable(item) {
   const own = item?.flags?.[SYSTEM_ID]?.creatureAbility;
   // A declared action, area or compound action has a Use even when the entry
   // printed no Action line to parse (3.631.0).
-  if (own && (own.action || own.area || own.compound)) return true;
+  // An aura switched on by its Use (3.658.0; block 25 R6 — Soul Eclipse) too.
+  if (own && (own.action || own.area || own.compound || own.auraSwitch)) return true;
   // A module's breath weapon read as a declared breath (3.632.0, ruling 16).
   if (moduleBreathArea(item) || moduleSwarmArea(item)) return true;
   return activationLines(item).length > 0;

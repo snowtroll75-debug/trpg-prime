@@ -106,7 +106,7 @@ const MUTATIONS = [
   { file: CONSUMEWF, name: "drinking costs no AP", from: "    const { spendActionPoints } = await import(\"./combat/action-points-workflow.mjs\");\n    await spendActionPoints(actor, cost.ap, item.name);", to: "", breaks: "D18c" },
   { file: CONSUMEWF, name: "a waiting bonus is never recorded", from: "    await addPendingModifier(actor, { ...scaled.pending, oneShot: true });", to: "", breaks: "D18d" },
   { file: ATTACK, name: "stone fists hit with the old die", from: "      damageOverride: stoneFist?.damage ?? extraBaseDiceOverride(weaponData.damage, extraBaseDice),", to: "      damageOverride: extraBaseDiceOverride(weaponData.damage, extraBaseDice),", breaks: "D8e" },
-  { file: ATTACK, name: "the damage roll ignores the override", from: "  let formula = buildWeaponDamageFormula(damageOverride ?? weaponData.damage, {", to: "  let formula = buildWeaponDamageFormula(weaponData.damage, {", breaks: "D8e" },
+  { file: ATTACK, name: "the damage roll ignores the override", from: "  let formula = buildWeaponDamageFormula(handAndAHalfDamage ?? damageOverride ?? weaponData.damage, {", to: "  let formula = buildWeaponDamageFormula(handAndAHalfDamage ?? weaponData.damage, {", breaks: "D8e" },
   { file: COMBAT, name: "Angelstep adds nothing to the Dying Check", from: "        ...(angelstep ? [{ label: \"Angelstep\", value: ANGELSTEP_DYING_BONUS, type: \"item\" }] : [])", to: "", breaks: "D9d" },
   { file: REST, name: "Dream Lichen heals Soul Drain once", from: "      ? soulDrainRecovery(soulDrainRecovery(soulDrainBefore))", to: "      ? soulDrainRecovery(soulDrainBefore)", breaks: "D13b" },
 

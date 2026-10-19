@@ -152,15 +152,15 @@ equal("P3 the flag is the one both ends name", SHIELD_FLAG, "sacrificingShield")
 // P4/P5/P6 THE THREE ORDERINGS, each with a different absurdity behind it.
 const tempHP = at(DYING, "const absorbed = await spendTemporaryHP");
 const gate = at(DYING, "const redirect = await redirectWithShield");
-const plant = at(DYING, "if (isCritOnlyDamage(creatureTypeSystem)");
+const plantGate = DYING.includes("isCritOnlyDamage(");
 const dying = at(DYING, "const alreadyDying = Boolean(actor.hasCondition");
 ok("P4 BELOW TEMPORARY HP",
   tempHP > 0 && gate > tempHP,
   "damage a temporary pool swallowed inflicted no HP damage, so a ward above the pool "
   + "would be spent on a blow the ally shrugged off");
-ok("P5 BELOW THE PLANT CHECK",
-  plant > 0 && gate > plant,
-  "non-critical damage to a Plant never reaches HP, so there is nothing there to redirect");
+ok("P5 NO PLANT GATE ABOVE IT (3.662.1)",
+  !plantGate && gate > 0,
+  "a Plant takes ordinary damage, so its blows reach the ward like anyone's");
 ok("P6 ABOVE THE DYING MACHINERY",
   dying > 0 && gate < dying,
   "the caster's points are meant to be the ones the ally does not take — deciding Massive "

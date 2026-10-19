@@ -88,7 +88,8 @@ async function wire(btn, message, card) {
     btn.disabled = true;
     const live = actor.effects?.get?.(card.effectId);
     if (!live || turnOptionUsed(live.getFlag(SYSTEM_ID, "turnOptionUsed"), card.key)) return;
-    const ap = Number(actor.system?.resources?.ap?.value ?? 0);
+    const { generalAP } = await import("../combat/restricted-ap.mjs");
+    const ap = generalAP(actor);
     if (ap < spec.apCost) {
       ui.notifications.warn(`${spec.label} costs ${spec.apCost} AP; ${actor.name} has ${ap}.`);
       btn.disabled = false;

@@ -167,6 +167,18 @@ export const LIGHT_SOURCES = Object.freeze({
   luminance: Object.freeze({
     label: "Luminance", item: "Luminance", pack: "spells",
     steps: 3, cap: null, magical: true, radiusFeet: 10
+  }),
+
+  /* ---- creatures (Fiends & Fables 3.0) ---- */
+  // BLOCK 17 (3.650.0), the Glimmerwick's LUMINOUS AURA: "increases the
+  // light level within a 10 feet radius by one step, though this never
+  // counts as sunlight." No cap printed, so a declared null as Unwelcome
+  // Halo's. The item is the module's creature ability, which core's packs
+  // do not hold: `creature: true` sends verify-light-sources to its own
+  // check, and the toggle (codex `toggleEffect`) wires it.
+  "luminous-aura": Object.freeze({
+    label: "Luminous Aura", item: "Luminous Aura", pack: "creature", creature: true,
+    steps: 1, cap: null, magical: true, radiusFeet: 10
   })
 });
 
@@ -479,7 +491,11 @@ export function applyLightSource(ambient, source) {
   if (level <= ALL_NEGATED_AT_OR_BELOW) return level;
   if (!entry.magical && level <= MUNDANE_NEGATED_AT_OR_BELOW) return level;
 
-  const cap = Number.isFinite(Number(entry.cap)) ? clampLevel(Number(entry.cap)) : 10;
+  // A DECLARED NULL IS NO CAP (3.650.0). `Number(null)` is 0, which is
+  // finite, so the declared absence read as a cap of level 1 and every
+  // uncapped source — Unwelcome Halo, Ember Of Devotion, Luminance — raised
+  // nothing at all. Found by block 17's Luminous Aura, the fourth of them.
+  const cap = entry.cap !== null && entry.cap !== undefined && Number.isFinite(Number(entry.cap)) ? clampLevel(Number(entry.cap)) : 10;
   if (level >= cap) return level;
   return Math.min(cap, level + steps);
 }

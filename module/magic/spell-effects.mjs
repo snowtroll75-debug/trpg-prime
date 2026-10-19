@@ -29,6 +29,7 @@ import { warpedDurationText } from "./active-spells.mjs";
  *       round-robin across the targets (Magic Missile). Runs the defence pipeline.
  */
 
+import { quickenedActionsFor } from "../combat/restricted-ap.mjs";
 import { afflictionCounteredBy } from "../affliction-countered.mjs";
 import { lightTraitDefaultRow, morphStrikeIsMagical } from "../trait-rules.mjs";
 import { SKILLS } from "../config.mjs";
@@ -5240,7 +5241,15 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             // ENDING WITH ANOTHER CONDITION (3.613.0, R13) — Sickly Ray's
             // "slowed 1 as long as it's sickened". The clock the critical
             // tables already use; see combat/linked-conditions-workflow.mjs.
-            ...(effect.endsWith ? { endsWith: String(effect.endsWith).trim() } : {})
+            ...(effect.endsWith ? { endsWith: String(effect.endsWith).trim() } : {}),
+            // WHAT QUICKENED'S POINT MAY BUY (3.648.0): "The individual effect
+            // that renders you quickened will outline the specific actions
+            // that this bonus AP can be used for." The row may say; otherwise
+            // the spell's own name is looked up (Haste, Speed, Swift Sonata,
+            // Channel The Aspect), so a copy already on a sheet is covered.
+            ...(effect.condition === "quickened"
+              ? { apFor: Array.isArray(effect.apFor) ? effect.apFor : (quickenedActionsFor(spell?.name) ?? "any") }
+              : {})
           };
           /*
            * HOW LONG, WHEN THE PAGE DOES NOT GIVE A PLAIN NUMBER

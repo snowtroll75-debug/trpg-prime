@@ -114,11 +114,15 @@ export async function rollExhaustionCheck(actor, { modifier = 0, activity = "", 
   // should be set according to the severity of the condition and the
   // players' level." Without one, Chapter 7's Easy level-based save.
   const gmDC = Math.floor(Number(dc) || 0) > 0 ? Math.floor(Number(dc)) : null;
+  // ADVANTAGE IN NATURAL HEAT (3.653.0, block 20 R4 — Enduring Reserves).
+  const { heatExhaustionAdvantage } = await import("../creature-ability-rules.mjs");
+  const heatAdvantage = heatExhaustionAdvantage(Array.from(actor.items ?? []), environment);
   const check = await TRGCheck.roll({
+    ...(heatAdvantage ? { bias: "advantage" } : {}),
     actor,
     label: row ? `Exhaustion Check — ${row.label}` : "Exhaustion Check",
     subject: saveKey,
-    subtitle: activity || (gmDC ? `${saveLabel} save, the GM's DC` : `Easy (DC -2) level-based ${saveLabel} save`),
+    subtitle: (activity || (gmDC ? `${saveLabel} save, the GM's DC` : `Easy (DC -2) level-based ${saveLabel} save`)) + (heatAdvantage ? ` — advantage (${heatAdvantage})` : ""),
     type: "save",
     dc: gmDC ?? levelDC(Number(actor.system?.identity?.level ?? 0)),
     ...(gmDC ? {} : { difficulty: "easy" }),

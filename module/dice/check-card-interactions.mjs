@@ -93,6 +93,13 @@ async function cardActor(raw) {
   return resolveActorHandle({ tokenId: raw?.tokenId, actorUuid: raw?.actorUuid, actorId: raw?.actorId });
 }
 
+/** Dice So Nice 5 and later animate the rolls a message update adds. */
+function diceSoNiceAnimatesUpdates() {
+  const version = game.modules?.get?.("dice-so-nice")?.version ?? "";
+  const major = Number(String(version).split(".")[0]);
+  return Number.isFinite(major) && major >= 5;
+}
+
 async function recomputeAndUpdate(message, raw, { extraRoll = null } = {}) {
   // A FATEFUL TEMPTATION SHIFT IS MOVED AGAIN (3.612.0, R4). A Conviction die
   // or a late DC rebuilds the outcome from the stored inputs, and without the
@@ -172,10 +179,12 @@ async function recomputeAndUpdate(message, raw, { extraRoll = null } = {}) {
 
   const content = await renderTemplateCompat(CARD_TEMPLATE, cardData);
 
-  // A Roll added after the message was first created (the Bonus d6) has
-  // to be shown explicitly — Dice So Nice hooks message *creation*, not
-  // updates, so it never sees dice added this way on its own.
-  if (extraRoll && game.dice3d) {
+  // A Roll added after the message was first created (the Bonus d6).
+  // Dice So Nice 4 hooked only message creation, so the die had to be shown
+  // by hand. Dice So Nice 5 also animates rolls an UPDATE adds — shown by
+  // hand as well, the die rolled twice on screen (3.645.0, F1 of Graham's
+  // 14 October session). Shown here only when the module will not.
+  if (extraRoll && game.dice3d && !diceSoNiceAnimatesUpdates()) {
     await game.dice3d.showForRoll(extraRoll, game.user, true);
   }
 
@@ -1390,7 +1399,8 @@ export function registerCheckCardListeners() {
              */
             if (Number(raw.ap) > 0) {
               const pool = Number(actor.system?.resources?.ap?.value ?? 0);
-              if (pool < Number(raw.ap)) {
+              const { generalAP } = await import("../combat/restricted-ap.mjs");
+              if (generalAP(actor) < Number(raw.ap)) {
                 ui.notifications.warn(
                   `${actor.name} has ${pool} AP and the save costs ${raw.ap}.`);
                 return { name: actor.name, passed: false, unpaid: true };

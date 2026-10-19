@@ -47,6 +47,12 @@ export function regenerationHealing(level) {
   return Math.floor(lvl);
 }
 
+/** A regeneration's printed amount, or null when it heals its level. */
+function regenerationPrintedAmount(turnStart) {
+  const n = Math.trunc(Number(turnStart?.amount));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 /**
  * Sunlight Vulnerability — "takes 2 Essence damage per level".
  */
@@ -74,14 +80,20 @@ export function turnStartAnnouncements(items = [], level = 0) {
     if (!turnStart) continue;
 
     if (turnStart.kind === "regeneration") {
-      const amount = regenerationHealing(level);
+      // A PRINTED AMOUNT (3.653.0; block 20 R6 — the Verdant Muck's
+      // "Regeneration 5 (Fire)" at level 6): the stat block's number wins.
+      const printed = regenerationPrintedAmount(turnStart);
+      const amount = printed ?? regenerationHealing(level);
       out.push({
         ability: item.name,
         kind: "regeneration",
         amount,
         needsDecision: true,
+        // A STATED CONDITION (3.654.0; block 21 R10 — the Nightray's
+        // "Moonlight only"): printed on the card the GM presses.
+        ...(turnStart.condition ? { condition: String(turnStart.condition) } : {}),
         lines: [
-          `Regains <strong>${amount} HP</strong> (level ${Math.max(0, Math.floor(Number(level)) || 0)}).`,
+          `Regains <strong>${amount} HP</strong> (${printed !== null ? "as printed" : `level ${Math.max(0, Math.floor(Number(level)) || 0)}`}).`,
           "Regeneration is disabled for 1 turn if it took damage equal to or " +
           "greater than its regeneration in the last round."
         ]

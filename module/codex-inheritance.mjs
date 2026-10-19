@@ -90,6 +90,24 @@ export function buildCodexIndex(entries = []) {
   return index;
 }
 
+/**
+ * ELEMENT-NAMED ABILITIES (3.641.0; F&F 3.0 block 11, ruling 3). The Codex
+ * prints Elemental Aura, Blood, Strikes and Grasp once, and says the feat
+ * "is called either Caustic (acid), Fiery (fire), Freezing (cold), Shocking
+ * (electricity) or Toxic (poison)" by its element. A creature's block prints
+ * the called name — "Freezing Aura" — which matched no entry, so the Cold
+ * Sovereign's aura and the Cave Sovereign's blood did nothing. A called name
+ * that has no entry of its own looks up its Elemental entry; the element
+ * still comes from the item's own name, as the entries already read it.
+ *
+ * @param {string} base a base name from codexBaseName
+ * @returns {string} "elemental <kind>", or "" when the name is not one
+ */
+function elementalCodexName(base) {
+  const m = /^(caustic|fiery|freezing|shocking|toxic) (aura|blood|strikes|grasp)$/.exec(String(base ?? "").trim().toLowerCase());
+  return m ? `elemental ${m[2]}` : "";
+}
+
 function isObject(v) { return v && typeof v === "object" && !Array.isArray(v); }
 
 /** Deep merge: `over` wins; arrays replace rather than merge. */
@@ -114,9 +132,17 @@ export function inheritedCodexFlags(item, index) {
   if (!item || item.type !== "ability" || !index?.size) return null;
   const own = item.flags?.[SYSTEM_ID] ?? {};
   if (own.codexInherit === false) return null;
-  const entry = index.get(codexBaseName(item.name));
+  const base = codexBaseName(item.name);
+  const called = !index.get(base) && elementalCodexName(base);
+  const entry = index.get(base) ?? index.get(elementalCodexName(base));
   if (!entry) return null;
   const merged = deepMergeFlags(own, entry);
+  // A called aura goes by its called name (3.641.1, found live): the Cold
+  // Sovereign's card said "Elemental Aura" where the block prints "Freezing".
+  if (called && Array.isArray(merged.auras)) {
+    const name = String(item.name ?? "").trim();
+    merged.auras = merged.auras.map((a) => (a && typeof a === "object" ? { ...a, name, id: `aura-${base.replace(/[^a-z0-9]+/g, "-")}` } : a));
+  }
   // The one thing the copy knows and the entry cannot: its printed range.
   const fixed = own?.creatureAbility?.derives?.sense?.fixedFeet;
   if (Number.isFinite(Number(fixed)) && merged?.creatureAbility?.derives?.sense) {

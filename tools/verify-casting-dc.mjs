@@ -375,7 +375,7 @@ ok("G7b and the hand-picked caster-level clause is gone",
   !/includes \+\$\{clMods\.saveDC\} caster-level warp/.test(cast),
   "one contributor chosen by hand is how the other four went silent");
 ok("G8 Heighten Spell goes through its rule",
-  /heightenedSavePP\(totalPP, cap, highMagicHeightens\(actor, mm\.heightenSave\)\)/.test(cast));
+  /heightenedSavePP\(totalPP, cap, highMagicHeightens\(actor, mm\.heightenSave(?: \|\| carried\?\.heighten === true)?\)\)/.test(cast));
 ok("G8b and the card says when it moved the base",
   /Heighten Spell — as \$\{savePP\} PP/.test(cast));
 

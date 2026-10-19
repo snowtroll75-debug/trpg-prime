@@ -109,6 +109,8 @@ export async function addPendingModifier(actor, entry) {
   // SPENT MORE THAN ONCE (3.630.0): Unfold the Future's three Portents.
   const uses = Math.trunc(Number(entry?.uses) || 0);
   if (uses > 1 && record.oneShot) record.usesLeft = uses;
+  // ONE KIND OF CHECK (3.650.0): "-2 to its next attack" waits for an attack.
+  if (Array.isArray(entry?.checkTypes) && entry.checkTypes.length) record.checkTypes = entry.checkTypes.map((t) => String(t).toLowerCase());
   await actor.setFlag(SYSTEM_ID, FLAG, [...existing, record]);
   return record;
 }

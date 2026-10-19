@@ -174,7 +174,7 @@ ok("F17 a complex peril joins the combat and rolls Initiative", /const complex =
 ok("F18 detection rolls each PC's best eligible skill, and Spirit Sense speaks for a spiritual presence", /const \{ entry, skill \} = options\.sort\(\(a, b\) => b\.edge - a\.edge\)\[0\];/.test(WF) && /if \(p\.spiritPresence\) \{/.test(WF));
 ok("F19 a resolved peril does not Reset", /if \(p\.state === "resolved"\) \{/.test(WF));
 ok("F20 an automation may name the creatures an effect reaches", /async function runPerilEffect\(peril, spec, \{ title = "", targets = null, results = null \} = \{\}\) \{/.test(WF)
-  && /const \{ actors, note \} = effectTargets\(peril, spec, targets\);/.test(WF) && /if \(Array\.isArray\(chosen\)\) \{/.test(WF));
+  && /\n  \}\n  const \{ actors, note \} = effectTargets\(peril, spec, targets\);/.test(WF) && /if \(Array\.isArray\(chosen\)\) \{/.test(WF));
 
 /* G — the sheet's reading */
 const view = P.perilSheetView({ system: { identity: { level: 4 }, gm: { peril: { enabled: true, detection: "Perception DC 18; Religion DC 18, Rank 1", disable: "Religion DC 18 or Occultism DC 20", onDisable: "suppressed", state: "suppressed", suppressedUntil: 4000, effectText: BELL } } } }, 100);

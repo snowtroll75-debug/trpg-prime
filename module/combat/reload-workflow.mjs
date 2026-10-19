@@ -1,5 +1,6 @@
 import { MAGAZINE_RELOAD_AP, SPIN_MAX_BONUS, applyReloadProgress, extractLoadValue, extractMagazine, hasQuickLoadTrait, hasSpinTrait, needsReloading, reloadApCost, spinDamageBonus, spinHeadroom } from "./reload.mjs";
 
+import { generalAP } from "./restricted-ap.mjs";
 import { reloadHandsCheck } from "../held-items.mjs";
 
 const { DialogV2 } = foundry.applications.api;
@@ -107,7 +108,7 @@ export async function reloadWeapon(actor, weapon) {
   const currentAP = Number(actor.system?.resources?.ap?.value ?? 0);
   const remainingNeeded = Math.max(0, effectiveLoad - Number(weaponData.reloadProgress ?? 0));
   const thisAttempt = Math.min(apCost, remainingNeeded);
-  const apSpent = Math.min(thisAttempt, currentAP);
+  const apSpent = Math.min(thisAttempt, generalAP(actor));
 
   await actor.update({ "system.resources.ap.value": currentAP - apSpent });
 
@@ -161,7 +162,7 @@ async function reloadMagazine(actor, weapon, capacity) {
 
   const currentAP = Number(actor.system?.resources?.ap?.value ?? 0);
   const remainingNeeded = Math.max(0, MAGAZINE_RELOAD_AP - Number(weaponData.reloadProgress ?? 0));
-  const apSpent = Math.min(remainingNeeded, currentAP);
+  const apSpent = Math.min(remainingNeeded, generalAP(actor));
   if (apSpent > 0) {
     await actor.update({ "system.resources.ap.value": currentAP - apSpent });
   }
@@ -226,7 +227,7 @@ export async function spinWeapon(actor, weapon) {
     ui.notifications.warn(`${weapon.name} is already spun to +${SPIN_MAX_BONUS} — the most one shot can carry. Fire it.`);
     return null;
   }
-  const maxSpend = Math.min(currentAP, headroom);
+  const maxSpend = Math.min(generalAP(actor), headroom);
   const result = await DialogV2.wait({
     window: { title: `${weapon.name} — Spin`, icon: "fa-solid fa-compact-disc" },
     classes: ["trg-prime"],

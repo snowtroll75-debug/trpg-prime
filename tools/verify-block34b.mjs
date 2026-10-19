@@ -149,7 +149,8 @@ ok("B1 the not-chosen line is measured against what was ticked, not what the cap
   ok("C14 every outcome the check builds is shifted",
     // 3.621.0: wrapped once more, by what a condition forces (block 39's R7).
     /this\.outcome = (?:this\.#conditionForced\()?applyDegreeShift\(buildOutcome\(/.test(evaluate)
-    && (CHECK.match(/applyDegreeShift\(buildOutcome\(\{/g) ?? []).length === 3);
+    // 3.645.0: a fourth, the Conviction probe (`convictionCouldMove`).
+    && (CHECK.match(/applyDegreeShift\(buildOutcome\(\{/g) ?? []).length === 4);
   const reroll = bodyOf(CHECK, "  async reroll() {");
   ok("C15 the reroll throws fresh dice and spends nothing a second time",
     reroll.includes("this.firstOutcome = this.outcome;") && reroll.includes("this._visionDraw = null;")

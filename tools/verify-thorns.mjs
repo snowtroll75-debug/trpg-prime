@@ -99,9 +99,12 @@ ok("B3 a flat number and a die are both accepted as the damage",
   Boolean(normaliseThorns({ damage: "1", damageType: "piercing" }))
   && Boolean(normaliseThorns({ damage: "2d4", damageType: "piercing" })),
   "an author could plausibly write either, and the book uses both in one spell");
+// A FLAT ADDITION IS NOW GIVEN TO THE ROLLER (3.640.0): the Balor's flames
+// strike back for "3d8+10"; a bare die with no count still is not.
 ok("B4 a formula the roller was never given is refused",
-  normaliseThorns({ damage: "1d6+1", damageType: "piercing" }) === null
-  && normaliseThorns({ damage: "1", intensified: "d6", damageType: "piercing" }) === null);
+  normaliseThorns({ damage: "1d6+1", damageType: "piercing" })?.damage === "1d6+1"
+  && normaliseThorns({ damage: "1", intensified: "d6", damageType: "piercing" }) === null
+  && normaliseThorns({ damage: "d6", damageType: "piercing" }) === null);
 ok("B5 an empty damage type is refused",
   normaliseThorns({ damage: "1", damageType: "" }) === null);
 ok("B6 reach defaults to five feet", spec.reachFeet === 5);
@@ -248,7 +251,7 @@ ok("G4 the trigger is asked with hit forced true",
   has(applyBody, "thornsTriggered(spec, { ...blow, hit: true })"),
   "this is only reached on a hit, and saying so beats a caller remembering to");
 ok("G5 the line reports what was rolled as well as what landed",
-  has(applyBody, "rolled ${roll.total}"),
+  has(applyBody, "rolled ${rawTotal}"),
   "Luminance's lesson: without the roll beside the result an immunity looks like a bad die");
 ok("G6 a disabled effect grows no thorns",
   has(bodyOf(flow, "function thornsOn("), "if (effect.disabled) continue;"));

@@ -87,8 +87,8 @@ const MUTATIONS = [
   {
     file: T,
     name: "S3 the save stops being carried",
-    from: "    save: text(raw.save)",
-    to: '    save: ""',
+    from: "    save: typeof raw.save === \"string\" ? text(raw.save) : \"\",",
+    to: '    save: "",',
     breaks: "S3/S4 — the printed save would vanish from the card"
   },
   {

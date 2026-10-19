@@ -180,6 +180,14 @@ ok("A0c the printed gear figures could be read (tools/light-gear-book.json)",
   "regenerate with: node tools/parse-light-gear.mjs <rulebook.html>");
 
 for (const [key, entry] of Object.entries(LIGHT_SOURCES)) {
+  // A CREATURE'S OWN LIGHT (3.650.0, the Glimmerwick's Luminous Aura) is a
+  // module ability core's packs do not hold; its figures are the book's,
+  // checked here, and the module's verify checks the item itself.
+  if (entry.pack === "creature") {
+    ok(`A1 ${key}: a creature source declares itself, its item and its printed radius`,
+      entry.creature === true && Boolean(entry.item) && Number(entry.radiusFeet) > 0);
+    continue;
+  }
   const bag = packs[entry.pack];
   ok(`A1 ${key}: names a real ${entry.pack} item ("${entry.item}")`, Boolean(bag?.has(entry.item)));
   const item = bag?.get(entry.item);
@@ -355,6 +363,16 @@ const NOT_WIRED = Object.freeze({
     }
   }
 
+  // A CREATURE SOURCE IS WIRED BY THE CODEX TOGGLE (3.650.0), which lays the
+  // effect carrying it and attaches the glow — read from the code itself.
+  {
+    const codex = fs.readFileSync(path.join(SYSTEM_ROOT, "module", "codex-actions-workflow.mjs"), "utf8");
+    const toggles = /async function toggleEffect[\s\S]*?attachTokenLight\(/.test(codex);
+    for (const [key, entry] of Object.entries(LIGHT_SOURCES)) {
+      if (entry.pack === "creature" && toggles) wired.add(key);
+    }
+  }
+
   for (const key of Object.keys(LIGHT_SOURCES)) {
     if (wired.has(key)) {
       ok(`A12 "${key}" is wired and is not also listed as unwired`,
@@ -405,6 +423,15 @@ for (const key of Object.keys(LIGHT_SOURCES)) {
   if (entry.steps <= 0) continue;
   ok(`C3 ${key} is negated by Abyssal Darkness`, applyLightSource(1, key) === 1,
     `got ${applyLightSource(1, key)}`);
+}
+
+// C7c. AN UNCAPPED SOURCE STILL RAISES (3.650.0). `cap: null` read as level
+// 1 through `Number(null)`, and C7/C7b both passed on a source that did
+// nothing — it never exceeded its "ceiling" and never darkened.
+for (const [key, entry] of Object.entries(LIGHT_SOURCES)) {
+  if (entry.steps <= 0 || entry.cap !== null) continue;
+  ok(`C7c ${key} raises Dim Light by its ${entry.steps} step(s)`,
+    applyLightSource(4, key) === 4 + entry.steps, `got ${applyLightSource(4, key)}`);
 }
 
 // C4. THE CAP APPLIES TO THE RAISE, NOT TO THE ROOM. A torch carried

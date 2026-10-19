@@ -194,8 +194,69 @@ export function targetFlankedByAllies(allies = [], targetSquares = []) {
 }
 
 /** Does this actor have Sneak Attack on their sheet? */
-export function hasSneakAttack(actor) {
-  return hasClassAbility(actor, "Sneak Attack");
+function hasSneakAttack(actor) {
+  // "SNEAK ATTACK (6d6)" IS SNEAK ATTACK (3.658.0; F&F 3.0 block 25 R2 — the
+  // Shade Stalker): a creature's printed dice beside the name. The dice still
+  // come from its Stealth ranks, which give what it prints.
+  return hasClassAbility(actor, "Sneak Attack") || Array.from(actor?.items ?? []).some(
+    (item) => item.type === "ability" && SNEAK_PRINTED.test(String(item.name ?? "").trim().toLowerCase()));
+}
+const SNEAK_PRINTED = /^sneak attack\s*\(\s*\d+d6\s*\)$/;
+
+/**
+ * PRECISION DICE ON A FLANKED OR FLAT-FOOTED TARGET (3.651.0; F&F 3.0 block
+ * 18 R10 — Graham, 16 October 2026: "As recommended"). The general feat
+ * STEALTHY STRIKE reads, word for word, as the Rogue's Sneak Attack: "If you
+ * Strike a creature that is flanked or that has the flat-footed condition
+ * with an agile or finesse melee attack, or a ranged weapon attack, you deal
+ * an extra 1d6 precision damage … As your stealth skill increases, so does
+ * the amount". It rides the same rail: same target test, same weapon test,
+ * same dice from Stealth ranks. A creature with both takes ONE set of dice —
+ * the two describe one rule, not two.
+ */
+/*
+ * DICE IN THE NAME (3.652.0; F&F 3.0 block 19 R5 — Graham, 16 October 2026:
+ * "Go with your recommendations"). The Werecat prints "Stealthy Strike
+ * (2d6)", the Wererat "Stealthy Strike (1d6)": the same feat, its dice
+ * fixed by the stat block. A trailing bracket is ignored when matching the
+ * name, and a bracketed "Nd6" is the dice.
+ */
+const STEALTHY_NAME = /^stealthy strike(?:\s*\(([^)]*)\))?$/;
+function stealthyStrikeItems(actor) {
+  return Array.from(actor?.items ?? []).filter((item) => ["feat", "ability"].includes(item.type)
+    && STEALTHY_NAME.test(String(item.name ?? "").trim().toLowerCase()));
+}
+function hasStealthyStrike(actor) {
+  return stealthyStrikeItems(actor).length > 0;
+}
+/** The dice a stat block prints in the feat's name, or null. */
+function printedStealthyDice(actor) {
+  for (const item of stealthyStrikeItems(actor)) {
+    const inner = STEALTHY_NAME.exec(String(item.name ?? "").trim().toLowerCase())?.[1] ?? "";
+    const m = /^(\d+)d6$/.exec(inner.trim());
+    if (m) return Number(m[1]);
+  }
+  return null;
+}
+
+/**
+ * How many d6 of precision damage: the printed dice of a "Stealthy Strike
+ * (Nd6)" when the attacker has no Sneak Attack of its own, otherwise the
+ * Stealth-rank ladder.
+ */
+export function sneakDiceFor(actor, stealthRanks) {
+  const printed = hasSneakAttack(actor) ? null : printedStealthyDice(actor);
+  return printed ?? sneakAttackDice(stealthRanks);
+}
+
+/** Sneak Attack or Stealthy Strike: whether this attacker's precision dice apply at all. */
+export function hasSneakDice(actor) {
+  return hasSneakAttack(actor) || hasStealthyStrike(actor);
+}
+
+/** What the card calls those dice: the ability the attacker has. */
+export function sneakDiceLabel(actor) {
+  return hasSneakAttack(actor) ? "Sneak Attack" : "Stealthy Strike";
 }
 
 /* ---------------------------------------------------------------------- */

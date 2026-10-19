@@ -11,6 +11,7 @@
  * person actually initiated — so a GM arranging tokens before initiative,
  * or nudging someone else's token mid-round, costs nothing.
  */
+import { apAvailable } from "./restricted-ap.mjs";
 import { allTerrainDifficult, movementRefusal } from "../conditions/condition-rules.mjs";
 import { spendActionPoints } from "./action-points-workflow.mjs";
 import { IMMUNITY_TOKENS } from "../defences.mjs";
@@ -29,7 +30,8 @@ import {
 import { movementLimitBonus, movementFractionOverride } from "../feats.mjs";
 import { mayEndInSquare, passageThrough } from "./space.mjs";
 import { regionContains, surfaceMovementEffect, unusualSurfaceOf } from "./surfaces.mjs";
-import { tokenSquares } from "./geometry.mjs";
+import { feetFromPointToToken, tokenSquares } from "./geometry.mjs";
+import { AURA_MOVE_LIMIT_FLAG, approachLimitLive, approachRefusal, difficultSurchargeFeet } from "./aura-move-limits.mjs";
 import { movementBindVerdict } from "../magic/movement-bind-workflow.mjs";
 import { difficultFloor } from "../magic/movement-bind.mjs";
 import {
@@ -295,6 +297,11 @@ async function maybeOfferMovementAoO(tokenDocument, movement, armedKey) {
       // function: detection never blocks or delays a move.
       actor?.unsetFlag?.(SYSTEM_ID, "repositionReactionsAvoided")?.catch?.(() => {});
     }
+    // A CREATURE'S OWN JUMP (3.654.0; block 21 R9 — Ether Leap, "do not
+    // provoke reactions"): the jump action leaves a flag the move it makes
+    // reads and clears, whatever move that is.
+    const jumpAvoided = Boolean(actor?.getFlag?.(SYSTEM_ID, "jumpReactionsAvoided"));
+    if (jumpAvoided) actor?.unsetFlag?.(SYSTEM_ID, "jumpReactionsAvoided")?.catch?.(() => {});
     /*
      * IMMUNE TO REACTIONS PROVOKED BY MOVEMENT (3.548.0) — the Swarm's
      * fourth immunity, which nothing had ever read. Resolved through
@@ -308,7 +315,7 @@ async function maybeOfferMovementAoO(tokenDocument, movement, armedKey) {
     // action, `{ fullMoveOnly: true }`). Read with the Swarm's immunity, as
     // one more property of the mover.
     const { movementProvokeExempt } = await import("../creature-ability-rules.mjs");
-    const moverImmune = Boolean(
+    const moverImmune = jumpAvoided || Boolean(
       actorDefences(actor?.system ?? {}).immunities?.has?.(IMMUNITY_TOKENS.movementReaction))
       || movementProvokeExempt(Array.from(actor?.items ?? []), {
         movedFeet: proposedDistance(movement),
@@ -345,6 +352,32 @@ function maybeOfferSwiftPursuit(tokenDocument, movement) {
     import("./reaction-feat-detection.mjs")
       .then((r) => r.detectShadowing(tokenDocument?.object ?? null, movement))
       .catch(() => {});
+  } catch (_e) {
+    /* detection is best-effort */
+  }
+}
+
+/**
+ * A MOVE THAT ENDS ADJACENT (3.650.0; block 17 R9, the Goblins' Nimble
+ * Escape: "Trigger A creature ends a move action which leaves them
+ * adjacent"). Read once the token has been written to its destination —
+ * this runs while the move is still being proposed — and offered to every
+ * creature now within 5 feet that carries an "adjacent" reaction move.
+ */
+function maybeOfferCreatureReactions(tokenDocument, movement) {
+  try {
+    if (!game.combat?.started) return;
+    const id = tokenDocument?.id;
+    const destination = movement?.destination ?? null;
+    const hook = Hooks.on("updateToken", (doc, changes) => {
+      if (doc?.id !== id || !("x" in (changes ?? {}) || "y" in (changes ?? {}))) return;
+      Hooks.off("updateToken", hook);
+      import("../creature-reactions-workflow.mjs")
+        .then(({ offerAdjacentReactions }) => offerAdjacentReactions(doc, destination))
+        .catch(() => {});
+    });
+    // A refused or abandoned move never writes; don't leave the hook behind.
+    setTimeout(() => Hooks.off("updateToken", hook), 10000);
   } catch (_e) {
     /* detection is best-effort */
   }
@@ -388,6 +421,56 @@ function pathSquares(movement) {
   } catch {
     return [];
   }
+}
+
+/**
+ * AN AURA RUNG'S LIMITS ON THIS CREATURE (3.651.0, block 18 R8 — Shifting
+ * Aura). See aura-move-limits.mjs.
+ *
+ *   refusal    a `noApproach` record live for this turn, and a move that ends
+ *              nearer its emitter than it began
+ *   surcharge  +5 ft for every square of the path inside a `difficult`
+ *              record's radius of its emitter
+ *
+ * Synchronous, like the rest of this hook. A record whose emitter is no
+ * longer on the scene limits nothing.
+ */
+function auraMoveLimits(tokenDocument, movement) {
+  const out = { refusal: "", surcharge: 0, notes: [] };
+  try {
+    const actor = tokenDocument?.actor;
+    const records = Array.from(actor?.effects ?? []).filter((e) => !e.disabled).map((e) => e.getFlag?.(SYSTEM_ID, AURA_MOVE_LIMIT_FLAG)).filter(Boolean);
+    if (!records.length || !canvas?.tokens) return out;
+    const grid = canvas.grid?.size ?? 100;
+    const acting = Boolean(game.combat?.started) && game.combat.combatant?.actor?.id === actor.id;
+    const round = Number(game.combat?.round ?? 0);
+    const w = Math.max(1, Number(tokenDocument.width) || 1);
+    const centreAt = (x, y) => ({ x: Number(x) + (w * grid) / 2, y: Number(y) + (w * grid) / 2 });
+    for (const record of records) {
+      const emitter = canvas.tokens.get(record.emitterTokenId);
+      if (!emitter) continue;
+      if (record.kind === "noApproach" && approachLimitLive(record, { round, acting })) {
+        const start = feetFromPointToToken(centreAt(tokenDocument.x, tokenDocument.y), emitter);
+        const dest = movement?.destination ?? null;
+        const end = dest ? feetFromPointToToken(centreAt(dest.x, dest.y), emitter) : null;
+        const refused = approachRefusal(record, start, end, actor.name);
+        if (refused) { out.refusal = refused; return out; }
+      } else if (record.kind === "difficult" && movementAction(movement) !== "fly") {
+        // PAGE 196: "if you have a Fly speed, you are unhindered by difficult
+        // terrain" — the ground this rung makes difficult does not reach a flier.
+        // THE SQUARE IT STARTS IN IS NOT ENTERED: dropped wherever the path
+        // lists it, and the rule's own "origin first" slot left empty.
+        const oc = Math.round(Number(tokenDocument.x) / grid), or = Math.round(Number(tokenDocument.y) / grid);
+        const entered = pathSquares(movement).filter((sq) => !(sq.col === oc && sq.row === or));
+        const feet = [null, ...entered.map((sq) => feetFromPointToToken({ x: (sq.col + 0.5) * grid, y: (sq.row + 0.5) * grid }, emitter))];
+        const extra = difficultSurchargeFeet(feet, record.radiusFeet);
+        if (extra > 0) { out.surcharge += extra; out.notes.push(`${record.label}: +${extra} ft of difficult ground near ${record.emitterName}`); }
+      }
+    }
+  } catch (_e) {
+    /* best-effort: a limit that cannot be measured limits nothing */
+  }
+  return out;
 }
 
 /** The other tokens standing on any of these squares. */
@@ -548,7 +631,38 @@ function applySurfaceEffects(actor, surfaces) {
  * Deliberately synchronous in its decision — the hook cancels on a false
  * return, so the AP spend is dispatched afterwards rather than awaited.
  */
+/*
+ * A TOKEN THAT CHANGES SIZE IS NOT MOVING (3.652.1; found live testing
+ * 3.652.0, 16 October 2026). Foundry 14 sends a width change through
+ * `preMoveToken` as an "api" movement: a lycanthrope's Luna Frenzy, and any
+ * Change Shape into or out of a larger form, in combat was charged a
+ * 5-foot Stride for it — or refused for want of the AP, or for the squares
+ * the larger body now covers — and the token kept its old size while its
+ * statistics changed. The resize marks the token here for the length of
+ * its own update, and the hook lets it through uncharged; it is also
+ * written as a displacement, so nothing downstream reads it as a walk.
+ */
+const RESIZING = new Set();
+
+/**
+ * Resize a token to `side` squares without it counting as a move.
+ * @param {TokenDocument} tokenDocument
+ * @param {number} side
+ */
+export async function resizeTokenInPlace(tokenDocument, side) {
+  if (!tokenDocument?.update || !(Number(side) > 0)) return;
+  RESIZING.add(tokenDocument.id);
+  try {
+    await tokenDocument.update({ width: side, height: side }, {
+      movement: { [tokenDocument.id]: { method: "api", waypoints: [{ x: tokenDocument.x, y: tokenDocument.y, width: side, height: side, action: "displace" }] } }
+    });
+  } finally {
+    RESIZING.delete(tokenDocument.id);
+  }
+}
+
 function onPreMoveToken(tokenDocument, movement) {
+  if (RESIZING.has(tokenDocument?.id)) return true;
   // TAKE COVER ENDS WHEN YOU MOVE (Chapter 4; Graham, 18 Aug 2026).
   //
   // Called at each point this hook ALLOWS a real displacement, and at
@@ -597,6 +711,14 @@ function onPreMoveToken(tokenDocument, movement) {
     ui.notifications.warn(`${refusal}.`);
     return false;
   }
+  // AN AURA'S "CANNOT MOVE TOWARDS" (3.651.0, block 18 R8): the creature's
+  // own move only, asked with the condition refusals.
+  const auraLimits = ["dragging", "keyboard"].includes(String(movement?.method ?? ""))
+    ? auraMoveLimits(tokenDocument, movement) : { refusal: "", surcharge: 0, notes: [] };
+  if (auraLimits.refusal) {
+    ui.notifications.warn(`${auraLimits.refusal}.`);
+    return false;
+  }
   if (space.notes.length) {
     ui.notifications.info(`Moving through: ${space.notes.join("; ")}.`);
   }
@@ -626,7 +748,9 @@ function onPreMoveToken(tokenDocument, movement) {
   // AND ALL TERRAIN DIFFICULT TO THIS CREATURE ALONE (3.606.0), as a floor
   // on what the path costs — see `difficultFloor` for why it is a floor
   // and not a doubling.
-  const surcharged = measured + Math.max(0, Number(space.surcharge) || 0);
+  // …AND AN AURA'S DIFFICULT GROUND, FOR THIS CREATURE ALONE (3.651.0, R8).
+  if (auraLimits.notes.length) ui.notifications.info(auraLimits.notes.join("; ") + ".");
+  const surcharged = measured + Math.max(0, Number(space.surcharge) || 0) + Math.max(0, Number(auraLimits.surcharge) || 0);
   // …AND TO THE BLIND (3.621.0): Blinded — "All normal terrain is difficult
   // terrain to you." The same floor as a bind's.
   const blindDifficult = allTerrainDifficult(actor?.conditions?.effective);
@@ -709,11 +833,15 @@ function onPreMoveToken(tokenDocument, movement) {
   // Discount AP already committed by a move still being written, or a
   // quick second drag would be judged against a balance it no longer has.
   const tally = tallyFor(actor);
+  // WHAT THIS MOVE MAY DRAW ON (3.648.0): Haste's point buys a Stride and
+  // Channel the Aspect's any Move action, but Fast Attack's buys no movement.
+  const state = movementState(actor);
+  const moveKinds = !state.armed ? ["stride", "move"]
+    : /^step$/i.test(String(state.armed)) ? ["step", "move"] : ["move"];
   const available = Math.max(
     0,
-    Number(actor.system.resources.ap.value ?? 0) - tally.pendingSpend
+    apAvailable(actor, moveKinds) - tally.pendingSpend
   );
-  const state = movementState(actor);
 
   // An armed action replaces the Stride entirely, with its own limit and
   // its own fixed cost.
@@ -765,7 +893,7 @@ function onPreMoveToken(tokenDocument, movement) {
     tally.pendingSpend += check.apCost;
 
     void (async () => {
-      await spendActionPoints(actor, String(check.apCost), config.name);
+      await spendActionPoints(actor, String(check.apCost), config.name, { use: /^step$/i.test(String(config.name)) ? "step" : "move" });
       tally.pendingSpend = Math.max(0, tally.pendingSpend - check.apCost);
       await actor.setFlag(SYSTEM_ID, MOVED_FLAG, tally.pools);
       await clearArmedMovement(actor);
@@ -790,6 +918,7 @@ function onPreMoveToken(tokenDocument, movement) {
     }
     maybeOfferMovementAoO(tokenDocument, movement, state.armed);
     maybeOfferSwiftPursuit(tokenDocument, movement);
+    maybeOfferCreatureReactions(tokenDocument, movement);
     return true;
   }
 
@@ -825,7 +954,7 @@ function onPreMoveToken(tokenDocument, movement) {
 
   void (async () => {
     if (due.apDue > 0) {
-      await spendActionPoints(actor, String(due.apDue), "Stride");
+      await spendActionPoints(actor, String(due.apDue), "Stride", { use: "stride" });
     }
     tally.pendingSpend = Math.max(0, tally.pendingSpend - due.apDue);
     await actor.setFlag(SYSTEM_ID, MOVED_FLAG, tally.pools);
@@ -836,6 +965,7 @@ function onPreMoveToken(tokenDocument, movement) {
   spendFullDefenceMove();
   maybeOfferMovementAoO(tokenDocument, movement, null);
   maybeOfferSwiftPursuit(tokenDocument, movement);
+  maybeOfferCreatureReactions(tokenDocument, movement);
   return true;
 }
 

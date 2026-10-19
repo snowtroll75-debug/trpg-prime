@@ -65,6 +65,11 @@ export function ammunitionFitsWeapon(ammoSystem, weaponSystem) {
  * @returns {boolean}
  */
 export function weaponUsesAmmunition(weaponSystem) {
+  // A CREATURE'S OWN MISSILE DRAWS ON NOTHING (3.637.1; Fiends & Fables 3.0
+  // block 7, found live): the Flame Beetle's Fire Mote, "range 30", is fired
+  // — no Strength on its damage — but the beetle is its own quiver. A
+  // natural weapon in missile mode is ranged without ammunition.
+  if (String(weaponSystem?.category ?? "").trim().toLowerCase() === "natural") return false;
   return String(weaponSystem?.attackMode ?? "melee") === "missile";
 }
 

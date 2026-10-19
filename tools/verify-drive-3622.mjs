@@ -74,7 +74,7 @@ const CHECK = strip(read("module", "dice", "check.mjs"));
     CAST.indexOf("const immunity = partitionTraitImmune(") > CAST.indexOf("const gate = applyKindGate(actor, spell, spellData);")
     && CAST.indexOf("const immunity = partitionTraitImmune(") < CAST.indexOf("const basePP = isInnate ? 0"));
   ok("A6 an area meets it against what its template caught, named on the card",
-    /const areaImmunity = partitionTraitImmune\(areaTargets, spellData\.traits \?\? "", ownedCreatureTypeSystem\);\s*areaTargets = areaImmunity\.kept;/.test(CAST)
+    /const areaImmunity = partitionTraitImmune\(areaTargets, spellData\.traits \?\? "", ownedCreatureTypeSystem(, \{ targetCount: Infinity \})?\);\s*areaTargets = areaImmunity\.kept;/.test(CAST)
     && /kindSkippedText\(\[\.\.\.kindFiltered\.skipped, \.\.\.areaImmunity\.skipped\]\)/.test(CAST));
 }
 

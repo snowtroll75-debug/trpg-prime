@@ -8,7 +8,7 @@
 
 import {
   THORNS_FLAG, normaliseThorns, thornsTriggered, thornsIntensified, thornsFormula,
-  thornsSaveNote,
+  thornsSaveNote, thornsSaveMultiplier,
   intensifiesThorns
 } from "./thorns.mjs";
 
@@ -18,7 +18,9 @@ const STAMP = "thornsIntensifiedRound";
 /** Every live thorns effect on this creature, with the effect carrying it. */
 function thornsOn(actor) {
   const out = [];
-  for (const effect of actor?.effects ?? []) {
+  // APPLIED EFFECTS (3.640.0): a creature ability's transferred effect
+  // stays on its item in V12+, and the Aroch's Reactive Slime is one.
+  for (const effect of actor?.appliedEffects ?? actor?.effects ?? []) {
     if (effect.disabled) continue;
     const spec = normaliseThorns(effect.flags?.[SYSTEM_ID]?.[THORNS_FLAG]);
     if (spec) out.push({ effect, spec });
@@ -53,7 +55,39 @@ export async function applyThorns(attacker, defender, blow = {}) {
     const formula = thornsFormula(spec, intensified);
     if (!formula) continue;
 
-    const roll = await new Roll(formula).evaluate();
+    // A REACTION (3.640.0): spent from the defender's pool; with none left
+    // in combat, nothing happens.
+    if (spec.reaction && game.combat?.started && game.combat.combatants?.some?.((c) => c.actor?.id === defender.id)) {
+      const left = Number(defender.system?.resources?.reactions?.value ?? 0);
+      if (left <= 0) { lines.push(`<em>${spec.label}: ${defender.name} has no reaction left this round.</em>`); continue; }
+      const { spendReaction } = await import("../combat/action-points-workflow.mjs");
+      await spendReaction(defender, spec.label);
+    }
+    let roll = await new Roll(formula).evaluate();
+    // A ROLLED SAVE (3.640.0): the attacker saves; basic, so a success
+    // halves and a failure adds the critical's dice — unless the save only
+    // avoids the critical.
+    let saveLine = "";
+    let rolledTotal = roll.total;
+    const rawTotal = roll.total;
+    if (spec.saveRoll) {
+      const { TRGCheck } = await import("../dice/check.mjs");
+      const { withCheckModifiers } = await import("../dice/check-modifiers.mjs");
+      const { basicSavingThrow, levelDC } = await import("../dice/resolution.mjs");
+      const dc = spec.saveRoll.dc || levelDC(Math.max(0, Math.floor(Number(defender.system?.identity?.level ?? 0) || 0)));
+      const key = spec.saveRoll.key;
+      const check = await TRGCheck.roll(withCheckModifiers({ actor: attacker, label: `${attacker.name} — ${key.charAt(0).toUpperCase()}${key.slice(1)} Save`, subtitle: `${spec.label} — DC ${dc}`, type: "save", save: key, dc }));
+      const degree = check?.outcome?.degree?.key ?? "failure";
+      const bs = spec.saveRoll.basic ? basicSavingThrow(degree, check?.outcome?.margin ?? null) : { damageMultiplier: check?.outcome?.degree?.success ? 0 : 1, bonusBaseDamage: 0 };
+      if (bs.bonusBaseDamage > 0) {
+        const die = /d(\d+)/i.exec(formula)?.[1] ?? "6";
+        rolledTotal += (await new Roll(`${bs.bonusBaseDamage}d${die}`).evaluate()).total;
+      }
+      const mult = thornsSaveMultiplier(spec, bs.damageMultiplier);
+      rolledTotal = Math.floor(rolledTotal * mult);
+      saveLine = ` — ${attacker.name}'s ${key} save: ${check?.outcome?.degree?.label ?? degree}${spec.saveRoll.avoidsCriticalOnly ? " (avoids only the critical)" : ""}`;
+    }
+    roll = { total: rolledTotal };
     const { resolveAgainstDefences } = await import("../combat/damage-workflow.mjs");
     const { applyDamageAndCheckDying } = await import("../combat/dying-workflow.mjs");
     const { ownedCreatureTypeSystem } = await import("../creature-type-rules.mjs");
@@ -76,9 +110,9 @@ export async function applyThorns(attacker, defender, blow = {}) {
     // roll beside the result a GM cannot tell an immunity from a bad die.
     lines.push(
       `<strong>${spec.label}</strong> — ${attacker.name} takes <strong>${packet.taken}</strong> `
-      + `${spec.damageType} (${formula} rolled ${roll.total}`
+      + `${spec.damageType} (${formula} rolled ${rawTotal}${rawTotal !== roll.total ? `, ${roll.total} after the save` : ""}`
       + `${packet.taken !== roll.total ? ", reduced by their defences" : ""})`
-      + `${intensified ? " <em>— intensified</em>" : ""}.`
+      + `${intensified ? " <em>— intensified</em>" : ""}${saveLine}.`
     );
     // A SAVE THE SPELL NAMES IS PRINTED, NOT SWALLOWED — see the note on
     // `save` in thorns.mjs. Elemental Shield has one; Vibrant Thorns does

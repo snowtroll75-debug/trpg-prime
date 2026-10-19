@@ -191,7 +191,8 @@ ok("H4 and none of them reads the spell's rows past a chosen mode",
 ok("I1 the AP ceiling is lifted by the allowance",
   /const max = Number\(resource\.max \?\? 0\) \+ \(key === "ap" \? Math\.max\(0, Number\(apAllowance\) \|\| 0\) : 0\);/.test(actor));
 ok("I2 the allowance is the actor's apOverflow flag",
-  /prepareResourcePercentages\(system, \{ apAllowance: Number\(this\.flags\?\.\["trg-prime"\]\?\.apOverflow\) \|\| 0 \}\);/.test(actor));
+  /apAllowance: \(Number\(this\.flags\?\.\["trg-prime"\]\?\.apOverflow\) \|\| 0\)\n\s*\+ \(Number\(this\.flags\?\.\["trg-prime"\]\?\.apGrant\?\.bonus\) \|\| 0\)/.test(actor),
+  "3.648.0: with the turn's bonus AP beside it");
 ok("I3 Time Stop writes the allowance with the actions",
   /"system\.resources\.ap\.value": before \+ extra,\n\s*\[`flags\.\$\{SYSTEM_ID\}\.apOverflow`\]: overflow \+ extra/.test(effects));
 ok("I4 from the stored value, not the clamped one",

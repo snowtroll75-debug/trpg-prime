@@ -122,7 +122,7 @@ const MUTATIONS = [
     from: `    bias: resolveBias(result.bias ?? BIAS.NORMAL, [...conditionalKinds, ...pendingKinds], BIAS),`,
     to: `    bias: resolveBias(result.bias ?? BIAS.NORMAL, pendingKinds, BIAS),`, breaks: "D12" },
   { file: DIALOG, name: "D: the dialog stops pre-ticking an auto row",
-    from: `<input type="checkbox" name="pending" value="\${entry.id}"\${entry.auto ? " checked" : ""}>`,
+    from: `<input type="checkbox" name="pending" value="\${entry.id}"\${entry.auto && (!entry.checkTypes?.length || entry.checkTypes.includes(checkType)) ? " checked" : ""}>`,
     to: `<input type="checkbox" name="pending" value="\${entry.id}">`, breaks: "D14" },
   { file: COMBAT, name: "D: nothing sweeps a pending entry whose roll never came",
     from: `    const lapsed = await expirePendingModifiers(actor);`,
@@ -150,8 +150,8 @@ const MUTATIONS = [
     from: `        for (const { sourceId, label } of applied.spent ?? []) {`,
     to: `        for (const { sourceId, label } of []) {`, breaks: "F9" },
   { file: CHECK, name: "F: the dialog-less path applies EVERY pending entry, not only the auto ones",
-    from: `      const auto = pendingModifierRows(check.actor).filter((row) => row.auto);`,
-    to: `      const auto = pendingModifierRows(check.actor);`, breaks: "F10" },
+    from: `      const auto = pendingModifierRows(check.actor).filter((row) => row.auto\n`,
+    to: `      const auto = pendingModifierRows(check.actor).filter((row) => true\n`, breaks: "F10" },
 
   /* ── G: the seven with a rail ─────────────────────────────────── */
   { file: SUPPRESS, name: "G: a complete ignore becomes a large number again",

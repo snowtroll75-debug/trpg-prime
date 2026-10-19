@@ -1,3 +1,6 @@
+import { DUAL_MINDS_AP, DUAL_MINDS_REACTIONS, hasDualMinds } from "../dual-minds.mjs";
+import { statSizeOf } from "../change-shape.mjs";
+import { restrictedHeld, restrictedSummary } from "../combat/restricted-ap.mjs";
 import { resolveCasterStyle, resolveMemorisationStyle } from "../magic/caster-style.mjs";
 import { elAdjustHP, elAdjustOf, elAdjustRows } from "../el-adjust.mjs";
 import { runeKindOf, runesCountFor } from "../rune-bearing.mjs";
@@ -843,7 +846,10 @@ function prepareAttributes(system, actor) {
 
   // Creature Size Modifiers (Chapter 1): Str/Dex bonuses from size apply
   // before either attribute resolves, same as any other untyped bonus.
-  const sizeEntry = SIZE_TABLE[system.identity?.size] ?? null;
+  // FIGURED AT THE CREATURE'S OWN SIZE while a form says its statistics do
+  // not change (3.651.0, block 18 R11 — Huanling Shifting: "large in size
+  // which does not alter the creature's ability scores"). See change-shape.mjs.
+  const sizeEntry = SIZE_TABLE[statSizeOf(actor?.effects, system.identity?.size)] ?? null;
   if (sizeEntry) {
     if (sizeEntry.strMod) {
       actor.addBonus("system.attributes.strength", {
@@ -977,7 +983,7 @@ function prepareResources(system, actor) {
   // would need to fix it with.
   const classHP = system.progression?.hitPoints;
   hp.max = hitPointMax({
-    size: system.identity?.size,
+    size: statSizeOf(actor?.effects, system.identity?.size),
     conTotal: system.attributes?.constitution?.total ?? 0,
     level: system.identity?.level ?? 1,
     hpPerLevel: classHP || hp.hpPerLevel || 0,
@@ -2552,6 +2558,13 @@ export class TRGActor extends Actor {
     if (reactions) {
       reactions.max = 1 + battleReadinessBonus(this);
     }
+    // DUAL MINDS (3.647.0, F&F 3.0 block 15 R9): two heads, each with 2 AP
+    // and a reaction. See dual-minds.mjs.
+    if (hasDualMinds(this.items)) {
+      if (reactions) reactions.max = Math.max(reactions.max, DUAL_MINDS_REACTIONS);
+      const ap = this.system.resources?.ap;
+      if (ap) ap.max = Math.max(Number(ap.max ?? 0), DUAL_MINDS_AP);
+    }
     this._trgBonuses = new Map();
   }
 
@@ -2935,7 +2948,21 @@ export class TRGActor extends Actor {
     prepareArmourProtection(system, this);
     prepareSkills(system, this);
     prepareEncumbrance(system, this.items, this.type);
-    prepareResourcePercentages(system, { apAllowance: Number(this.flags?.["trg-prime"]?.apOverflow) || 0 });
+    // AND THIS TURN'S BONUS AP (3.648.0): Quickened's and Fast Attack's
+    // points stand above the maximum for the turn they were granted in. The
+    // clamp below threw Quickened's away, so Haste granted nothing.
+    prepareResourcePercentages(system, {
+      apAllowance: (Number(this.flags?.["trg-prime"]?.apOverflow) || 0)
+        + (Number(this.flags?.["trg-prime"]?.apGrant?.bonus) || 0)
+    });
+    // WHAT PART OF THE POOL IS RESTRICTED (3.648.0), for the sheet's AP box.
+    try {
+      if (system.resources?.ap) {
+        const held = restrictedHeld(this);
+        system.resources.ap.restricted = held.reduce((t, e) => t + e.value, 0);
+        system.resources.ap.restrictedText = restrictedSummary(held);
+      }
+    } catch (_) { /* no combat to read; nothing is restricted */ }
     prepareGrantedTraits(system, this);
     // Starting wealth (Chapter 6). AFTER prepareAttributes, because
     // Charisma's contribution is the resolved TOTAL — a race's or an

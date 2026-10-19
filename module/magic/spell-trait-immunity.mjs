@@ -22,6 +22,7 @@
  */
 
 import { immuneToEffect } from "../traits.mjs";
+import { dualMindsImmuneReason, dualMindsVerdict } from "../dual-minds.mjs";
 
 /** The trait this creature is immune to among a spell's, or null. */
 function spellImmunityTrait(spellTraits, targetSystem, creatureTypeSystem = null) {
@@ -42,14 +43,21 @@ function immunityReason(name, trait) {
  * @param {(actor:object)=>object|null} [typeOf] the owned creature type's system data
  * @returns {{kept:object[], skipped:{name:string, reason:string, trait:string}[]}}
  */
-export function partitionTraitImmune(actors = [], spellTraits = "", typeOf = () => null) {
+export function partitionTraitImmune(actors = [], spellTraits = "", typeOf = () => null, { targetCount = null } = {}) {
   const kept = [];
   const skipped = [];
+  const count = targetCount ?? (actors ?? []).filter(Boolean).length;
   for (const actor of actors ?? []) {
     if (!actor) continue;
     const trait = spellImmunityTrait(spellTraits, actor.system, typeOf(actor));
-    if (trait) skipped.push({ name: actor.name, reason: immunityReason(actor.name, trait), trait });
-    else kept.push(actor);
+    if (trait) { skipped.push({ name: actor.name, reason: immunityReason(actor.name, trait), trait }); continue; }
+    // DUAL MINDS (3.647.0, F&F 3.0 block 15 R9): a mental spell aimed at the
+    // Ettin alone reaches one head and does nothing.
+    if (dualMindsVerdict(actor.items, spellTraits, count) === "immune") {
+      skipped.push({ name: actor.name, reason: dualMindsImmuneReason(actor.name), trait: "mental" });
+      continue;
+    }
+    kept.push(actor);
   }
   return { kept, skipped };
 }

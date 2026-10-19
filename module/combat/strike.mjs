@@ -113,3 +113,41 @@ export async function getOrCreateUnarmedStrike(actor) {
   ]);
   return created;
 }
+
+/**
+ * WHICH WEAPON A FEAT'S OR A REACTION'S STRIKE IS MADE WITH (3.645.0, F6 of
+ * Graham's 14 October session). `meleeWeapon` took the first equipped melee attack, and
+ * the Unarmed Strike is an equipped weapon — so a fighter holding a sword
+ * Swiped with their fists whenever the fist came first. Asked, as the Strike
+ * action asks, whenever more than one melee attack is ready; a held weapon is
+ * offered first. Asked BEFORE the feat's AP is spent, so cancelling costs
+ * nothing.
+ *
+ * @returns {Promise<Item|null|undefined>} the weapon; null when cancelled;
+ *   undefined when there is nothing to choose between.
+ */
+export async function chooseMeleeAttack(actor, label) {
+  const melee = usableAttacks(Array.from(actor?.items ?? []))
+    .filter((w) => (w.system?.attackMode ?? "melee") === "melee");
+  if (melee.length < 2) return undefined;
+  const ordered = [...melee.filter((w) => !w.system?.natural), ...melee.filter((w) => w.system?.natural)];
+  const { DialogV2 } = foundry.applications.api;
+  const rows = ordered.map((w, index) =>
+    `<label style="display:flex;align-items:center;gap:8px;padding:2px 0"><input type="radio" name="attack" value="${index}" ${index === 0 ? "checked" : ""}><span>${w.name}${w.system?.damage ? ` (${w.system.damage})` : ""}</span></label>`).join("");
+  const picked = await DialogV2.wait({
+    window: { title: `${label} — Which Weapon?`, icon: "fa-solid fa-hand-fist" },
+    classes: ["trg-prime"],
+    position: { width: 360 },
+    content: `<div class="trg-prime trg-check-dialog">${rows}</div>`,
+    buttons: [
+      { action: "confirm", label: "Use", default: true, callback: (event, button) => {
+        const FDE = foundry.applications?.ux?.FormDataExtended ?? globalThis.FormDataExtended;
+        return new FDE(button.form ?? button.closest?.("form")).object.attack;
+      } },
+      { action: "cancel", label: "Cancel" }
+    ],
+    rejectClose: false
+  });
+  if (picked === null || picked === undefined || picked === "cancel") return null;
+  return ordered[Number(picked)] ?? null;
+}

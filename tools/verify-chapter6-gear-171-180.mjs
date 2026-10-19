@@ -445,7 +445,7 @@ ok("D8c a bite is not a fist; nor is anything without the marker",
   const src = code("module", "combat", "attack-workflow.mjs");
   ok("D8d the Strike reads the marker", /const stoneFist = stoneFistProfile\(weapon\?\.system, Boolean\(findMarker\(actor, "fistOfRock"\)\)\);/.test(src));
   ok("D8e and the damage roll uses the 1d6", /damageOverride: stoneFist\?\.damage \?\? extraBaseDiceOverride\(weaponData\.damage, extraBaseDice\),/.test(src)
-    && /buildWeaponDamageFormula\(damageOverride \?\? weaponData\.damage,/.test(src));
+    && /buildWeaponDamageFormula\((?:handAndAHalfDamage \?\? )?damageOverride \?\? weaponData\.damage,/.test(src));
   ok("D8f the standalone Damage button too", /damageOverride: standaloneFist\?\.damage \?\? null,/.test(src));
 }
 {

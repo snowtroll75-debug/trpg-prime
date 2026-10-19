@@ -37,6 +37,7 @@ import { runeAurasOf } from "./codex-runes.mjs";
 import { declaredRuneAuras, afterStrikeOutcome } from "./rune-declarations.mjs";
 import { declaredConditionTag } from "./combat/declared-after-strikes.mjs";
 import { allyEffectOf } from "./ally-aura-effects.mjs";
+import { normaliseMoveLimits } from "./combat/aura-move-limits.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -107,7 +108,90 @@ function normaliseAuraDamage(raw, typeFromName = "") {
   if (!/^\d+d\d+(\s*[+-]\s*\d+)?$/i.test(formula)) return null;
   const type = String(raw.type ?? "").trim().toLowerCase() || typeFromName;
   if (!type) return null;
-  return { formula, type, basic: raw.basic !== false };
+  const out = { formula, type, basic: raw.basic !== false };
+  // The three options below are written only when declared, so every aura
+  // that declares none keeps the shape it has always had.
+  const extra = {
+    // AURA OF FLAMES (3.640.0, F&F 3.0 block 10 R3): "a basic Fortitude save
+    // to avoid critical and additional damage, but this saving throw does
+    // not lessen the damage in any way" — the save never cuts below full.
+    fullDamage: raw.fullDamage === true,
+    // "This damage is doubled if a creature is currently grabbed by the Balor."
+    doubleIfGrabbedBy: raw.doubleIfGrabbedBy === true,
+    // REACTIVE EVIL (R5): "a creature … lessens the damage taken using
+    // Resistance or Immunity; … Its Aura of Flames is evil and fire until the
+    // beginning of its next turn" — the second type it may become.
+    reactiveType: String(raw.reactiveType ?? "").trim().toLowerCase()
+  };
+  if (extra.fullDamage) out.fullDamage = true;
+  if (extra.doubleIfGrabbedBy) out.doubleIfGrabbedBy = true;
+  if (extra.reactiveType) out.reactiveType = extra.reactiveType;
+  return out;
+}
+
+const DEGREE_KEYS = Object.freeze(["heroic", "critical", "success", "partial", "failure", "fumble", "blunder"]);
+/** The rung a degree reads: its own, else the one it stands in for. */
+const DEGREE_FALLBACK = Object.freeze({ heroic: "critical", blunder: "fumble" });
+
+/** A declared damage-by-degree table, or null: a type and a formula per rung. */
+function normaliseDegreeDamage(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const type = String(raw.type ?? "").trim().toLowerCase();
+  if (!type) return null;
+  const out = { type };
+  for (const k of DEGREE_KEYS) {
+    const f = String(raw[k] ?? "").trim();
+    if (/^\d+d\d+(\s*[+-]\s*\d+)?$/i.test(f)) out[k] = f;
+  }
+  return Object.keys(out).length > 1 ? out : null;
+}
+
+/** A declared critical-injury-by-degree table, or null. */
+function normaliseDegreeCriticals(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const out = {};
+  for (const k of DEGREE_KEYS) {
+    const v = String(raw[k] ?? "").trim().toLowerCase();
+    if (["minor", "serious", "deadly"].includes(v)) out[k] = v;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/** What one degree of a by-degree aura deals: `{formula, type, severity}` (either may be null). */
+export function auraDegreeEffect(aura, degree) {
+  const key = String(degree ?? "failure");
+  const pick = (table) => table?.[key] ?? table?.[DEGREE_FALLBACK[key] ?? ""] ?? null;
+  return {
+    formula: aura?.damageByDegree ? pick(aura.damageByDegree) : null,
+    type: aura?.damageByDegree?.type ?? null,
+    severity: pick(aura?.criticals) ?? null
+  };
+}
+
+/**
+ * The multiplier an aura's damage takes from the save and the hold
+ * (3.640.0): a full-damage aura never goes below ×1; a held creature takes
+ * it twice.
+ */
+export function auraDamageMultiplier(damage, saveMultiplier, { grabbedByEmitter = false } = {}) {
+  let m = Number(saveMultiplier) || 0;
+  if (damage?.fullDamage) m = Math.max(1, m);
+  if (damage?.doubleIfGrabbedBy && grabbedByEmitter) m *= 2;
+  return m;
+}
+
+/**
+ * Which type a reactive aura deals this creature (3.640.0, Reactive Evil):
+ * its own, unless that is lessened — by the creature's resistance or
+ * immunity — below what the reactive type would deal, or the aura has
+ * already turned; then the reactive type. `triggers` says this creature
+ * lessened it, which turns the aura until the emitter's next turn.
+ */
+export function reactiveAuraType(damage, { ownTaken = 0, reactiveTaken = 0, active = false } = {}) {
+  if (!damage?.reactiveType) return { type: damage?.type ?? "", triggers: false };
+  const lessened = Number(ownTaken) < Number(reactiveTaken);
+  if (lessened || active) return { type: Number(reactiveTaken) > Number(ownTaken) ? damage.reactiveType : damage.type, triggers: lessened };
+  return { type: damage.type, triggers: false };
 }
 
 /** A declared trait-granting effect for failed degrees, or null. */
@@ -173,6 +257,10 @@ export function normaliseAura(raw, source = {}, index = 0, level = 0) {
     // field for and guessing at one would exclude the wrong creatures.
     appliesTo: String(raw.appliesTo ?? "").trim(),
     outcomes: raw.outcomes && typeof raw.outcomes === "object" ? { ...raw.outcomes } : {},
+    rollOutcomes: raw.rollOutcomes === true,
+    // A RUNG THAT LIMITS MOVEMENT (3.651.0, block 18 R8 — Shifting Aura).
+    // See combat/aura-move-limits.mjs.
+    moveLimits: normaliseMoveLimits(raw.moveLimits),
     immunitySeconds: Number.isFinite(Number(raw.immunitySeconds))
       ? Math.max(0, Number(raw.immunitySeconds))
       : 0,
@@ -227,8 +315,24 @@ export function normaliseAura(raw, source = {}, index = 0, level = 0) {
      *                       electricity, "Toxic" poison.
      */
     damage: normaliseAuraDamage(raw.damage, raw.damageTypeFromName ? elementFromName(source.name) : ""),
+    /*
+     * DAMAGE AND A CRITICAL BY DEGREE (3.658.0; F&F 3.0 block 25 R6 — Soul
+     * Eclipse: "Critical 2d6 essence; Success 4d6; Partial 4d6 and a Minor
+     * critical; Failure 6d6 and a Serious critical; Fumble 6d6 and a Deadly
+     * critical"). The rung IS the amount — no basic halving — as Crush's
+     * area has it (peril-effect's damageByRung and criticals).
+     *
+     *   damageByDegree: { type: "essence", critical: "2d6", success: "4d6", … },
+     *   criticals: { partial: "minor", failure: "serious", fumble: "deadly" }
+     */
+    damageByDegree: normaliseDegreeDamage(raw.damageByDegree),
+    criticals: normaliseDegreeCriticals(raw.criticals),
     immunityOn: String(raw.immunityOn ?? "").trim().toLowerCase() === "success" ? "success" : "always",
     livingOnly: raw.livingOnly === true,
+    // A GAZE IS NOT MET BY THE BLIND (3.636.0, F&F 3.0 block 6 R8):
+    // Petrifying Gaze — "any creature … that can see it". A subject with one
+    // of these conditions is passed over without a save.
+    immuneIf: (Array.isArray(raw.immuneIf) ? raw.immuneIf : []).map((t) => String(t ?? "").trim().toLowerCase()).filter(Boolean),
     // AURA OF RUIN (3.631.0): "A creature that is either good or ordered
     // aligned" — only a subject carrying one of these aligned traits rolls.
     appliesToTraits: (Array.isArray(raw.appliesToTraits) ? raw.appliesToTraits : []).map((t) => String(t ?? "").trim().toLowerCase()).filter(Boolean),
@@ -254,6 +358,14 @@ export function normaliseAura(raw, source = {}, index = 0, level = 0) {
     // AN ALLY AURA'S STANDING EFFECT (3.634.0, F&F 3.0 block 4 R1): the
     // effect laid on each ally inside — see ally-aura-effects.mjs.
     allyEffect: kind === "ally" ? allyEffectOf(raw.allyEffect) : null,
+    // AND ITS MIRROR ON ENEMIES (3.640.0, F&F 3.0 block 10 R3 — Aura of
+    // Command: "All enemies take a -1 penalty").
+    enemyEffect: kind === "ally" ? allyEffectOf(raw.enemyEffect) : null,
+    // THE EMITTER STANDS IN ITS OWN AURA (3.646.0; Graham, 15 October 2026,
+    // on Aura of Ashes: "All creatures within this 20-foot aura are
+    // concealed" includes the Yulussil). Off unless declared, as every
+    // other ally aura is about the creatures around its source.
+    includeSelf: kind === "ally" && raw.includeSelf === true,
     text: String(raw.text ?? ""),
     sourceId: String(source.id ?? ""),
     sourceName: String(source.name ?? "")
@@ -440,6 +552,12 @@ export function aurasCatching({ trigger, subject, emitters = [], now = 0 } = {})
       // by its near edge — a Medium one exactly as before.
       const reach = auraReachFeet(aura.radius, emitter.widthFeet) + Math.max(0, (Number(subject.widthFeet) || 5) - 5) / 2;
       if (!withinAura(emitter.centreFeet, subject.centreFeet, reach)) continue;
+      // ENTERING MEANS CROSSING IN (3.637.0; Graham, 12 October 2026, from
+      // the block 6 live test). A move that began inside the radius is not
+      // "moving into" it: the Basilisk's sighted victim rolled its gaze again
+      // on every step it took within 30 feet. Only known when the move's
+      // start is — `subject.fromCentreFeet`; unknown, the old reading stands.
+      if (trigger === "enter" && subject.fromCentreFeet && withinAura(emitter.centreFeet, subject.fromCentreFeet, reach)) continue;
       caught.push({ aura, emitterId: emitter.id });
     }
   }
@@ -452,7 +570,12 @@ export function aurasCatching({ trigger, subject, emitters = [], now = 0 } = {})
 
 /** Does this aura roll its save and apply what it lands? */
 export function auraRolls(aura) {
-  return Boolean(aura?.save && ((aura?.conditions && Object.keys(aura.conditions).length) || aura?.damage || aura?.traitEffect));
+  // AN OUTCOME-ONLY LADDER (3.640.0, F&F 3.0 block 10 R3 — Aura of Paranoia:
+  // its rungs are attitudes, not conditions): rolled when it says so, so the
+  // degree, its printed line and the immunity land.
+  return Boolean(aura?.save && ((aura?.conditions && Object.keys(aura.conditions).length) || aura?.damage || aura?.damageByDegree || aura?.criticals || aura?.traitEffect
+    || aura?.moveLimits
+    || (aura?.rollOutcomes && Object.keys(aura?.outcomes ?? {}).length)));
 }
 
 /**

@@ -159,7 +159,7 @@ equal("H2 within Speed a Long Jump needs no check and no action", [long.automati
 equal("H3 beyond reach it rolls, never doubled for the run-up", [far.automatic, far.dc, far.doubled], [false, 80, false]);
 equal("H4 a leaper is a declared flag or an owned Natural Leaper", [jp.isNaturalLeaper([], [fx({ naturalLeaper: true })]), jp.isNaturalLeaper([{ name: "Natural Leaper" }], []), jp.isNaturalLeaper([{ name: "Leap" }], [])], [true, true, false]);
 const act = read("module", "combat", "action-workflow.mjs");
-ok("H5 the jump resolves a leaper's automatic jump before any roll, spending the AP only for a High Jump", /if \(jumpSetup\.automatic\) \{\s*if \(!jumpSetup\.freeAction\) \{\s*const leapCost = leapApCost\(action\.apCost\);\s*if \(!\(await ensureActionPoints\(actor, leapCost, action\.name\)\)\) return null;/.test(act) && /landSpeed: speedValue\(actor\.system\?\.combat\?\.movement\?\.land\)/.test(act));
+ok("H5 the jump resolves a leaper's automatic jump before any roll, spending the AP only for a High Jump", /if \(jumpSetup\.automatic\) \{\s*if \(!jumpSetup\.freeAction\) \{\s*const leapCost = leapApCost\(action\.apCost\);\s*if \(!\(await ensureActionPoints\(actor, leapCost, action\.name, \{ traits: action\.traits \}\)\)\) return null;/.test(act) && /landSpeed: speedValue\(actor\.system\?\.combat\?\.movement\?\.land\)/.test(act));
 
 /* I. Granted uses, spell DC bonus, breathing */
 const gw = read("module", "grants-workflow.mjs");
@@ -170,7 +170,7 @@ const sd = await mod("magic/spell-dc-bonus.mjs");
 const dominion = [fx({ spellDCBonus: { label: "Soul-Magic Dominion", value: 1, type: "racial", traits: ["soul"] } }), fx({ spellDCBonus: { label: "Other racial", value: 2, type: "racial", traits: ["soul"] } })];
 equal("I3 a soul spell gets the bonus, typed bonuses do not stack; another spell gets none", [sd.declaredSpellDCBonuses(dominion, "Essence, Soul").map((b) => [b.label, b.value]), sd.declaredSpellDCBonuses(dominion, "Fire")], [[["Other racial", 2]], []]);
 equal("I4 the save DC carries a declared bonus as a named part", cdc.assembledSaveDC({ baseDC: 20, declaredBonuses: [{ label: "Soul-Magic Dominion", value: 1 }] }), { dc: 21, parts: [{ label: "Soul-Magic Dominion", value: 1 }], base: 20, fixed: false });
-ok("I5 the cast passes them, never for an item's spell", /declaredBonuses: isItemCast \? \[\] : declaredSpellDCBonuses\(/.test(cw));
+ok("I5 the cast passes them, never for an item's spell", /declaredBonuses: \[\.\.\.\(isItemCast \? \[\] : declaredSpellDCBonuses\(/.test(cw));
 ok("I6 a creature that does not breathe holds no breath", /const breathless = doesNotBreatheSource\(actor\);\s*if \(breathless\) \{/.test(read("module", "drowning-workflow.mjs")));
 
 /* J. Drink Blood */
