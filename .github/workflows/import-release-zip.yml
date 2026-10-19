@@ -1,0 +1,136 @@
+name: Import uploaded Foundry ZIP
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing GitHub release tag to import
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trg-prime-zip-import
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+
+      - name: Determine release tag
+        id: release
+        env:
+          EVENT_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          tag="${EVENT_TAG:-$INPUT_TAG}"
+          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid release tag: $tag"; exit 1; }
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Download ZIP attached to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          gh release download "$TAG" --pattern trg-prime.zip --dir incoming
+          test -s incoming/trg-prime.zip
+
+      - name: Inspect and stage package safely
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, zipfile, shutil, os
+          zip_path=pathlib.Path("incoming/trg-prime.zip")
+          stage=pathlib.Path("staging")
+          stage.mkdir()
+          required={"system.json","template.json"}
+          runtime={"assets","lang","module","packs","scripts","styles","templates"}
+          with zipfile.ZipFile(zip_path) as z:
+              files=[i for i in z.infolist() if not i.is_dir()]
+              if len(files)>30000 or sum(i.file_size for i in files)>2_000_000_000:
+                  raise SystemExit("ZIP exceeds safe extraction limits")
+              allnames=[pathlib.PurePosixPath(i.filename) for i in files]
+              for i,p in zip(files,allnames):
+                  if p.is_absolute() or ".." in p.parts or "\\" in i.filename or (i.external_attr >> 16) & 0o170000 == 0o120000:
+                      raise SystemExit("Unsafe ZIP entry: "+i.filename)
+              if "system.json" in {str(p) for p in allnames}:
+                  prefix=()
+              elif "trg-prime/system.json" in {str(p) for p in allnames}:
+                  prefix=("trg-prime",)
+              else:
+                  raise SystemExit("ZIP must contain system.json at root or inside trg-prime/")
+              selected={}
+              for i,p in zip(files,allnames):
+                  parts=p.parts
+                  if prefix and parts[:1]!=prefix: continue
+                  parts=parts[len(prefix):]
+                  if not parts: continue
+                  rel=pathlib.Path(*parts)
+                  if parts[0] in runtime or str(rel) in required:
+                      if str(rel) in selected: raise SystemExit("Duplicate package file: "+str(rel))
+                      selected[str(rel)]=i
+              if not required.issubset(selected): raise SystemExit("Missing system.json or template.json")
+              raw=z.read(selected["system.json"]).decode("utf-8-sig")
+              manifest=json.loads(raw)
+              tag=os.environ["TAG"]
+              if manifest.get("id")!="trg-prime" or "v"+str(manifest.get("version"))!=tag:
+                  raise SystemExit("System id/version doesn't match release tag")
+              previous=json.loads(pathlib.Path("system.json").read_text(encoding="utf-8-sig"))
+              def version(s): return tuple(map(int,s.split(".")))
+              if version(manifest["version"])<=version(previous["version"]):
+                  raise SystemExit("Release version must be newer than current main")
+              manifest["manifest"]="https://raw.githubusercontent.com/snowtroll75-debug/trpg-prime/main/system.json"
+              manifest["download"]="https://github.com/snowtroll75-debug/trpg-prime/releases/download/"+tag+"/trg-prime.zip"
+              for rel,i in selected.items():
+                  if rel=="system.json": continue
+                  target=stage/rel
+                  target.parent.mkdir(parents=True,exist_ok=True)
+                  with z.open(i) as src, open(target,"wb") as dst: shutil.copyfileobj(src,dst)
+              (stage/"system.json").write_text(json.dumps(manifest,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
+          for field in ("esmodules","styles"):
+              for path in manifest.get(field,[]):
+                  if not (stage/path).is_file(): raise SystemExit("Missing referenced file: "+path)
+          for obj in manifest.get("languages",[]):
+              if not (stage/obj["path"]).is_file(): raise SystemExit("Missing language: "+obj["path"])
+          for obj in manifest.get("packs",[]):
+              if not (stage/obj["path"]).exists(): raise SystemExit("Missing pack: "+obj["path"])
+          print("Validated",len(selected),"package files for",manifest["version"])
+          PY
+
+      - name: Build canonical Foundry install ZIP
+        run: |
+          cd staging
+          zip -qr ../trg-prime.zip .
+          cd ..
+          unzip -p trg-prime.zip system.json | python3 -c "import json,sys; assert json.load(sys.stdin)['id']=='trg-prime'"
+
+      - name: Update GitHub Release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: gh release upload "$TAG" trg-prime.zip --clobber
+
+      - name: Commit new runtime source to main
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for item in assets lang module packs scripts styles templates system.json template.json; do
+            if [ -e "$item" ]; then git rm -rq --ignore-unmatch -- "$item"; fi
+            if [ -e "staging/$item" ]; then cp -a "staging/$item" .; fi
+          done
+          git add -A -- assets lang module packs scripts styles templates system.json template.json
+          if git diff --cached --quiet; then echo "No source changes"; exit 0; fi
+          git commit -m "Import TRG Prime $TAG from release ZIP"
+          git push origin HEAD:main
