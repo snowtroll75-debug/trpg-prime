@@ -1111,6 +1111,12 @@ export class TRGCombat extends Combat {
       // in Phase 1, before this write, is spent by the regain above instead.
       [`flags.${SYSTEM_ID}.apGrantedTurn`]: { combatId: this.id, round: this.round, turn: this.turn },
       [`flags.${SYSTEM_ID}.${AP_GRANT_FLAG}`]: { combatId: this.id, bonus: acting.canAct ? grant.bonus : 0, entries: grantEntries },
+      // IMPROVED COMBAT REFLEXES' REACTIONS STAND ABOVE THE MAXIMUM (3.663.5;
+      // found live on the Balor, F&F Prime 0.45.0). They were granted here and
+      // clamped straight back to the maximum by prepareResourcePercentages, so
+      // the feat gave nothing in play. The allowance is this turn's bonus, the
+      // same shape as the AP grant above, rewritten at every refill.
+      [`flags.${SYSTEM_ID}.reactionGrant`]: { combatId: this.id, bonus: acting.canAct ? reactionState.bonus : 0 },
       // The two Fighter per-round trackers reset where the reaction pool
       // refills, because that IS the round boundary the reaction economy
       // uses: Battle Readiness's one unrestricted spend, and Press the

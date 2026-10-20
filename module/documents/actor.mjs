@@ -2203,7 +2203,7 @@ function prepareEncumbrance(system, items, actorType = "") {
   }
 }
 
-export function prepareResourcePercentages(system, { apAllowance = 0 } = {}) {
+export function prepareResourcePercentages(system, { apAllowance = 0, reactionAllowance = 0 } = {}) {
   for (const key of ["hp", "pp", "ap", "reactions", "conviction"]) {
     const resource = system.resources?.[key];
     if (!resource) continue;
@@ -2211,7 +2211,11 @@ export function prepareResourcePercentages(system, { apAllowance = 0 } = {}) {
     // 3.609.0 live test's F9). Time Stop adds 1d6+3 AP "past its maximum";
     // clamped here, seven extra actions read as three. The allowance is the
     // `apOverflow` flag Time Stop writes and the next turn's regain clears.
-    const max = Number(resource.max ?? 0) + (key === "ap" ? Math.max(0, Number(apAllowance) || 0) : 0);
+    // ...and Improved Combat Reflexes' reactions (3.663.5), the same way: the
+    // `reactionGrant` flag the turn's refill writes is the allowance.
+    const max = Number(resource.max ?? 0)
+      + (key === "ap" ? Math.max(0, Number(apAllowance) || 0) : 0)
+      + (key === "reactions" ? Math.max(0, Number(reactionAllowance) || 0) : 0);
     resource.value = clampResourceValue(resource.value, max);
     resource.pct = resourcePercentage(resource.value, max);
   }
@@ -2953,7 +2957,8 @@ export class TRGActor extends Actor {
     // clamp below threw Quickened's away, so Haste granted nothing.
     prepareResourcePercentages(system, {
       apAllowance: (Number(this.flags?.["trg-prime"]?.apOverflow) || 0)
-        + (Number(this.flags?.["trg-prime"]?.apGrant?.bonus) || 0)
+        + (Number(this.flags?.["trg-prime"]?.apGrant?.bonus) || 0),
+      reactionAllowance: Number(this.flags?.["trg-prime"]?.reactionGrant?.bonus) || 0
     });
     // WHAT PART OF THE POOL IS RESTRICTED (3.648.0), for the sheet's AP box.
     try {
