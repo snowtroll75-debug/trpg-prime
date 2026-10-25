@@ -55,7 +55,7 @@ const MUTATIONS = [
   { file: TREC, name: "a Word penalty alone counts as clear", from: "  return Object.entries(record).every(([, v]) => !v);", to: "  return Object.entries(record).every(([, v]) => !v || v === true);", breaks: "D1" },
   { file: TW, name: "the turn start deletes as before", from: "  const { clearTraitUsageRecord } = await import(\"./combat/turn-records.mjs\");\n  await clearTraitUsageRecord(actor);", to: "  if (actor?.getFlag?.(SYSTEM_ID, USAGE_FLAG) === undefined) return;\n  await actor.unsetFlag(SYSTEM_ID, USAGE_FLAG);", breaks: "D4" },
   { file: COMBAT, name: "the attack count is deleted as before", from: "      const { clearAttackCount } = await import(\"../combat/turn-records.mjs\");\n      await clearAttackCount(actor);", to: "      await actor.unsetFlag(SYSTEM_ID, \"attackCount\");", breaks: "D4" },
-  { file: MIGRATION, name: "the schema is not raised (the pass is unreachable)", from: "export const TRG_SCHEMA_VERSION = \"3.648.0\";", to: "export const TRG_SCHEMA_VERSION = \"3.618.0\";", breaks: "D5" },
+  { file: MIGRATION, name: "the schema is not raised (the pass is unreachable)", from: "export const TRG_SCHEMA_VERSION = \"3.666.4\";", to: "export const TRG_SCHEMA_VERSION = \"3.618.0\";", breaks: "D5" },
   { file: MIGRATION, name: "the repair clears a running fight's records", from: "    if (!actor || fighting.has(actor.uuid)) continue;", to: "    if (!actor) continue;", breaks: "D6" },
   { file: MIGRATION, name: "the repair clears nothing", from: "    if (!stale) continue;", to: "    if (true) continue;", breaks: "D6" },
   // E — R6

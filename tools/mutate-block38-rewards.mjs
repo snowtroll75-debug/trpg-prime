@@ -44,7 +44,7 @@ const MUTATIONS = [
   { file: REWARDS, name: "Treasure by Level's magic items at APL 20", from: "  20: { gp: 3600000, items: 70 }", to: "  20: { gp: 3600000, items: 64 }", breaks: "C4" },
   { file: CONV, name: "R7 — a level brings no point", from: "  if (!gained) return current;", to: "  return current;", breaks: "D1" },
   { file: ACTOR, name: "the XP update never asks", from: "    this.#convictionOnLevelling(changed, options);", to: "", breaks: "D2" },
-  { file: ACTOR, name: "Hero's Fortune adds nothing", from: "        heroesFortuneBonus(this);", to: "        0;", breaks: "D3" },
+  { file: ACTOR, name: "Hero's Fortune adds nothing", from: "        heroesFortuneBonus(this) +", to: "        0 +", breaks: "D3" },
   { file: ACTOR, name: "A3 — a typed −1 persists", from: "    if (typedConviction !== undefined && !(Number(typedConviction) >= 0)) {", to: "    if (false) {", breaks: "D4" },
   { file: CONV, name: "Boost Defence after AP is spent", from: "  if (apSpent && apSpent.combatId === current.combatId && apSpent.round === current.round) {", to: "  if (false) {", breaks: "D5" },
   { file: AP_WF, name: "the AP spend stamps nothing", from: "    [`flags.${SYSTEM_ID}.apSpentRound`]: { combatId: game.combat.id, round: game.combat.round, turn: game.combat.turn }", to: "", breaks: "D6" },

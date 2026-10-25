@@ -993,6 +993,28 @@ export function effectiveTiers(classType, archetypeFeatNames = []) {
 }
 
 /**
+ * The archetypes a character counts as owning for archetype-trait class
+ * feats (3.671.0): the ones they own, plus any a registered archetype
+ * counts as (Inner Tempest's Zen Archer counts as Archer). Comma-joined,
+ * owned names first, no repeats.
+ *
+ * @param {string[]} archetypeFeatNames
+ * @returns {string}
+ */
+export function effectiveArchetypes(archetypeFeatNames = []) {
+  const out = [];
+  const push = (name) => {
+    const clean = String(name ?? "").trim();
+    if (clean && !out.some((a) => a.toLowerCase() === clean.toLowerCase())) out.push(clean);
+  };
+  for (const featName of archetypeFeatNames) {
+    push(featName);
+    for (const alias of registeredArchetype(featName)?.countsAs ?? []) push(alias);
+  }
+  return out.join(", ");
+}
+
+/**
  * The class names an actor counts as for class-feat picker filtering:
  * the class item's name plus every list an owned archetype feat opens.
  * @param {string} className The embedded class item's name.

@@ -245,7 +245,7 @@ const reset = () => { faces.length = 0; notes.length = 0; posted.length = 0; gam
   ok("C11 the roll dialog offers Use Luck and returns it", /name="useLuck"/.test(dialog) && /useLuck: Boolean\(result\.useLuck\),/.test(dialog));
   ok("C12 the sheet and the action workflow pass it to the roll",
     /useLuck: Boolean\(situational\?\.useLuck\),/.test(code("module", "sheets", "actor-sheet.mjs"))
-      && /useLuck: Boolean\(situational\?\.useLuck\),/.test(code("module", "combat", "action-workflow.mjs")));
+      && /useLuck: (?:!exactFirst && )?Boolean\(situational\?\.useLuck\),/.test(code("module", "combat", "action-workflow.mjs")));
 }
 
 /* D — regaining */

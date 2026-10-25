@@ -51,8 +51,9 @@ const MUTATIONS = [
   {
     name: "the defence half folds the uuid's case too",
     file: DEFENCE,
-    from: "    .map((u) => String(u ?? \"\").trim())",
-    to: "    .map((u) => String(u ?? \"\").trim().toLowerCase())",
+    // Re-anchored at 3.668.0: the excluded-creature list (notSourceUuids) maps the same way.
+    from: "  const sourceUuids = (Array.isArray(raw.when?.sourceUuids) ? raw.when.sourceUuids : [])\n    .map((u) => String(u ?? \"\").trim())",
+    to: "  const sourceUuids = (Array.isArray(raw.when?.sourceUuids) ? raw.when.sourceUuids : [])\n    .map((u) => String(u ?? \"\").trim().toLowerCase())",
     breaks: "C4 — same silent failure on the DB side"
   },
   {
@@ -125,8 +126,8 @@ const MUTATIONS = [
     // argument to this call. The old anchor named five and went ANCHOR
     // MISSING — silently ceasing to run, which is the failure mode this
     // project has now met four times. Dropping the uuid still drops it.
-    from: '    ? defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments)',
-    to: '    ? defenceDCBonus(targetActor, "defence", "", attackerTypes, "", attackerAlignments)',
+    from: '    ? defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments, creatureTraits(actor.system ?? {}))',
+    to: '    ? defenceDCBonus(targetActor, "defence", "", attackerTypes, "", attackerAlignments, creatureTraits(actor.system ?? {}))',
     breaks: "F5 — every ward silently stops working, because nothing can name the attacker"
   }
 ];

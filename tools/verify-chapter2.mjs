@@ -526,7 +526,9 @@ const flagsOf = (row) => row?.flags?.["trg-prime"] ?? {};
   // reached the same mechanism — which is the shape this whole section
   // exists for.
   ok("I11a the card names one button once",
-    /const alreadyNamed = \["specialistChoice", "skillChoice", "spellChoice"\]/.test(grants) &&
+    // Re-anchored at 3.665.0, which added a fourth choice flag
+    // (specialistAlternative) that names its own button too.
+    /const alreadyNamed = \["specialistChoice", "skillChoice", "spellChoice", "specialistAlternative"\]/.test(grants) &&
       /if \(!alreadyNamed && setupChoicePending\(actor, sourceItem\)\)/.test(grants),
     "the choice blocks already say 'press Use on <item>'; the generic nudge said it again, differently");
   const fw = strip(read("module", "feats-workflow.mjs"));

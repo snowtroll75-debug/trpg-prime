@@ -270,13 +270,12 @@ const MUTATIONS = [
   },
   {
     file: ATTACK, name: "Vibrant Thorns reads the category again",
-    // WIDENED AT 3.586.3. A second `unarmed: isUnarmedAttack(weaponData)`
-    // arrived when the Assassin's mark started asking the same question,
-    // and this anchor went AMBIGUOUS rather than missing. Taking the
-    // `melee:` line above it ties the mutation to Vibrant Thorns, which
-    // is the rule it is about.
-    from: "      melee: isMelee,\n      unarmed: isUnarmedAttack(weaponData),",
-    to: "      melee: isMelee,\n      unarmed: String(weaponData.category ?? \"\").trim().toLowerCase() === \"unarmed\",",
+    // WIDENED AT 3.586.3 when the Assassin's mark asked the same question;
+    // NARROWED AGAIN AT 3.671.0, when the mark began asking it of the
+    // holder's abilities' view (`isUnarmedAttack(abilityData)`, B7-6) and
+    // this line became Vibrant Thorns' alone.
+    from: "      unarmed: isUnarmedAttack(weaponData),",
+    to: "      unarmed: String(weaponData.category ?? \"\").trim().toLowerCase() === \"unarmed\",",
     breaks: "F4"
   },
   {
@@ -305,8 +304,8 @@ const MUTATIONS = [
   },
   {
     file: RIDERSWF, name: "the rider identity drops the gauntlet's declaration",
-    from: "    unarmed: weapon?.system?.unarmed === true,",
-    to: "",
+    from: "    unarmed: weapon?.system?.unarmed === true || abilityUnarmed,",
+    to: "    unarmed: abilityUnarmed,",
     breaks: "F5c"
   },
 

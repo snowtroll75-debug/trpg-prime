@@ -319,7 +319,10 @@ eq("B3 subdual from a Blunt Arrow costs -4", SUBDUAL_SHOT_PENALTY, -4);
 ok("B3b asked before the roll, as circumstance, when the round allows it",
   /if \(ammoEffects\.allowsSubdual && !skipDialog\(event\)\) \{/.test(attackSrc)
   && /value: SUBDUAL_SHOT_PENALTY, type: "circumstance"/.test(attackSrc)
-  && attackSrc.indexOf("promptSubdualShot(ammo") < attackSrc.indexOf("const check = await TRGCheck.roll({"));
+  // Re-anchored at 3.667.0: the attack check's config is built, then rolled
+  // (and rolled again if the defender rerolls it).
+  && attackSrc.indexOf("promptSubdualShot(ammo") > 0
+  && attackSrc.indexOf("promptSubdualShot(ammo") < attackSrc.indexOf("const attackCheckConfig = {"));
 // COUNTED, NOT MERELY FOUND (3.579.0). A stray shot is a second damage
 // call and it honours the Blunt Arrow too, so a check that only asked
 // whether the phrase appeared anywhere stopped noticing its loss from the
@@ -443,7 +446,7 @@ eq("F3 the fumble table: melee, missile, thrown or unarmed",
   ["melee", "missile", "thrown", "unarmed", "unarmed", "thrown"]);
 ok("F3b the attack's fumble reads it, with the throw",
   /const category = fumbleTableFor\(swung, \{ thrown \}\);/.test(attackSrc)
-  && /rollFumbleCheck\(actor, weapon, \{ dcHalved: outcome\.fumbleDcHalved, weaponData, thrown: thrownAttack \}\)/.test(attackSrc));
+  && /rollFumbleCheck\(actor, weapon, \{ dcHalved: outcome\.fumbleDcHalved, weaponData, thrown: thrownAttack(?:, rerollOffered: !fumbleRerolled|, confirmed: fumbleConfirmedEarly)? \}\)/.test(attackSrc));
 /*
  * F4 PINNED TO ITS OWN CALL SITE AT 3.586.3.
  *
@@ -470,7 +473,8 @@ ok("F4b and nothing re-reads the category by hand instead",
   eq("F5 Force Punch rides a gauntleted fist", riderPacketsFor([punch], gauntletIdentity).length, 1);
   eq("F5b and not a sword", riderPacketsFor([punch], { attackMode: "melee", category: "Martial", weaponId: "s" }).length, 0);
   ok("F5c the identity carries what the rule reads",
-    /unarmed: weapon\?\.system\?\.unarmed === true,/.test(code("module", "magic", "strike-riders-workflow.mjs")));
+    // Re-anchored at 3.671.0: or a weapon the holder's unarmed abilities reach (B7-6).
+    /unarmed: weapon\?\.system\?\.unarmed === true(?: \|\| abilityUnarmed)?,/.test(code("module", "magic", "strike-riders-workflow.mjs")));
 }
 
 /* ================================================================== */

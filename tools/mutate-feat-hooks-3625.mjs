@@ -18,7 +18,7 @@ const B = path.join(SYSTEM_ROOT, "module", "documents", "combat.mjs");
 const MUTATIONS = [
   { name: "the variant applies regardless of the feat", file: F, from: "  const variant = variants.find((v) => v && owned.has(String(v.feat ?? \"\").trim().toLowerCase()));", to: "  const variant = variants[0];", breaks: "A1" },
   { name: "the variant mutates the entry", file: F, from: "  const out = { ...action, variantApplied: String(variant.feat) };", to: "  const out = action; out.variantApplied = String(variant.feat);", breaks: "A3" },
-  { name: "the difference is read as a sum", file: C, from: "    return Math.trunc(a) - Math.trunc(b);", to: "    return Math.trunc(a) + Math.trunc(b);", breaks: "B2" },
+  { name: "the difference is read as a sum", file: C, from: "    return a === null || b === null ? null : a - b;", to: "    return a === null || b === null ? null : a + b;", breaks: "B2" }, // re-anchored at 3.668.0 (scaledFigure)
   { name: "a Partial is boosted too", file: A, from: "  const success = [\"success\", \"critical\", \"heroic\"].includes(", to: "  const success = [\"partial\", \"success\", \"critical\", \"heroic\"].includes(", breaks: "C2" },
   { name: "the boost is uncapped", file: A, from: "value = Math.min(boost.max, value + boost.value);", to: "value = value + boost.value;", breaks: "C2" },
   { name: "the hook is dropped", file: B, from: "      if (actor) Hooks.callAll(\"trgPrimeInitiativeRolled\", { actor, combatant: this.combatants.get(id), combat: this });\n", to: "", breaks: "D1" }
@@ -41,3 +41,5 @@ try {
 const bad = results.filter((r) => r.state !== "caught");
 for (const r of results) { process.stdout.write(`  ${r.state === "caught" ? "caught  " : r.state.padEnd(8)}  ${r.name}\n`); if (r.state === "SURVIVED") process.stdout.write(`            should have broken: ${r.breaks}\n`); }
 process.stdout.write(bad.length ? `\nmutate-feat-hooks-3625: FAILED — ${bad.length} of ${results.length} not caught.\n` : `\nmutate-feat-hooks-3625: OK — all ${results.length} mutations caught, tree restored.\n`);
+// A SURVIVOR FAILS THE SWEEP (3.664.0): this harness reported FAILED and exited 0.
+if (bad.length) process.exitCode = 1;

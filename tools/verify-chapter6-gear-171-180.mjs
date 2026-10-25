@@ -392,7 +392,9 @@ eq("C12b a type with no named kit keeps its tick",
   ok("C14f nor from a lab in the pack", goodsConditionals([G("Alchemy Lab")]).length === 0);
   const act = code("module", "combat", "action-workflow.mjs");
   ok("C14g both the dialog and the roll are told what is being made",
-    (act.match(/traits: alchemicalCheckTraits\(action\.key, createItemTypeKey\)/g) ?? []).length === 2);
+    // Re-anchored at 3.666.0: the action's own traits join the alchemical one
+    // (actionCheckTraits, which calls alchemicalCheckTraits).
+    (act.match(/traits: actionCheckTraits\(action, createItemTypeKey\)/g) ?? []).length === 2);
 }
 
 /* ================================================================== */
@@ -444,7 +446,7 @@ ok("D8c a bite is not a fist; nor is anything without the marker",
 {
   const src = code("module", "combat", "attack-workflow.mjs");
   ok("D8d the Strike reads the marker", /const stoneFist = stoneFistProfile\(weapon\?\.system, Boolean\(findMarker\(actor, "fistOfRock"\)\)\);/.test(src));
-  ok("D8e and the damage roll uses the 1d6", /damageOverride: stoneFist\?\.damage \?\? extraBaseDiceOverride\(weaponData\.damage, extraBaseDice\),/.test(src)
+  ok("D8e and the damage roll uses the 1d6", /damageOverride: stoneFist\?\.damage \?\? extraBaseDiceOverride\(weaponData\.damage, extraBaseDice \+ \(brace\?\.extraDice \?\? 0\)\),/.test(src)
     && /buildWeaponDamageFormula\((?:handAndAHalfDamage \?\? )?damageOverride \?\? weaponData\.damage,/.test(src));
   ok("D8f the standalone Damage button too", /damageOverride: standaloneFist\?\.damage \?\? null,/.test(src));
 }

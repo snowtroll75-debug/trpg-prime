@@ -294,7 +294,7 @@ async function packRows(pack) {
   ok("E5 R14 — the Rod of Alertness on Perception and Sense Motive only",
     advantageRodFor([alert], "perception")?.cost === 2 && advantageRodFor([alert], "senseMotive") && advantageRodFor([alert], "stealth") === null);
   ok("E5b offered before the dice, combined through resolveBias",
-    CHECK.includes('if (check.actor && ["skill", "spellcraft"].includes(check.type) && !check.flat && !check.rodAdvantageResolved) {')
+    CHECK.includes('if (check.actor && ["skill", "spellcraft"].includes(check.type) && !check.flat && !check.rodAdvantageResolved && !check.presetModifiers) {')
     && CHECK.indexOf("advantageRodFor(Array.from(check.actor.items ?? []), check.subject, rodCtx)") < CHECK.indexOf("await check.evaluate();"));
   ok("E6 a broken rod does nothing",
     metamagicRodsOf([rod("Rod of Extension I", { metamagic: { kind: "extend", maxPP: 4 } }, { hp: { max: 1, value: 0 } })]).length === 0);

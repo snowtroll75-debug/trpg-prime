@@ -469,7 +469,8 @@ ok("W3 A WEAPON STRIKE DECLARES ITSELF TARGETED",
 ok("W4 THE INJURY ROLL IS GATED ON THE IMMUNITY",
   // 3.650.0: anchored on the injury's own gate — a second line (the critical
   // replacement's offer) now asks the same question first.
-  /if \((?:!grabOnly\s*&&\s*|strikeLands\s*&&\s*)?outcome\.critical\s*&&\s*!outcome\.critical\.injuryImmune\s*&&\s*!injuryReplaced\) \{/.test(attackSrc),
+  // Re-anchored at 3.667.0: a strike series' later criticals roll no injury either.
+  /if \((?:!grabOnly\s*&&\s*|strikeLands\s*&&\s*)?outcome\.critical\s*&&\s*!outcome\.critical\.injuryImmune\s*&&\s*!injuryReplaced\s*&&\s*!noCriticalInjury\) \{/.test(attackSrc),
   "C1c proves attackOutcome sets the flag; without this, nothing proves the workflow "
   + "reads it, and a flag nobody reads is the whole subject of this release");
 

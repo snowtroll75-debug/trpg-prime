@@ -3247,6 +3247,36 @@ export async function resolveAction(actor, action, {
     }
   }
 
+  // ASKED BEFORE THE DIALOG (3.671.0), so the dialog knows what is being
+  // restored: a conditional scoped by `restores` (Veilborn's +2 to restore
+  // a Ghost Art) is offered there as it is applied on a skipped dialog.
+  // BOTH PATHS OR NEITHER (below).
+  // Refocus (Chapter 6): the ability is named BEFORE the check, because every
+  // rung below Success attaches its consequence to that named ability — a
+  // minute's wait, a ten-minute block, or nothing again today. Picking after
+  // the roll would let a player choose which ability to hand a fumble to with
+  // the fumble already showing. Asked before the spend, like Repair's target,
+  // so cancelling costs nothing.
+  let refocusTarget = null;
+  if (action.key === "refocus") {
+    const pick = await chooseRefocusTarget(actor, { event });
+    if (!pick.item) {
+      if (pick.reason === "none") {
+        ui.notifications.warn(`${actor.name} has no spent Focus ability to restore.`);
+      } else if (pick.reason === "barred") {
+        // NAMED, NOT SILENT. Everything spent is barred by an earlier
+        // attempt, and the player is told which rule is holding each one.
+        ui.notifications.warn(
+          `Refocus is barred on every spent Focus ability: ${pick.barred
+            .map((b) => `${b.item.name} (${b.reason})`)
+            .join(", ")}.`
+        );
+      }
+      return null;
+    }
+    refocusTarget = pick.item;
+  }
+
   let situational = null;
   if (!skipDialog(event)) {
     situational = await promptCheckConfiguration({
@@ -3275,6 +3305,8 @@ export async function resolveAction(actor, action, {
       targetTypes: creatureTypesOf(targetActor?.system ?? {}),
       targetTraits: creatureTraits(targetActor?.system ?? {}),
       targetUuid: targetActor?.uuid ?? "",
+      // WHAT A REFOCUS RESTORES (3.671.0), as the roll is told below.
+      restores: refocusTarget ? [refocusTarget.system?.category, refocusTarget.name].map((v) => String(v ?? "").trim()).filter(Boolean) : [],
       // WHAT IS BEING MADE (3.577.0): "alchemical" on a Crafting (alchemy)
       // check, so the Alchemy Lab's +4 is offered there and nowhere else.
       // BOTH PATHS, as the axes above are — see the roll below.
@@ -3544,31 +3576,6 @@ export async function resolveAction(actor, action, {
     tracklessQuarry = await promptTrackQuarry();
   }
 
-  // Refocus (Chapter 6): the ability is named BEFORE the check, because every
-  // rung below Success attaches its consequence to that named ability — a
-  // minute's wait, a ten-minute block, or nothing again today. Picking after
-  // the roll would let a player choose which ability to hand a fumble to with
-  // the fumble already showing. Asked before the spend, like Repair's target,
-  // so cancelling costs nothing.
-  let refocusTarget = null;
-  if (action.key === "refocus") {
-    const pick = await chooseRefocusTarget(actor, { event });
-    if (!pick.item) {
-      if (pick.reason === "none") {
-        ui.notifications.warn(`${actor.name} has no spent Focus ability to restore.`);
-      } else if (pick.reason === "barred") {
-        // NAMED, NOT SILENT. Everything spent is barred by an earlier
-        // attempt, and the player is told which rule is holding each one.
-        ui.notifications.warn(
-          `Refocus is barred on every spent Focus ability: ${pick.barred
-            .map((b) => `${b.item.name} (${b.reason})`)
-            .join(", ")}.`
-        );
-      }
-      return null;
-    }
-    refocusTarget = pick.item;
-  }
 
   // Study Target (Chapter 4): the character chooses how long to spend, which
   // both sets the time cost and grants a circumstance modifier to the check
@@ -3866,6 +3873,9 @@ export async function resolveAction(actor, action, {
     type: config.type,
     dc: finalDC,
     difficulty: effectiveDifficulty,
+    // WHAT THIS REFOCUS RESTORES (3.671.0, Veilborn): the item named above,
+    // by category and name, for the conditionals' `restores` axis.
+    ...(refocusTarget ? { restores: [refocusTarget.system?.category, refocusTarget.name].map((v) => String(v ?? "").trim()).filter(Boolean) } : {}),
     // TRACKLESS STEP (Chapter 5): disadvantage when a named quarry has it.
     // COMBINED through `resolveBias` rather than assigned, so a Track check
     // already carrying Advantage from somewhere comes out Normal instead of

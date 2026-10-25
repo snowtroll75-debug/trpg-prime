@@ -176,7 +176,7 @@ import { oilCoatOf, riderAttackRow, riderDamageBonus, riderPackets, struckMateri
 import { effectiveWeaponCategory, proficiencyProfile, proficiencyOf } from "../proficiency-rules.mjs";
 import { armouredFistProfile } from "../armour-descriptions.mjs";
 import { stoneFistProfile } from "../elixirs.mjs";
-import { attackFormOf, declaredUnarmedRows, unarmedProfile, withUnarmedProfile } from "./unarmed-profile.mjs";
+import { abilityStrikeView, attackFormOf, declaredUnarmedRows, declaresUnarmedAbilities, unarmedAbilityCarriers, unarmedProfile, weaponScalingProfile, withUnarmedProfile } from "./unarmed-profile.mjs";
 import { isBuckler } from "../buckler.mjs";
 import { fumbleTableFor, isUnarmedAttack } from "./unarmed.mjs";
 import { weaponStrikeRefused } from "../codex-action-rules.mjs";
@@ -629,6 +629,14 @@ export async function rollWeaponAttack(actor, weapon, {
   // ATTACK PENALTY" (3.670.0; Inner Tempest's Perfect Strike and Perfect
   // Shot): the counter advances by this many, as Power Attack's does by two.
   mapSteps: mapStepsOption = 1,
+  // A STRIKE ITS TARGET CANNOT REACT TO (3.671.0; Inner Tempest's Drawn
+  // Verdict: "The target cannot use reactions triggered by the drawing of
+  // your weapon or this Strike"). The target is offered no defence, no
+  // critical replacement, no reactive disarm and no miss reaction, and the
+  // resolved hook says so for a module's own offers. Its conviction reroll
+  // is not a reaction and is still asked; an ally's intercept is not the
+  // target's and is still asked.
+  noReactions = false,
   extraPrecisionDice = 0,
   // SHIELDED STRIDE'S ONE FACT (fixed 3.365.0, found live). This was read
   // as `options.provokedByMovement` inside a function that destructures its
@@ -838,13 +846,18 @@ export async function rollWeaponAttack(actor, weapon, {
   // A TRAIT THE WEAPON'S GROUP GAINS (3.668.0; Weapon Discipline's Finesse
   // "if wielded in one hand"). See combat/strike-options.mjs.
   const { traitsWithGroupGrants } = await import("./strike-options.mjs");
+  // UNARMED ABILITIES WITH THIS WEAPON (3.671.0; Soul-Bound Weapon, Zen
+  // Archer, B7-6). Abilities only: `abilityData` below is what the
+  // ability readers see; the fists' damage profile above never does.
+  const abilityUnarmed = declaresUnarmedAbilities(unarmedAbilityCarriers(actor), weapon);
   const groupTraits = traitsWithGroupGrants(ammoData.traits, [...Array.from(actor.items ?? []), ...Array.from(actor.appliedEffects ?? actor.effects ?? [])], {
     group: ammoData.group,
     oneHanded: itemRequiredHands(weapon, actor.system?.identity?.size ?? "medium") < 2 && !heldInTwoHandGrip(weapon),
     // AN UNARMED-SCOPED GRANT (3.670.0; Mantis and Dragon Stance).
-    unarmed: attackFormOf(ammoData) === "unarmed"
+    unarmed: attackFormOf(ammoData) === "unarmed" || abilityUnarmed
   });
   const weaponData = groupTraits === ammoData.traits ? ammoData : { ...ammoData, traits: groupTraits };
+  const abilityData = abilityStrikeView(weaponData, abilityUnarmed);
 
   /*
    * HIDE FROM ANIMALS ENDS HERE (3.503.0). "If a warded character
@@ -1315,7 +1328,7 @@ export async function rollWeaponAttack(actor, weapon, {
     }
   }
 
-  if (targetActor) {
+  if (targetActor && !noReactions) {
     const { offerDefences } = await import("./defence-offer-workflow.mjs");
     await offerDefences(actor, targetActor, { kind: "weapon", what: weapon.name });
   }
@@ -1433,7 +1446,7 @@ export async function rollWeaponAttack(actor, weapon, {
       targetUuid: targetActor?.uuid ?? "",
       agile,
       finesse: !isRanged && /\bfinesse\b/i.test(String(weaponData.traits ?? "")),
-      unarmed: isUnarmedAttack(weaponData),
+      unarmed: isUnarmedAttack(abilityData),
       isRanged,
       withinFirstIncrement: Number.isFinite(Number(distanceToTarget))
         && Number(rangeIncrement) > 0
@@ -2499,8 +2512,8 @@ export async function rollWeaponAttack(actor, weapon, {
   // A TYPE SET RATHER THAN OFFERED (3.670.0; Tiger and Wolf Stance): it is
   // the Strike's type, and nothing else is asked; two set at once are asked
   // between.
-  const forcedTypes = forcedStrikeTypes(weaponData, strikeTypeOptions);
-  const damageTypeChoices = forcedTypes.length ? forcedTypes : strikeTypeChoices(weaponData, strikeTypeOptions, versatileAlternate);
+  const forcedTypes = forcedStrikeTypes(abilityData, strikeTypeOptions);
+  const damageTypeChoices = forcedTypes.length ? forcedTypes : strikeTypeChoices(abilityData, strikeTypeOptions, versatileAlternate);
   if (forcedTypes.length === 1) versatileDamageType = forcedTypes[0].type;
   else if (damageTypeChoices.length > 1) {
     versatileDamageType = await promptVersatileDamageType(weapon.name, damageTypeChoices);
@@ -2576,7 +2589,7 @@ export async function rollWeaponAttack(actor, weapon, {
     // WHAT IT IS STRUCK WITH (3.667.3): "unarmed" (the fists, a gauntlet, a
     // Monastic weapon), "natural" or "weapon". Inner Strike's +1 status to
     // unarmed attack rolls reads it; found live on Inner Tempest 0.4.1.
-    attackForm: attackFormOf(weaponData),
+    attackForm: attackFormOf(abilityData),
     // THE WEAPON'S GROUP (3.668.0): Weapon Discipline's scope.
     attackGroup: String(weaponData.group ?? "").trim().toLowerCase(),
     // HOW FAR IT REACHES (3.668.0): Stone Serpent's reach, Distant Honour's
@@ -3181,7 +3194,7 @@ export async function rollWeaponAttack(actor, weapon, {
   let injuryReplaced = false;
   // A HELD BLOW (3.668.0) rolls no injury now: it lands with the damage.
   if (!held) {
-    if (strikeLands && outcome.critical && !outcome.critical.injuryImmune && targetActor) {
+    if (strikeLands && outcome.critical && !outcome.critical.injuryImmune && targetActor && !noReactions) {
       const { offerCriticalReplacement } = await import("../creature-reactions-workflow.mjs");
       injuryReplaced = await offerCriticalReplacement(actor, weapon, targetActor);
     }
@@ -3573,8 +3586,8 @@ export async function rollWeaponAttack(actor, weapon, {
       // multiple attack penalty." A button on the defender's card, the way
       // every reaction feat is offered (Graham, 21 August 2026).
       const { offerReactiveDisarm } = await import("./reactive-disarm-workflow.mjs");
-      await offerReactiveDisarm(targetActor, actor, weapon);
-      const jaw = savageJawOffer(Array.from(targetActor.items ?? []), { melee: true });
+      if (!noReactions) await offerReactiveDisarm(targetActor, actor, weapon);
+      const jaw = noReactions ? null : savageJawOffer(Array.from(targetActor.items ?? []), { melee: true });
       if (jaw) {
         await ChatMessage.create({
           speaker: ChatMessage.getSpeaker({ actor: targetActor }),
@@ -3593,7 +3606,7 @@ export async function rollWeaponAttack(actor, weapon, {
   // OUTSIDE THE FUMBLE BRANCH (3.650.1, found live): 3.650.0 put it beside
   // Reactive Disarm, inside `if (outcome.fumbleRisk …)`, so only a miss on
   // an unmodified 1 ever offered it.
-  if (outcome.resolved && !outcome.hits && targetActor) {
+  if (outcome.resolved && !outcome.hits && targetActor && !noReactions) {
     const { offerMissedReactions } = await import("../creature-reactions-workflow.mjs");
     await offerMissedReactions(targetActor, actor).catch(() => []);
   }
@@ -3678,7 +3691,10 @@ export async function rollWeaponAttack(actor, weapon, {
       // hit. `hits` is false too for an attack never resolved and for a hit
       // that lands nothing (a grab, a carried spell), and neither is a miss
       // to answer (Snake Stance, Waiting Blade), as offerMissedReactions reads it.
-      resolved: Boolean(outcome?.resolved), missed: Boolean(outcome?.resolved) && !outcome?.hits
+      resolved: Boolean(outcome?.resolved), missed: Boolean(outcome?.resolved) && !outcome?.hits,
+      // THE TARGET MAY NOT REACT TO THIS STRIKE (3.671.0; Drawn Verdict). A
+      // module's reaction to it (Snake Stance, Waiting Blade) is not offered.
+      noReactions: Boolean(noReactions)
     });
   }
   return check;
@@ -4176,7 +4192,9 @@ export async function rollCriticalInjury(
   // A caller that hands no weapon still gets its trait line read.
   // Flags this card carries beyond Killer's Edge's (see injuryCardOptions).
   let injuryCardFlags = null;
-  const savageIsUnarmed = isUnarmedAttack(weapon?.system ?? { traits: weaponTraits });
+  const savageIsUnarmed = isUnarmedAttack(weapon?.system ?? { traits: weaponTraits })
+    // A weapon the holder's unarmed abilities reach (3.671.0, B7-6).
+    || declaresUnarmedAbilities(unarmedAbilityCarriers(actor), weapon);
   const savageActive = savageIsUnarmed && Array.from(actor?.items ?? []).some(
     (i) => i.type === "feat" && String(i.name).trim().toLowerCase() === "savage strikes"
   );
@@ -5255,6 +5273,9 @@ async function resolveWeaponDamage(
   // combat/unarmed-profile.mjs.
   const unarmed = unarmedProfileFor(actor, weaponData);
   if (!damageOverride && unarmed?.damage) damageOverride = unarmed.damage;
+  // ONE BONDED WEAPON'S SCALING (3.671.0; Soul-Bound Weapon): the same
+  // flat, magic and materials, for that weapon only. See unarmed-profile.mjs.
+  const bonded = weaponScalingProfile(unarmedAbilityCarriers(actor), weapon, Number(actor?.system?.combat?.bab?.total ?? 0));
   const handAndAHalfDamage = usedTwoHanded && heldInTwoHandGrip(weapon)
     ? steppedCreatureDamage(damageOverride ?? weaponData.damage, 1)
     : null;
@@ -5482,6 +5503,8 @@ async function resolveWeaponDamage(
   // flat above, and the card names it.
   const unarmedFlat = Math.max(0, Math.trunc(Number(unarmed?.flat) || 0));
   if (unarmedFlat) formula += ` + ${unarmedFlat}`;
+  const bondedFlat = Math.max(0, Math.trunc(Number(bonded?.flat) || 0));
+  if (bondedFlat) formula += ` + ${bondedFlat}`;
 
   // Power Attack (Class, Chapter 5): "+2d8 damage... At BAB +12, 3d8
   // and at BAB +18 4d8" — same type as the base damage.
@@ -5594,6 +5617,7 @@ async function resolveWeaponDamage(
   for (const said of Array.isArray(declaredBonusLines) ? declaredBonusLines : []) lines.push(line(said));
   for (const said of Array.isArray(compoundFlatLines) ? compoundFlatLines : []) lines.push(line(said));
   if (unarmedFlat) lines.push(line(`<em>${unarmed.flatLabel}: total unarmed damage.</em>`));
+  if (bondedFlat) lines.push(line(`<em>${bonded.flatLabel}: total damage.</em>`));
   // SAID OUT LOUD, because dice that silently vanish read as a bug. The
   // player spent Sneak Attack or the once-per-round Precision Hunter die
   // on this strike and has to see where it went.
@@ -5786,9 +5810,11 @@ async function resolveWeaponDamage(
       || Boolean(magicalAttackSource(declaredMagicalAttacks(Array.from(actor.appliedEffects ?? actor.effects ?? [])), { targetUuid: targetActor?.uuid ?? "", weaponName: weapon?.name ?? "", targetTraits: creatureTraits(targetActor?.system ?? {}) }))
       // …AND A TYPE CHOSEN THROUGH AN OPTION THAT SAYS SO (3.627.0): Essence
       // Attacks' "the attack remains magical".
-      || strikeTypeIsMagical(weaponData, declaredStrikeTypeOptions(Array.from(actor.appliedEffects ?? actor.effects ?? [])), effectiveDamageType, extractVersatileType(weaponData.traits))
+      || strikeTypeIsMagical(abilityStrikeView(weaponData, declaresUnarmedAbilities(unarmedAbilityCarriers(actor), weapon)), declaredStrikeTypeOptions(Array.from(actor.appliedEffects ?? actor.effects ?? [])), effectiveDamageType, extractVersatileType(weaponData.traits))
       // …AND TRAINED FISTS THAT "CLASS AS MAGICAL" (3.667.0, Powerful Fists at BAB 3).
-      || Boolean(unarmed?.magical);
+      || Boolean(unarmed?.magical)
+      // …AND A BONDED WEAPON THAT CLASSES AS MAGICAL (3.671.0, Soul-Bound Weapon at BAB 3).
+      || Boolean(bonded?.magical);
     // PENETRATING STRIKES (Creature Codex; 3.631.0): "the creature's
     // indicated physical attacks treat all DR as half" — a MELEE attack
     // carrying the penetrating trait (a stat block prints "Claws +18
@@ -5890,7 +5916,7 @@ async function resolveWeaponDamage(
       incorporealTouch: ghostTouchHere,
       // TRAINED FISTS "TREATED AS COLD IRON AND SILVER" (3.667.0): the
       // weapon's own material first, then every one the training names.
-      material: [materialDefenceWord(struck.material), ...(unarmed?.materials ?? [])].filter(Boolean).join(", "),
+      material: [materialDefenceWord(struck.material), ...(unarmed?.materials ?? []), ...(bonded?.materials ?? [])].filter(Boolean).join(", "),
       // A STRIKE IS TARGETED BY DEFINITION (3.548.0). Graham's ruling:
       // targeted is "any attack that requires an attack roll to hit
       // (weapon or spell)", and this is the path every attack roll in
@@ -6385,9 +6411,11 @@ export async function rollWeaponDamage(actor, weapon, { preset = null } = {}) {
   // A TYPE SET RATHER THAN OFFERED (3.670.0; Tiger and Wolf Stance), here
   // as on the attack path: one is the type without a question.
   const standaloneOptions = declaredStrikeTypeOptions(Array.from(actor.appliedEffects ?? actor.effects ?? []));
-  const standaloneForced = forcedStrikeTypes(weaponData, standaloneOptions);
+  // The holder's unarmed abilities with this weapon (3.671.0, B7-6).
+  const standaloneAbilityData = abilityStrikeView(weaponData, declaresUnarmedAbilities(unarmedAbilityCarriers(actor), weapon));
+  const standaloneForced = forcedStrikeTypes(standaloneAbilityData, standaloneOptions);
   const standaloneTypeChoices = standaloneForced.length ? standaloneForced : strikeTypeChoices(
-    weaponData, standaloneOptions, versatileAlternate);
+    standaloneAbilityData, standaloneOptions, versatileAlternate);
   const showVersatile = standaloneTypeChoices.length > 1;
   const showHandAndAHalf = /\bhand\s*&\s*a\s*half\b/i.test(String(weaponData.traits ?? ""));
   // THE SAME x1.5 THE ATTACK PATH USES (3.575.0): a one-size-larger weapon

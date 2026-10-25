@@ -84,6 +84,20 @@ export function fumbleBlocksReactions(actor) {
 }
 
 /**
+ * ANY OTHER EFFECT THAT TAKES THE REACTIONS (3.671.0; Inner Tempest's Drawn
+ * Verdict: "If the Strike inflicts damage, the target cannot use reactions
+ * until the beginning of its next turn"). An effect carrying
+ * `flags.trg-prime.noReactions: true`; whatever ends the effect ends the
+ * block. The reason names the effect. Returns "" when none.
+ */
+export function declaredReactionBlock(actor) {
+  const effect = Array.from(actor?.effects ?? []).find(
+    (e) => !e.disabled && e.getFlag?.("trg-prime", "noReactions") === true
+  );
+  return effect ? `${effect.name}: no Reactions` : "";
+}
+
+/**
  * Whether Confused forbids this specific non-Reaction action. Confused
  * blocks the two actions that hand control of your turn to a trigger —
  * Ready and Delay — on top of blocking Reactions themselves.
@@ -111,7 +125,7 @@ export function actorReactionBlock(actor) {
     confused: Boolean(actor?.hasCondition?.("confused")),
     fullDefence: isInFullDefence(actor),
     fumbled: fumbleBlocksReactions(actor)
-  });
+  }) ?? (declaredReactionBlock(actor) || null);
 }
 
 /**

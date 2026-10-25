@@ -81,6 +81,13 @@ export function parsePrerequisiteClause(clause) {
   m = text.match(/^Level\s+(\d+)$/i);
   if (m) return { type: "level", min: Number(m[1]) };
 
+  // "LEARNED CASTER" (3.671.0; Inner Tempest's Shugenja). The class's
+  // casting style, as the class item records it (Druid, Cleric and Wizard
+  // are learned; the Bard, Ranger and Crusader instinctive). Graham's IT-C9:
+  // "Shugenja is only available to Learned casters".
+  m = text.match(/^(Learned|Instinctive) Caster$/i);
+  if (m) return { type: "casterStyle", style: m[1].toLowerCase() };
+
   // "Any special visual sense (Darkvision, Nightvision etc)" — the Enhanced
   // sense feats (Fiends & Fables 3.0 block 2, ruling 1). The comma inside
   // the parenthesis splits the clause; the head is what is read, and the
@@ -246,6 +253,10 @@ export function meetsParseablePrerequisites(prerequisites, actorStats = {}) {
         break;
       case "skill":
         if (Number(actorStats.skillRanks?.[parsed.key] ?? 0) < parsed.min) return false;
+        break;
+      case "casterStyle":
+        // Fails open when the caller did not say how the actor casts.
+        if (actorStats.casterStyle !== undefined && actorStats.casterStyle !== parsed.style) return false;
         break;
       case "specialSense":
         // Fails open when the caller did not say what senses the actor has.

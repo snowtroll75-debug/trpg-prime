@@ -86,7 +86,7 @@ const MUTATIONS = [
   { file: CREATE, name: "an alchemical Create is not alchemical", from: "  if (actionKey === \"create\" && CONSUMABLE_ITEM_TYPES.includes(String(itemTypeKey ?? \"\"))) return \"alchemical\";", to: "", breaks: "C14b" },
   { file: CREATE, name: "Identify Alchemy is not alchemical", from: "  if (actionKey === \"identifyAlchemy\") return \"alchemical\";", to: "", breaks: "C14c" },
   // The DIALOG's line: its six spaces keep the roll's four-space line from matching inside it.
-  { file: ACTIONWF, name: "the dialog is not told what is being made", from: "      traits: alchemicalCheckTraits(action.key, createItemTypeKey),", to: "", breaks: "C14g" },
+  { file: ACTIONWF, name: "the dialog is not told what is being made", from: "      traits: actionCheckTraits(action, createItemTypeKey),", to: "", breaks: "C14g" },
   { file: ACTIONWF, name: "the Treat actions spend nothing", from: "    await spendToolUse(actor, action.key);", to: "", breaks: "C8" },
 
   /* ── D: elixirs and herbs ──────────────────────────────────────── */
@@ -105,7 +105,7 @@ const MUTATIONS = [
   // so the alchemical spend is named by the import beside it.
   { file: CONSUMEWF, name: "drinking costs no AP", from: "    const { spendActionPoints } = await import(\"./combat/action-points-workflow.mjs\");\n    await spendActionPoints(actor, cost.ap, item.name);", to: "", breaks: "D18c" },
   { file: CONSUMEWF, name: "a waiting bonus is never recorded", from: "    await addPendingModifier(actor, { ...scaled.pending, oneShot: true });", to: "", breaks: "D18d" },
-  { file: ATTACK, name: "stone fists hit with the old die", from: "      damageOverride: stoneFist?.damage ?? extraBaseDiceOverride(weaponData.damage, extraBaseDice),", to: "      damageOverride: extraBaseDiceOverride(weaponData.damage, extraBaseDice),", breaks: "D8e" },
+  { file: ATTACK, name: "stone fists hit with the old die", from: "      damageOverride: stoneFist?.damage ?? extraBaseDiceOverride(weaponData.damage, extraBaseDice + (brace?.extraDice ?? 0)),", to: "      damageOverride: extraBaseDiceOverride(weaponData.damage, extraBaseDice + (brace?.extraDice ?? 0)),", breaks: "D8e" },
   { file: ATTACK, name: "the damage roll ignores the override", from: "  let formula = buildWeaponDamageFormula(handAndAHalfDamage ?? damageOverride ?? weaponData.damage, {", to: "  let formula = buildWeaponDamageFormula(handAndAHalfDamage ?? weaponData.damage, {", breaks: "D8e" },
   { file: COMBAT, name: "Angelstep adds nothing to the Dying Check", from: "        ...(angelstep ? [{ label: \"Angelstep\", value: ANGELSTEP_DYING_BONUS, type: \"item\" }] : [])", to: "", breaks: "D9d" },
   { file: REST, name: "Dream Lichen heals Soul Drain once", from: "      ? soulDrainRecovery(soulDrainRecovery(soulDrainBefore))", to: "      ? soulDrainRecovery(soulDrainBefore)", breaks: "D13b" },

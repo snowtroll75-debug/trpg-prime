@@ -274,6 +274,11 @@ export function applyStacking(modifiers = [], { stacking = {} } = {}) {
       value: Number(modifier.value),
       type: BONUS_TYPES[modifier.type] ? modifier.type : "untyped",
       source: modifier.source ?? "check",
+      // ONE OF A GROUP, THE GREATEST ONLY (3.671.0; Inner Tempest's
+      // Formbinder: "If both forms offer a bonus to the same thing, you may
+      // only benefit from the greater of the two"). Blank for every other
+      // modifier, which is untouched by this.
+      stackGroup: String(modifier.stackGroup ?? "").trim(),
       index,
       applied: true,
       suppressed: null
@@ -312,6 +317,25 @@ export function applyStacking(modifiers = [], { stacking = {} } = {}) {
         entry.applied = false;
         entry.suppressed = `Does not stack with a greater ${BONUS_TYPES[type].label.toLowerCase()} penalty`;
       }
+    }
+  }
+
+  // A STACK GROUP (3.671.0): of the bonuses still applied that share one,
+  // only the greatest applies, whatever their types. Penalties are left to
+  // their types' rules: the clause is about benefits.
+  const byGroup = new Map();
+  for (const entry of entries) {
+    if (!entry.stackGroup || !entry.applied || entry.value <= 0) continue;
+    if (!byGroup.has(entry.stackGroup)) byGroup.set(entry.stackGroup, []);
+    byGroup.get(entry.stackGroup).push(entry);
+  }
+  for (const group of byGroup.values()) {
+    if (group.length < 2) continue;
+    const best = group.reduce((a, b) => (b.value > a.value ? b : a));
+    for (const entry of group) {
+      if (entry === best) continue;
+      entry.applied = false;
+      entry.suppressed = `Only the greater of ${best.label} and ${entry.label} applies`;
     }
   }
 

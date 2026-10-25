@@ -78,8 +78,10 @@ ok("S2 on death the rebirth card is posted, and its button runs Resurrection's o
 ok("S3 a hit that carries a spell rolls no injury and no damage",
   /if \(bowCast\) \{\n\s+const \{ castThroughStrike \} = await import\("\.\.\/bow-casting-workflow\.mjs"\);\n\s+spellCarried = await castThroughStrike\(actor, weapon, targetActor, bowCast, outcome\.critical\?\.severity \?\? null\);/.test(src.aw)
   && /const strikeLands = !grabOnly && !hitCondition && !spellCarried;/.test(src.aw)
-  && /if \(strikeLands && outcome\.critical && !outcome\.critical\.injuryImmune && !injuryReplaced\) \{/.test(src.aw)
-  && /if \(outcome\.hits && strikeLands\) \{/.test(src.aw));
+  // Re-anchored at 3.667.0: a strike series' later criticals roll no injury either.
+  && /if \(strikeLands && outcome\.critical && !outcome\.critical\.injuryImmune && !injuryReplaced && !noCriticalInjury\) \{/.test(src.aw)
+  // Re-anchored at 3.668.0: a held blow (Black Lotus) defers its damage.
+  && /if \(outcome\.hits && strikeLands( && !held)?\) \{/.test(src.aw));
 ok("S4 the carried spell is cast through core's own cast, its AP already paid, Heightened, the severity on its DC",
   /await castSpell\(actor, spell, \{ presetTargets: Boolean\(token\), apPaid: true, carried: \{ label: spec\.source, heighten: spec\.heighten, dcBonus, severity \} \}\);/.test(src.bw)
   && /highMagicHeightens\(actor, mm\.heightenSave \|\| carried\?\.heighten === true\)/.test(src.cast)

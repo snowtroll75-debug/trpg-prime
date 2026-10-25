@@ -189,7 +189,8 @@ ok("H4 and none of them reads the spell's rows past a chosen mode",
  * I. F9 — Time Stop
  * ================================================================== */
 ok("I1 the AP ceiling is lifted by the allowance",
-  /const max = Number\(resource\.max \?\? 0\) \+ \(key === "ap" \? Math\.max\(0, Number\(apAllowance\) \|\| 0\) : 0\);/.test(actor));
+  /const max = Number\(resource\.max \?\? 0\)\n\s*\+ \(key === "ap" \? Math\.max\(0, Number\(apAllowance\) \|\| 0\) : 0\)/.test(actor),
+  "3.663.5: Improved Combat Reflexes' reaction allowance follows on its own line");
 ok("I2 the allowance is the actor's apOverflow flag",
   /apAllowance: \(Number\(this\.flags\?\.\["trg-prime"\]\?\.apOverflow\) \|\| 0\)\n\s*\+ \(Number\(this\.flags\?\.\["trg-prime"\]\?\.apGrant\?\.bonus\) \|\| 0\)/.test(actor),
   "3.648.0: with the turn's bonus AP beside it");

@@ -24,7 +24,7 @@ const MUTATIONS = [
   { name: "junk jump prices read", file: CAR, from: "Number.isFinite(Number(j.ap)) && Number(j.ap) >= 0", to: "true", breaks: "B6" },
   { name: "the jump pays the printed AP", file: AW, from: "  if (ownJump) effectiveApCost = String(ownJump.ap);\n", to: "", breaks: "S4" },
   { name: "the +2 trade is offered anyway", file: AW, from: "  if (hasTradeoffs(action.key) && !ownJump && !skipDialog(event)) {", to: "  if (hasTradeoffs(action.key) && !skipDialog(event)) {", breaks: "S4" },
-  { name: "the jump's move provokes", file: MW, from: "    const moverImmune = jumpAvoided || Boolean(", to: "    const moverImmune = Boolean(", breaks: "S4" },
+  { name: "the jump's move provokes", file: MW, from: "    const moverImmune = jumpAvoided || firstFree || Boolean(", to: "    const moverImmune = firstFree || Boolean(", breaks: "S4" },
   { name: "junk Constrict packets kept", file: CR, from: "    .filter((x) => /^\\d+d\\d+([+-]\\d+)?$/i.test(x.dice) && /^[a-z]+$/.test(x.type));", to: "    .filter((x) => x.dice);", breaks: "B7" },
   { name: "the acid is never rolled", file: CW, from: "    for (const extra of constrictExtraPackets(spec)) {\n      const xr", to: "    for (const extra of []) {\n      const xr", breaks: "S2" },
   { name: "the acid ignores the save", file: CW, from: "      const xAmount = Math.floor(xr.total * bs.damageMultiplier);", to: "      const xAmount = xr.total;", breaks: "S2" },

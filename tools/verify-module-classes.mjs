@@ -133,8 +133,9 @@ const gw = read("module/grants-workflow.mjs");
 ok("C7 STRUCTURAL: the apply side reaches non-foundation items that declare", /FOUNDATION_ITEM_TYPES\.includes\(sourceItem\.type\) \|\| declaresSpecialistSkills\(sourceItem\)/.test(gw));
 ok("C8 STRUCTURAL: the cleanup side mirrors it", /FOUNDATION_ITEM_TYPES\.includes\(item\.type\) \|\| declaresSpecialistSkills\(item\)/.test(read("module/grant-cleanup.mjs")));
 const autorun = read("module/grant-autorun.mjs");
-ok("C9 STRUCTURAL: the sweep counts the flag as a declaration", /&& !declaresGrants\(item\.system, GRANT_FIELDS\[item\.type\]\)\n\s*&& !declaresSpecialistSkills\(item\)\) continue;/.test(autorun));
-ok("C10 STRUCTURAL: the createItem watcher counts it too", /if \(!declaresGrants\(item\.system, GRANT_FIELDS\[item\.type\]\) && !declaresSpecialistSkills\(item\)\) return;/.test(autorun));
+// Re-anchored at 3.667.1: an owed conviction point is a third reason to visit.
+ok("C9 STRUCTURAL: the sweep counts the flag as a declaration", /&& !declaresGrants\(item\.system, GRANT_FIELDS\[item\.type\]\)\n\s*&& !declaresSpecialistSkills\(item\)\n[\s\S]{0,200}&& !owesConvictionPoint\(item\)\) continue;/.test(autorun));
+ok("C10 STRUCTURAL: the createItem watcher counts it too", /if \(!declaresGrants\(item\.system, GRANT_FIELDS\[item\.type\]\) && !declaresSpecialistSkills\(item\)\n[\s\S]{0,200}&& !owesConvictionPoint\(item\)\) return;/.test(autorun));
 
 /* ------------------------------------------------------------------ *
  * D. Grants and gates

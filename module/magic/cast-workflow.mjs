@@ -1,4 +1,5 @@
 import { attackCountOf, setAttackCount } from "../combat/turn-records.mjs";
+import { spellOwnBonus } from "./spell-own-bonus.mjs";
 import { TRGCheck } from "../dice/check.mjs";
 import { innateAttackFor, innateSaveFor } from "./innate-printed.mjs";
 import { highMagicFumble, highMagicHeightens, highMagicSaveStep } from "./high-magic.mjs";
@@ -2455,6 +2456,8 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // (+14)" declared on the spell is the creature's own number.
   // …UNLESS A STRIKE CARRIES IT (3.656.0; block 23 R6, Air Blast Magic: "uses
   // the primals attack bonus rather than innate bonus").
+  // A SPELL'S OWN ATTACK AND DC BONUS (3.671.0). See magic/spell-own-bonus.mjs.
+  const ownBonus = spellOwnBonus(spell);
   const innateAttackHere = Number.isFinite(carried?.attackBonus)
     ? { value: carried.attackBonus, printed: false, from: String(carried.label ?? "the strike") }
     : innateAttackFor(spell, innateAbility, innateLevel);
@@ -2612,7 +2615,10 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
               label: innateAttackHere.from ? `${innateAttackHere.from}'s attack bonus` : innateAttackHere.printed ? "Innate Attack (printed)" : "Innate Attack",
               value: innateAttackHere.value,
               type: "untyped"
-            }
+            },
+            // THE SPELL'S OWN BONUS (3.671.0; Lotus Enchanter, Onmyoji
+            // Necromancer). See magic/spell-own-bonus.mjs.
+            ...(ownBonus?.attack && !isItemCast ? [{ label: ownBonus.label, value: ownBonus.attack, type: ownBonus.type }] : [])
           ]
         })
         : null)
@@ -3339,7 +3345,9 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       declaredBonuses: [...(isItemCast ? [] : declaredSpellDCBonuses(
         Array.from(actor.appliedEffects ?? actor.effects ?? []), spellData.traits, { innate: isInnate })),
         // THE CARRYING STRIKE'S CRITICAL (3.655.0, block 22 R5): "+1 per level of severity".
-        ...(Number(carried?.dcBonus) > 0 ? [{ label: `${carried.label ?? "Carried"} (${carried.severity} critical)`, value: Number(carried.dcBonus) }] : [])]
+        ...(Number(carried?.dcBonus) > 0 ? [{ label: `${carried.label ?? "Carried"} (${carried.severity} critical)`, value: Number(carried.dcBonus) }] : []),
+        // THE SPELL'S OWN DC BONUS (3.671.0; Lotus Enchanter). Not an item's cast.
+        ...(spellOwnBonus(spell)?.dc && !isItemCast ? [{ label: spellOwnBonus(spell).label, value: spellOwnBonus(spell).dc, type: spellOwnBonus(spell).type }] : [])]
     });
     nominalSaveDC = saveDCResult.dc;
     // The card, and the number targets actually roll against, belong to a

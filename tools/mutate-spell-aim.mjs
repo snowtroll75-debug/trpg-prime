@@ -56,7 +56,7 @@ const MUTATIONS = [
     from: `      globalThis.removeEventListener?.("keydown", onKey, true);`,
     to: `      globalThis.removeEventListener?.("keydown", onKey);`, breaks: "C3" },
   { name: "an area centred on the caster waits for a click nobody will make",
-    from: `  if (centredOnCaster) {
+    from: `  if (centredOnCaster && !opts?.fromPoint) {
     return commit(startX, startY, 0);`,
     to: `  if (false) {
     return commit(startX, startY, 0);`, breaks: "D1" }

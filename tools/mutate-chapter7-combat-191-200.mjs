@@ -57,8 +57,8 @@ const CHECK = path.join(SYSTEM_ROOT, "tools", "verify-chapter7-combat-191-200.mj
 const MUTATIONS = [
   /* ── the defects, put back ─────────────────────────────────────── */
   { file: ACTIONWF, name: "D1 THE DEFECT: a Disarm takes no multiple attack penalty",
-    from: "  if (countsTowardMAP(action.traits) && !mapExempt) {\n    const map = mapPenalty(Number(actor.getFlag(SYSTEM_ID, \"attackCount\") ?? 0));",
-    to: "  if (false) {\n    const map = mapPenalty(Number(actor.getFlag(SYSTEM_ID, \"attackCount\") ?? 0));", breaks: "A8" },
+    from: "  if (countsTowardMAP(action.traits) && !mapExempt) {\n    const map = mapPenalty(attackCountOf(actor));",
+    to: "  if (false) {\n    const map = mapPenalty(attackCountOf(actor));", breaks: "A8" },
   { file: ACTIONWF, name: "D1 THE DEFECT: and never advances the counter",
     from: "  if (check && countsTowardMAP(action.traits)) {", to: "  if (false) {", breaks: "A8" },
   { file: CASTWF, name: "D1 THE DEFECT: a spell attack takes none either",

@@ -24,7 +24,7 @@ const MUTATIONS = [
   { name: "the regain ignores the extra point", file: TE, from: "  const pool = Math.max(0, Math.floor(Number(base) || 0)) + quickenedBonus + extraBonus;", to: "  const pool = Math.max(0, Math.floor(Number(base) || 0)) + quickenedBonus;", breaks: "P13" },
   { name: "the gate counts the whole pool", file: APW, from: "  const currentAP = apAvailable(actor, kinds);", to: "  const currentAP = Number(actor.system?.resources?.ap?.value ?? 0);", breaks: "S1" },
   { name: "the spender never touches the restricted points", file: APW, from: "    ...grantUpdate\n  });", to: "  });", breaks: "S2" },
-  { name: "the sheet clamps the bonus away again", file: ACT, from: "        + (Number(this.flags?.[\"trg-prime\"]?.apGrant?.bonus) || 0)\n", to: "\n", breaks: "S3" },
+  { name: "the sheet clamps the bonus away again", file: ACT, from: "        + (Number(this.flags?.[\"trg-prime\"]?.apGrant?.bonus) || 0),\n", to: ",\n", breaks: "S3" },
   { name: "Phase 1 grants no Fast Attack point", file: CMB, from: "extra: fastAttack ? 1 : 0", to: "extra: 0", breaks: "S4" },
   { name: "a Strike is not marked as one", file: ATK, from: "`${weapon.name} — Strike`, { use: \"strike\" });", to: "`${weapon.name} — Strike`);", breaks: "S5" },
   { name: "movement measures the whole pool", file: MOV, from: "apAvailable(actor, moveKinds) - tally.pendingSpend", to: "Number(actor.system.resources.ap.value ?? 0) - tally.pendingSpend", breaks: "S5" },

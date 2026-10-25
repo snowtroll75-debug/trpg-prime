@@ -34,7 +34,7 @@ const MUTATIONS = [
   { name: "the condition list is dropped", file: DA, from: "    requiresTargetCondition: list(raw.requiresTargetCondition),", to: "    requiresTargetCondition: [],", breaks: "B15" },
   { name: "a grab-only hit grabs nothing", file: ATK, from: "  if (grabOnly && outcome.hits && targetActor) {\n    await applyConditionTags(targetActor, [{ key: \"grabbed\", label: \"Grabbed\" }], {});\n", to: "  if (grabOnly && outcome.hits && targetActor) {\n", breaks: "S1" },
   { name: "a grab-only critical rolls an injury", file: ATK, from: "  const strikeLands = !grabOnly && !hitCondition && !spellCarried;", to: "  const strikeLands = !hitCondition && !spellCarried;", breaks: "S1" },
-  { name: "a grab-only hit rolls damage", file: ATK, from: "  if (outcome.hits && strikeLands) {", to: "  if (outcome.hits) {", breaks: "S1" },
+  { name: "a grab-only hit rolls damage", file: ATK, from: "  if (outcome.hits && strikeLands && !held) {", to: "  if (outcome.hits && !held) {", breaks: "S1" }, // re-anchored at 3.668.0
   { name: "the attack's dice ignore the print", file: ATK, from: "sneakDice = sneakDiceFor(actor, system.skills?.stealth?.ranks ?? 0);", to: "sneakDice = 1 + Math.floor((system.skills?.stealth?.ranks ?? 0) / 3);", breaks: "S2" },
   { name: "every form is offered", file: CW, from: "  const choices = reachableForms(forms, currentKey, spec.oneStep === true);", to: "  const choices = forms.filter((f) => f.key !== currentKey);", breaks: "S3" },
   { name: "the frenzy does not hold the form", file: CW, from: "  if (inLunaFrenzy(actor.effects)) { ui.notifications?.warn(`${item.name}: ${actor.name} is in a Luna Frenzy", to: "  if (false) { ui.notifications?.warn(`${item.name}: ${actor.name} is in a Luna Frenzy", breaks: "S3" },

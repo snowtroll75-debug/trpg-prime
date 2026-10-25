@@ -288,7 +288,8 @@ ok("E3 Savage Strikes reaches the applied condition tags",
 // (combat/unarmed.mjs), which Savage Strikes calls — so this checks the
 // call, and then the rule by behaviour rather than by its spelling.
 ok("E3b unarmed is detected by BOTH category and trait",
-  /const savageIsUnarmed = isUnarmedAttack\(weapon\?\.system \?\? \{ traits: weaponTraits \}\);/.test(attackSrc)
+  // Re-anchored at 3.671.0: a weapon the holder's unarmed abilities reach counts too (C6).
+  /const savageIsUnarmed = isUnarmedAttack\(weapon\?\.system \?\? \{ traits: weaponTraits \}\)(?:\s*\/\/[^\n]*\n\s*\|\| declaresUnarmedAbilities\(unarmedAbilityCarriers\(actor\), weapon\))?;/.test(attackSrc)
   && isUnarmedAttack({ category: "Unarmed", traits: "" })
   && isUnarmedAttack({ category: "brawling", traits: "finesse, unarmed" })
   && !isUnarmedAttack({ category: "Martial", traits: "Keen" }),

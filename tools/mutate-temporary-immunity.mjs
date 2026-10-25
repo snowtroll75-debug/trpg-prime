@@ -152,8 +152,8 @@ const MUTATIONS = [
   {
     file: WORKFLOW,
     name: "D13 THE ONE LIVE TESTING FOUND: the immunity is stamped only on a matched outcome",
-    from: "  if (targetActor && rawDegree && ACTION_IMMUNITIES[action.key]) {",
-    to: "  if (targetActor && rawDegree && outcomeMatchedOnly && ACTION_IMMUNITIES[action.key]) {",
+    from: "  if (targetActor && rawDegree && ACTION_IMMUNITIES[action.key] && !ignoreActionImmunity) {",
+    to: "  if (targetActor && rawDegree && outcomeMatchedOnly && ACTION_IMMUNITIES[action.key] && !ignoreActionImmunity) {",
     breaks: "D13 — a failed Demoralise would stamp nothing, and page 84 says 'regardless of your result'"
   },
   {

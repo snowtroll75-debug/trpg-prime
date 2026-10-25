@@ -303,7 +303,7 @@ ok("D11b while the alignment axis alone is scope enough",
 
 const attackClean = strip(attackSrc);
 ok("E1 the defender's channel is given the attacker's alignments",
-  attackClean.includes('defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments)'));
+  attackClean.includes('defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments, creatureTraits(actor.system ?? {}))'));
 ok("E1b read off the attacker, not the defender",
   attackClean.includes("const attackerAlignments = alignedTraitsOf(actor.system ?? {});"));
 ok("E2 the attacker's own aura records are consulted against the target",

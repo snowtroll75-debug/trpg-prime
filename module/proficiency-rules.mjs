@@ -766,6 +766,10 @@ export function proficiencyProfile(actor) {
     weaponCategories: new Set(UNIVERSAL_WEAPON_CATEGORIES),
     weaponNames: new Set(),
     weaponGroups: new Set(),
+    // Exotic weapons an effect makes martial FOR THIS CHARACTER (3.671.0;
+    // Inner Tempest's Oathbound: "the katana and wakizashi are considered
+    // to be martial weapons for you and not exotic"). name key → category.
+    weaponCategoryAs: new Map(),
     weaponRules: [],
     armourRules: [],
     sources: [],
@@ -872,11 +876,20 @@ export function proficiencyProfile(actor) {
   // single weapon; a heritage can grant a whole weapon group.
   for (const effect of Array.from(actor?.appliedEffects ?? actor?.effects ?? [])) {
     if (effect.disabled) continue;
-    const named = effect.getFlag?.(SYSTEM_ID, "weaponProficientName");
-    if (named) {
+    // One name, or (3.671.0; Zen Archer's "the longbow, shortbow and all
+    // composite bows") a list of them on one effect.
+    const namedRaw = effect.getFlag?.(SYSTEM_ID, "weaponProficientName");
+    for (const named of Array.isArray(namedRaw) ? namedRaw : namedRaw ? [namedRaw] : []) {
+      if (!named) continue;
       profile.weaponNames.add(nameKey(named));
       profile.labels.weapon.push({ label: String(named), source: effect.name });
       profile.sources.push({ label: String(named), kind: "weapon" });
+    }
+    const categoryAs = effect.getFlag?.(SYSTEM_ID, "weaponCategoryAs");
+    if (categoryAs && typeof categoryAs === "object" && categoryAs.category) {
+      for (const name of Array.isArray(categoryAs.names) ? categoryAs.names : []) {
+        if (name) profile.weaponCategoryAs.set(nameKey(name), String(categoryAs.category));
+      }
     }
     // A CHOSEN archetype package (Warrior's either/or). Applied here
     // rather than from FEAT_GRANTS because owning the feat is not what
@@ -973,6 +986,14 @@ export function effectiveWeaponCategory(profile, item) {
   const category = String(item?.system?.category ?? "");
   if (norm(category) === "exotic" && racialWeaponMatches(profile?.race, item?.system?.traits)) {
     return "Martial";
+  }
+  // An effect's declaration (3.671.0, Oathbound's katana and wakizashi).
+  // Exotic only: the clause makes an exotic weapon martial, never a simple
+  // or martial weapon something else.
+  const declared = profile?.weaponCategoryAs?.get?.(nameKey(item?.name));
+  if (declared && norm(category) === "exotic") {
+    const c = norm(declared);
+    return c ? c.charAt(0).toUpperCase() + c.slice(1) : category;
   }
   return category;
 }

@@ -143,7 +143,7 @@ const TEMPLATE = JSON.parse(read("template.json"));
     && /const levelled = options\?\.trgConvictionLevelled;/.test(ACTOR));
   const holder = { items: [{ type: "feat", name: "Hero’s Fortune" }] };
   ok("D3 R8 — Hero's Fortune raises the maximum (either apostrophe)", C.heroesFortuneBonus(holder) === 1 && C.heroesFortuneBonus({ items: [] }) === 0
-    && /scoundrelsLuckBonus\(this\) \+\s*heroesFortuneBonus\(this\);/.test(ACTOR));
+    && /scoundrelsLuckBonus\(this\) \+\s*heroesFortuneBonus\(this\)(?: \+\s*(?:\/\/[^\n]*\n\s*)?declaredConvictionBonus\(this\.items \?\? \[\]\))?;/.test(ACTOR));
   ok("D4 A3 — a typed negative conviction is written as 0",
     /if \(typedConviction !== undefined && !\(Number\(typedConviction\) >= 0\)\) \{\s*foundry\.utils\.setProperty\(changed, "system\.resources\.conviction\.value", 0\);/.test(ACTOR));
   const current = { combatId: "c1", round: 3 };

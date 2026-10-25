@@ -189,7 +189,8 @@ const MUTATIONS = [
   {
     file: F,
     name: "S3 an unscoped entry becomes legal",
-    from: "  if (!actions.length && !sourceTypes.length && !sourceUuids.length && !sourceAlignments.length) return null;",
+    // Re-anchored at 3.668.0: the excluded-creature axis joined the guard.
+    from: "  if (!stanceGated && !actions.length && !sourceTypes.length && !sourceUuids.length && !sourceAlignments.length && !sourceTraits.length && !notSourceUuids.length) return null;",
     to: "  if (false) return null;",
     breaks: "D11 — the guard this file's header calls a much larger claim"
   },
@@ -198,7 +199,7 @@ const MUTATIONS = [
   {
     file: W,
     name: "E1 the defence channel stops being told who is attacking",
-    from: 'defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments)',
+    from: 'defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments, creatureTraits(actor.system ?? {}))',
     to: 'defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "")',
     breaks: "E1 — the axis exists, the entry exists, and nothing ever matches"
   },

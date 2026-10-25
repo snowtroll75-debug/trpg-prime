@@ -68,7 +68,8 @@ export function applyClassSkillBonuses(system, actor) {
         .map((item) => String(item.name).trim().toLowerCase())
     ),
     aspects: aspectsOf(actor),
-    schools: Array.from(actor?.items ?? []).filter((item) => item.type === "wizard-school")
+    schools: Array.from(actor?.items ?? []).filter((item) => item.type === "wizard-school"),
+    declared: declaredClassSkills(actor?.items ?? [])
   });
   for (const [key, sources] of sourcesBySkill) {
     for (const bonus of classSkillBonuses(sources, classBonus)) {
@@ -76,6 +77,23 @@ export function applyClassSkillBonuses(system, actor) {
     }
   }
   return sourcesBySkill;
+}
+
+/**
+ * The class skills feats and abilities declare outright (3.671.0):
+ * `flags.trg-prime.classSkills`, a list of skill names or keys.
+ *
+ * @returns {Array<{id: string, label: string, skills: string[]}>}
+ */
+export function declaredClassSkills(items = []) {
+  return Array.from(items ?? [])
+    .filter((item) => item?.type === "feat" || item?.type === "ability")
+    .map((item) => {
+      const raw = item?.flags?.["trg-prime"]?.classSkills;
+      const skills = (Array.isArray(raw) ? raw : (raw ? [raw] : [])).map((x) => String(x).trim()).filter(Boolean);
+      return { id: String(item.id ?? item._id ?? item.name), label: String(item.name ?? ""), skills };
+    })
+    .filter((entry) => entry.skills.length);
 }
 
 /**

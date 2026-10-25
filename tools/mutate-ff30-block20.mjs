@@ -20,7 +20,7 @@ const MUTATIONS = [
   { name: "the card is silent about it", file: CS, from: "  if (form.suppresses?.length) bits.push(`without ${form.suppresses.join(\", \")}`);\n", to: "", breaks: "B4" },
   { name: "the venom fires on a blow that did nothing", file: DA, from: "  if (spec.requiresDamage && !(Number(ctx.damageTaken) > 0)) return false;\n", to: "", breaks: "B6" },
   { name: "the damage gate is not read", file: DA, from: "    requiresDamage: raw.requiresDamage === true,", to: "    requiresDamage: false,", breaks: "B6" },
-  { name: "every Exhaustion check is advantaged", file: CAR, from: "  if (String(environment ?? \"\") !== \"extremeHeat\") return null;\n", to: "", breaks: "B7" },
+  { name: "every Exhaustion check is advantaged", file: CAR, from: "  if (String(environment ?? \"\") !== \"extremeHeat\") return null;\n  for (const { item, derives } of abilityDerives(items)) if (derives.heatExhaustionAdvantage === true)", to: "  for (const { item, derives } of abilityDerives(items)) if (derives.heatExhaustionAdvantage === true)", breaks: "B7" },
   { name: "the level always heals", file: TS, from: "      const amount = printed ?? regenerationHealing(level);", to: "      const amount = regenerationHealing(level);", breaks: "B8" },
   { name: "a zero amount is printed", file: TS, from: "  return Number.isFinite(n) && n > 0 ? n : null;", to: "  return Number.isFinite(n) ? n : null;", breaks: "B8" },
   { name: "the card says the level anyway", file: TS, from: "(${printed !== null ? \"as printed\" : `level ${", to: "(${false ? \"as printed\" : `level ${", breaks: "B9" },

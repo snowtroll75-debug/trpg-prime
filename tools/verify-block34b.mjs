@@ -158,7 +158,7 @@ ok("B1 the not-chosen line is measured against what was ticked, not what the cap
     && !/#take/.test(reroll));
   ok("C16 the shift rides on the card and is moved again when the card is rebuilt",
     CHECK.includes("degreeShift: this.degreeShift,")
-    && /const outcome = applyDegreeShift\(buildOutcome\(\{[\s\S]{0,200}\}\), raw\.degreeShift \?\? ""\);/.test(CARD));
+    && /const (?:outcome|shifted) = applyDegreeShift\(buildOutcome\(\{[\s\S]{0,200}\}\), raw\.degreeShift \?\? ""\);/.test(CARD));
   ok("C17 a reaction cast skips the target picker, and the cast hands back its warps",
     // 3.617.0: a potion fed to someone presets its targets the same way.
     CAST.includes("if (spellNeedsTarget(spellData) && !storingNow && !reaction?.presetTargets && !presetTargets) {")

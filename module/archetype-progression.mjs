@@ -101,12 +101,34 @@ import { SKILL_LABEL_TO_KEY, parsePrerequisiteClause } from "./prerequisites.mjs
  * and far better than picking a reading at random.
  *
  * @param {string} text
- * @returns {{type: "ability"|"bab"|"bsb"|"level", key?: string, min: number}
+ * @returns {{type: "ability"|"bab"|"bsb"|"level"|"grantedClassSkill", key?: string, min: number}
  *   | {type: "skillAny"|"skillAll", keys: string[], min: number} | null}
  */
 export function parseProgressionClause(text) {
-  const trimmed = String(text ?? "").trim();
+  // THE BOOKS' OWN PUNCTUATION (3.671.0, Inner Tempest Block 7). Thirteen
+  // of Inner Tempest's twenty-one lines failed open on it: "BAB +12." ends
+  // in a full stop, four lines join two or three skills with "&"
+  // ("Deception & Diplomacy skills +10 ranks"), and those lines say
+  // "skills". "&" is "and" (both skills, as Assassin's "and"); the full
+  // stop and the plural carry no meaning of their own.
+  const trimmed = String(text ?? "").trim().replace(/\.$/, "").replace(/\s*&\s*/g, " and ").trim();
   if (!trimmed) return null;
+
+  // "LEVEL +N" (3.671.0; Inner Tempest's Brawler, "Level +10"). Graham's
+  // ruling B7-2: character level N, a total, as every other "+N" line is
+  // read ("BAB +10" is BAB 10, "+10 ranks" is 10 ranks). Archer's "+8
+  // levels" (gained SINCE taking the archetype) is a different sentence
+  // and stays unparsed: "levels" after the number, not "Level" before it.
+  const levelPlus = trimmed.match(/^Level\s*\+(\d+)$/i);
+  if (levelPlus) return { type: "level", min: Number(levelPlus[1]) };
+
+  // "GAINED CLASS SKILL +N RANKS" (3.671.0; Inner Tempest's Inner Adept:
+  // "you may select either Meditation or Mental Focus as a Class skill …
+  // Progression Requirements: Gained class skill +10 ranks"). The skill is
+  // whichever the archetype's own class-skill grant chose, which the
+  // caller supplies (meetsProgressionRequirement's `context.grantedSkill`).
+  const gained = trimmed.match(/^Gained class skill\s*\+(\d+)\s*ranks?$/i);
+  if (gained) return { type: "grantedClassSkill", min: Number(gained[1]) };
 
   // BAB/BSB/ability/Level all use the identical text shape prerequisites
   // already parses ("BAB +10", "Str +2", "Level 5") — reused directly.
@@ -127,7 +149,7 @@ export function parseProgressionClause(text) {
   // reading is right either way, and "and" already established it.
   const namesPart = m[1].trim()
     .replace(/\s+both$/i, "")
-    .replace(/\s+skill$/i, "");
+    .replace(/\s+skills?$/i, "");
 
   const hasOr = /\s+or\s+/i.test(namesPart);
   const hasAnd = /\s+and\s+/i.test(namesPart);
@@ -165,13 +187,26 @@ export function parseProgressionClause(text) {
  * @param {object} [actorStats] Same shape as
  *   module/prerequisites.mjs's meetsParseablePrerequisites expects
  *   (level, bab, bsb, abilities, skillRanks).
+ * @param {object} [context] For "Gained class skill" (3.671.0):
+ *   `hasGrant` (the archetype has a class-skill grant) and `grantedSkill`
+ *   (the skill key it chose, or empty).
  * @returns {boolean}
  */
-export function meetsProgressionRequirement(progressionRequirements, actorStats = {}) {
+export function meetsProgressionRequirement(progressionRequirements, actorStats = {}, context = {}) {
   const parsed = parseProgressionClause(progressionRequirements);
   if (!parsed) return true;
 
   switch (parsed.type) {
+    // The skill the archetype's class-skill grant chose (3.671.0). A grant
+    // not yet answered is unmet: the choice is the player's own, and the
+    // gate opening because it was skipped would let one archetype be
+    // traded for the next with nothing chosen. An archetype with no grant
+    // at all (`context.hasGrant` false) has nothing to read, so it passes
+    // as any unparsed line does.
+    case "grantedClassSkill":
+      if (!context.hasGrant) return true;
+      if (!context.grantedSkill) return false;
+      return Number(actorStats.skillRanks?.[context.grantedSkill] ?? 0) >= parsed.min;
     case "level":
       return Number(actorStats.level ?? 0) >= parsed.min;
     case "bab":

@@ -191,7 +191,8 @@ const MUTATIONS = [
     from: "    await awardConviction(attacker ?? targetActor, chaos.conviction);",
     to: "    await awardConviction(targetActor, chaos.conviction);", breaks: "I2" },
   { file: ATTACKWF, name: "D11: the attacker is never passed in",
-    from: "        attacker: actor,\n        weapon,", to: "        weapon,", breaks: "I4" },
+    // Re-anchored at 3.668.0: the injury steps sit inside the held blow's guard.
+    from: "          attacker: actor,\n          weapon,", to: "          weapon,", breaks: "I4" },
 
   { file: ATTACK, name: "D12 THE DEFECT: Quick Damage converts nothing",
     from: "  const staticExtra = quickDamage ? (dice + critDice) * quickDamageStatic(faces) : 0;",

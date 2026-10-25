@@ -83,7 +83,7 @@ import {
 import { spellListFilterOptions, wireSpellListFilters } from "./list-filters.mjs";
 import { rollFrightenedRecovery, rollSickenedRetch } from "../combat/conditions-workflow.mjs";
 import { chargedItemSheetWarnings } from "../charged-items-workflow.mjs";
-import { SKILL_POINT_BONUSES, companionFeatBudget, featBudget, registeredFeatPicks, featDisplayName, freeGrantSources, effectiveRaces, effectiveClasses, effectiveTiers, declaredClassFeatAccess, substituteSkillActions } from "../feats.mjs";
+import { SKILL_POINT_BONUSES, companionFeatBudget, featBudget, registeredFeatPicks, featDisplayName, freeGrantSources, effectiveRaces, effectiveClasses, effectiveArchetypes, effectiveTiers, declaredClassFeatAccess, substituteSkillActions } from "../feats.mjs";
 import { companionEffectiveLevel, companionSyncState, isCompanion, masterIdOf } from "../companion.mjs";
 import {
   familiarAbilityBudget, familiarActionPoints, familiarEffectiveLevel,
@@ -2773,7 +2773,9 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         items.find((i) => i.type === "class")?.system?.classType ?? "",
         archetypeFeats
       ),
-      archetypes: archetypeFeats.join(", "),
+      // Plus any archetype a registered one counts as (3.671.0; Zen Archer
+      // counts as Archer for Archer-trait class feats).
+      archetypes: effectiveArchetypes(archetypeFeats),
       tradition: this.actor.system?.magic?.tradition ?? "",
       // The Companion-trait feats are offered on a companion's own sheet
       // and nowhere else (Graham, 3.249.2). Read off the document type,

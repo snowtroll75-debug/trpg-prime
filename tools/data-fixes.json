@@ -12907,6 +12907,42 @@
       "declaredAt": "2026-10-07",
       "systemVersion": "3.627.1",
       "reason": "The effect's own description, to match."
+    },
+    {
+      "id": "hurling-damage-casting-ability",
+      "pack": "spells",
+      "name": "Hurling",
+      "path": "system.damage",
+      "from": {
+        "formula": "1d6",
+        "type": "bludgeoning",
+        "persistent": ""
+      },
+      "to": {
+        "formula": "1d6",
+        "type": "bludgeoning",
+        "persistent": "",
+        "addAbility": "casting"
+      },
+      "declaredAt": "2026-10-22",
+      "systemVersion": "3.666.1",
+      "reason": "Graham, 22 October 2026: \"The spell Hurling is not adding magical ability score to its damage.\" The book: \"it inflicts 1d6 + magical ability score bludgeoning damage.\" The row now says addAbility \"casting\": the attack adds the score of the ability the cast rolled its Spellcraft off (spell-damage-ability.mjs, 3.666.1)."
+    },
+    {
+      "id": "hurling-effects-note-retired",
+      "pack": "spells",
+      "name": "Hurling",
+      "path": "system.effects",
+      "from": [
+        {
+          "kind": "note",
+          "text": "Damage is 1d6 + your magical ability score modifier (the flat ability bonus is added by hand)."
+        }
+      ],
+      "to": [],
+      "declaredAt": "2026-10-22",
+      "systemVersion": "3.666.1",
+      "reason": "The note told the table to add the ability by hand; the damage row adds it now, so the note would invite adding it twice."
     }
   ]
 }

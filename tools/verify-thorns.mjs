@@ -196,8 +196,10 @@ ok("E2 the attacker is the one who gets pricked",
 ok("E3 it fires after the weapon's own damage has landed",
   before(damageBody, "...strikeRunes.filter((r) => !r.addsToStrike)", "applyThorns(actor, targetActor, {"),
   '"lands a melee blow" — the blow resolves first');
+// Re-anchored at 3.667.0: the Strike's damage context also says
+// "melee: isMelee,", so the check is held to the thorns call itself.
 ok("E4 it is told whether the blow was melee",
-  has(damageBody, "melee: isMelee,"));
+  /applyThorns\(actor, targetActor, \{\s*melee: isMelee,/.test(damageBody));
 // 3.576.0: through the one shared rule (combat/unarmed.mjs), which also
 // knows a gauntlet is unarmed and a bracered punch still is.
 ok("E5 and whether it was unarmed",

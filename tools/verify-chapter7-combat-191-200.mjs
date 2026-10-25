@@ -135,13 +135,14 @@ eq("A7 the spell attack total carries a MAP term", [
 {
   const aw = code("module", "combat", "action-workflow.mjs");
   ok("A8 the action path adds the row and advances the counter",
-    /if \(countsTowardMAP\(action\.traits\) && !mapExempt\) \{[\s\S]{0,300}mapPenalty\(Number\(actor\.getFlag\(SYSTEM_ID, "attackCount"\) \?\? 0\)\)/.test(aw)
-    && /if \(check && countsTowardMAP\(action\.traits\)\) \{[\s\S]{0,200}setFlag\(SYSTEM_ID, "attackCount", before \+ 1\)/.test(aw));
+    // Re-anchored at 3.666.0: through the combat-only helpers (turn-records.mjs).
+    /if \(countsTowardMAP\(action\.traits\) && !mapExempt\) \{[\s\S]{0,300}mapPenalty\(attackCountOf\(actor\)\)/.test(aw)
+    && /if \(check && countsTowardMAP\(action\.traits\)\) \{[\s\S]{0,200}await setAttackCount\(actor, attackCountOf\(actor\) \+ 1\);/.test(aw));
   const cw = code("module", "magic", "cast-workflow.mjs");
   ok("A9 the spell path reads the same counter and advances it",
-    /const mapBefore = Number\(actor\.getFlag\?\.\(SYSTEM_ID, "attackCount"\) \?\? 0\);/.test(cw)
+    /const mapBefore = mapCount \?\? attackCountOf\(actor\);/.test(cw)
     && /const spellMap = spellCountsTowardMAP\(spellData\) \? mapPenalty\(mapBefore\) : 0;/.test(cw)
-    && /setFlag\?\.\(SYSTEM_ID, "attackCount", mapBefore \+ 1\)/.test(cw));
+    && /await setAttackCount\(actor, mapBefore \+ 1\);/.test(cw));
 }
 
 /* ================================================================== */

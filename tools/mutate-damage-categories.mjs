@@ -105,8 +105,9 @@ const MUTATIONS = [
   {
     file: D,
     name: "D2c EVERY MATERIAL TRIGGERS THE WEAKNESS",
-    from: "  const materialWeak = Boolean(materialKey) && has(weaknessMaterials, materialKey);",
-    to: "  const materialWeak = Boolean(materialKey);",
+    // Re-anchored at 3.667.0: a blow may name several materials.
+    from: "  const materialWeak = materialKeys.some((key) => has(weaknessMaterials, key));",
+    to: "  const materialWeak = materialKeys.length > 0;",
     breaks: "D2c — a silver blade would get +50% against a creature that fears cold iron; "
       + "D2 alone would call that a pass"
   },
@@ -121,7 +122,7 @@ const MUTATIONS = [
   {
     file: D,
     name: "B2 THE BYPASS NEVER APPLIES",
-    from: "  const bypassed = Boolean(materialKey) && has(resistanceBypassMaterials, materialKey);",
+    from: "  const bypassed = materialKeys.some((key) => has(resistanceBypassMaterials, key));",
     to: "  const bypassed = false;",
     breaks: "B2 — a silver weapon goes back to being halved by the very resistance it is "
       + "named as overcoming"
@@ -129,8 +130,8 @@ const MUTATIONS = [
   {
     file: D,
     name: "B2b THE BYPASS APPLIES TO EVERY MATERIAL",
-    from: "  const bypassed = Boolean(materialKey) && has(resistanceBypassMaterials, materialKey);",
-    to: "  const bypassed = Boolean(materialKey);",
+    from: "  const bypassed = materialKeys.some((key) => has(resistanceBypassMaterials, key));",
+    to: "  const bypassed = materialKeys.length > 0;",
     breaks: "B2c — any special material would ignore any category resistance; B2 alone "
       + "would call that a pass"
   },

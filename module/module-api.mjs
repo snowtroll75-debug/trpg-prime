@@ -336,6 +336,11 @@ export function registeredClassNames() {
  * @param {object} [spec]
  * @param {string[]} [spec.classGrants] Classes whose feats it opens.
  * @param {string[]} [spec.tierGrants] Tiers it adds (Martial/Expert/Adept).
+ * @param {string[]} [spec.countsAs] Archetypes it counts as owning for
+ *   class feats that carry their name as a trait (3.671.0; Inner Tempest's
+ *   Zen Archer: "may also select feats available to the archer
+ *   archetype"). Only the trait gate: not the other archetype's own
+ *   abilities, class lists or progression.
  */
 export function registerArchetype(name, spec = {}, moduleId = null) {
   const key = registryKey(name);
@@ -343,7 +348,8 @@ export function registerArchetype(name, spec = {}, moduleId = null) {
   registry.archetypes.set(key, {
     name: String(name).trim(),
     classGrants: Array.isArray(spec.classGrants) ? spec.classGrants.map((c) => String(c).trim()).filter(Boolean) : [],
-    tierGrants: Array.isArray(spec.tierGrants) ? spec.tierGrants.map((t) => String(t).trim()).filter(Boolean) : []
+    tierGrants: Array.isArray(spec.tierGrants) ? spec.tierGrants.map((t) => String(t).trim()).filter(Boolean) : [],
+    countsAs: Array.isArray(spec.countsAs) ? spec.countsAs.map((a) => String(a).trim()).filter(Boolean) : []
   });
   noteContributor(moduleId);
   return true;
@@ -398,8 +404,12 @@ export function registerFeatAccess(kind, ownerName, featNames, moduleId = null) 
       ? { name: registryKey(f.name), heritages: (Array.isArray(f.heritages) ? f.heritages : []).map(registryKey).filter(Boolean) }
       : { name: registryKey(f), heritages: [] }))
     .filter((e) => e.name);
-  if (!["race", "class"].includes(k) || !owner || !entries.length) {
-    problem(`registerFeatAccess: needs kind "race" or "class", an owner and at least one feat name (got ${JSON.stringify({ kind, ownerName })})`);
+  // "archetype" (3.671.0): core archetype feats opened to a class, read by
+  // the archetype slot (Inner Tempest: "The classes in this sourcebook also
+  // gain access to the following archetype feats from the TRG Core
+  // Rulebook"). Owned by a class name, as "class" is.
+  if (!["race", "class", "archetype"].includes(k) || !owner || !entries.length) {
+    problem(`registerFeatAccess: needs kind "race", "class" or "archetype", an owner and at least one feat name (got ${JSON.stringify({ kind, ownerName })})`);
     return false;
   }
   const id = `${k}:${owner}`;

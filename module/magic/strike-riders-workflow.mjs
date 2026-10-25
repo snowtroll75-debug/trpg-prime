@@ -6,6 +6,7 @@
  * now paid for seven times.
  */
 
+import { declaresUnarmedAbilities, unarmedAbilityCarriers } from "../combat/unarmed-profile.mjs";
 import { runeStrikeRiderSpecs } from "../rune-declarations.mjs";
 import {
   STRIKE_RIDER_FLAG, normaliseStrikeRider, riderPacketsFor, ridersSpentBy, ridersBurntBy, riderConditionReaches,
@@ -84,7 +85,10 @@ function strikeRidersOn(actor) {
  * The identity a rider is matched against — one place, so the strike
  * path and the spend path cannot disagree about what "this weapon" is.
  */
-function weaponIdentity(weapon) {
+function weaponIdentity(weapon, actor = null) {
+  // UNARMED ABILITIES WITH THIS WEAPON (3.671.0, B7-6): an unarmed-scoped
+  // rider reaches the Soul-Bound Weapon and the Zen Archer's bows.
+  const abilityUnarmed = Boolean(actor) && declaresUnarmedAbilities(unarmedAbilityCarriers(actor), weapon);
   return {
     // ITS NAME (3.625.0), for a rider bound to named weapons.
     name: String(weapon?.name ?? ""),
@@ -97,7 +101,7 @@ function weaponIdentity(weapon) {
     // the declared `unarmed` of a gauntlet, and the trait line — so the
     // unarmed scope gets the same answer every other unarmed rule does.
     natural: Boolean(weapon?.system?.natural),
-    unarmed: weapon?.system?.unarmed === true,
+    unarmed: weapon?.system?.unarmed === true || abilityUnarmed,
     traits: String(weapon?.system?.traits ?? ""),
     weaponId: String(weapon?.id ?? ""),
     // ITS OWN DIE AND TYPE (3.613.0, R12), for a rider that adds "an
@@ -114,7 +118,7 @@ function weaponIdentity(weapon) {
 export function strikeRiderPackets(actor, weapon, ctx = {}) {
   return riderPacketsFor(
     [...strikeRidersOn(actor).map((entry) => entry.spec), ...weaponRuneRiders(weapon), ...elementalStrikeRiders(actor, weapon)],
-    weaponIdentity(weapon),
+    weaponIdentity(weapon, actor),
     { ...ctx, used: actor?.getFlag?.(SYSTEM_ID, STRIKE_RIDERS_USED_FLAG) ?? {} }
   );
 }
@@ -183,7 +187,7 @@ function weaponDeclaredRiders(weapon) {
  */
 export async function burnStrikeRiders(actor, weapon, ctx = {}) {
   const used = actor?.getFlag?.(SYSTEM_ID, STRIKE_RIDERS_USED_FLAG) ?? {};
-  const burnt = ridersBurntBy([...strikeRidersOn(actor).map((entry) => entry.spec), ...weaponRuneRiders(weapon)], weaponIdentity(weapon), { ...ctx, used });
+  const burnt = ridersBurntBy([...strikeRidersOn(actor).map((entry) => entry.spec), ...weaponRuneRiders(weapon)], weaponIdentity(weapon, actor), { ...ctx, used });
   if (!burnt.length) return [];
   const next = { ...used };
   for (const spec of burnt) next[spec.id] = true;
@@ -207,7 +211,7 @@ export async function burnStrikeRiders(actor, weapon, ctx = {}) {
  */
 export async function spendStrikeRiders(actor, weapon, { hit = true, ctx = null } = {}) {
   const lines = [];
-  const identity = weaponIdentity(weapon);
+  const identity = weaponIdentity(weapon, actor);
   for (const { effectId, spec } of strikeRidersOn(actor)) {
     if (!ridersSpentBy([spec], identity, { hit, ctx }).length) continue;
     const effect = actor?.effects?.get?.(effectId);
@@ -238,7 +242,7 @@ export async function spendStrikeRiders(actor, weapon, { hit = true, ctx = null 
 export async function applyRiderConditions(actor, weapon, targetActor, ctx = {}) {
   const lines = [];
   if (!targetActor) return lines;
-  const identity = weaponIdentity(weapon);
+  const identity = weaponIdentity(weapon, actor);
   const { CONDITIONS } = await import("../conditions/registry.mjs");
   const { applyConditionTags, formatAppliedTags } =
     await import("../combat/effect-application-workflow.mjs");

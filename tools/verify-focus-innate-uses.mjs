@@ -33,10 +33,11 @@ equal("A8 case-insensitive", f({ innate: true, traits: "FOCUS", usesPerDay: "" }
 equal("A9 whitespace count is blank", f({ innate: true, traits: "Focus", usesPerDay: "  " }), 1);
 
 const usesWorkflow = read("module/uses-workflow.mjs");
-ok("B1 itemUsesMax consults the default before the formula", /const focusDefault = focusInnateDefaultUses\(owner\.system, owner\.type\);\s*if \(focusDefault !== null\) return focusDefault/.test(usesWorkflow));
+ok("B1 itemUsesMax consults the default before the formula (through focusDefaultUses since 3.665.0, which hands spells to this rule)", /const focusDefault = focusDefaultUses\(owner\.system, owner\.type\);\s*if \(focusDefault !== null\) return focusDefault/.test(usesWorkflow));
 const item = read("module/documents/item.mjs");
-ok("B2 item creation writes the one use when the rule applies", /focusInnateDefaultUses\(\{ \.\.\.this\.system, traits: traits \?\? this\.system\?\.traits \}, this\.type\)[\s\S]{0,200}"system\.usesValue": focusUses/.test(item));
-ok("B3 …only when the stored value is below it", /Number\(this\.system\?\.usesValue \?\? 0\) < focusUses/.test(item));
+// Re-anchored at 3.667.1: the one use plus any declared extra uses.
+ok("B2 item creation writes the one use when the rule applies", /focusDefaultUses\(\{ \.\.\.this\.system, traits: traits \?\? this\.system\?\.traits \}, this\.type\)[\s\S]{0,800}const full = focusUses \+ extra;[\s\S]{0,120}"system\.usesValue": full/.test(item));
+ok("B3 …only when the stored value is below it", /Number\(this\.system\?\.usesValue \?\? 0\) < full\)/.test(item));
 ok("B4 the innate cast branch tracks through itemUsesMax", /const innateUsesMax = isInnate \? itemUsesMax\(spell\) : null;/.test(read("module/magic/cast-workflow.mjs")));
 ok("B5 Refocus's candidate list reads the same maximum", /const max = itemUsesMax\(item\);/.test(read("module/combat/refocus-workflow.mjs")));
 

@@ -242,7 +242,17 @@ export const SCOPE_AXES = Object.freeze([
   //                 your allies are adjacent to your challenged target")
   // A list, like targetTraits; blank when nothing is targeted or the board
   // cannot say.
-  "targetStates"
+  "targetStates",
+  // A SHEATHED WEAPON'S GROUP (3.671.0; Inner Tempest's Iaijutsu Master:
+  // "When you roll Initiative with a sword sheathed"). The groups of the
+  // weapons the roller carries but is not wielding (combat/sheathed.mjs,
+  // ruling B7-5). A list, filled on every check from the roller's items.
+  "sheathedGroups",
+  // WHAT A REFOCUS RESTORES (3.671.0; Inner Tempest's Veilborn: "+2 to
+  // Refocus (Mental Focus) checks made to restore an expended Ghost Art").
+  // The item named before the roll: its category ("ghost art") and its
+  // name, lowercased. Blank on every other roll.
+  "restores"
 ]);
 
 /**
@@ -270,7 +280,9 @@ export const AXIS_CONTEXT_KEYS = Object.freeze({
   attackForms: "attackForm",
   attackGroups: "attackGroup",
   rangeBands: "rangeBand",
-  targetStates: "targetStates"
+  targetStates: "targetStates",
+  sheathedGroups: "sheathedGroups",
+  restores: "restores"
 });
 
 /**
@@ -434,6 +446,11 @@ export function normaliseConditional(raw, source = {}, index = 0, scaling = {}) 
     // 3.586.0 with a card line asking the player to dismiss it by hand
     // — an instruction is not automation.
     oneShot: Boolean(raw.oneShot),
+    // ONE OF A GROUP, THE GREATEST ONLY (3.671.0; Inner Tempest's
+    // Formbinder: "If both forms offer a bonus to the same thing, you may
+    // only benefit from the greater of the two"). Carried onto the modifier;
+    // see dice/resolution.mjs `applyStacking`.
+    ...(String(raw.stackGroup ?? "").trim() ? { stackGroup: String(raw.stackGroup).trim() } : {}),
     source: String(source.name ?? ""),
     sourceId: String(source.id ?? ""),
     sourceKind: String(source.kind ?? "item")
@@ -657,6 +674,18 @@ export function matchesCheck(entry, context = {}) {
   )
     .map((t) => String(t ?? "").trim().toLowerCase())
     .filter(Boolean);
+  const sheathedGroups = (Array.isArray(context.sheathedGroups)
+    ? context.sheathedGroups
+    : String(context.sheathedGroups ?? "").split(/[,;]/)
+  )
+    .map((t) => String(t ?? "").trim().toLowerCase())
+    .filter(Boolean);
+  const restores = (Array.isArray(context.restores)
+    ? context.restores
+    : String(context.restores ?? "").split(/[,;]/)
+  )
+    .map((t) => String(t ?? "").trim().toLowerCase())
+    .filter(Boolean);
   // THE TARGET'S TRAITS (3.664.0), read like targetTypes: blank on a roll
   // aimed at nobody, at which point a trait-scoped entry matches nothing.
   const targetTraits = (Array.isArray(context.targetTraits)
@@ -707,6 +736,8 @@ export function matchesCheck(entry, context = {}) {
   if (excludes(excluded.attackGroups, attackGroups)) return false;
   if (excludes(excluded.rangeBands, rangeBands)) return false;
   if (excludes(excluded.targetStates, targetStates)) return false;
+  if (excludes(excluded.sheathedGroups, sheathedGroups)) return false;
+  if (excludes(excluded.restores, restores)) return false;
 
   if (entry.always) return true;
 
@@ -720,7 +751,9 @@ export function matchesCheck(entry, context = {}) {
     attackForms: wantedAttackForms,
     attackGroups: wantedAttackGroups,
     rangeBands: wantedRangeBands,
-    targetStates: wantedTargetStates
+    targetStates: wantedTargetStates,
+    sheathedGroups: wantedSheathedGroups,
+    restores: wantedRestores
   } = entry.when ?? {};
 
   if (checkTypes && !checkTypes.includes(checkType)) return false;
@@ -753,6 +786,8 @@ export function matchesCheck(entry, context = {}) {
   if (wantedAttackGroups && !wantedAttackGroups.some((t) => attackGroups.includes(t))) return false;
   if (wantedRangeBands && !wantedRangeBands.some((t) => rangeBands.includes(t))) return false;
   if (wantedTargetStates && !wantedTargetStates.some((t) => targetStates.includes(t))) return false;
+  if (wantedSheathedGroups && !wantedSheathedGroups.some((t) => sheathedGroups.includes(t))) return false;
+  if (wantedRestores && !wantedRestores.some((t) => restores.includes(t))) return false;
 
   return true;
 }
@@ -865,7 +900,7 @@ export function applyConditionalSelections(rows = [], tickedIds = []) {
 
   for (const row of ticked) {
     if (row.kind === CONDITIONAL_KINDS.MODIFIER) {
-      modifiers.push({ label: row.label, value: row.value, type: row.type });
+      modifiers.push({ label: row.label, value: row.value, type: row.type, ...(row.stackGroup ? { stackGroup: row.stackGroup } : {}) });
     } else {
       kinds.push(row.kind);
     }

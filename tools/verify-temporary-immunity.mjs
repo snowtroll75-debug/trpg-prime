@@ -312,7 +312,7 @@ ok("D6 the declared gap is four rules", Object.keys(PRINTED_NOT_WIRED).length ==
   {
     const src = fs.readFileSync(
       path.join(SYSTEM_ROOT, "module", "combat", "action-workflow.mjs"), "utf8");
-    const stamp = src.indexOf("if (targetActor && rawDegree && ACTION_IMMUNITIES[action.key])");
+    const stamp = src.indexOf("if (targetActor && rawDegree && ACTION_IMMUNITIES[action.key] && !ignoreActionImmunity)");
     const degreeBlock = src.indexOf("\n  if (degree) {");
     ok("D13 the immunity is stamped whatever the degree, not only on a matched outcome",
       stamp > 0 && degreeBlock > 0 && stamp < degreeBlock,

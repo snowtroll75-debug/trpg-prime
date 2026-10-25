@@ -39,3 +39,5 @@ try {
 const bad = results.filter((r) => r.state !== "caught");
 for (const r of results) { process.stdout.write(`  ${r.state === "caught" ? "caught  " : r.state.padEnd(8)}  ${r.name}\n`); if (r.state === "SURVIVED") process.stdout.write(`            should have broken: ${r.breaks}\n`); }
 process.stdout.write(bad.length ? `\nmutate-granted-warps: FAILED — ${bad.length} of ${results.length} not caught.\n` : `\nmutate-granted-warps: OK — all ${results.length} mutations caught, tree restored.\n`);
+// A SURVIVOR FAILS THE SWEEP (3.664.0): this harness reported FAILED and exited 0.
+if (bad.length) process.exitCode = 1;

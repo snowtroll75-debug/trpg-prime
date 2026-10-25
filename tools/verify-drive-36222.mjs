@@ -61,7 +61,8 @@ const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm,
   const sites = [
     ["module", "magic", "light-shift-workflow.mjs", /const token = activeToken\(target\);/],
     ["module", "magic", "cast-workflow.mjs", /const casterToken = activeToken\(actor\);/],
-    ["module", "combat", "targeting.mjs", /const actorToken = activeToken\(actor\);/],
+    // `let` since 3.666.3: re-read after the picker views the caster's level.
+    ["module", "combat", "targeting.mjs", /let actorToken = activeToken\(actor\);/],
     ["module", "combat", "aid-bonus.mjs", /const actorToken = activeToken\(actor\);/],
     ["module", "skills.mjs", /const myToken = activeToken\(actor\);/]
   ];

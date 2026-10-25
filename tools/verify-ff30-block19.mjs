@@ -89,9 +89,12 @@ const src = { atk: read("module", "combat", "attack-workflow.mjs"), cw: read("mo
 ok("S1 a grab-only hit Grabs, marks who holds it, and rolls neither injury nor damage",
   /if \(grabOnly && outcome\.hits && targetActor\) \{\n\s+await applyConditionTags\(targetActor, \[\{ key: "grabbed", label: "Grabbed" \}\], \{\}\);\n\s+if \(targetActor\.setFlag\) await targetActor\.setFlag\(SYSTEM_ID, "grabbedBy"/.test(src.atk)
   && /const strikeLands = !grabOnly && !hitCondition && !spellCarried;/.test(src.atk)
-  && /if \(strikeLands && outcome\.critical && !outcome\.critical\.injuryImmune && targetActor\) \{/.test(src.atk)
-  && /if \(strikeLands && outcome\.critical && !outcome\.critical\.injuryImmune && !injuryReplaced\) \{/.test(src.atk)
-  && /if \(outcome\.hits && strikeLands\) \{/.test(src.atk));
+  // Re-anchored at 3.671.0: a Strike its target cannot react to offers no critical replacement (C9).
+  && /if \(strikeLands && outcome\.critical && !outcome\.critical\.injuryImmune && targetActor(?: && !noReactions)?\) \{/.test(src.atk)
+  // Re-anchored at 3.667.0: a strike series' later criticals roll no injury either.
+  && /if \(strikeLands && outcome\.critical && !outcome\.critical\.injuryImmune && !injuryReplaced && !noCriticalInjury\) \{/.test(src.atk)
+  // Re-anchored at 3.668.0: a held blow (Black Lotus) defers its damage.
+  && /if \(outcome\.hits && strikeLands( && !held)?\) \{/.test(src.atk));
 ok("S2 both Stealthy Strike dice sites read the printed dice",
   /sneakDice = sneakDiceFor\(actor, system\.skills\?\.stealth\?\.ranks \?\? 0\);/.test(src.atk) && /\? sneakDiceFor\(actor, actor\.system\?\.skills\?\.stealth\?\.ranks \?\? 0\)/.test(src.atk));
 ok("S3 Shift Form offers only the neighbouring forms, refuses in a frenzy, and spends the degree's AP",

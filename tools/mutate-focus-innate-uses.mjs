@@ -9,12 +9,12 @@ const USES = path.join(SYSTEM_ROOT, "module", "uses.mjs");
 const UW = path.join(SYSTEM_ROOT, "module", "uses-workflow.mjs");
 const ITEM = path.join(SYSTEM_ROOT, "module", "documents", "item.mjs");
 const MUTATIONS = [
-  { name: "a printed count no longer wins", file: USES, from: '  if (String(system?.usesPerDay ?? "").trim()) return null;\n  return /\\bfocus\\b/i', to: '  return /\\bfocus\\b/i', breaks: "A4/A5" },
+  { name: "a printed count no longer wins", file: USES, from: '  if (!system?.innate) return null;\n  if (String(system?.usesPerDay ?? "").trim()) return null;\n  return /\\bfocus\\b/i', to: '  if (!system?.innate) return null;\n  return /\\bfocus\\b/i', breaks: "A4/A5" },
   { name: "innate is not required", file: USES, from: "  if (!system?.innate) return null;\n  if (String(system", to: "  if (String(system", breaks: "A2" },
   { name: "any item type qualifies", file: USES, from: '  if (type !== "spell") return null;\n  if (!system?.innate)', to: "  if (!system?.innate)", breaks: "A6" },
-  { name: "'Focused' counts as Focus", file: USES, from: "return /\\bfocus\\b/i.test(", to: "return /focus/i.test(", breaks: "A7" },
+  { name: "'Focused' counts as Focus", file: USES, from: "  if (!system?.innate) return null;\n  if (String(system?.usesPerDay ?? \"\").trim()) return null;\n  return /\\bfocus\\b/i.test(", to: "  if (!system?.innate) return null;\n  if (String(system?.usesPerDay ?? \"\").trim()) return null;\n  return /focus/i.test(", breaks: "A7" },
   { name: "itemUsesMax stops consulting the default", file: UW, from: "  if (focusDefault !== null) return focusDefault + Math.max(0, Math.floor(bonus));\n", to: "", breaks: "B1" },
-  { name: "creation no longer writes the one use", file: ITEM, from: '      this.updateSource({ "system.usesValue": focusUses });', to: "      void focusUses;", breaks: "B2" }
+  { name: "creation no longer writes the one use", file: ITEM, from: '      if (Number(this.system?.usesValue ?? 0) < full) this.updateSource({ "system.usesValue": full });', to: "      void full;", breaks: "B2" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-focus-innate-uses.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([USES, UW, ITEM]);

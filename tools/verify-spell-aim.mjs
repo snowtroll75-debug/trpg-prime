@@ -123,10 +123,10 @@ ok("C4 and it is removed in finish, where every exit goes",
  * ================================================================== */
 
 ok("D1 an area centred on the caster is placed without aiming at all",
-  /if \(centredOnCaster\) \{\s*return commit\(startX, startY, 0\);/.test(code),
+  /if \(centredOnCaster && !opts\?\.fromPoint\) \{\s*return commit\(startX, startY, 0\);/.test(code),
   "no click to wait for means no banner to show");
 ok("D1b and that branch is reached before the preview is built",
-  code.indexOf("if (centredOnCaster)") < code.indexOf("const preview = new PIXI.Graphics();"));
+  code.indexOf("if (centredOnCaster && !opts?.fromPoint)") < code.indexOf("const preview = new PIXI.Graphics();"));
 {
   const cone = parseSpellArea("15-foot cone");
   const line = parseSpellArea("60-foot line");

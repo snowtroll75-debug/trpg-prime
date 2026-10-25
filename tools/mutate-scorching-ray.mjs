@@ -58,7 +58,7 @@ const MUTATIONS = [
   { file: CAST, name: "M THE COUNT IS NOT FROZEN: each ray reads the flag afresh",
     from: `      mapCount: mapBefore,`, to: `      mapCount: null,`, breaks: "M4b" },
   { file: CAST, name: "M the volley never advances the penalty at all",
-    from: `    await actor.setFlag?.(SYSTEM_ID, "attackCount", mapBefore + advance);`, to: `    ;`,
+    from: `    await setAttackCount(actor, mapBefore + advance);`, to: `    ;`,
     breaks: "M6" },
   { file: CAST, name: "M it advances by the rays BOUGHT rather than the rays fired",
     from: `  const advance = volleyMapAdvance(results.length);`,

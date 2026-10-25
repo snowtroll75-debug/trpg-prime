@@ -25,7 +25,7 @@ const BY_ID = (who) => `canvas.tokens?.placeables?.find((t) => t.actor?.id === $
 const MUTATIONS = [
   { file: LSW, name: "F1 — THE OLD DEFECT: the circle's token by actor id", from: "    const token = activeToken(target);", to: "    const token = (canvas.tokens?.placeables ?? []).find((t) => t.actor?.id === target?.id) ?? null;", breaks: "A1/A2/B1/B2" },
   { file: CAST, name: "the caster's area token by actor id", from: "        const casterToken = activeToken(actor);", to: `        const casterToken = ${BY_ID("actor")};`, breaks: "B1/B2" },
-  { file: TARGETING, name: "\"yourself\" by actor id", from: "  const actorToken = activeToken(actor);", to: `  const actorToken = ${BY_ID("actor")};`, breaks: "B1/B2" },
+  { file: TARGETING, name: "\"yourself\" by actor id", from: "  let actorToken = activeToken(actor);", to: `  let actorToken = ${BY_ID("actor")};`, breaks: "B1/B2" },
   { file: AID, name: "the aider's token by actor id", from: "  const actorToken = activeToken(actor);", to: `  const actorToken = ${BY_ID("actor")};`, breaks: "B1/B2" },
   { file: SKILLS, name: "a skill's own token by actor id", from: "  const myToken = activeToken(actor);", to: `  const myToken = ${BY_ID("actor")};`, breaks: "B1/B2" },
   { file: GEOMETRY, name: "the helper takes the first placeable", from: "    return actor?.getActiveTokens?.()?.[0] ?? null;", to: "    return canvas?.tokens?.placeables?.find((t) => t.actor?.id === actor?.id) ?? null;", breaks: "A1/B3" }

@@ -1,4 +1,5 @@
 import { withCheckModifiers } from "./check-modifiers.mjs";
+import { sheathedGroups } from "../combat/sheathed.mjs";
 import {
   CHAIN_PROFILES,
   OPEN_ENDED,
@@ -279,6 +280,13 @@ export class TRGCheck {
     // THE TARGET'S STATE AGAINST THIS ATTACKER (3.668.0): flatfooted,
     // isolated, duel. See conditionals.mjs's `targetStates` axis.
     this.targetStates = config.targetStates ?? "";
+    // WHAT A REFOCUS RESTORES (3.671.0; Inner Tempest's Veilborn: "+2 to
+    // Refocus checks made to restore an expended Ghost Art"): the named
+    // item's category and name, for the conditionals' `restores` axis.
+    this.restores = config.restores ?? "";
+    // WHAT IS SHEATHED (3.671.0, Iaijutsu Master): a caller may say;
+    // otherwise it is read off the actor's items when the context is built.
+    this.sheathedGroups = config.sheathedGroups ?? "";
     // TICK-BOXES ON A ROLL WITH NO DIALOG (3.667.3): asked unless the roller
     // skipped the questions (Shift). A roll made again carries the first
     // roll's answer in `conditionalChoices` and is not asked twice.
@@ -1011,7 +1019,11 @@ export class TRGCheck {
           attackForm: check.attackForm,
           attackGroup: check.attackGroup,
           rangeBand: check.rangeBand,
-          targetStates: check.targetStates
+          targetStates: check.targetStates,
+          // WHAT THE ROLLER HAS SHEATHED (3.671.0; Iaijutsu Master's
+          // Initiative, B7-5). Read off the actor's own items.
+          sheathedGroups: check.sheathedGroups || sheathedGroups(check.actor?.items ?? []),
+          restores: check.restores
         };
         const applied = automaticSelections(entries, conditionalContext);
         check.modifiers.push(...applied.modifiers);

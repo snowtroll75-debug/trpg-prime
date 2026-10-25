@@ -77,7 +77,7 @@ ok("S4 a creature's own jump sets the AP, skips the +2 trade, and leaves its mov
   && /if \(hasTradeoffs\(action\.key\) && !ownJump && !skipDialog\(event\)\) \{/.test(src.aw)
   && /if \(ownJump\?\.noProvoke && game\.combat\?\.started\) await actor\.setFlag\(SYSTEM_ID, "jumpReactionsAvoided", true\);/.test(src.aw)
   && /const jumpAvoided = Boolean\(actor\?\.getFlag\?\.\(SYSTEM_ID, "jumpReactionsAvoided"\)\);\n\s+if \(jumpAvoided\) actor\?\.unsetFlag/.test(src.mw)
-  && /const moverImmune = jumpAvoided \|\| Boolean\(/.test(src.mw));
+  && /const moverImmune = jumpAvoided (?:\|\| firstFree )?\|\| Boolean\(/.test(src.mw));
 ok("S5 a regeneration that is not automatic carries a button that heals once",
   /const regenButton = a\.kind === "regeneration" && a\.amount > 0;/.test(src.tw)
   && /\(regenButton \? `<button type="button" data-trg-regenerate>/.test(src.tw)

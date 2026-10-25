@@ -14,9 +14,11 @@ import { SKILLS } from "./config.mjs";
 import { pickerSpecialistAllowed } from "./aspect-rules.mjs";
 import { meetsParseablePrerequisites, prerequisiteNameKey } from "./prerequisites.mjs";
 import { meetsProgressionRequirement } from "./archetype-progression.mjs";
+import { CLASS_SKILL_GRANTS } from "./class-skills.mjs";
 import { registeredClassNames, registeredArchetypeNames, hasRegisteredFeatAccess, featGateBlock, exclusiveFeatConflict } from "./module-api.mjs";
 import { contentPacksFor } from "./content-packs.mjs";
 import { actorSenses } from "./senses.mjs";
+import { resolveCasterStyle } from "./magic/caster-style.mjs";
 
 /**
  * Classes a feat's prerequisites BAR it to.
@@ -568,7 +570,13 @@ function actorPrerequisiteStats(actor) {
     // computation rather than inventing a second one.
     bsb: Number(system.magic?.bsb ?? 0) + Number(system.progression?.bsb ?? 0),
     abilities,
-    skillRanks
+    skillRanks,
+    // HOW THE CLASS CASTS (3.671.0), for "Learned Caster" (Inner Tempest's
+    // Shugenja; ruling IT-C9: "only available to Learned casters (such as
+    // the cleric, druid and wizard)"). "" for a class that casts nothing.
+    // RESOLVED, as the actor derives it (an Enigma Wizard is instinctive):
+    // the class's own style with any owned item's override.
+    casterStyle: String(resolveCasterStyle(Array.from(actor?.items ?? []).find((i) => i?.type === "class")?.system?.casterStyle ?? "", Array.from(actor?.items ?? [])) ?? "").trim().toLowerCase()
   };
 }
 
@@ -697,9 +705,23 @@ function blockingArchetype(actor) {
   const stats = actorPrerequisiteStats(actor);
   return (
     ownedOrdinaryArchetypeFeats(actor).find(
-      (feat) => !meetsProgressionRequirement(feat.system?.progressionRequirements, stats)
+      (feat) => !meetsProgressionRequirement(feat.system?.progressionRequirements, stats, archetypeGrantContext(actor, feat))
     ) ?? null
   );
+}
+
+/**
+ * "GAINED CLASS SKILL +N RANKS" (3.671.0, Inner Tempest's Inner Adept):
+ * the skill this archetype's own class-skill grant chose, read where the
+ * grant records it (`flags.trg-prime.<flag>.skill`). Grants are keyed by
+ * the feat's lowercased name, as useClassSkillGrant finds them.
+ */
+export function archetypeGrantContext(actor, feat) {
+  const name = String(feat?.name ?? "").trim().toLowerCase();
+  const grant = CLASS_SKILL_GRANTS.find((g) => String(g?.name ?? "").trim().toLowerCase() === name);
+  if (!grant) return { hasGrant: false, grantedSkill: "" };
+  const record = actor?.flags?.["trg-prime"]?.[grant.flag];
+  return { hasGrant: true, grantedSkill: String(record?.skill ?? "") };
 }
 
 /**
@@ -841,7 +863,14 @@ export function buildPickerFilter(slotKey, context = {}) {
       return (entry) => {
         if (entry.system?.category !== "Class") return false;
         if (!meetsClassPrerequisite(entry, ownClass)) return false;
-        if (!matchesSource(entry.system?.sourceClass, className)) return false;
+        // A CLASS'S TRAIT OPENED BY A FEAT (3.670.0 C11; 3.671.0) passes
+        // the source gate for a feat that carries that trait: Steel
+        // Disciple's Kensai-trait feats are source-tagged Kensai too, and
+        // were refused here before the trait was read. A feat tagged for
+        // the class without its trait stays closed.
+        const ownTraits = parseNames(entry.system?.traits);
+        const openedByTrait = parseNames(traitClasses).filter((c) => ownTraits.includes(c));
+        if (!matchesSource(entry.system?.sourceClass, [className, ...openedByTrait].join(", "))) return false;
         const CLASS_NAMES = ["bard", "cleric", "crusader", "druid", "fighter", "ranger", "rogue", "wizard"];
         const ARCHETYPE_NAMES = ["adventurer", "aegis", "alchemist", "animist", "arcanist", "archer",
           "armour master", "artificer", "assassin", "blessed by the gods", "cavalier", "champion",
@@ -925,6 +954,12 @@ export function buildPickerFilter(slotKey, context = {}) {
         const traitClasses = archTraits.filter((t) => CLASS_NAMES.includes(t) || registeredClassNames().includes(t));
         const traitTiers = archTraits.filter((t) => TIER_NAMES.includes(t));
         if (!traitClasses.length && !traitTiers.length) return true;
+        // OPENED BY A MODULE (3.671.0): registerFeatAccess("archetype",
+        // class, names) — Inner Tempest opens Vanguard to the Kensai,
+        // Mastermind and Runemage to the Mystic. Any one of the effective
+        // classes will do, as for class feats; the "Non-X" prerequisite
+        // above still applies.
+        if (hasRegisteredFeatAccess("archetype", className, entry.name)) return true;
         // `className` is the EFFECTIVE class LIST — "Bard, Fighter" for a
         // Bard who owns the Warrior archetype — so it has to be split
         // before it is matched, exactly as the classFeat branch above

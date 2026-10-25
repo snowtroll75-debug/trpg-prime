@@ -22,7 +22,7 @@ const MUTATIONS = [
   { name: "every row is ticked in advance", file: D, from: "  return (rows ?? []).filter((row) => row.auto).map((row) => row.id);", to: "  return (rows ?? []).map((row) => row.id);", breaks: "A2" },
   { name: "two bonuses of one type stack", file: D, from: "    if (!held || Math.abs(value) > Math.abs(held.value)) best.set(key, { ...row, value, type });", to: "    best.set(`${key}:${counted.length + best.size}`, { ...row, value, type });", breaks: "A4" },
   { name: "the card does not say the type", file: D, from: "    return `${row.label}: ${signed}${type === \"untyped\" ? \"\" : ` ${type}`} to damage${row.scope ? ` (${row.scope})` : \"\"}.`;", to: "    return `${row.label}: ${signed} to damage${row.scope ? ` (${row.scope})` : \"\"}.`;", breaks: "A3" },
-  { name: "the hit path never asks", file: A, from: "    const declaredDamage = await declaredDamageBonus(actor, weapon, { skipPrompt: skipDialog(event) });\n", to: "    const declaredDamage = { bonus: 0, lines: [] };\n", breaks: "B1" },
+  { name: "the hit path never asks", file: A, from: "    const declaredDamage = await declaredDamageBonus(actor, weapon, {\n      skipPrompt: skipDialog(event),", to: "    const declaredDamage = { bonus: 0, lines: [] }; const unusedDeclared = ({\n      skipPrompt: skipDialog(event),", breaks: "B1" }, // re-anchored at 3.668.0
   { name: "the formula ignores the total", file: A, from: "    formula += declaredDamageTotal > 0 ? ` + ${declaredDamageTotal}` : ` - ${Math.abs(declaredDamageTotal)}`;\n", to: "", breaks: "B2" },
   { name: "the workflow asks even when every row is automatic", file: W, from: "  if (offered.length && !skipPrompt && DialogV2) {", to: "  if (!skipPrompt && DialogV2) {", breaks: "B3" },
   { name: "a rune's packet is as mundane as it ever was", file: A, from: "        magical: rune.mundane ? strikeIsMagical : true,\n", to: "        magical: strikeIsMagical,\n", breaks: "C2" },
@@ -52,3 +52,5 @@ try {
 const bad = results.filter((r) => r.state !== "caught");
 for (const r of results) { process.stdout.write(`  ${r.state === "caught" ? "caught  " : r.state.padEnd(8)}  ${r.name}\n`); if (r.state === "SURVIVED") process.stdout.write(`            should have broken: ${r.breaks}\n`); }
 process.stdout.write(bad.length ? `\nmutate-item-fixes-3626-1: FAILED — ${bad.length} of ${results.length} not caught.\n` : `\nmutate-item-fixes-3626-1: OK — all ${results.length} mutations caught, tree restored.\n`);
+// A SURVIVOR FAILS THE SWEEP (3.664.0): this harness reported FAILED and exited 0.
+if (bad.length) process.exitCode = 1;

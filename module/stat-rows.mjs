@@ -116,7 +116,7 @@ export function statRowEntries(rows = [], state = {}) {
     if (!value) continue;
     out.push({
       path: STAT_ROW_PATHS[row.target],
-      entry: { label: row.label, value, type: String(row.type ?? "untyped"), source: "statRow", ...(row.carrierUuid ? { carrierUuid: row.carrierUuid } : {}) }
+      entry: { label: row.label, value, type: String(row.type ?? "untyped"), source: "statRow", ...(row.carrierUuid ? { carrierUuid: row.carrierUuid } : {}), ...(String(row.stackGroup ?? "").trim() ? { stackGroup: String(row.stackGroup).trim() } : {}) }
     });
   }
   return out;

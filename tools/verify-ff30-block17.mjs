@@ -138,7 +138,7 @@ ok("S1 a check knows whether its attack is melee or ranged, and conditionals are
   /this\.attackMode = config\.attackMode \?\? "";/.test(src.chk) && /attackMode: check\.attackMode/.test(src.chk)
   && /attackMode: isRanged \? "ranged" : "melee",/.test(src.atk));
 ok("S2 a pending row scoped to a kind of check is applied only to that kind, and only pre-ticked for it",
-  /row\.checkTypes\.includes\(check\.type\)\)\);/.test(src.chk)
+  /row\.checkTypes\.includes\(check\.type\)\)\s*&& pendingFitsCheck\(row, check\.actionKey \?\? ""\)\);/.test(src.chk)
   && /entry\.auto && \(!entry\.checkTypes\?\.length \|\| entry\.checkTypes\.includes\(checkType\)\)/.test(src.dlg)
   && /if \(Array\.isArray\(entry\?\.checkTypes\) && entry\.checkTypes\.length\) record\.checkTypes =/.test(src.pend));
 ok("S3 immunity is granted only on the listed rungs",
@@ -158,9 +158,11 @@ ok("S9 a Fumble on the Gorgon's save takes the clock and the saves away",
   /if \(outcome\.permanent\) \{/.test(src.csw) && /\[`flags\.\$\{SYSTEM_ID\}\.-=\$\{CONDITION_SAVE_FLAG\}`\]: null,/.test(src.csw));
 ok("S10 a critical with a declared weapon asks before the injury, and a replacement skips it",
   /injuryReplaced = await offerCriticalReplacement\(actor, weapon, targetActor\);/.test(src.atk)
-  && /if \((?:!grabOnly && |strikeLands && )?outcome\.critical && !outcome\.critical\.injuryImmune && !injuryReplaced\) \{/.test(src.atk));
+  // Re-anchored at 3.667.0: a strike series' later criticals roll no injury either.
+  && /if \((?:!grabOnly && |strikeLands && )?outcome\.critical && !outcome\.critical\.injuryImmune && !injuryReplaced && !noCriticalInjury\) \{/.test(src.atk));
+// Re-anchored at 3.671.0: a Strike its target cannot react to (Drawn Verdict) offers none.
 ok("S11 a miss offers the defender its reaction move — every miss, not only a fumble's (3.650.1)",
-  /\n  \}\n\n  \/\/ A MISS THE DEFENDER MAY ANSWER BY MOVING[^\n]*\n(  \/\/[^\n]*\n)+  if \(outcome\.resolved && !outcome\.hits && targetActor\) \{\n    const \{ offerMissedReactions \}[^\n]*\n    await offerMissedReactions\(targetActor, actor\)/.test(src.atk));
+  /\n  \}\n\n  \/\/ A MISS THE DEFENDER MAY ANSWER BY MOVING[^\n]*\n(  \/\/[^\n]*\n)+  if \(outcome\.resolved && !outcome\.hits && targetActor(?: && !noReactions)?\) \{\n    const \{ offerMissedReactions \}[^\n]*\n    await offerMissedReactions\(targetActor, actor\)/.test(src.atk));
 ok("S12 both permitted move paths offer the adjacency reactions",
   (src.mv.match(/maybeOfferSwiftPursuit\(tokenDocument, movement\);\n\s+maybeOfferCreatureReactions\(tokenDocument, movement\);/g) ?? []).length === 2);
 ok("S13 the buttons are registered at boot",

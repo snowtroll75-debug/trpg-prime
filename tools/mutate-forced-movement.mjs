@@ -110,8 +110,8 @@ const MUTATIONS = [
   {
     name: "the card offers a push the outcome text does not describe",
     file: ACTION,
-    from: "      pushDetail = extractPushDistance(outcome.text);",
-    to: '      pushDetail = extractPushDistance(action.description ?? "");',
+    from: "      pushDetail = readsText ? extractPushDistance(outcome.text) : null;",
+    to: '      pushDetail = readsText ? extractPushDistance(action.description ?? "") : null;',
     breaks: "F3 — the button and the sentence beside it could disagree, the §5.9 shape"
   },
   {

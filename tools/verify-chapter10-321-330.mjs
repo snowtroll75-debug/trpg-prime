@@ -143,7 +143,9 @@ ok("W4b and is skipped when the rung also kills", /outcome\.dropsTo !== undefine
 ok("W5 a destroyed soul is written onto the body",
   // ANCHORED ON `await target.`, because `setFlag` is a substring of
   // `unsetFlag` and the first draft passed a mutation that cleared the flag.
-  /await target\.setFlag\?\.\(SYSTEM_ID, SOUL_DESTROYED_FLAG,/.test(ladderBranch));
+  // RE-ANCHORED AT 3.666.1: the write now goes through the GM relay when the
+  // body is not the caster's, and this direct write is the owner's branch.
+  /await relayInjuryRecord\(target, "soulDestroyed", [^\n]*\n\s*\(\) => target\.setFlag\?\.\(SYSTEM_ID, SOUL_DESTROYED_FLAG,/.test(ladderBranch));
 ok("W6 A CRITICAL WITH NO DICE IN FRONT OF IT STILL LANDS",
   /outcome\.severity && \(taken > 0 \|\| \(!outcome\.dice && !outcome\.slays\)\)/.test(ladderBranch));
 {

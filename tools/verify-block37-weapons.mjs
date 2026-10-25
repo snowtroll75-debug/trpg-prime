@@ -204,7 +204,7 @@ const on = (key) => ({ "trg-prime": { runeState: { [`${key}Active`]: true } } })
   const touched = resolveDamagePacket({ amount: 10, type: "slashing", ...ghost, magical: false, incorporealTouch: true });
   ok("H3 Ghost Touch strikes the incorporeal normally", plain.taken === 0 && touched.taken === 10, `${plain.taken} / ${touched.taken}`);
   ok("H4 only against an incorporeal target, from a weapon whose rune is in force",
-    /const ghostTouchHere = \(\s*\(Boolean\(equippedEventRune\(\[weapon\], "ghostTouch"\)\) && runeUsageAllows\("ghostTouch", weaponUsage\(weaponData\)\)\.ok\)\s*\|\| runeGhostTouch\(weapon\)\s*(?:\|\| actorGhostTouch\(actor\)\s*)?\) && isIncorporeal\(targetActor\.system\);/.test(ATTACK)
+    /const ghostTouchHere = \(\s*\(Boolean\(equippedEventRune\(\[weapon\], "ghostTouch"\)\) && runeUsageAllows\("ghostTouch", weaponUsage\(weaponData\)\)\.ok\)\s*\|\| runeGhostTouch\(weapon\)\s*(?:\|\| actorGhostTouch\(actor(?:, \{ magical: strikeIsMagical \})?\)\s*)?\) && isIncorporeal\(targetActor\.system\);/.test(ATTACK)
     && /incorporealTouch: ghostTouchHere,/.test(ATTACK));
   ok("H5 R13 — Vicious feeds back through the wielder's own defences",
     /const fed = resolveAgainstDefences\(actor\.system, \{\s*amount: back, type: rune\.type,/.test(ATTACK)

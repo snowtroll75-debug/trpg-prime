@@ -105,7 +105,8 @@ export function classSkillSources({
   grants = [],
   ownedFeatNames = new Set(),
   aspects = [],
-  schools = []
+  schools = [],
+  declared = []
 } = {}) {
   const found = new Map();
   const add = (key, id, label) => {
@@ -143,6 +144,17 @@ export function classSkillSources({
     if (!record?.skill) continue;
     if (grant.name && !ownedFeatNames.has(String(grant.name).toLowerCase())) continue;
     add(record.skill, `grant:${grant.flag}`, grant.label);
+  }
+
+  // 2b. A class skill a feat simply gives (3.671.0; Inner Tempest's Jade
+  //     Physician: "You gain Medicine as a class skill"). Declared on the
+  //     item as `flags.trg-prime.classSkills` (names or keys) and derived
+  //     while the item is held, so no Use press and nothing to take back.
+  //     One source per item.
+  for (const entry of declared) {
+    for (const name of entry?.skills ?? []) {
+      add(skillKeyFromName(name, skills), `feat:${entry.id}`, entry.label);
+    }
   }
 
   // 3. A divine aspect's Class Skill. Appendix 4 gives every aspect one,

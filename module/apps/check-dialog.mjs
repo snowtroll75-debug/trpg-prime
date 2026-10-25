@@ -17,6 +17,7 @@ import {
 } from "../ranger.mjs";
 import { hasClassAbility } from "../crusader.mjs";
 import { activeToken, distanceBetween } from "../combat/geometry.mjs";
+import { sheathedGroups as sheathedGroupsOf } from "../combat/sheathed.mjs";
 import { lightPenaltyRow, perceivedLightShift } from "../light-check.mjs";
 import { toolPenaltyRow } from "../tools-requirement.mjs";
 import { allyAuraConditionalsFor } from "../creature-aura-workflow.mjs";
@@ -182,6 +183,12 @@ export async function promptCheckConfiguration({
   rangeBand = "",
   // THE TARGET'S STATE (3.668.0), accepted for the same reason.
   targetStates = "",
+  // WHAT A REFOCUS RESTORES (3.671.0, Veilborn), accepted for the same
+  // reason; the action workflow names the item before opening this.
+  restores = "",
+  // WHAT IS SHEATHED (3.671.0, Iaijutsu Master), accepted for the same
+  // reason; read off the actor below when no caller says.
+  sheathedGroups = "",
   defaultDifficulty = "medium"
 } = {}) {
   // The Advantage conviction spend covers saving throws and skill checks.
@@ -316,7 +323,9 @@ export async function promptCheckConfiguration({
           ),
           {
             checkType, subject, actionKey, traits, traditions,
-            sourceTypes, targetTypes, sourceUuid, targetUuid, attackMode, targetTraits, attackForm, attackGroup, rangeBand, targetStates
+            sourceTypes, targetTypes, sourceUuid, targetUuid, attackMode, targetTraits, attackForm, attackGroup, rangeBand, targetStates,
+            // AND WHAT IS SHEATHED (3.671.0), read off the actor as the roll reads it.
+            sheathedGroups: sheathedGroups || sheathedGroupsOf(actor?.items ?? []), restores
           }
         )
       : [];

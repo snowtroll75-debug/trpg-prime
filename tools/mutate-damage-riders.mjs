@@ -33,7 +33,8 @@ const MUTATIONS = [
   { name: "the round never resets the map", file: COMBAT,
     from: "      [`flags.${SYSTEM_ID}.damageRidersUsed`]: deletionValue(),", to: "", breaks: "C6" },
   { name: "valueFrom is read once as a literal (stale)", file: COND,
-    from: "      value = scaled * (Number(raw.sign) === -1 ? -1 : 1);", to: "      value = 2;", breaks: "B2 — the Inquisition bonus stops moving with level" },
+    // Re-anchored at 3.668.0: the scaled figure takes its floor first.
+    from: "      value = floored * (Number(raw.sign) === -1 ? -1 : 1);", to: "      value = 2;", breaks: "B2 — the Inquisition bonus stops moving with level" },
   { name: "an unknown source is accepted as zero", file: COND,
     from: "      if (scaled === null) return null;", to: "      if (scaled === null) value = 1; else", breaks: "B4" },
   { name: "the dialog stops handing over the scaling", file: DIALOG,

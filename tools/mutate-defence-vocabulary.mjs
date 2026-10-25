@@ -189,8 +189,8 @@ const MUTATIONS = [
     file: AW,
     name: "C2 THE INJURY ROLL IS NO LONGER GATED",
     // 3.650.0: the gate also stands down for a critical replacement.
-    from: "  if (strikeLands && outcome.critical && !outcome.critical.injuryImmune && !injuryReplaced) {",
-    to: "  if (strikeLands && outcome.critical && !injuryReplaced) {",
+    from: "  if (strikeLands && outcome.critical && !outcome.critical.injuryImmune && !injuryReplaced && !noCriticalInjury) {",
+    to: "  if (strikeLands && outcome.critical && !injuryReplaced && !noCriticalInjury) {",
     breaks: "the workflow half of C1c — the flag would be set and ignored, which is this "
       + "release's own defect wearing a new coat"
   },

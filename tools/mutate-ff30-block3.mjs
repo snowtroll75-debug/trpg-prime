@@ -40,7 +40,7 @@ const MUTATIONS = [
   { name: "any Extraplanar creature dies at 0 HP", file: EP, from: " && Boolean(actor?.system?.gm?.isMook) && ", to: " && ", breaks: "A14" },
   { name: "conditions print in lower case again", file: CR, from: "  return LABELS[key] ?? CONDITIONS[key]?.label ?? (key ? key.charAt(0).toUpperCase() + key.slice(1) : \"\");", to: "  return LABELS[key] ?? key;", breaks: "A15" },
   { name: "the cast derives the innate attack regardless", file: CAST, from: "              value: innateAttackHere.value,", to: "              value: innateAttackBonus(innateAbility, innateLevel),", breaks: "B1" },
-  { name: "the sheet derives the innate DC regardless", file: SHEET, from: "row.innateSave = innateSaveFor(item, innateAbility, innateLevel).value;", to: "row.innateSave = 0;", breaks: "B2" },
+  { name: "the sheet derives the innate DC regardless", file: SHEET, from: "row.innateSave = innateSaveFor(item, ownAbility, innateLevel).value;", to: "row.innateSave = 0;", breaks: "B2" },
   { name: "the creature's secondary packets are not rolled", file: ATTACK, from: "    ...creatureSecondaryPackets(weapon, targetActor?.system ?? null),\n", to: "", breaks: "B3" },
   { name: "a weapon's after-strikes are not read", file: AFTER, from: "    if (at < 0) specs.push(spec);\n", to: "", breaks: "B4" },
   { name: "the attacker's own affliction is not looked for", file: AFTER, from: "  const own = ownAfflictionItem(actor, affliction);", to: "  const own = null;", breaks: "B4" },

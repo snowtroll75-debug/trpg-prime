@@ -243,7 +243,7 @@ const MUTATIONS = [
   {
     file: ACTION,
     name: "the target's type is filled on the roll but not the dialog",
-    from: "      targetTypes: creatureTypesOf(targetActor?.system ?? {}),\n      targetUuid: targetActor?.uuid ?? \"\",",
+    from: "      targetTypes: creatureTypesOf(targetActor?.system ?? {}),\n      targetTraits: creatureTraits(targetActor?.system ?? {}),\n      targetUuid: targetActor?.uuid ?? \"\",",
     to: "",
     breaks: "A21 — the rule then works only when the player holds Shift"
   },

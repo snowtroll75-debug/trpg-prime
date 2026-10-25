@@ -61,7 +61,7 @@ import {
   moduleRegistry
 } from "./module-api.mjs";
 import { KNOWN_SOURCEBOOKS, knownExtenderPacks, sourcebookTitle } from "./sourcebooks.mjs";
-import { contentPack, contentPacksFor, isFederated } from "./content-packs.mjs";
+import { SYSTEM_ID, contentPack, contentPacksFor, isFederated } from "./content-packs.mjs";
 import { addLanguage } from "./languages.mjs";
 import { addSkillActions } from "./data/skill-actions.mjs";
 import { FEAT_AUTOMATION, MODULE_HELPERS } from "./feats-workflow.mjs";
@@ -199,6 +199,82 @@ export function buildModuleApi() {
       // A STRIKE THAT COUNTS AS UNARMED (3.667.0): the fists, or a weapon
       // with the Monastic trait. See combat/unarmed-profile.mjs.
       countsAsUnarmed: async (weapon) => (await import("./combat/unarmed-profile.mjs")).countsAsUnarmed(weapon?.system ?? weapon),
+      /**
+       * FOR THIS HOLDER'S ABILITIES (3.671.0; Soul-Bound Weapon, Zen
+       * Archer, B7-6): unarmed as above, or a weapon the actor declares its
+       * unarmed abilities reach (`unarmedAbilityWeapons`). For Flurry of
+       * Blows and the like; never for unarmed damage.
+       */
+      /**
+       * "IMMUNE TO ITS EFFECTS FOR 1 HOUR" (3.671.0; Inner Tempest's
+       * Restorative Palm). The record the core's own Treat Wounds and
+       * Guidance keep on the target (`flags.trg-prime.temporaryImmunity`),
+       * by world time. `temporaryImmunityRefusal` resolves "" or why not;
+       * `grantTemporaryImmunity` writes it, the longer expiry winning.
+       */
+      /**
+       * CAST A SPELL AS INNATE, ONCE, WITHOUT KEEPING IT (3.671.0; Inner
+       * Tempest's Harmony Warden: "once per day you may enter a trance for
+       * 10 minutes and cast any one PP 2 Verdant spell … as an innate
+       * spell"). `spellData` is a spell's data (a compendium entry's
+       * `toObject()`); it is cast from a temporary document, as a potion's
+       * spell is, so nothing is added to the sheet. `ability` (an attribute
+       * key) and `tradition` stand as an innate grant's would; the usual
+       * innate rules apply, the level limit included (`allowance` as
+       * B3-2's). The caller keeps the once-a-day count. Resolves what
+       * castSpell resolves.
+       */
+      castInnateOnce: async (actor, spellData, { ability = "", tradition = "", allowance = 0 } = {}) => {
+        const data = foundry.utils.deepClone(spellData ?? {});
+        delete data._id;
+        data.type = "spell";
+        data.system = { ...(data.system ?? {}), innate: true };
+        // NO DAILY COUNT ON THE COPY: the caller keeps it ("once per day").
+        // A spell's template carries `usesPerDay`, and an innate spell with
+        // one is counted from it (uses-workflow `itemUsesMax`).
+        delete data.system.usesMax;
+        delete data.system.usesPerDay;
+        delete data.system.usesValue;
+        delete data.system.bonusUses;
+        if (tradition) data.system.tradition = tradition;
+        if (ability) foundry.utils.setProperty(data, `flags.${SYSTEM_ID}.castingAbilityOverride`, ability);
+        if (Math.trunc(Number(allowance) || 0) > 0) foundry.utils.setProperty(data, `flags.${SYSTEM_ID}.innatePPAllowance`, Math.trunc(Number(allowance)));
+        foundry.utils.setProperty(data, `flags.${SYSTEM_ID}.innateOnce`, true);
+        const spell = new Item.implementation(data, { parent: actor });
+        const { castSpell } = await import("./magic/cast-workflow.mjs");
+        return castSpell(actor, spell);
+      },
+      /**
+       * "A NEW SAVING THROW AGAINST ONE POISON OR DISEASE CURRENTLY
+       * AFFECTING IT" (3.671.0; Inner Tempest's Restorative Palm): the
+       * affliction's own stage save, now, with its usual ladder and no
+       * interval damage, as Antitoxin's immediate save. Resolves what the
+       * save did ({ended} or {stage}), or null when it is still incubating.
+       */
+      rollAfflictionSave: async (actor, affliction) => (await import("./combat/affliction-workflow.mjs")).rollAfflictionStageSave(actor, affliction, { withDamage: false }),
+      temporaryImmunityRefusal: async (target, key) => {
+        const t = await import("./temporary-immunity.mjs");
+        const now = Number(game.time?.worldTime ?? 0);
+        const record = target?.getFlag?.(SYSTEM_ID, t.IMMUNITY_FLAG) ?? {};
+        if (!t.isTemporarilyImmune(record, key, now)) return "";
+        return `${target.name} is immune to ${key} for ${t.describeRemaining(t.immunityRemaining(record, key, now))}.`;
+      },
+      grantTemporaryImmunity: async (target, key, seconds) => {
+        const t = await import("./temporary-immunity.mjs");
+        const now = Number(game.time?.worldTime ?? 0);
+        const record = target?.getFlag?.(SYSTEM_ID, t.IMMUNITY_FLAG) ?? {};
+        await target?.setFlag?.(SYSTEM_ID, t.IMMUNITY_FLAG, t.withImmunity(t.prunedImmunities(record, now), key, seconds, now));
+        return true;
+      },
+      /**
+       * A SHEATHED WEAPON (3.671.0; Iaijutsu Master, B7-5): the weapons the
+       * actor carries and is not wielding, of one group ("sword") or any.
+       */
+      sheathedWeapons: async (actor, group = "") => (await import("./combat/sheathed.mjs")).sheathedWeapons(actor?.items ?? [], group),
+      unarmedAbilityWeapon: async (actor, weapon) => {
+        const u = await import("./combat/unarmed-profile.mjs");
+        return u.countsAsUnarmed(weapon?.system ?? weapon) || u.declaresUnarmedAbilities(u.unarmedAbilityCarriers(actor), weapon);
+      },
       // A BLOW HELD BY BLACK LOTUS (3.668.0): is it due on this turn, and
       // land it (the critical, then the damage). See combat/held-strike.mjs.
       heldStrikeDue: async (record, turn) => (await import("./combat/held-strike.mjs")).heldStrikeDue(record, turn),

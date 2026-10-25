@@ -19,15 +19,15 @@ const GW = path.join(SYSTEM_ROOT, "module", "grants-workflow.mjs");
 
 const MUTATIONS = [
   { name: "an access list opens every feat to its owner", file: API,
-    from: "    .some((owner) => registry.featAccess.get(`${k}:${owner}`)?.has(feat));", to: "    .some((owner) => registry.featAccess.has(`${k}:${owner}`));", breaks: "A3 / B4 — Stone-Like Endurance opens with Self Aware" },
+    from: "      const open = registry.featAccess.get(`${k}:${owner}`)?.get(feat);\n      if (!open) return false;", to: "      const open = registry.featAccess.has(`${k}:${owner}`) ? ANY_HERITAGE : null;\n      if (!open) return false;", breaks: "A3 / B4 — Stone-Like Endurance opens with Self Aware" },
   { name: "the kind is ignored", file: API,
-    from: "  const id = `${k}:${owner}`;\n  const set = registry.featAccess.get(id) ?? new Set();", to: "  const id = `${owner}`;\n  const set = registry.featAccess.get(id) ?? new Set();", breaks: "A3 — a race list is looked up under the kind" },
+    from: "  const id = `${k}:${owner}`;\n  const map = registry.featAccess.get(id) ?? new Map();", to: "  const id = `${owner}`;\n  const map = registry.featAccess.get(id) ?? new Map();", breaks: "A3 — a race list is looked up under the kind" },
   { name: "a second registration replaces the first", file: API,
-    from: "  const set = registry.featAccess.get(id) ?? new Set();", to: "  const set = new Set();", breaks: "A8 — Bardic Lore vanishes when Familiar is added" },
+    from: "  const map = registry.featAccess.get(id) ?? new Map();", to: "  const map = new Map();", breaks: "A8 — Bardic Lore vanishes when Familiar is added" },
   { name: "a bad kind registers anyway", file: API,
-    from: "  if (![\"race\", \"class\"].includes(k) || !owner || !names.length) {", to: "  if (!owner || !names.length) {", breaks: "A9" },
+    from: "  if (![\"race\", \"class\", \"archetype\"].includes(k) || !owner || !entries.length) {", to: "  if (!owner || !entries.length) {", breaks: "A9" },
   { name: "the racial-feat picker stops asking", file: PF,
-    from: "        (matchesSource(entry.system?.sourceRace, race) || hasRegisteredFeatAccess(\"race\", race, entry.name));", to: "        matchesSource(entry.system?.sourceRace, race);", breaks: "B3 — Self Aware stays hidden from the Rhevani" },
+    from: "        (matchesSource(entry.system?.sourceRace, race) || hasRegisteredFeatAccess(\"race\", race, entry.name, heritage));", to: "        matchesSource(entry.system?.sourceRace, race);", breaks: "B3 — Self Aware stays hidden from the Rhevani" },
   { name: "the class-feat picker stops asking", file: PF,
     from: "        if (hasRegisteredFeatAccess(\"class\", className, entry.name)) return true;\n", to: "", breaks: "B8 — Bardic Lore stays hidden from the Archivist" },
   { name: "a modifier aura drops its value", file: AURA,
@@ -37,7 +37,7 @@ const MUTATIONS = [
   { name: "an aura's actions are dropped", file: AURA,
     from: "  const reach = actions.length ? { checkTypes, actions } : { checkTypes };", to: "  const reach = { checkTypes };", breaks: "C6 — Lantern of the Bloom reaches every skill check" },
   { name: "a feat cannot grant a weapon", file: GW,
-    from: "    { field: \"grantedWeapons\", pack: \"companions\" }\n  ],", to: "  ],", breaks: "D1 — Hunter's Fangs hands over nothing" }
+    from: "    { field: \"grantedWeapons\", pack: \"companions\" }\n  ],\n  // Appendix 4", to: "  ],\n  // Appendix 4", breaks: "D1 — Hunter's Fangs hands over nothing" }
 ];
 
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-module-feats.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
@@ -58,3 +58,5 @@ try {
 const bad = results.filter((r) => r.state !== "caught");
 for (const r of results) { process.stdout.write(`  ${r.state === "caught" ? "caught  " : r.state.padEnd(8)}  ${r.name}\n`); if (r.state === "SURVIVED") process.stdout.write(`            should have broken: ${r.breaks}\n`); }
 process.stdout.write(bad.length ? `\nmutate-module-feats: FAILED — ${bad.length} of ${results.length} not caught.\n` : `\nmutate-module-feats: OK — all ${results.length} mutations caught, tree restored.\n`);
+// A SURVIVOR FAILS THE SWEEP (3.664.0): this harness reported FAILED and exited 0.
+if (bad.length) process.exitCode = 1;

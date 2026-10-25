@@ -207,13 +207,16 @@ const ffRow = (defence) => EV.attackTermsAgainst(target(defence), { conditions: 
   ok("E7 the Strike: the rows, the advantage as its starting bias, and Sneak Attack",
     /attackTermsAgainst\(targetActor, actor, \{ distanceFeet: distanceToTarget, melee: !isRanged \}\)/.test(ATTACK)
     && /\.\.\.\(conditionTerms\?\.advantage \? \{ bias: "advantage" \} : \{\}\),/.test(ATTACK)
-    && /\|\| Boolean\(conditionTerms\?\.flatFootedBy\),/.test(ATTACK));
+    // RE-ANCHORED 3.668.0: Formless Cut's "treated as flat-footed" joins it.
+    && /\|\| Boolean\(conditionTerms\?\.flatFootedBy\)( \|\| Boolean\(treatAsFlatFooted\))?,/.test(ATTACK));
   ok("E8 a spell attack: the advantage on the casting check, the rows in its pool",
     /if \(firstTarget && attackTermsAgainst\(firstTarget, actor\)\.advantage\) castContext\.bias = "advantage";/.test(CAST)
     && /\.concat\(conditionRows\)/.test(CAST));
   ok("E9 an attack action (Trip, Grapple…) meets them too",
     /actionAttackTerms = attackTermsAgainst\(targetActor, actor, \{/.test(ACTION)
-    && /resolveBias\(tracklessBias\(situational\?\.bias, tracklessQuarry\), \["advantage"\], BIAS\)/.test(ACTION)
+    // Re-anchored at 3.665.0: the advantage now joins the bias in the same
+    // reconciliation as a defender's disadvantage row (rollBiasWith).
+    && /rollBiasWith\(tracklessBias\(situational\?\.bias, tracklessQuarry\), \[\s*\.\.\.\(actionAttackTerms\?\.advantage \? \["advantage"\] : \[\]\),/.test(ACTION)
     && /\.\.\.\(actionAttackTerms\?\.rows \?\? \[\]\),/.test(ACTION));
   ok("E10 flat-footed to you is the Dexterity and dodge the target would lose",
     ffRow({ ability: 3, breakdown: { byType: { dodge: 2 } } }) === 5

@@ -38,9 +38,10 @@ const read = (...p) => fs.readFileSync(path.join(SYSTEM_ROOT, ...p), "utf8");
     /async function cardActor\(raw\) \{\s*\n\s*return resolveActorHandle\(\{ tokenId: raw\?\.tokenId, actorUuid: raw\?\.actorUuid, actorId: raw\?\.actorId \}\);/.test(card));
   const uses = (card.match(/= await cardActor\(raw\);/g) ?? []).length;
   // EIGHT SINCE 3.624.0: the natural-20 luck award (block 40's R15) resolves
-  // its roller the same way.
-  ok("A4 every button that used the id now uses it — Conviction, Scoundrel's Luck, Unbreakable Resolve, Devotion, Natural Defence, the held bonuses, the luck award",
-    uses === 8, `${uses} uses`);
+  // its roller the same way. NINE SINCE 3.669.0: the declared conviction
+  // refund on a late DC (Inner Tempest's Adaptive Mind) does too.
+  ok("A4 every button that used the id now uses it — Conviction, Scoundrel's Luck, Unbreakable Resolve, Devotion, Natural Defence, the held bonuses, the luck award, the declared refund",
+    uses === 9, `${uses} uses`);
   const knife = read("module", "combat", "action-feat-detection.mjs");
   ok("A5 Knife Flurry's card names the creature too",
     knife.includes("handle: actorHandle(actor, actor.token ?? null)")

@@ -77,7 +77,8 @@ const MUTATIONS = [
     name: "N1 a formula nobody checked reaches the roller",
     // RE-ANCHORED 3.613.0: a weapon-die rider (Weapon Surge) is exempt.
     // RE-ANCHORED 3.630.0: a condition-only rider (Rose of Thorns) is exempt too.
-    from: "  if (!weaponDie && !conditionOnly && !isRiderDice(dice)) return null;",
+    // RE-ANCHORED 3.668.0: a declared flat rider (Ember Reaver) has its own pattern.
+    from: "  if (!weaponDie && !conditionOnly && !(flat ? FLAT_PATTERN.test(dice) : isRiderDice(dice))) return null;",
     to: "  if (false) return null;",
     breaks: "B3/B4 — '1d6+1' throws at strike time or rolls something else"
   },

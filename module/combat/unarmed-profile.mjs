@@ -183,3 +183,99 @@ export function withUnarmedProfile(weaponSystem, profile) {
   }
   return out;
 }
+
+/**
+ * UNARMED ABILITIES WITH ANOTHER WEAPON (3.671.0; Inner Tempest's Soul
+ * Weapon Master and Zen Archer, ruling B7-6). "Any ability that may be
+ * used with unarmed strikes (such as Flurry of Blows) may also be used with
+ * your Soul-Bound Weapon" — and, for the Zen Archer, "with a bow weapon".
+ *
+ * Declared on an item or effect the actor carries, as
+ * `flags.trg-prime.unarmedAbilityWeapons: { itemIds, names, groups }`:
+ * the bonded weapon's id, or the bows by name (the Bow group also holds
+ * the crossbows, which are not bows). Any one matching is enough.
+ *
+ * ABILITIES ONLY. What reads this is what an ability asks — the strike
+ * riders' unarmed scope, a stance's unarmed traits and damage type, the
+ * conditionals' unarmed attack form, Savage Strikes, Death Mark. The
+ * fists' own damage profile (Powerful Fists' die, Versatile, scaling and
+ * materials) does not, and neither does anything that is not the
+ * holder's ability (Vibrant Thorns, the unarmed fumble table).
+ *
+ * @param {Iterable<object>} carriers the actor's items and effects
+ * @param {object} weapon the weapon item (or {id, name, system})
+ * @returns {boolean}
+ */
+export function declaresUnarmedAbilities(carriers = [], weapon = null) {
+  if (!weapon) return false;
+  const id = String(weapon.id ?? weapon._id ?? "");
+  const name = String(weapon.name ?? "").trim().toLowerCase();
+  const group = String(weapon.system?.group ?? "").trim().toLowerCase();
+  for (const carrier of carriers ?? []) {
+    if (carrier?.disabled) continue;
+    const spec = carrier?.flags?.["trg-prime"]?.unarmedAbilityWeapons;
+    if (!spec || typeof spec !== "object") continue;
+    const list = (v) => (Array.isArray(v) ? v : (v ? [v] : [])).map((x) => String(x).trim());
+    if (id && list(spec.itemIds).includes(id)) return true;
+    if (name && list(spec.names).some((n) => n.toLowerCase() === name)) return true;
+    if (group && list(spec.groups).some((g) => g.toLowerCase() === group)) return true;
+  }
+  return false;
+}
+
+/**
+ * The weapon's data as the holder's ABILITIES see it: unarmed when
+ * declaresUnarmedAbilities says so, otherwise unchanged (the same object).
+ * Never hand this to the unarmed damage profile.
+ */
+export function abilityStrikeView(weaponSystem, declared) {
+  if (!declared || !weaponSystem || countsAsUnarmed(weaponSystem)) return weaponSystem;
+  return { ...weaponSystem, unarmed: true };
+}
+
+/** The actor's carriers, items and live effects, as the readers above take them. */
+export function unarmedAbilityCarriers(actor) {
+  return [...Array.from(actor?.items ?? []), ...Array.from(actor?.appliedEffects ?? actor?.effects ?? [])];
+}
+
+/**
+ * ONE BONDED WEAPON'S SCALING (3.671.0; Inner Tempest's Soul-Bound Weapon):
+ * "When your BAB becomes 3 and for every 3 it increases thereafter you
+ * inflict an additional point of damage … this is total damage and not
+ * base … When your BAB reaches 3, your strikes class as magical. When your
+ * BAB reaches 8 … cold iron and silver and at BAB 16 … adamantine."
+ *
+ * Powerful Fists' shape scoped to one item: `flags.trg-prime.weaponScaling:
+ * { itemId, perBAB: {every, value}, countsAs: {magical, "cold iron", …},
+ * label }` on an item or effect. Matched by the weapon's id only.
+ *
+ * @returns {null|{flat: number, flatLabel: string, magical: boolean, materials: string[], labels: string[]}}
+ */
+export function weaponScalingProfile(carriers = [], weapon = null, bab = 0) {
+  const id = String(weapon?.id ?? weapon?._id ?? "");
+  if (!id) return null;
+  const reached = Math.max(0, Number(bab) || 0);
+  let flat = 0;
+  const flatLabels = [];
+  let magical = false;
+  const materials = new Set();
+  const labels = new Set();
+  for (const c of carriers ?? []) {
+    if (!c || c.disabled) continue;
+    const raw = c.flags?.[FLAG]?.weaponScaling;
+    for (const row of Array.isArray(raw) ? raw : (raw ? [raw] : [])) {
+      if (!row || typeof row !== "object" || String(row.itemId ?? "") !== id) continue;
+      const label = String(row.label ?? c.name ?? "Bonded weapon");
+      const extra = perBABBonus(row.perBAB, bab);
+      if (extra) { flat += extra; flatLabels.push(`${label} +${extra}`); labels.add(label); }
+      for (const [what, at] of Object.entries(row.countsAs ?? {})) {
+        if (reached < Math.max(0, Number(at) || 0)) continue;
+        const key = norm(what);
+        if (key === "magical") { magical = true; labels.add(label); }
+        else if (COUNTS_AS_MATERIALS.includes(key)) { materials.add(key); labels.add(label); }
+      }
+    }
+  }
+  if (!flat && !magical && !materials.size) return null;
+  return { flat, flatLabel: flatLabels.join(", "), magical, materials: [...materials], labels: [...labels] };
+}

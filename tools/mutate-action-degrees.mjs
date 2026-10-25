@@ -220,7 +220,8 @@ const MUTATIONS = [
   {
     file: DDC,
     name: "D4 THE NORMALISER STOPS CHECKING THE DC KEY",
-    from: "  if (!isDefendableDC(dc)) return null;",
+    // Re-anchored at 3.665.0, which let a disadvantage row name "any".
+    from: "  if (!(isDefendableDC(dc) || (disadvantage && dc === \"any\"))) return null;",
     to: "  if (false) return null;",
     breaks: "N3b — a typo becomes a DC bonus against nothing, silently"
   },

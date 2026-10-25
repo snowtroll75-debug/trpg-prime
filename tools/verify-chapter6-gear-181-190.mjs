@@ -365,7 +365,10 @@ eq("E11 a second flask keeps the stronger recurring damage of its type; another 
   ok("E12 D2: out of range is refused before the AP, then 1 AP is spent",
     /if \(range\.outOfRange\) \{[\s\S]{0,300}return null;\s*\}[\s\S]{0,200}await spendActionPoints\(actor, String\(BOMB_STRIKE_AP\)/.test(bw));
   ok("E13 D2: the multiple attack penalty is taken and counted",
-    /const map = mapPenalty\(attackIndex, false, false\);/.test(bw) && /await actor\.setFlag\?\.\(SYSTEM_ID, "attackCount", attackIndex \+ 1\);/.test(bw));
+    /const map = mapPenalty\(attackIndex, false, false\);/.test(bw) && /await setAttackCount\(actor, attackIndex \+ 1\);/.test(bw)
+    // Re-anchored at 3.666.0: the counter is read and written through the
+    // combat-only helpers (turn-records.mjs); the read is checked there.
+    && /const attackIndex = attackCountOf\(actor\);/.test(bw));
   ok("E14 D1: rolled against the target's DB", /type: "attack",\s*dc: db,/.test(bw) && /const result = bombAttackResult\(\{/.test(bw));
   ok("E15 D1: a hit is a hit, not an object compared with a string", /const hit = result\.hits === true;/.test(bw) && !/check\.outcome !== "failure"/.test(bw));
   ok("E16 D3: recurring damage is the Recurring condition", /await targetActor\.toggleStatusEffect\("recurring", \{ value: next\.value, damageType: next\.damageType \}\);/.test(bw));
@@ -451,7 +454,9 @@ eq("E11 a second flask keeps the stronger recurring damage of its type; another 
   // the phrase appeared anywhere stopped noticing its loss from the hit
   // path. Both calls must hand the fired piece's coat over.
   ok("F11 the damage reads the struck material, and says so",
-    /material: materialDefenceWord\(struck\.material\),/.test(atk) && /weaponCoat: oilCoatOf\(weapon\),\s*ammoCoat,/.test(atk)
+    // Re-anchored at 3.667.0: trained fists' materials join the struck one;
+    // at 3.671.0 a bonded weapon's (Soul-Bound Weapon) after them.
+    /material: \[materialDefenceWord\(struck\.material\), \.\.\.\(unarmed\?\.materials \?\? \[\]\)(?:, \.\.\.\(bonded\?\.materials \?\? \[\]\))?\]\.filter\(Boolean\)\.join\(", "\),/.test(atk) && /weaponCoat: oilCoatOf\(weapon\),\s*ammoCoat,/.test(atk)
     && (atk.match(/ammoCoat: oilCoatOf\(ammo\),/g) ?? []).length === 2
     && /if \(struck\.coated\) \{\s*lines\.push/.test(atk));
   const act = code("module", "documents", "actor.mjs");

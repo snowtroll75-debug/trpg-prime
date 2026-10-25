@@ -10,6 +10,7 @@
  * make every actor — including ones not in that fight — spend AP on
  * spells and actions, which is the bug this guards against.
  */
+import { actorReactionBlock } from "./reactions.mjs";
 import { parseApCost, computeApSpend, canAffordAP } from "./action-points.mjs";
 import { battleReadinessBonus, battleReadinessSpendBlock, reactionQualifies } from "../fighter.mjs";
 import {
@@ -224,6 +225,12 @@ export async function refundActionCost(actor, apCost) {
  */
 export function reactionRefusal(actor, traits = "") {
   if (!actorInCombat(actor)) return "";
+  // WHAT FORBIDS REACTIONS OUTRIGHT (3.671.0): flat-footed, confused, Full
+  // Defence, a fumble, or a declared block (Drawn Verdict). The core's own
+  // offers read `actorReactionBlock`; a module's offers read this, and
+  // until now this asked only about the count.
+  const blocked = actorReactionBlock(actor);
+  if (blocked) return `${actor.name}: ${blocked}.`;
   if (Number(actor.system?.resources?.reactions?.value ?? 0) <= 0) return `${actor.name} has no reaction left this round.`;
   if (battleReadinessBonus(actor) > 0) {
     return battleReadinessSpendBlock({

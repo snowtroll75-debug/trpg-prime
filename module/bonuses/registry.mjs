@@ -282,7 +282,9 @@ export function resolveBonuses({
       source: entry.source ?? "effect",
       // WHO GAVE A DECLARED ROW (3.668.0), when it says: the effect a stat
       // row came from, for Formless Cut's "ignores stance bonuses".
-      ...(entry.carrierUuid ? { carrierUuid: String(entry.carrierUuid) } : {})
+      ...(entry.carrierUuid ? { carrierUuid: String(entry.carrierUuid) } : {}),
+      // ONE OF A GROUP, THE GREATEST ONLY (3.671.0; Formbinder).
+      ...(entry.stackGroup ? { stackGroup: String(entry.stackGroup) } : {})
     });
   }
 

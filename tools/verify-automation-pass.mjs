@@ -226,7 +226,9 @@ equal("H3 a rung puts the creature back and bars it", [EC.entryCheckOutcome(law,
 }
 // THE SHEET'S OWN DAMAGE ROLL ASKS THE DAMAGE CONDITIONALS TOO (3.630.1, F16).
 ok("H4f the standalone Damage roll hands its declared bonus to resolveWeaponDamage",
-  /const standaloneDeclared = await declaredDamageBonus\(actor, weapon\);\s*const damageResult = await resolveWeaponDamage\(actor, weapon, \{\s*declaredBonus: standaloneDeclared\.bonus,\s*declaredBonusLines: standaloneDeclared\.lines,/.test(read("module", "combat", "attack-workflow.mjs")));
+  // RE-ANCHORED 3.668.0: the call now hands a preset's target as context, and
+  // a preset's note leads the lines.
+  /const standaloneDeclared = await declaredDamageBonus\(actor, weapon,[\s\S]{0,400}?\);\s*const damageResult = await resolveWeaponDamage\(actor, weapon, \{\s*declaredBonus: standaloneDeclared\.bonus,\s*declaredBonusLines: \[\.\.\.\(preset\?\.note \? \[preset\.note\] : \[\]\), \.\.\.standaloneDeclared\.lines\],/.test(read("module", "combat", "attack-workflow.mjs")));
 // THE SECOND REAPER HEARS OF THE SPARE (3.630.1, F1): the damage card no
 // longer says "has died" when the death watch's reap ran the guard.
 {
@@ -326,7 +328,7 @@ ok("K9 the declared row and the six new kinds are known", ["declare", "condition
 ok("K10 Sporeglow grows by caster level", /for \(const step of Array\.isArray\(effect\.byCasterLevel\) \? effect\.byCasterLevel : \[\]\) \{\s*if \(casterLevelOf\(caster\?\.system\) < Number\(step\?\.cl \?\? Infinity\)\) continue;/.test(SE));
 ok("K11 Writ's Slowed 2 steps down to 1, carrying its save and no Reactions", /tag\.followOn = \{\s*tags: \[\{ key: effect\.condition, label: cond\.label, value: Math\.trunc\(Number\(effect\.thenValue\)\) \}\],/.test(SE) && /if \(\["conditionSave", "fumbleNoReactions"\]\.includes\(flag\)\)/.test(read("module", "combat", "linked-conditions-workflow.mjs")));
 ok("K12 an escape save carries its modifier", /\.\.\.\(spec\.modifier \? \{ modifiers: \[(?:\.\.\.saveRowsFor\(actor, spec\.save\), )?\{ label: spec\.label, value: spec\.modifier/.test(read("module", "magic", "condition-save-workflow.mjs")));
-ok("K13 an attacker's own Ghost Touch while in a stance", /\|\| actorGhostTouch\(actor\)/.test(read("module", "combat", "attack-workflow.mjs")));
+ok("K13 an attacker's own Ghost Touch while in a stance", /\|\| actorGhostTouch\(actor, \{ magical: strikeIsMagical \}\)/.test(read("module", "combat", "attack-workflow.mjs")));
 ok("K14 Spell Substitution takes two spells when an effect says so", /\.map\(\(e\) => e\?\.flags\?\.\["trg-prime"\]\?\.spellSubstitution\)/.test(read("module", "feats-workflow.mjs")));
 ok("K15 a feat opens an action to a specialist skill", /substituteSkillActions\(`specialist:\$\{slugifyKey\(label\)\}`, featNames, SKILL_ACTIONS\)/.test(read("module", "sheets", "actor-sheet.mjs")));
 ok("K16 a nearby item may include its user", /if \(scaled\.nearby\.includeSelf === true && nearbyRecipient\(recipient\.system, scaled\.nearby\)\) around\.unshift\(recipient\);/.test(read("module", "consumable-use-workflow.mjs")));

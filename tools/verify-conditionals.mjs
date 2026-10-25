@@ -298,11 +298,17 @@ const contextBlock = (source, callee) => {
   return null;
 };
 
-const autoContext = contextBlock(checkSrc, "automaticSelections(entries,");
+// ONE CONTEXT FOR BOTH HALVES SINCE 3.667.3: the automatic selections and
+// the offered tick-boxes read the same object, so the scan reads that
+// object, and F1c holds both halves to it.
+const autoContext = contextBlock(checkSrc, "const conditionalContext = {");
 const dialogContext = contextBlock(dialogSrc, /\{\s*checkType,\s*subject,\s*actionKey/);
 
 ok("F1 the automatic path's context was found", Boolean(autoContext),
   "if this fails the scan has drifted and every check below proves nothing");
+ok("F1c the automatic path and the offered tick-boxes both read that context",
+  /automaticSelections\(entries, conditionalContext\)/.test(checkSrc)
+  && /offerConditionalsOnRoll\(check, entries, conditionalContext, BIAS\)/.test(checkSrc));
 ok("F2 the dialog's context was found", Boolean(dialogContext),
   "same — a scan that finds nothing must fail loudly, not pass quietly");
 

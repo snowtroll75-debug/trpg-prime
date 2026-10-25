@@ -62,14 +62,15 @@ const MUTATIONS = [
     name: "THE SHIPPED DEFECT B: the sweep skips anything that was itself granted",
     // Anchor repointed at 3.563.0 when the specialist-skill flag joined
     // the declaration test.
-    from: "      if (item.flags?.[SYSTEM_ID]?.grantedBy\n        && !declaresGrants(item.system, GRANT_FIELDS[item.type])\n        && !declaresSpecialistSkills(item)) continue;",
+    // Re-anchored at 3.667.1, when an owed conviction point joined the test.
+    from: "      if (item.flags?.[SYSTEM_ID]?.grantedBy\n        && !declaresGrants(item.system, GRANT_FIELDS[item.type])\n        && !declaresSpecialistSkills(item)\n        // …OR A CONVICTION POINT IT STILL OWES (3.667.1): see owesConvictionPoint.\n        && !owesConvictionPoint(item)) continue;",
     to: "      if (item.flags?.[SYSTEM_ID]?.grantedBy) continue;",
     breaks: "C6 — a Priestly Path feat's own spell belongs to nobody again"
   },
   {
     file: AUTORUN,
     name: "the createItem hook skips anything that was itself granted",
-    from: "      if (!declaresGrants(item.system, GRANT_FIELDS[item.type]) && !declaresSpecialistSkills(item)) return;",
+    from: "      if (!declaresGrants(item.system, GRANT_FIELDS[item.type]) && !declaresSpecialistSkills(item)\n        // A granted class ability that raises the conviction pool gives its\n        // point on arrival (3.667.1, owesConvictionPoint).\n        && !owesConvictionPoint(item)) return;",
     to: "      return;",
     breaks: "C7 — either guard alone is enough to lose Lay On Hands"
   },
@@ -77,7 +78,7 @@ const MUTATIONS = [
     // NARROWNESS LOST. Every chained create would earn a pass.
     file: AUTORUN,
     name: "a granted item with nothing to grant earns a pass anyway",
-    from: "        && !declaresGrants(item.system, GRANT_FIELDS[item.type])\n        && !declaresSpecialistSkills(item)) continue;",
+    from: "        && !declaresGrants(item.system, GRANT_FIELDS[item.type])\n        && !declaresSpecialistSkills(item)\n        // …OR A CONVICTION POINT IT STILL OWES (3.667.1): see owesConvictionPoint.\n        && !owesConvictionPoint(item)) continue;",
     to: "        && false) continue;",
     breaks: "C8 — 411 feats that declare nothing back into the sweep"
   },

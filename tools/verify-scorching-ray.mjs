@@ -88,7 +88,7 @@ eq("M3 nothing fired advances nothing", volleyMapAdvance(0), 0);
 eq("M3b and a nonsense count does not go negative", volleyMapAdvance(-5), 0);
 
 ok("M4 THE COUNT IS FROZEN BEFORE THE FIRST RAY",
-  /const mapBefore = Number\(actor\.getFlag\?\.\(SYSTEM_ID, "attackCount"\) \?\? 0\);\s*lines\.push\(line\(volleyOpeningLine/
+  /const mapBefore = attackCountOf\(actor\);\s*lines\.push\(line\(volleyOpeningLine/
     .test(cast),
   "every ray must roll at the penalty as it stood before the volley");
 ok("M4b and passed to each ray as `mapCount`", /mapCount: mapBefore,/.test(cast));
@@ -97,7 +97,7 @@ ok("M5b and the single-ray path still advances it",
   /if \(!deferMapAdvance && spellCountsTowardMAP\(spellData\)\) \{/.test(cast),
   "every other attack spell in the pack must behave exactly as it did");
 ok("M6 THE VOLLEY ADVANCES IT ONCE, AFTER THE RAYS",
-  /const advance = volleyMapAdvance\(results\.length\);[\s\S]{0,200}setFlag\?\.\(SYSTEM_ID, "attackCount", mapBefore \+ advance\)/
+  /const advance = volleyMapAdvance\(results\.length\);[\s\S]{0,200}await setAttackCount\(actor, mapBefore \+ advance\)/
     .test(cast));
 ok("M6b and only for a spell that counts toward the penalty at all",
   /if \(advance && counts\(spell\.system\)\) \{/.test(cast));
