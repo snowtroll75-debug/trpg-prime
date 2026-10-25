@@ -47,7 +47,7 @@ import {
   registerSkillSubstitution,
   registerDegreeUpgrades,
   registerSpellWarps,
-  registerRunes, registeredRunes, registerItemAutomation, registerPerilAutomation, registerFeatPickBonus, registerDamageShare,
+  registerRunes, registeredRunes, registerLightSources, registerItemAutomation, registerPerilAutomation, registerFeatPickBonus, registerDamageShare,
   queueSkillActions,
   queueFeatAutomation,
   queuePassiveAutomation,
@@ -72,6 +72,8 @@ import { applyConditionTags } from "./combat/effect-application-workflow.mjs";
 import { createEffectsOn } from "./combat/target-relay-workflow.mjs";
 import { SKILL_ACTIONS } from "./data/skill-actions.mjs";
 import { CLASS_SKILL_GRANTS } from "./class-skills.mjs";
+import { registerDefenceOffer } from "./combat/defence-offer.mjs";
+import { LIGHT_SOURCES } from "./light-sources.mjs";
 
 const HOOK_NAME = "trgPrime.registerContent";
 
@@ -109,6 +111,8 @@ export function buildModuleApi() {
     registerSpellWarps: (featName, entries, moduleId) => registerSpellWarps(featName, entries, moduleId),
     registerRunes: (runes, moduleId) => registerRunes(runes, moduleId),
     registeredRunes: (kind) => registeredRunes(kind),
+    // A light a module's content sheds, in the LIGHT_SOURCES shape (3.669.0).
+    registerLightSources: (entries, moduleId) => registerLightSources(entries, moduleId, Object.keys(LIGHT_SOURCES)),
     registerItemAutomation: (name, spec, moduleId) => registerItemAutomation(name, spec, moduleId),
     // A peril's Trigger or routine action that is more than a save (3.629.0).
     registerPerilAutomation: (name, spec, moduleId) => registerPerilAutomation(name, spec, moduleId),
@@ -120,6 +124,8 @@ export function buildModuleApi() {
     registerFeatAutomation: (name, entry, moduleId) => queueFeatAutomation(name, entry, moduleId),
     registerPassiveAutomation: (name, hint, moduleId) => queuePassiveAutomation(name, hint, moduleId),
     registerClassSkillGrant: (entry, moduleId) => queueClassSkillGrant(entry, moduleId),
+    // A reaction to being attacked, offered to the defender before the roll (3.666.1).
+    registerDefenceOffer: (name, spec, moduleId) => registerDefenceOffer(name, spec, moduleId),
     flush: flushModuleRegistrations,
     /**
      * What a module's Use handlers need to look and behave like core
@@ -167,6 +173,103 @@ export function buildModuleApi() {
       runeMarkersOf: async (...args) => (await import("./rune-declarations.mjs")).runeMarkersOf(...args),
       runeFrequencyAllows: async (...args) => (await import("./rune-declarations.mjs")).runeFrequencyAllows(...args),
       runeUseUpdates: async (...args) => (await import("./rune-declarations.mjs")).runeUseUpdates(...args),
+      // A MOVE AND A STRIKE THE ABILITY ALREADY PAID FOR (3.664.0) — Inner
+      // Tempest's Predator's Pounce ("Stride … and then make a melee
+      // Strike"), Wing Burst ("Fly up to your Speed"). `armMove` arms the
+      // player's next drag free of AP, the way a compound action's leg is
+      // armed: {maxFeet, speedKey ("" for any), provokes, note}, under the
+      // ability's name. `rollWeaponAttack` is the Strike workflow itself;
+      // pass {apPaid: true} for a strike the ability's AP already bought.
+      armMove: async (actor, leg = {}, label = "") => {
+        const { armCompoundLeg } = await import("./combat/compound-action-workflow.mjs");
+        const clean = {
+          speedKey: String(leg.speedKey ?? ""),
+          maxFeet: Math.max(0, Number(leg.maxFeet) || 0),
+          note: String(leg.note ?? ""),
+          provokes: leg.provokes !== false
+        };
+        return armCompoundLeg(actor, clean, String(label || "Move"));
+      },
+      rollWeaponAttack: async (...args) => (await import("./combat/attack-workflow.mjs")).rollWeaponAttack(...args),
+      // STRIKES THAT MEET THEIR DEFENCES ONCE (3.667.0): Flurry of Blows'
+      // two Strikes, DR applied once to a creature hit twice and one critical
+      // injury between them, with the multiple attack penalty run normally.
+      // See combat/strike-series.mjs.
+      runStrikeSeries: async (...args) => (await import("./combat/strike-series.mjs")).runStrikeSeries(...args),
+      // A STRIKE THAT COUNTS AS UNARMED (3.667.0): the fists, or a weapon
+      // with the Monastic trait. See combat/unarmed-profile.mjs.
+      countsAsUnarmed: async (weapon) => (await import("./combat/unarmed-profile.mjs")).countsAsUnarmed(weapon?.system ?? weapon),
+      // A BLOW HELD BY BLACK LOTUS (3.668.0): is it due on this turn, and
+      // land it (the critical, then the damage). See combat/held-strike.mjs.
+      heldStrikeDue: async (record, turn) => (await import("./combat/held-strike.mjs")).heldStrikeDue(record, turn),
+      landHeldStrike: async (actor) => (await import("./combat/held-strike.mjs")).landHeldStrike(actor),
+      // A STRIKE'S DAMAGE WITHOUT ITS ATTACK (3.668.0): Inner Tempest's Steel
+      // Viper, "if you miss with an attack, roll the damage and deal it as
+      // half damage". The core's own damage roll with `preset` {glancing,
+      // targetToken, critical, damageType, note}: glancing halves it, as a
+      // glancing blow's damage is halved.
+      rollWeaponDamage: async (actor, weapon, options = {}) => (await import("./combat/attack-workflow.mjs")).rollWeaponDamage(actor, weapon, options),
+      // THE MULTIPLE ATTACK PENALTY AT AN ATTACK NUMBER (3.668.0): Inner
+      // Tempest's Flow Strike is made "as if it was your third strike of the
+      // turn (usually -10 but this may be lower based upon what feats you
+      // have)". `index` counts from 0: the third Strike is 2. Agile Strikes'
+      // ladder is read off the actor. See combat/attack.mjs.
+      mapPenalty: async (actor, weapon, index) => {
+        const { mapPenalty } = await import("./combat/attack.mjs");
+        const agile = /\bagile\b/i.test(String(weapon?.system?.traits ?? weapon?.traits ?? ""));
+        const agileStrikes = agile && Array.from(actor?.items ?? []).some((i) => i.type === "feat" && String(i.name).trim().toLowerCase() === "agile strikes");
+        return mapPenalty(index, agile, agileStrikes);
+      },
+      // ONE BASIC SAVE AGAINST ONE CREATURE (3.667.0, exposed): the cast's
+      // own rule — the share, the critical's extra dice, a magical area
+      // source — for a module's area technique (Inner Tempest's Inner Blast).
+      // See magic/area-save-workflow.mjs.
+      basicSaveHit: async (...args) => (await import("./magic/area-save-workflow.mjs")).basicSaveHit(...args),
+      // AN AREA OR A TARGETED SAVE WITH A LADDER (3.669.0; Inner Tempest's
+      // Blinding Majesty, Celestial Breath, Valley Chill, Web Snare): the
+      // creature abilities' own rail — `spec` in the `creatureAbility.area`
+      // shape (save, basic, dc, damage, radiusFeet, scope "area" or
+      // "targets", enemiesOnly, conditions by degree, immunitySeconds), for a
+      // module ability whose Use must also spend its AP and Focus first.
+      // `opts.targets` names the creatures. Resolves the card's lines.
+      runAreaEffect: async (actor, spec, opts = {}) => {
+        const { perilEffectSpec } = await import("./peril-effect.mjs");
+        const { runDeclaredAreaEffect } = await import("./peril-workflow.mjs");
+        return runDeclaredAreaEffect(actor, perilEffectSpec(spec), opts);
+      },
+      // THE TRAIT RULES FOR A MODULE ABILITY (3.664.0): Flourish's once a
+      // turn, Press, Open, Rage, Stance's round — asked before the ability
+      // acts (`traitGate(actor, {key, traits}, name)` → false and a warning
+      // when a trait refuses it) and recorded after it has
+      // (`recordTraitUsage(actor, {key, traits})`), exactly as a core
+      // action is. Inner Tempest's Wing Burst and Predator's Pounce are
+      // Flourishes.
+      traitGate: async (...args) => (await import("./traits-workflow.mjs")).traitGate(...args),
+      // THE SAME RULES, ASKED QUIETLY (3.668.0): {blocked, reason} and no
+      // warning, for an offer that should not be made at all when a trait
+      // refuses it (Inner Tempest's Flow Strike, a Flourish offered after
+      // every hit).
+      traitCheck: async (...args) => (await import("./traits-workflow.mjs")).traitCheck(...args),
+      recordTraitUsage: async (...args) => (await import("./traits-workflow.mjs")).recordTraitUsage(...args),
+      // LIGHT ON THE MAP (3.669.0). `refreshTokenLight(actor)` makes the
+      // token's glow match the light sources its effects carry (an effect
+      // flagged `lightSource: <key>`, a registered key included) — through
+      // the GM when the token is not this client's. `placeLightCircles`,
+      // `moveLightCircles` and `removeLightCircles` are Inner Tempest's
+      // Foxfire motes: Regions that raise the light where they stand, placed
+      // and moved with the area aim. See magic/placed-light-workflow.mjs.
+      refreshTokenLight: async (actor) => (await import("./light-attach-workflow.mjs")).refreshAttachedLight(actor),
+      placeLightCircles: async (...args) => { const { placeLightCircles } = await import("./magic/placed-light-workflow.mjs"); return placeLightCircles(...args); },
+      moveLightCircles: async (...args) => { const { moveLightCircles } = await import("./magic/placed-light-workflow.mjs"); return moveLightCircles(...args); },
+      removeLightCircles: async (...args) => { const { removeLightCircles } = await import("./magic/placed-light-workflow.mjs"); return removeLightCircles(...args); },
+      lightCirclesOf: async (...args) => { const { lightCirclesOf } = await import("./magic/placed-light-workflow.mjs"); return lightCirclesOf(...args); },
+      // THE REACTION, AS THE SYSTEM SPENDS IT (3.669.1). `spendReaction(actor,
+      // label, { traits })` resolves whether it was spent, Battle Readiness's
+      // Attack-or-Martial rule included; `reactionRefusal(actor, traits)`
+      // resolves why it could not be, or "", without spending. A module's
+      // reaction feat should spend through these, not write the pool itself.
+      spendReaction: async (...args) => { const { spendReaction } = await import("./combat/action-points-workflow.mjs"); return spendReaction(...args); },
+      reactionRefusal: async (...args) => { const { reactionRefusal } = await import("./combat/action-points-workflow.mjs"); return reactionRefusal(...args); },
       activeToken: async (...args) => (await import("./combat/geometry.mjs")).activeToken(...args),
       distanceBetween: async (...args) => (await import("./combat/geometry.mjs")).distanceBetween(...args)
     }),
@@ -262,7 +365,7 @@ export function flushModuleRegistrations() {
       console.warn(`TRG Prime | module feat automation "${key}" clashes with a core entry and was not added.`);
       continue;
     }
-    FEAT_AUTOMATION[key] = { hint: entry.hint, use: entry.use, module: true };
+    FEAT_AUTOMATION[key] = { hint: entry.hint, use: entry.use, module: true, ...(entry.ownsFocusUse === true ? { ownsFocusUse: true } : {}) };
     counts.featAutomation += 1;
   }
 

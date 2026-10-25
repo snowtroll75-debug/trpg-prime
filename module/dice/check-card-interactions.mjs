@@ -105,13 +105,18 @@ async function recomputeAndUpdate(message, raw, { extraRoll = null } = {}) {
   // or a late DC rebuilds the outcome from the stored inputs, and without the
   // stored shift a fumble the spell made would come back a failure.
   const { applyDegreeShift } = await import("./degree-shift.mjs");
-  const outcome = applyDegreeShift(buildOutcome({
+  const shifted = applyDegreeShift(buildOutcome({
     dieTotal: raw.dieTotal,
     modifiers: raw.modifiers,
     dc: computeDC(raw),
     chaos: raw.chaosArg,
     auto: raw.autoArg
   }), raw.degreeShift ?? "");
+  // A DEGREE DECLARED WITHOUT THE ROLL (3.669.2, found in review): a day's
+  // first declared `exact` whose DC the GM set after the roll is declared
+  // here, as TRGCheck.roll declares it when the DC is known.
+  const { declaredAt } = await import("../magic/save-convert.mjs");
+  const outcome = raw.declaredDegree ? declaredAt(shifted, raw.declaredDegree) : shifted;
 
   // Scoundrel's Luck (Rogue, 1st), for the card whose DC arrived AFTER
   // the roll: the refund in TRGCheck.roll never fired because there was
@@ -142,6 +147,26 @@ async function recomputeAndUpdate(message, raw, { extraRoll = null } = {}) {
     }
   }
 
+  // A DECLARED REFUND ON A GOOD RESULT (3.669.0; Inner Tempest's Adaptive
+  // Mind), for the card whose DC arrived after the roll or whose Conviction
+  // die lifted it to a success. Once per card. See conviction-refund.mjs.
+  if (!raw.convictionRefunded && !raw.scoundrelRefunded &&
+    raw.modifiers.some((m) => m.label === "Conviction: Advantage")) {
+    const owner = await cardActor(raw);
+    const { convictionRefundRow, convictionRefundLine } = await import("../conviction-refund.mjs");
+    const refund = owner ? convictionRefundRow(owner.items, { checkType: raw.type, subject: raw.subject ?? "", degree: outcome.degree?.key ?? "" }) : null;
+    if (refund) {
+      const { awardConviction } = await import("../conviction.mjs");
+      await awardConviction(owner, 1);
+      await owner.unsetFlag(SYSTEM_ID, "convictionSpent");
+      raw.convictionRefunded = true;
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: owner }),
+        content: `<div class="trg-prime trg-check-card"><header class="check-header"><div class="check-heading"><span class="check-actor">${owner.name}</span><h3>${refund.label}</h3></div></header><p style="margin:2px 0">${convictionRefundLine(refund.label)}</p></div>`
+      });
+    }
+  }
+
   const actor = await cardActor(raw);
   const conviction = actor ? getConvictionState(actor) : null;
   const bonusEligible =
@@ -149,6 +174,8 @@ async function recomputeAndUpdate(message, raw, { extraRoll = null } = {}) {
     !raw.bonusUsed &&
     // LUCK OR CONVICTION, NOT BOTH (3.624.0, block 40's R12).
     !raw.luckUsed &&
+    // NOR ON A DEGREE DECLARED WITHOUT THE ROLL (3.669.2).
+    !raw.declaredDegree &&
     CONVICTION_SPENDS.bonus.checkTypes.includes(raw.type) &&
     Boolean(conviction?.ok);
 
@@ -202,6 +229,8 @@ async function recomputeAndUpdate(message, raw, { extraRoll = null } = {}) {
 
 async function onAddBonus(message, raw) {
   if (raw.bonusUsed) return;
+  // Dice nobody reads take no +1d6 (3.669.2).
+  if (raw.declaredDegree) return;
   if (raw.luckUsed) {
     ui.notifications.warn("Luck already affects this check — only one of Luck and Conviction may (Appendix 5).");
     return;
@@ -297,8 +326,11 @@ async function onSetDC(message, raw, dcValue) {
       auto: raw.autoArg
     });
     const { resumeActionOutcome } = await import("../combat/action-workflow.mjs");
+    // …and the held-over outcome reads the declared degree (3.669.2).
+    const { declaredAt } = await import("../magic/save-convert.mjs");
+    const read = raw.declaredDegree ? declaredAt(outcome, raw.declaredDegree) : outcome;
     await resumeActionOutcome(
-      pending, outcome.degree?.key ?? null, outcome.margin ?? null
+      pending, read.degree?.key ?? null, read.margin ?? null
     );
     raw.pendingOutcome = { ...pending, applied: true };
   }

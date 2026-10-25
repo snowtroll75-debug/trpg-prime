@@ -21,9 +21,11 @@ const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
  * @param {Item} weapon
  * @param {object} [options]
  * @param {boolean} [options.skipPrompt] take the auto rows only (a Shift-click Strike)
+ * @param {object} [options.context] the strike's conditional context: targetUuid,
+ *   targetTypes, targetTraits, attackMode, attackForm, attackGroup (3.668.0)
  * @returns {Promise<{bonus: number, lines: string[]}>}
  */
-export async function declaredDamageBonus(actor, weapon, { skipPrompt = false } = {}) {
+export async function declaredDamageBonus(actor, weapon, { skipPrompt = false, context = {} } = {}) {
   if (!actor) return { bonus: 0, lines: [] };
   const { allyAuraConditionalsFor } = await import("../creature-aura-workflow.mjs");
   const entries = collectConditionals(
@@ -32,7 +34,11 @@ export async function declaredDamageBonus(actor, weapon, { skipPrompt = false } 
     [...(actor.system?.combat?.runeConditionals ?? []), ...allyAuraConditionalsFor(actor)],
     scalingFor(actor)
   );
-  const rows = damageConditionalRows(entries, { traits: String(weapon?.system?.traits ?? "") });
+  // THE STRIKE'S FACTS TOO (3.668.0): who it hits, melee or ranged, what it
+  // is struck with and the weapon's group. Inner Tempest's Challenge adds
+  // "your class bonus to damage … against it", and Weapon Discipline adds to
+  // damage with one group only; a damage row could say neither before.
+  const rows = damageConditionalRows(entries, { ...context, traits: String(weapon?.system?.traits ?? "") });
   if (!rows.length) return { bonus: 0, lines: [] };
 
   let ticked = autoDamageRowIds(rows);

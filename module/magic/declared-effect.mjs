@@ -30,7 +30,15 @@ const DECLARABLE_FLAGS = Object.freeze([
   // A plain "true": the reaction gate's own flag (combat/reactions.mjs) —
   // Writ of Restraint's Success, "cannot use Reactions until the end of its
   // next turn".
-  "fumbleNoReactions"
+  "fumbleNoReactions",
+  // A DEFENCE OR SPEED ROW (3.667.0; stat-rows.mjs) — Inner Tempest's Serene
+  // Defence, "adding your Wisdom ability score as a dodge bonus to your DB
+  // for as long as you sustain the spell".
+  "statBonuses",
+  // THE CHECK-DIALOG ROWS (3.667.0; conditionals.mjs) — Reflective Mind's
+  // "advantage on the triggering saving throw". An actor's effect, so a
+  // `oneShot` row is spent when ticked.
+  "conditionals"
 ]);
 
 /** The flag that marks an effect as a declared one, keyed by its label. */

@@ -22,6 +22,37 @@
 export const REPEAT_LIMIT = 5;
 
 /**
+ * A TRADE-OFF'S PRICE WAIVED BY A DECLARATION (3.670.0; Inner Tempest's
+ * Monkey Stance: "take no penalty for using these actions for 1 AP", B6-5:
+ * the 1-AP High Jump and Long Jump carry no +2 to their DC). Group Coercion
+ * and Experienced Tracker waive theirs by name; this is the declared form,
+ * on any item or applied effect:
+ *
+ *   flags.trg-prime.tradeoffWaivers = [{ actions: ["highJump", "longJump"], option: "forOneAp", label: "Monkey Stance" }]
+ *
+ * The waivers this action takes, in the shape `resolveTradeoffs` reads
+ * (`{ [optionKey]: { dc: 0 } }`).
+ *
+ * @param {Iterable<object>} carriers
+ * @param {string} actionKey
+ * @returns {Record<string, {dc: number}>}
+ */
+export function declaredTradeoffWaivers(carriers = [], actionKey = "") {
+  const out = {};
+  const wanted = String(actionKey ?? "").trim().toLowerCase();
+  for (const carrier of carriers ?? []) {
+    if (!carrier || carrier.disabled) continue;
+    const raw = carrier.flags?.["trg-prime"]?.tradeoffWaivers;
+    for (const row of Array.isArray(raw) ? raw : raw ? [raw] : []) {
+      const actions = (Array.isArray(row?.actions) ? row.actions : []).map((a) => String(a ?? "").trim().toLowerCase());
+      const option = String(row?.option ?? "").trim();
+      if (option && actions.includes(wanted)) out[option] = { dc: 0 };
+    }
+  }
+  return out;
+}
+
+/**
  * @typedef {object} TradeoffOption
  * @property {string} key
  * @property {string} label      What the player is buying.
@@ -165,10 +196,7 @@ export function resolveTradeoffs(actionKey, counts = {}, { waivers = {} } = {}) 
       const group = entry.option.effect?.group;
       return !group || lastInGroup.get(group) === index;
     })
-    .map((entry) => ({
-      ...entry,
-      description: describeTradeoff(entry.option, entry.count)
-    }));
+    .map((entry) => ({ ...entry }));
 
   // WAIVERS (3.360.0). Two General feats buy some of these elections
   // outright — Group Coercion frees additional Coerce targets, Experienced
@@ -184,6 +212,9 @@ export function resolveTradeoffs(actionKey, counts = {}, { waivers = {} } = {}) 
     const waiver = waivers?.[c.option.key] ?? {};
     const perUnit = waiver.dc === undefined ? c.option.dc : Math.max(0, Number(waiver.dc) || 0);
     const paidFor = Math.max(0, c.count - Math.max(0, Math.floor(Number(waiver.freeCount) || 0)));
+    // THE CARD SAYS WHAT WAS PAID (3.670.1; found live: Monkey Stance's
+    // waived 1-AP jump read "(+2 DC)" under "Traded difficulty (+0 DC)").
+    c.description = describeTradeoff(c.option, c.count, { paidDC: perUnit * paidFor });
     return sum + perUnit * paidFor;
   }, 0);
   return { dcIncrease, chosen };
@@ -196,10 +227,11 @@ export function resolveTradeoffs(actionKey, counts = {}, { waivers = {} } = {}) 
  * @param {number} count
  * @returns {string}
  */
-export function describeTradeoff(option, count = 1) {
+export function describeTradeoff(option, count = 1, { paidDC = null } = {}) {
   if (!option || count <= 0) return "";
-  const dc = option.dc * count;
-  const cost = ` (+${dc} DC)`;
+  const dc = paidDC === null || paidDC === undefined ? option.dc * count : Math.max(0, Number(paidDC) || 0);
+  // A price a waiver took away is named as waived, not as its printed DC.
+  const cost = dc === 0 && option.dc > 0 ? " (waived)" : ` (+${dc} DC)`;
 
   switch (option.effect?.kind) {
     case "doubling": {

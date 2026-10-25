@@ -25,7 +25,7 @@ const traitList = (v) => (Array.isArray(v) ? v : String(v ?? "").split(/[,;]/)).
  * @param {string|string[]} spellTraits
  * @returns {Array<{label: string, value: number, type: string}>} the bonuses that apply, after stacking
  */
-export function declaredSpellDCBonuses(effects = [], spellTraits = []) {
+export function declaredSpellDCBonuses(effects = [], spellTraits = [], { innate = false } = {}) {
   const have = new Set(traitList(spellTraits));
   const rows = [];
   for (const effect of Array.from(effects ?? [])) {
@@ -34,6 +34,10 @@ export function declaredSpellDCBonuses(effects = [], spellTraits = []) {
     for (const row of Array.isArray(raw) ? raw : (raw ? [raw] : [])) {
       const value = Math.trunc(Number(row?.value) || 0);
       if (!value) continue;
+      // INNATE SPELLS ONLY (3.669.0; Inner Tempest's Elemental Attunement:
+      // "innate spell save DCs for spells with a trait matching your racial
+      // element"): `innateOnly: true` asks the caller whether this one is.
+      if (row?.innateOnly === true && innate !== true) continue;
       const wanted = traitList(row?.traits);
       if (wanted.length && !wanted.some((t) => have.has(t))) continue;
       rows.push({ label: String(row?.label ?? "").trim() || "Spell DC bonus", value, type: lower(row?.type) || "untyped" });

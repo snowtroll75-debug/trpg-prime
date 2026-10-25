@@ -31,7 +31,7 @@ import {
   suffocationOutcome,
   suffocationSave
 } from "./drowning.mjs";
-import { abilityBreathMultiplier } from "./creature-ability-rules.mjs";
+import { abilityBreathMultiplier, breathesWaterSource } from "./creature-ability-rules.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -135,6 +135,12 @@ export async function startHoldingBreath(actor, { nonlethal = false, source = ""
   // Water Breathing — the spell, or the potion that carries it.
   if (findMarker(actor, "waterBreathing")) {
     await card(actor, "Breathing Water", "Breathes underwater — no breath to hold (Water Breathing).");
+    return 0;
+  }
+  // …OR BY NATURE (3.664.0; Inner Tempest's Zennyo, `derives.breathesWater`).
+  const amphibious = breathesWaterSource(Array.from(actor?.items ?? []));
+  if (amphibious) {
+    await card(actor, "Breathing Water", `Breathes underwater — no breath to hold (${amphibious}).`);
     return 0;
   }
   // …AND ONE THAT DOES NOT BREATHE AT ALL (3.627.0). Pillars of Faith's

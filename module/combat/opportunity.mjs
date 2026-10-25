@@ -168,10 +168,20 @@ export function pathSquareCentres(moverToken, movement) {
     if (!grid) return [];
     const halfW = (moverToken?.w ?? grid.size) / 2;
     const halfH = (moverToken?.h ?? grid.size) / 2;
-    const waypoints = [
+    // FROM WHERE THE MOVE STARTED (3.670.1; found live, 25 October 2026).
+    // Foundry 14's passed waypoints leave out the starting point, so the
+    // square a creature leaves was never among those it departed: a Stride
+    // straight away from an adjacent enemy provoked nothing. The origin is
+    // the move's first point, as the wall spells already read it.
+    const origin = movement?.origin;
+    const passed = [
       ...(movement?.passed?.waypoints ?? []),
       ...(movement?.pending?.waypoints ?? [])
-    ]
+    ];
+    const first = passed[0];
+    // (An origin that is not a point is dropped by the filter below.)
+    const startsElsewhere = origin && !(first && first.x === origin.x && first.y === origin.y);
+    const waypoints = [...(startsElsewhere ? [origin] : []), ...passed]
       .filter((w) => Number.isFinite(w?.x) && Number.isFinite(w?.y))
       .map((w) => ({ x: w.x + halfW, y: w.y + halfH }));
     if (waypoints.length < 2) return waypoints;

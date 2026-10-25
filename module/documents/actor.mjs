@@ -1,5 +1,6 @@
 import { DUAL_MINDS_AP, DUAL_MINDS_REACTIONS, hasDualMinds } from "../dual-minds.mjs";
 import { statSizeOf } from "../change-shape.mjs";
+import { relayableStatusOptions, statusRelayNeeded } from "../combat/target-relay.mjs";
 import { restrictedHeld, restrictedSummary } from "../combat/restricted-ap.mjs";
 import { resolveCasterStyle, resolveMemorisationStyle } from "../magic/caster-style.mjs";
 import { elAdjustHP, elAdjustOf, elAdjustRows } from "../el-adjust.mjs";
@@ -60,6 +61,7 @@ function abilityNamesOf(actor) {
     .map((i) => i.name);
 }
 import { convictionAfterLevelling, convictionEnabled, convictionMax, heroesFortuneBonus } from "../conviction.mjs";
+import { declaredConvictionBonus } from "../focus-declarations.mjs";
 import { divineGraceModifier, divineResolveBonus, shieldAllyBonus } from "../crusader.mjs";
 import { armourExemplarAdjust, battleReadinessBonus, warriorsResolveBonus } from "../fighter.mjs";
 import { roguishSkillPicks, scoundrelsLuckBonus } from "../rogue.mjs";
@@ -141,7 +143,10 @@ import { coldWeatherConditionals, wornPerceptionPenalty } from "../armour-descri
 import { concealableWeaponConditionals } from "../stealth.mjs";
 import { goodsConditionals } from "../goods.mjs";
 import { luckOnCreate } from "../luck.mjs";
+import { focusDefaultPrime } from "../uses.mjs";
 import { abilitiesIgnoreArmourPenalties, abilitySkillSwaps } from "../creature-ability-rules.mjs";
+import { DEFENCE_LIST_KEYS, tidyDefenceList } from "../defence-lists.mjs";
+import { declaredStatRows, statRowEntries } from "../stat-rows.mjs";
 
 /** Whether Speed is rounded down to the nearest 5 ft (battle-grid play). */
 function gridSpeedRounding() {
@@ -1514,6 +1519,13 @@ function prepareCombat(system, actor) {
       });
     }
 
+    // DECLARED DEFENCE ROWS (3.667.0; Inner Tempest's Disciple's Dodge):
+    // a bonus that holds only while unarmoured or unencumbered, added here
+    // because armour and encumbrance are settled only now. See stat-rows.mjs.
+    for (const { path, entry } of actorStatRowEntries(actor)) {
+      if (path === "system.combat.defence") actor.addBonus(path, entry);
+    }
+
     // Combat Awareness (Class, Chapter 5): "You do not lose your
     // Dexterity bonus to DB when flat-footed."
     const combatAwareness = featNamesOf(actor)
@@ -1626,6 +1638,11 @@ function prepareCombat(system, actor) {
      * TOTAL — measured live — but cannot say "equal to its land Speed or
      * 20 feet, whichever is greater". See combat/granted-speeds.mjs.
      */
+    // DECLARED SPEED ROWS (3.667.0; Inner Tempest's Incredible Movement):
+    // into the land pool before it resolves. See stat-rows.mjs.
+    for (const { path, entry } of actorStatRowEntries(actor)) {
+      if (path === "system.combat.movement.land") actor.addBonus(path, entry);
+    }
     const granted = grantedSpeeds(Array.from(actor.items ?? []), SPEED_KEYS);
     // AND THE SPEEDS A FORM REPLACES (3.595.1), read the same way and for
     // the same reason. See combat/granted-speeds.mjs.
@@ -2512,6 +2529,20 @@ export class TRGActor extends Actor {
     // a major NPC a pool types it.
     const luck = luckOnCreate(this.type, this.system?.resources?.luck?.value);
     if (luck !== null) update["system.resources.luck.value"] = luck;
+    // ITS FOCUS FEATS AND ABILITIES ARRIVE WITH THEIR ONE USE (3.665.0, D1).
+    // An actor created WITH its items — a creature imported from a
+    // compendium, a duplicate — never runs each item's own _preCreate, so a
+    // defaulted Focus count stored at 0 would arrive spent. Only items that
+    // need it are rewritten; the rest are passed through untouched.
+    const sourceItems = Array.isArray(this._source?.items) ? this._source.items : [];
+    let primed = false;
+    const items = sourceItems.map((itemSource) => {
+      const value = focusDefaultPrime(itemSource);
+      if (value === null) return itemSource;
+      primed = true;
+      return { ...itemSource, system: { ...(itemSource.system ?? {}), usesValue: value } };
+    });
+    if (primed) update.items = items;
     this.updateSource(update);
   }
 
@@ -2549,7 +2580,9 @@ export class TRGActor extends Actor {
         divineResolveBonus(this) + warriorsResolveBonus(this) + scoundrelsLuckBonus(this) +
         // HERO'S FORTUNE (3.619.0, R8): "Your maximum conviction pool
         // increases by 1."
-        heroesFortuneBonus(this);
+        heroesFortuneBonus(this) +
+        // DECLARED (3.664.0): `convictionPool` on any owned item.
+        declaredConvictionBonus(this.items ?? []);
     }
 
     // Battle Readiness (Fighter, 2nd): "At the start of each round, you
@@ -2699,6 +2732,32 @@ export class TRGActor extends Actor {
         `${this.name} is immune to ${condition?.label ?? statusId}.`
       );
       return false;
+    }
+
+    // A CONDITION ON SOMEBODY ELSE'S CREATURE GOES THROUGH THE GM (3.666.1).
+    //
+    // FOUND LIVE, 22 October 2026. A player's Orb of Fire critical laid its
+    // recurring fire on the GM's NPC with a direct toggle, the write threw
+    // "lacks permission", and the cast unwound before its Result card: no
+    // damage, no rider. Every spell, bomb and strike that lays recurring
+    // damage, and every death rung, made the same direct call. Guarded here,
+    // once, beside the immunity guard, for the reason that guard gives:
+    // conditions are applied from some forty-five places.
+    //
+    // ONLY WHAT CAN BE SAID WITHOUT A DIALOG. A value, a removal or an
+    // unvalued toggle crosses the socket; the value dialog would open on the
+    // GM's screen, so it is refused here with a message instead.
+    if (statusRelayNeeded(this, game.user)) {
+      if (condition?.valued && options.value === undefined && options.active !== false) {
+        ui.notifications?.warn?.(`${this.name} is not yours to change; ask the GM to set ${condition?.label ?? statusId}.`);
+        return undefined;
+      }
+      const { relayStatus } = await import("../combat/target-relay-workflow.mjs");
+      const ok = await relayStatus(this, statusId, relayableStatusOptions(options), () => false);
+      if (!ok) {
+        ui.notifications?.warn?.(`${condition?.label ?? statusId} could not be applied to ${this.name}: no GM answered. The GM needs to apply it by hand.`);
+      }
+      return ok;
     }
 
     if (!condition?.valued) return super.toggleStatusEffect(statusId, options);
@@ -3055,6 +3114,25 @@ function prepareGrantedTraits(system, actor) {
  * splits on commas and trims — but it is the first thing a player reads
  * on the sheet.
  */
+/**
+ * The declared stat rows that hold for this actor now (3.667.0): its items
+ * and applied effects, read against the armour it wears and the load it
+ * carries. Encumbered means any encumbrance step, as Instinctive Defence
+ * reads it. See stat-rows.mjs.
+ */
+function actorStatRowEntries(actor) {
+  const items = Array.from(actor?.items ?? []);
+  const rows = declaredStatRows([...items, ...Array.from(actor?.appliedEffects ?? [])]);
+  if (!rows.length) return [];
+  return statRowEntries(rows, {
+    attributes: actor.system?.attributes ?? {},
+    level: Number(actor.system?.identity?.level ?? 0),
+    classBonus: Number(actor.system?.identity?.classBonus ?? 0),
+    wearingArmour: items.some((i) => i.type === "armour" && i.system?.equipped),
+    encumbered: Number(actor._trgEncumbranceSteps ?? 0) > 0 || Boolean(actor._trgEncumbered)
+  });
+}
+
 function prepareTextLists(system) {
   const tidy = (value) =>
     String(value ?? "")
@@ -3063,9 +3141,12 @@ function prepareTextLists(system) {
       .filter(Boolean)
       .join(", ");
 
+  // EACH ENTRY ONCE (3.666.4). The old sheet saved the derived list, so an
+  // effect's entries could be stored as well as granted, and read
+  // "disease, poison, disease, poison". See defence-lists.mjs.
   if (system.combat) {
-    for (const key of ["resistances", "immunities", "weaknesses"]) {
-      if (typeof system.combat[key] === "string") system.combat[key] = tidy(system.combat[key]);
+    for (const key of DEFENCE_LIST_KEYS) {
+      if (typeof system.combat[key] === "string") system.combat[key] = tidyDefenceList(system.combat[key]);
     }
   }
   if (system.details && typeof system.details.traits === "string") {

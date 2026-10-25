@@ -20,6 +20,8 @@ import { rollFatigueRecovery } from "../combat/exhaustion-workflow.mjs";
 import { doomedRecovery, soulDrainRecovery } from "../combat/turn-economy.mjs";
 import { setDoomed, setSoulDrain } from "../combat/dying-workflow.mjs";
 import { getActiveSpells, hasSustained } from "../magic/active-spells.mjs";
+import { declarationCarriers } from "../declaration-carriers.mjs";
+import { DAILY_FIRSTS_FLAG, dailyFirstMultiplier, dailyFirstSpent, hasDailyFirst } from "../daily-firsts.mjs";
 
 const SYSTEM_ID = "trg-prime";
 import {
@@ -194,9 +196,16 @@ export async function performRestForActor(actor, {
           toMessage: false
         });
         const degree = check.outcome?.degree?.key ?? "failure";
-        const bonus = powerRecoveryBonus(degree, casterLevel,
+        let bonus = powerRecoveryBonus(degree, casterLevel,
           // What a feat adds on a good result (3.625.0) — see recovery.mjs.
           powerRecoveryExtras(Array.from(actor.appliedEffects ?? actor.effects ?? [])));
+        // THE FIRST TIME EACH DAY (3.664.0; Inner Tempest's Centred Recovery:
+        // "double the amount of PP restored"). See daily-firsts.mjs.
+        const carriers = declarationCarriers(actor);
+        if (hasDailyFirst(carriers, "powerRecovery", "multiplier") && !dailyFirstSpent(actor.flags?.[SYSTEM_ID], "powerRecovery")) {
+          bonus *= dailyFirstMultiplier(carriers, "powerRecovery", false);
+          await actor.setFlag(SYSTEM_ID, DAILY_FIRSTS_FLAG, { ...(actor.getFlag(SYSTEM_ID, DAILY_FIRSTS_FLAG) ?? {}), powerRecovery: true });
+        }
         powerRecoveryRolls.push({ hour: hour + 1, degree, bonus });
         ppRecovered += bonus;
       }

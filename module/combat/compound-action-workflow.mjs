@@ -11,6 +11,7 @@
  * its limit on the actor (`flags.trg-prime.compoundLeg`) and no AP of its
  * own — the action already paid.
  */
+import { hasWeaponTrait } from "./weapon-chapter6-traits.mjs";
 import { compoundOf, compoundLegs, compoundStrikes, compoundMapRule, compoundStrikeOptions, compoundAvailable, compoundChooseLimit, compoundStrikeAllowed, compoundPickAllowed, compoundStrikeTotal,
   compoundModes, compoundWithMode, compoundStrikeCount } from "./compound-action.mjs";
 import { bindOnce } from "../dice/check-card-interactions.mjs";
@@ -138,7 +139,10 @@ async function pressCompoundStrike(message, strikeIndex, nth) {
   const { rollWeaponAttack } = await import("./attack-workflow.mjs");
   const options = compoundStrikeOptions(strike, raw.mapRule, raw.label);
   const result = await rollWeaponAttack(actor, weapon, options);
-  const used = { ...(raw.used ?? {}), [key]: true };
+  // BACKSWING (3.668.1): a Strike with a Backswing weapon that inflicted no
+  // damage is not counted when the counter advances.
+  const uncounted = Boolean(result) && hasWeaponTrait(weapon?.system, "backswing") && !(Number(result?.damageTaken) > 0);
+  const used = { ...(raw.used ?? {}), [key]: uncounted ? "uncounted" : true };
   await message.setFlag(SYSTEM_ID, "compoundAction", { ...raw, used });
   // "Double Strike counts towards multiple attack penalty but not until
   // after the attacks have been resolved": when the last strike has been
@@ -146,7 +150,7 @@ async function pressCompoundStrike(message, strikeIndex, nth) {
   const total = compoundStrikeTotal(raw.strikes ?? []);
   if (raw.mapRule?.kind === "after" && Object.keys(used).length >= total) {
     const { sharedMapCount, setSharedMapCount } = await import("./mounted-workflow.mjs");
-    await setSharedMapCount(actor, (await sharedMapCount(actor)) + total);
+    await setSharedMapCount(actor, (await sharedMapCount(actor)) + total - Object.values(used).filter((v) => v === "uncounted").length);
   }
   return result;
 }

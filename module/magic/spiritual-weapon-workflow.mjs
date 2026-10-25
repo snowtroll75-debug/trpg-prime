@@ -12,6 +12,7 @@
  * the one route every other spell effect is ended by.
  */
 
+import { attackCountOf, setAttackCount } from "../combat/turn-records.mjs";
 import {
   SPIRITUAL_WEAPON_FLAG, spiritualDamageFormula, spiritualStrikeHeadline
 } from "./spiritual-weapon.mjs";
@@ -58,6 +59,12 @@ export async function spiritualStrike(caster, record, targetActor) {
     lines.push(line(`<strong>${record.label} cannot be brought to bear on ${targetActor.name}</strong> — Sanctuary.`));
     return { lines, rolls };
   }
+  // THE DEFENDER'S REACTION, BEFORE THE STRIKE IS ROLLED (3.666.1) — see
+  // combat/defence-offer.mjs. The DB below is read after it.
+  {
+    const { offerDefences } = await import("../combat/defence-offer-workflow.mjs");
+    await offerDefences(caster, targetActor, { kind: "spiritualWeapon", what: record.label });
+  }
   const { missChanceAvoidance } = await import("../combat/targeting.mjs");
   const avoided = await missChanceAvoidance(targetActor, {
     attackerName: caster.name, sourceName: record.label, attackerActor: caster
@@ -69,7 +76,7 @@ export async function spiritualStrike(caster, record, targetActor) {
   }
 
   const { attackOutcome, mapPenalty } = await import("../combat/attack.mjs");
-  const mapBefore = Number(caster.getFlag?.(SYSTEM_ID, "attackCount") ?? 0);
+  const mapBefore = attackCountOf(caster);
   const map = mapPenalty(mapBefore);
   const db = Number(targetActor.system?.combat?.defence?.total ?? NaN);
   const { TRGCheck } = await import("../dice/check.mjs");
@@ -98,7 +105,12 @@ export async function spiritualStrike(caster, record, targetActor) {
       ...(weaponTerms.advantage ? [{ label: `Advantage — ${weaponTerms.advantage}`, value: 0, type: "untyped" }] : [])
     ]
   });
-  await caster.setFlag?.(SYSTEM_ID, "attackCount", mapBefore + 1);
+  await setAttackCount(caster, mapBefore + 1);
+  // A DEFENCE THAT LASTED ONE ATTACK (3.666.0) — see combat/one-attack.mjs.
+  {
+    const { consumeOneAttackEffects } = await import("../combat/target-relay-workflow.mjs");
+    await consumeOneAttackEffects(targetActor, { kind: "spiritualWeapon", attackerUuid: caster?.uuid ?? "" });
+  }
   const outcome = attackOutcome({
     unmodified: check?.dice?.unmodified ?? 0,
     total: check?.outcome?.total ?? 0,

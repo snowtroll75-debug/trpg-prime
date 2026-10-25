@@ -137,6 +137,8 @@ const RIDER_SCOPES = Object.freeze(["any", "melee", "ranged", "unarmed"]);
  * or roll something nobody checked.
  */
 const DICE_PATTERN = /^([1-9]\d*)d([1-9]\d*)$/i;
+/** A flat rider's amount: a whole number above zero (3.668.0). */
+const FLAT_PATTERN = /^[1-9]\d*$/;
 
 function isRiderDice(formula) {
   return DICE_PATTERN.test(String(formula ?? "").trim());
@@ -165,13 +167,18 @@ export function normaliseStrikeRider(raw) {
   // empty dice: the die and its type are the weapon's, read when the
   // Strike is made, so the row carries neither.
   const weaponDie = raw.weaponDie === true;
+  // A FLAT AMOUNT (3.668.0): Inner Tempest's Ember Reaver, "gain +Int mod
+  // secondary fire damage to the second" — a whole number, not a die.
+  // DECLARED with `flat: true`, as the weapon's own die is, so a bare "3"
+  // typed where a die was meant is still refused.
+  const flat = raw.flat === true && !weaponDie;
   const dice = weaponDie ? "" : text(raw.dice);
   // A CONDITION-ONLY RIDER (3.630.0): Pillars of Faith's Rose of Thorns —
   // "the first creature damaged by the treated weapon takes 2 bleed
   // damage" — and Tangleweed carry a condition and no die. Allowed only
   // when the row names its condition; a row with neither is still malformed.
   const conditionOnly = !weaponDie && !text(raw.dice) && Boolean(text(raw.condition));
-  if (!weaponDie && !conditionOnly && !isRiderDice(dice)) return null;
+  if (!weaponDie && !conditionOnly && !(flat ? FLAT_PATTERN.test(dice) : isRiderDice(dice))) return null;
 
   // See the header: an empty type is a rune's way of saying "the
   // weapon's own", and a spell must not acquire that meaning by
@@ -281,6 +288,7 @@ export function normaliseStrikeRider(raw) {
   };
   // Added only when they differ from 3.629's shape, so an older rider reads as it did.
   if (conditionOnly) out.conditionOnly = true;
+  if (flat) out.flat = true;
   if (condition && conditionRounds !== 1) out.conditionRounds = conditionRounds;
   if (conditionSave) out.conditionSave = conditionSave;
   return out;

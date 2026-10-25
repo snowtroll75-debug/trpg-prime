@@ -595,7 +595,9 @@ export function extractVersatileType(traits) {
   const match = String(traits ?? "").match(/\bversatile\s*\(?\s*([A-Z])\s*\)?/i);
   if (!match) return null;
   const letter = match[1].toUpperCase();
-  return { S: "slashing", P: "piercing" }[letter] ?? null;
+  // B FOR BLUDGEONING (3.667.0): Inner Tempest's Powerful Fists gives the
+  // fists "the versatile bludgeoning trait", the first B in the game.
+  return { S: "slashing", P: "piercing", B: "bludgeoning" }[letter] ?? null;
 }
 
 /**
@@ -1298,6 +1300,21 @@ export function missChanceDC({
 }
 
 /**
+ * What one attacker declaration adds to an avoidance flat check against a
+ * creature whose check is named `condition` ("Hidden", "Concealed",
+ * "Invisible"). A number reaches every condition (Osp-Iar); an object
+ * `{value, conditions}` only the ones it names (3.664.0).
+ */
+export function missCheckIncreaseFor(raw, condition = "") {
+  if (raw && typeof raw === "object") {
+    const wanted = (Array.isArray(raw.conditions) ? raw.conditions : []).map((c) => String(c ?? "").trim().toLowerCase());
+    if (wanted.length && !wanted.includes(String(condition ?? "").trim().toLowerCase())) return 0;
+    return Math.max(0, Number(raw.value) || 0);
+  }
+  return Math.max(0, Number(raw ?? 0) || 0);
+}
+
+/**
  * What the `invisible` condition is worth against an attacker with this
  * level of See Invisible — DC 10 normally, the concealed DC once the spell
  * reads it as concealed, and NOTHING once the +4 PP option sees it clearly.
@@ -1306,4 +1323,22 @@ export function invisibleAvoidanceDC(seeInvisible = null) {
   if (seeInvisible === "clear") return null;
   if (seeInvisible === "concealed") return MISS_CHANCE_DC.concealed;
   return MISS_CHANCE_DC.invisible;
+}
+
+/**
+ * HOW FAR A STRIKE REACHES (3.668.0), for the conditionals' `rangeBands`
+ * axis: "adjacent" (melee within 5 ft), "reach" (melee beyond 5 ft),
+ * "first" (ranged or thrown within the first range increment) or "far"
+ * (beyond it). Blank when the distance is unknown.
+ *
+ * @param {{isRanged?: boolean, distance?: number|null, rangeIncrement?: number}} args
+ * @returns {""|"adjacent"|"reach"|"first"|"far"}
+ */
+export function rangeBandOf({ isRanged = false, distance = null, rangeIncrement = 0 } = {}) {
+  const feet = Number(distance);
+  if (distance === null || distance === undefined || !Number.isFinite(feet)) return "";
+  if (!isRanged) return feet > 5 ? "reach" : "adjacent";
+  const increment = Number(rangeIncrement);
+  if (!(increment > 0)) return "";
+  return feet <= increment ? "first" : "far";
 }

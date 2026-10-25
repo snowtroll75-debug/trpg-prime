@@ -19,11 +19,19 @@ import { distanceBetween, tokensAlliedWith } from "./geometry.mjs";
 const SYSTEM_ID = "trg-prime";
 const PACK_ATTACK_DICE = 1;
 
-/** Does the creature carry Pack Attack (the item, or a declared flag)? */
-function hasPackAttack(items = []) {
-  return Array.from(items ?? []).some((i) =>
+/**
+ * Does the creature carry Pack Attack (the item, or a declared flag)?
+ *
+ * OR AN EFFECT THAT DECLARES IT (3.670.0; Inner Tempest's Wolf Stance: "you
+ * gain the effects of the Pack Attack creature ability"): any applied
+ * effect with `creatureAbility.derives.packAttack`, so a stance grants it
+ * for exactly as long as it lasts.
+ */
+function hasPackAttack(items = [], effects = []) {
+  const fromItem = Array.from(items ?? []).some((i) =>
     i?.type === "ability" && (String(i.name ?? "").trim().toLowerCase() === "pack attack"
       || i?.flags?.[SYSTEM_ID]?.creatureAbility?.derives?.packAttack === true));
+  return fromItem || Array.from(effects ?? []).some((e) => !e?.disabled && e?.flags?.[SYSTEM_ID]?.creatureAbility?.derives?.packAttack === true);
 }
 
 /**
@@ -37,7 +45,7 @@ export function packAttackAllies(allies = []) {
 /** The precision dice Pack Attack adds to this Strike: 1 with two allies in reach of the target, else 0. */
 export function packAttackDice(actor, targetToken, { attackerToken = null } = {}) {
   if (!actor || !targetToken || !attackerToken) return 0;
-  if (!hasPackAttack(Array.from(actor.items ?? []))) return 0;
+  if (!hasPackAttack(Array.from(actor.items ?? []), Array.from(actor.appliedEffects ?? actor.effects ?? []))) return 0;
   const allies = tokensAlliedWith(attackerToken, [targetToken]).map((token) => ({
     conditions: Array.from(token.actor?.statuses ?? []),
     reachFeet: Number(token.actor?.system?.combat?.reach ?? 5),

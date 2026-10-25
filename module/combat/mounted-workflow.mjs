@@ -18,6 +18,7 @@
  *   ONE INITIATIVE   "your mount acts based on your initiative"
  */
 
+import { attackCountOf, setAttackCount } from "./turn-records.mjs";
 import { actorHandle, resolveActorHandle } from "../actor-handle.mjs";
 import { mountedState, sharedActionPoints } from "./mounted.mjs";
 
@@ -25,9 +26,6 @@ const SYSTEM_ID = "trg-prime";
 
 /** The flag a MOUNT carries, naming its rider. */
 const RIDDEN_BY_FLAG = "riddenBy";
-
-/** The counter page 200 makes the pair share. */
-const MAP_FLAG = "attackCount";
 
 /**
  * Record, on the mount itself, who is riding it.
@@ -116,10 +114,11 @@ export async function syncSharedAP(actor, value = null) {
  * @returns {Promise<number>}
  */
 export async function sharedMapCount(actor) {
-  const own = Number(actor?.getFlag?.(SYSTEM_ID, MAP_FLAG) ?? 0) || 0;
+  // COMBAT ONLY (3.666.0) — see turn-records.mjs.
+  const own = attackCountOf(actor);
   const partner = await mountPartnerOf(actor);
   if (!partner) return own;
-  return Math.max(own, Number(partner.getFlag?.(SYSTEM_ID, MAP_FLAG) ?? 0) || 0);
+  return Math.max(own, attackCountOf(partner));
 }
 
 /**
@@ -130,9 +129,9 @@ export async function sharedMapCount(actor) {
  */
 export async function setSharedMapCount(actor, value) {
   const next = Math.max(0, Math.floor(Number(value) || 0));
-  await actor.setFlag(SYSTEM_ID, MAP_FLAG, next);
+  await setAttackCount(actor, next);
   const partner = await mountPartnerOf(actor);
-  if (partner) await partner.setFlag(SYSTEM_ID, MAP_FLAG, next);
+  if (partner) await setAttackCount(partner, next);
 }
 
 /**

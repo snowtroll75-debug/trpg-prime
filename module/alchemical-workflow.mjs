@@ -30,6 +30,7 @@
  * the comment always said. See magic/splash.mjs.
  */
 
+import { attackCountOf, setAttackCount } from "./combat/turn-records.mjs";
 import { bombAt, isBomb, scalingAt, alchemicalPrice, ALCHEMICAL_COST_TABLE } from "./alchemical.mjs";
 import { alchemicalEffectOf, alchemicalLevelSummary, speedPlans } from "./elixirs.mjs";
 import { splashAmount, hasSplash, splashIsDice } from "./magic/splash.mjs";
@@ -193,7 +194,7 @@ export async function throwBomb(actor, item) {
   const bonus = bombAttackBonus(actor);
   // THE MULTIPLE ATTACK PENALTY, both ways (D2): a bomb takes the penalty
   // the turn's earlier attacks earned, and counts toward the next one's.
-  const attackIndex = Number(actor.getFlag?.(SYSTEM_ID, "attackCount") ?? 0);
+  const attackIndex = attackCountOf(actor);
   const map = mapPenalty(attackIndex, false, false);
   const modifiers = [
     { label: "Thrown (martial)", value: bonus.total - bonus.penalty, type: "untyped" },
@@ -218,12 +219,21 @@ export async function throwBomb(actor, item) {
     if (intoMelee && !preciseShot) coverBonus = COVER_TYPES[FIRING_INTO_MELEE_COVER].bonus;
   }
 
+  // THE DEFENDER'S REACTION, BEFORE THE THROW IS ROLLED (3.666.1) — see
+  // combat/defence-offer.mjs. Read before the DB below, which includes it.
+  if (targetActor) {
+    const { offerDefences } = await import("./combat/defence-offer-workflow.mjs");
+    await offerDefences(actor, targetActor, { kind: "bomb", what: item.name });
+  }
+
   let db = null;
   if (targetActor) {
     const { defenceDCBonus } = await import("./combat/defence-dc.mjs");
     const { alignedTraitsOf, creatureTypesOf } = await import("./aligned.mjs");
+    const { creatureTraits } = await import("./creature-traits.mjs");
     const typed = defenceDCBonus(
-      targetActor, "defence", "", creatureTypesOf(actor.system ?? {}), actor.uuid ?? "", alignedTraitsOf(actor.system ?? {})
+      targetActor, "defence", "", creatureTypesOf(actor.system ?? {}), actor.uuid ?? "", alignedTraitsOf(actor.system ?? {}),
+      creatureTraits(actor.system ?? {})
     );
     const base = Number(targetActor.system?.combat?.defence?.total ?? NaN);
     db = Number.isFinite(base) ? base + coverBonus + Number(typed?.total ?? 0) : null;
@@ -254,7 +264,12 @@ export async function throwBomb(actor, item) {
     modifiers
   });
   if (!check) return null;
-  await actor.setFlag?.(SYSTEM_ID, "attackCount", attackIndex + 1);
+  await setAttackCount(actor, attackIndex + 1);
+  // A DEFENCE THAT LASTED ONE ATTACK (3.666.0) — see combat/one-attack.mjs.
+  if (targetActor) {
+    const { consumeOneAttackEffects } = await import("./combat/target-relay-workflow.mjs");
+    await consumeOneAttackEffects(targetActor, { kind: "bomb", attackerUuid: actor?.uuid ?? "" });
+  }
 
   // THE RESULT (D1, R4): hit or miss against the DB, and the critical.
   const { actorDefences } = await import("./creature-traits.mjs");

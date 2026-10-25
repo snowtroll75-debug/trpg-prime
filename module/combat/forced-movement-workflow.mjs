@@ -20,7 +20,8 @@
  * visibly re-enabled after use.
  */
 
-import { describePush, plannedPush, storedPosition } from "./forced-movement.mjs";
+import { describePush, forcedMovementReduction, plannedPush, reducedPushFeet, storedPosition } from "./forced-movement.mjs";
+import { declarationCarriers } from "../declaration-carriers.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -137,10 +138,18 @@ function planPushFromIds(payload, feet) {
   });
   const sourceCentre = half(sourceToken, sourceAt);
   const targetCentre = half(targetToken, targetAt);
+  // A CREATURE THAT RESISTS BEING MOVED (3.669.0): the push is shorter.
+  const reduction = forcedMovementReduction(targetToken.actor ? declarationCarriers(targetToken.actor) : []);
+  const requested = feet;
+  feet = reducedPushFeet(feet, reduction);
+  if (reduction && feet <= 0) {
+    return { targetToken, plan: { ok: true, moved: false, movedFeet: 0, requestedFeet: 0, reducedBy: Math.min(reduction, requested), reducedLabel: reductionLabel(targetToken.actor) } };
+  }
+  const withReduction = (plan) => (reduction && plan?.ok ? { ...plan, reducedBy: Math.min(reduction, requested), reducedLabel: reductionLabel(targetToken.actor) } : plan);
 
   return {
     targetToken,
-    plan: plannedPush({
+    plan: withReduction(plannedPush({
       sourceCentreX: sourceCentre.x,
       sourceCentreY: sourceCentre.y,
       targetCentreX: targetCentre.x,
@@ -151,8 +160,13 @@ function planPushFromIds(payload, feet) {
       gridDistance: Number(scene.grid?.distance ?? 0),
       gridSize,
       isBlocked: blockedSquareTest(scene, targetToken)
-    })
+    }))
   };
+}
+
+/** The carriers' names, for the card. */
+function reductionLabel(actor) {
+  return declarationCarriers(actor).filter((c) => Number(c?.flags?.["trg-prime"]?.forcedMovementReduction) > 0).map((c) => c.name).join(", ");
 }
 
 /**

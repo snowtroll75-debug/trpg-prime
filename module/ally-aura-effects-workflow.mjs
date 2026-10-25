@@ -41,4 +41,9 @@ export function registerAllyAuraEffectHooks() {
   for (const hook of ["createItem", "updateItem", "deleteItem"]) {
     Hooks.on(hook, (item) => { if (item?.parent?.documentName === "Actor") syncAllyAuraEffects(); });
   }
+  // AN AURA SWITCHED ON OR OFF (3.669.0): the effect that carries the switch
+  // arriving or leaving changes who is inside it.
+  for (const hook of ["createActiveEffect", "deleteActiveEffect"]) {
+    Hooks.on(hook, (effect) => { if (effect?.getFlag?.(SYSTEM_ID, "auraSwitch")) syncAllyAuraEffects(); });
+  }
 }

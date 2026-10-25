@@ -167,3 +167,84 @@ export function aidBoosts(effects = []) {
   }
   return best;
 }
+
+/* ------------------------------------------------------------------ */
+/* The ticks Aid Another asks (3.669.2)                                 */
+/* ------------------------------------------------------------------ */
+
+/*
+ * GRAHAM'S RULING OF 24 OCTOBER 2026, option (a). Aid Another rolls without
+ * the check dialog, so a tick a feat writes for it (Inner Tempest's Hive
+ * Coordination: "+2 … to Aid for a creature that understands Scree Cant")
+ * was never asked. The small prompt before the dice asks on a weapon attack
+ * or a Spellcraft check only (23 October). So Aid Another's own dialog — the
+ * one that already asks who, which skill, what for and the DC — lists the
+ * matching ticks itself, unticked, and the roll applies the ones ticked.
+ *
+ * A tick may be scoped to a skill, and the skill is picked in the same
+ * dialog: each row carries the skills it matches, and only those for the
+ * skill picked are shown and applied.
+ */
+
+const escAid = (text) => String(text ?? "").replace(
+  /[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
+
+/**
+ * The rows to ask, from each skill's matching rows: the unticked kind only
+ * (an `auto` row is applied unasked), each listed once with the skills it
+ * matches.
+ *
+ * @param {Record<string, object[]>} rowsBySkill skill key → conditionalRows
+ *   for an Aid Another check with that skill
+ * @returns {Array<{id: string, detail: string, summary: string, skills: string[]}>}
+ */
+export function aidTickRows(rowsBySkill = {}) {
+  const byId = new Map();
+  for (const [skill, rows] of Object.entries(rowsBySkill ?? {})) {
+    for (const row of Array.isArray(rows) ? rows : []) {
+      if (!row || row.auto || !row.id) continue;
+      const kept = byId.get(row.id) ?? { id: String(row.id), detail: String(row.detail ?? ""), summary: String(row.summary ?? row.label ?? ""), skills: [] };
+      if (!kept.skills.includes(skill)) kept.skills.push(skill);
+      byId.set(row.id, kept);
+    }
+  }
+  return [...byId.values()];
+}
+
+/**
+ * The dialog's block: one unticked box per row, those not matching the
+ * skill shown first hidden. Empty when there are no rows.
+ *
+ * @param {object[]} rows from aidTickRows
+ * @param {string} skill the skill selected when the dialog opens
+ * @returns {string} HTML
+ */
+export function aidTickBlock(rows = [], skill = "") {
+  if (!Array.isArray(rows) || !rows.length) return "";
+  const lines = rows.map((row) => `<div class="trg-inline" data-aid-tick data-skills="${escAid(row.skills.join(","))}"`
+    // INLINE, NOT `hidden`: the dialog's `.trg-inline` is display:flex,
+    // which outranks the attribute.
+    + `${row.skills.includes(skill) ? "" : ' style="display:none"'}>`
+    + `<input type="checkbox" name="aidTick" value="${escAid(row.id)}">`
+    + ` <span><strong>${escAid(row.detail)}</strong> — ${escAid(row.summary)}</span></div>`).join("");
+  // A PLAIN BLOCK, NOT A FORM-GROUP (found in review): the dialog's
+  // form-group is a two-column grid, which put every other row in the label
+  // column — the slip 3.667.4 fixed in the small prompt.
+  return `<p style="margin:6px 0 2px"><strong>Racial, feature &amp; equipment bonuses</strong></p>`
+    + `<div class="trg-conditional-modifiers">${lines}</div>`
+    + `<p class="hint">Tick any that apply to this aid. Unticked ones do not.</p>`;
+}
+
+/**
+ * The ticked ids that apply with the skill picked; a box ticked and then
+ * hidden by a change of skill does not.
+ *
+ * @param {object[]} rows from aidTickRows
+ * @param {string[]} ids ticked
+ * @param {string} skill the skill rolled
+ * @returns {string[]}
+ */
+export function aidTicksFor(rows = [], ids = [], skill = "") {
+  const allowed = new Set((rows ?? []).filter((row) => row.skills?.includes(skill)).map((row) => row.id));
+  return (Array.isArray(ids) ? ids : []).map(String).filter((id) => allowed.has(id));
+}

@@ -271,6 +271,13 @@ function takeRecentlySpared(key) {
 export async function reapDead(actor, combat = null) {
   const out = { skulled: false, removed: false };
   if (!actor) return out;
+  // NOT FROM A PLAYER'S CLIENT ON A CREATURE IT DOES NOT OWN (3.666.1). The
+  // skull and the initiative order are the GM's to write, and the GM's death
+  // watch (death-watch-workflow.mjs) reaps the moment the Dying condition the
+  // relay laid arrives. Asking here as well threw, and lost the caller's
+  // card: the same rule `rollWeaponAttack` already follows for a Death
+  // critical.
+  if (!reapsHere(actor, globalThis.game?.user ?? null)) return out;
   // A REAP ALREADY IN FLIGHT FOR THIS ACTOR DOES THE WORK. Keyed on the
   // token where there is one, for the reason the combatant filter below
   // is: four goblins stamped from one statblock share an `actor.id`.
@@ -294,6 +301,18 @@ export async function reapDead(actor, combat = null) {
   } finally {
     if (key) reaping.delete(key);
   }
+}
+
+/**
+ * Does THIS client reap this actor? Yes for a GM, for an owner, and with no
+ * user at all (a harness). The GM's death watch covers everyone else.
+ *
+ * @param {{isOwner: boolean}} actor
+ * @param {{isGM: boolean}|null} user
+ */
+export function reapsHere(actor, user) {
+  if (!user || user.isGM) return true;
+  return actor?.isOwner !== false;
 }
 
 async function reapDeadInner(actor, combat, out) {

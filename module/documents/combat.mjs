@@ -462,6 +462,16 @@ export class TRGCombat extends Combat {
     // must find the conditions already in place.
     await TRGCombat.#spookSteeds(combatants);
 
+    // A FRESH LADDER FOR EVERYONE (3.666.0, Graham's "Combat only"): the
+    // multiple attack penalty counts only in combat, so a count left from
+    // before the fight (or from before 3.666.0, when attacks out of combat
+    // still counted) must not greet a combatant's first attack. Before the
+    // first turn, like everything above.
+    {
+      const { clearAttackCount } = await import("../combat/turn-records.mjs");
+      for (const c of combatants) if (c.actor) await clearAttackCount(c.actor);
+    }
+
     // ONE INITIATIVE (page 200; the block-19 audit's D13, Graham's R13):
     // "During combat, your mount acts based on your initiative." Done
     // after the steeds have been asked whether they panic, so a panicking
@@ -1386,6 +1396,11 @@ export class TRGCombat extends Combat {
       // are ACTIONS: a Reaction, or a Free action once upgraded. Naming the
       // save here would hand an unconscious character an action to take.
       dc: levelDC(level),
+      // A SCOPE A BONUS CAN NAME (3.666.0; Inner Tempest's Resist Dying,
+      // Graham's ruling of 21 October 2026). An action key, NOT a subject:
+      // the subject stays off for the reason above, and a conditional naming
+      // `actions: ["dyingCheck"]` reaches this roll and no other.
+      actionKey: "dyingCheck",
       modifiers: [
         { label: "Fortitude", value: fortitude, type: "untyped" },
         ...(featBonus ? [{ label: "Indomitable Resilience", value: featBonus, type: "race" }] : []),
@@ -1567,6 +1582,12 @@ export class TRGCombat extends Combat {
         return;
       }
     }
+
+    // A TURN HAS ENDED, FOR A MODULE (3.666.0): Inner Tempest's "before the
+    // end of your next turn" (Guide the Breath, Observe Technique). Fired on
+    // the acting GM's client only, which is where this runs, and after the
+    // stasis return above: no turn passes for a creature in stasis.
+    Hooks.callAll("trgPrimeTurnEnded", { actor, combatant, combat: this });
 
     // Flat-Footed from every source OTHER than Chapter 4 Step 4 — a
     // critical hit, a basic action's outcome — expires at the end of its

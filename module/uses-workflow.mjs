@@ -1,5 +1,8 @@
-import { usesMax, focusInnateDefaultUses } from "./uses.mjs";
+import { usesMax, focusDefaultUses } from "./uses.mjs";
 import { extraUsesBonus } from "./extra-uses.mjs";
+import { focusExtraUses, dailyFocusFlagClears } from "./focus-declarations.mjs";
+import { DAILY_FIRSTS_FLAG } from "./daily-firsts.mjs";
+import { declarationCarriers } from "./declaration-carriers.mjs";
 import { WILD_SHAPE_ABILITY, usesPoolNameFor } from "./magic/wildshape-feats.mjs";
 import { hasClassAbility } from "./crusader.mjs";
 import { releaseDailyPrepAndSustained } from "./magic/active-spells.mjs";
@@ -90,9 +93,14 @@ export function itemUsesMax(item) {
   const owner = usesPoolItem(item);
   if (!owner?.system || !Object.hasOwn(owner.system, "usesPerDay")) return null;
   const bonus = Number(owner.system.bonusUses ?? 0)
-    + extraUsesBonus(featNamesOf(owner.actor), owner.name);
-  // A granted Focus innate spell with no printed count is one use (3.562.0).
-  const focusDefault = focusInnateDefaultUses(owner.system, owner.type);
+    + extraUsesBonus(featNamesOf(owner.actor), owner.name)
+    // DECLARED EXTRA FOCUS USES (3.664.0; Inner Tempest's Deep Focus and
+    // Ghost Art Mastery): derived here from the carriers, never written onto
+    // the item, so losing the feature takes the use with it.
+    + focusExtraUses(owner, owner.actor ? declarationCarriers(owner.actor) : []);
+  // A granted Focus innate spell with no printed count is one use (3.562.0),
+  // and so is a Focus feat or ability (3.665.0, D1).
+  const focusDefault = focusDefaultUses(owner.system, owner.type);
   if (focusDefault !== null) return focusDefault + Math.max(0, Math.floor(bonus));
   return usesMax(
     owner.system.usesPerDay,
@@ -409,6 +417,16 @@ export async function performDailyPreparation(actor) {
 
   const updates = dailyUsesRestoreUpdates(actor.items);
 
+  // RUNE AND WONDROUS FOCUS RETURN TOO (3.664.0). "Daily preparation
+  // restores all expended Focus abilities" — but a Focus rune or wondrous
+  // item records its expended state as a flag, not a use count, and only
+  // Refocus ever cleared it. Lifted here with the rest.
+  const focusFlagUpdates = dailyFocusFlagClears(actor.items);
+  if (focusFlagUpdates.length) await actor.updateEmbeddedDocuments("Item", focusFlagUpdates);
+  // A NEW DAY'S FIRSTS (3.664.0): Centred Recovery's first Refocus and
+  // first Power Recovery come round again. See daily-firsts.mjs.
+  if (actor.getFlag?.("trg-prime", DAILY_FIRSTS_FLAG)) await actor.unsetFlag("trg-prime", DAILY_FIRSTS_FLAG);
+
   if (updates.length) {
     await actor.updateEmbeddedDocuments("Item", updates);
   }
@@ -723,4 +741,8 @@ export async function performDailyPreparation(actor) {
     // had already earned.
     line(endedSpellsSaid)
   ]);
+  // A NEW DAY, FOR A MODULE (3.666.0): anything a module bars "until your
+  // next daily preparation" (Inner Tempest's Elemental Ward on a Fumble)
+  // lifts here. Fired after the card, once the day has fully turned over.
+  Hooks.callAll("trgPrimeDailyPreparation", { actor });
 }

@@ -1,6 +1,7 @@
 import { BIAS } from "../dice/check.mjs";
 import { applyPendingSelections, clearPendingModifiers, consumePendingModifiers,
   pendingModifierRows } from "../pending-modifiers.mjs";
+import { pendingFitsCheck } from "../combat/dedicated-rows.mjs";
 import { DIFFICULTIES, levelDC } from "../dice/resolution.mjs";
 import { CONVICTION_SPENDS, convictionEnabled, getConvictionState } from "../conviction.mjs";
 import {
@@ -158,6 +159,8 @@ export async function promptCheckConfiguration({
   // knows which token is targeted — so Dracoris's Wyrm bonus pre-ticks
   // there, and stays blank (and unoffered) on a roll aimed at nobody.
   targetTypes = "",
+  // THE TARGET'S TRAITS (3.664.0), beside its type.
+  targetTraits = "",
   // THE TWO UUID AXES (3.415.0). Same contract as `sourceTypes`: only a
   // caller holding both actors can fill them, and every caller of THIS
   // dialog today is a sheet roll that cannot — so they stay blank, and a
@@ -171,6 +174,14 @@ export async function promptCheckConfiguration({
   targetUuid = "",
   // MELEE OR RANGED (3.650.0), accepted for the same reason.
   attackMode = "",
+  // WHAT IT IS STRUCK WITH (3.667.3), accepted for the same reason.
+  attackForm = "",
+  // THE WEAPON'S GROUP (3.668.0), accepted for the same reason.
+  attackGroup = "",
+  // HOW FAR IT REACHES (3.668.0), accepted for the same reason.
+  rangeBand = "",
+  // THE TARGET'S STATE (3.668.0), accepted for the same reason.
+  targetStates = "",
   defaultDifficulty = "medium"
 } = {}) {
   // The Advantage conviction spend covers saving throws and skill checks.
@@ -258,7 +269,11 @@ export async function promptCheckConfiguration({
   // roll they apply to. Offered rather than applied: the number and its
   // type came from the rulebook, but whether *this* roll is the one they
   // were scoped to is the judgement the text leaves to a person.
-  const pending = allowModifiers && actor ? pendingModifierRows(actor) : [];
+  // AN ENTRY THAT NAMES ITS ACTION WAITS FOR THAT ACTION (3.666.3): Subsist's
+  // "-2 to Subsist checks" is not offered on an Acrobatics check.
+  const pending = allowModifiers && actor
+    ? pendingModifierRows(actor).filter((row) => pendingFitsCheck(row, actionKey))
+    : [];
   const pendingRows = pending.length
     ? `
       <div class="form-group trg-pending-modifiers">
@@ -301,7 +316,7 @@ export async function promptCheckConfiguration({
           ),
           {
             checkType, subject, actionKey, traits, traditions,
-            sourceTypes, targetTypes, sourceUuid, targetUuid, attackMode
+            sourceTypes, targetTypes, sourceUuid, targetUuid, attackMode, targetTraits, attackForm, attackGroup, rangeBand, targetStates
           }
         )
       : [];

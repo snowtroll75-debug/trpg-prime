@@ -3,6 +3,7 @@ import { actionDamagePackets, alignedPacketTraits, creatureSecondaryPackets } fr
 import { TRGCheck } from "../dice/check.mjs";
 import {
   armourRendingValue,
+  rangeBandOf,
   attackOutcome,
   bonusDamageDice,
   armourCRBypass,
@@ -175,14 +176,16 @@ import { oilCoatOf, riderAttackRow, riderDamageBonus, riderPackets, struckMateri
 import { effectiveWeaponCategory, proficiencyProfile, proficiencyOf } from "../proficiency-rules.mjs";
 import { armouredFistProfile } from "../armour-descriptions.mjs";
 import { stoneFistProfile } from "../elixirs.mjs";
+import { attackFormOf, declaredUnarmedRows, unarmedProfile, withUnarmedProfile } from "./unarmed-profile.mjs";
 import { isBuckler } from "../buckler.mjs";
 import { fumbleTableFor, isUnarmedAttack } from "./unarmed.mjs";
 import { weaponStrikeRefused } from "../codex-action-rules.mjs";
-import { declaredStrikeTypeOptions, strikeTypeChoices, strikeTypeIsMagical, weaponStrikeTypeOptions } from "./strike-type-options.mjs";
+import { declaredStrikeTypeOptions, forcedStrikeTypes, strikeTypeChoices, strikeTypeIsMagical, weaponStrikeTypeOptions } from "./strike-type-options.mjs";
 import { applyDeclaredAfterStrikes, applyOnFell } from "./declared-after-strikes-workflow.mjs";
 import { deathMarkDeadly, deathMarkQualifies, markedUuidOf } from "./death-mark.mjs";
 import { mountedAttackBonus, mountedDefenceOffer, mountedReach, mountedState, mountedWeaponRefusal } from "./mounted.mjs";
 import { setSharedMapCount, sharedMapCount } from "./mounted-workflow.mjs";
+import { backswingRefund, braceApplies } from "./weapon-chapter6-traits.mjs";
 import { struckOnSurfaceNote, surfacesUnder } from "./surfaces.mjs";
 import { parseGrantList } from "../grants.mjs";
 import {
@@ -532,6 +535,15 @@ export async function maybePromptPressTheAdvantage(actor, trigger) {
  * started combat in which this creature has a place, on someone else's turn.
  * Outside combat, or for a creature not in it, there is no turn to be off.
  */
+/** What the MAP row names: the caller's ability when it set the penalty, else the attack number. */
+function mapSetBy({ mapOverride = null, optionLabel = "", attackIndex = 0 } = {}) {
+  // ONLY WHEN THE CALLER NAMES ITSELF: Sweeping Strike and Torrent of
+  // Strikes also set the penalty, without a name, and keep "attack N".
+  const set = mapOverride !== null && Number.isFinite(Number(mapOverride));
+  const name = String(optionLabel ?? "").trim();
+  return set && name ? name : `attack ${attackIndex + 1}`;
+}
+
 function strikeIsOffTurn(actor) {
   const combat = game.combat;
   if (!combat?.started || !actor) return false;
@@ -613,6 +625,10 @@ export async function rollWeaponAttack(actor, weapon, {
   extraFlatDamage = 0,
   criticalBoost = null,
   mapOverride = null,
+  // A STRIKE THAT "COUNTS AS TWO ATTACKS WHEN CALCULATING YOUR MULTIPLE
+  // ATTACK PENALTY" (3.670.0; Inner Tempest's Perfect Strike and Perfect
+  // Shot): the counter advances by this many, as Power Attack's does by two.
+  mapSteps: mapStepsOption = 1,
   extraPrecisionDice = 0,
   // SHIELDED STRIDE'S ONE FACT (fixed 3.365.0, found live). This was read
   // as `options.provokedByMovement` inside a function that destructures its
@@ -648,7 +664,47 @@ export async function rollWeaponAttack(actor, weapon, {
   // first hit rolled, shared by formula. See codex-actions-workflow.mjs
   // `sweepingStrike`.
   presetDice = null,
-  sharedDamage = null
+  sharedDamage = null,
+  // A SERIES OF STRIKES THAT MEETS ITS DEFENCES ONCE (3.667.0; Inner
+  // Tempest's Flurry of Blows): "If both hit the same creature, apply DR,
+  // resistance and weakness only once … you may only inflict one critical
+  // injury, although you still gain additional critical damage from both
+  // strikes." A later Strike of the series that hits the same creature
+  // passes `drWaived` (its DR was met by the first) and, once a critical
+  // injury has been rolled, `noCriticalInjury` (its critical dice still
+  // count). See combat/strike-series.mjs.
+  drWaived = false,
+  noCriticalInjury = false,
+  seriesLabel = "",
+  // PER-STRIKE OPTIONS (3.668.0; Inner Tempest's Shadowy Step and Formless
+  // Cut): the target "is considered to be flanked", "treated as
+  // flat-footed", and its "active stance or form bonuses" ignored, for this
+  // Strike only. `optionLabel` names the ability on the card. See
+  // combat/strike-options.mjs.
+  treatAsFlanked = false,
+  treatAsFlatFooted = false,
+  ignoreTargetStance = false,
+  optionLabel = "",
+  // A BLOW HELD (3.668.0; Inner Tempest's Black Lotus, Graham's ruling of 23
+  // October 2026): on a hit, the critical and the damage are not rolled now.
+  // The hit is recorded, and lands from a card at the start of the target's
+  // turn. See combat/held-strike.mjs.
+  holdDamage = false,
+  // A PAIR'S RULES (3.668.2; Double Slice, Graham 23 October 2026: "Yes
+  // please fix Double Slice"). `noCritical`: "You can only inflict one
+  // critical" — a critical this Strike rolls counts as an ordinary hit, its
+  // bonus dice and injury with it. `beforeDamage(…)`: asked once the hit is
+  // known and before anything it does is applied; `{ void: true }` turns it
+  // into a miss ("if either attack fumbles, then the other attack
+  // automatically misses"). See combat/double-slice-workflow.mjs.
+  noCritical = false,
+  beforeDamage = null,
+  // A READIED STRIKE (3.668.1): made through Ready, for Inner Tempest's
+  // Brace trait. See combat/weapon-chapter6-traits.mjs.
+  readied = false,
+  // THE REROLL OF A FUMBLED STRIKE (3.669.0; Fortune's Reversal): set on the
+  // second roll, so a fumble there is not offered again.
+  fumbleRerolled = false
 } = {}) {
   const viaRefused = weaponStrikeRefused(weapon, viaAbility);
   if (viaRefused) {
@@ -770,10 +826,25 @@ export async function rollWeaponAttack(actor, weapon, {
   // AND THE ROUND HAS ITS SAY (3.576.0): Distance Arrows "remove the
   // deadly trait". Read through here, the bow's trait line loses what the
   // arrow declares it removes for this one shot. See ammunition.mjs.
-  const fistData = stoneFist ? { ...armouredFist.data, ...stoneFist } : armouredFist.data;
-  const weaponData = ammoSystem
+  // TRAINED FISTS (3.667.0; Inner Tempest's Powerful Fists): a declared
+  // die and Versatile letter on the Unarmed Strike. Fist of Rock still wins
+  // where both apply. See combat/unarmed-profile.mjs.
+  const unarmedHere = unarmedProfileFor(actor, armouredFist.data);
+  const trainedFist = withUnarmedProfile(armouredFist.data, unarmedHere);
+  const fistData = stoneFist ? { ...trainedFist, ...stoneFist } : trainedFist;
+  const ammoData = ammoSystem
     ? { ...fistData, traits: traitsAfterAmmunition(fistData.traits, ammoSystem) }
     : fistData;
+  // A TRAIT THE WEAPON'S GROUP GAINS (3.668.0; Weapon Discipline's Finesse
+  // "if wielded in one hand"). See combat/strike-options.mjs.
+  const { traitsWithGroupGrants } = await import("./strike-options.mjs");
+  const groupTraits = traitsWithGroupGrants(ammoData.traits, [...Array.from(actor.items ?? []), ...Array.from(actor.appliedEffects ?? actor.effects ?? [])], {
+    group: ammoData.group,
+    oneHanded: itemRequiredHands(weapon, actor.system?.identity?.size ?? "medium") < 2 && !heldInTwoHandGrip(weapon),
+    // AN UNARMED-SCOPED GRANT (3.670.0; Mantis and Dragon Stance).
+    unarmed: attackFormOf(ammoData) === "unarmed"
+  });
+  const weaponData = groupTraits === ammoData.traits ? ammoData : { ...ammoData, traits: groupTraits };
 
   /*
    * HIDE FROM ANIMALS ENDS HERE (3.503.0). "If a warded character
@@ -907,6 +978,10 @@ export async function rollWeaponAttack(actor, weapon, {
       if (positional) distanceToTarget = distanceBetween(attackerToken, targetToken);
     }
   }
+
+  // Guardian's Intercession is asked further down, once the Strike is
+  // committed (3.669.0; see "AN ALLY STEPS IN").
+  let interceptNote = "";
 
   const finesse = !isRanged && /\bfinesse\b/i.test(String(weaponData.traits ?? ""));
   const sweep = /\bsweep\b/i.test(String(weaponData.traits ?? ""));
@@ -1208,6 +1283,43 @@ export async function rollWeaponAttack(actor, weapon, {
     if (targetActor) await endFixationOnHostileAct([targetActor], actor);
   }
 
+  /*
+   * THE DEFENDER'S REACTION, DECLARED BEFORE THE ROLL (3.666.1). Graham,
+   * 22 October 2026: "Nimble Dodge still isn't giving any option for the
+   * player to use." The defender's player is asked here, after the strike is
+   * committed and before anything about it is rolled or read; a yes runs the
+   * reaction on their own client and the DB read below includes it. Nothing
+   * to offer asks nobody. See combat/defence-offer.mjs.
+   */
+  /*
+   * AN ALLY STEPS IN (3.669.0; Inner Tempest's Guardian's Intercession: "an
+   * adjacent ally is targeted by a physical attack … You Step into a position
+   * adjacent to the ally if necessary and interpose yourself … You become
+   * the target of the triggering attack instead"). Asked of the allies beside
+   * the target HERE, once the Strike is committed — its reach, range, the
+   * GM's leave and the AP all settled against the creature it was aimed at —
+   * so a reaction is never spent on a Strike that then refuses (found in
+   * review). The one who steps in takes the target's place, so the distance
+   * already measured stands. A Strike a technique makes against a creature
+   * it has already chosen (a reaction, a pair's second swing, Flow Strike)
+   * does not ask again.
+   */
+  if (targetToken && targetActor && !isReaction && !skipTargetPrompt) {
+    const { offerIntercepts } = await import("./defence-offer-workflow.mjs");
+    const interceptor = await offerIntercepts(actor, targetToken, attackerToken ?? null, { kind: "weapon", what: weapon.name });
+    if (interceptor?.actor) {
+      interceptNote = `<em>${interceptor.actor.name} steps in: the attack meant for ${targetActor.name} targets ${interceptor.actor.name} instead.</em>`;
+      targetToken = interceptor;
+      targetActor = interceptor.actor;
+      try { targetToken.setTarget?.(true, { user: game.user, releaseOthers: true }); } catch { /* the attack goes on regardless */ }
+    }
+  }
+
+  if (targetActor) {
+    const { offerDefences } = await import("./defence-offer-workflow.mjs");
+    await offerDefences(actor, targetActor, { kind: "weapon", what: weapon.name });
+  }
+
   // Hidden/Concealed miss chance (Appendix 2): checked before anything
   // else, since a successful check means the attack never affects the
   // target at all — "the attack, spell, or effect doesn't affect you."
@@ -1461,6 +1573,17 @@ export async function rollWeaponAttack(actor, weapon, {
       type: "circumstance"
     });
   }
+  // BRACE (3.668.1; Inner Tempest, Chapter 6): "If you use a Ready action to
+  // attack a mounted target with this weapon, your attack gains a
+  // +2-circumstance bonus and inflicts an additional die of base damage on a
+  // successful hit." The die is added where the damage is rolled.
+  const brace = braceApplies({
+    weaponSystem: weaponData, readied: Boolean(readied),
+    targetMounted: Boolean(targetActor && mountedState(targetActor).mounted)
+  });
+  if (brace) {
+    modifiers.push({ label: "Brace (readied, against a mounted target)", value: brace.attackBonus, type: "circumstance" });
+  }
 
   const finesseBonus = finesseAdjustment(
     finesse,
@@ -1649,6 +1772,24 @@ export async function rollWeaponAttack(actor, weapon, {
   if (conditionTerms?.advantage) {
     modifiers.push({ label: `Advantage — ${conditionTerms.advantage}`, value: 0, type: "untyped" });
   }
+  // A REACTION STRIKE AGAINST A CREATURE THAT PUNISHES THEM (3.668.0;
+  // Flickering Flame's "-5 penalty to hit you with reaction attacks").
+  if (isReaction && targetActor) {
+    const { reactionAttackPenaltyRows } = await import("./strike-options.mjs");
+    modifiers.push(...reactionAttackPenaltyRows([...Array.from(targetActor.items ?? []), ...Array.from(targetActor.appliedEffects ?? targetActor.effects ?? [])]));
+  }
+  // TREATED AS FLAT-FOOTED (3.668.0; Formless Cut): paid as "flat-footed to
+  // you" is, as a bonus on this Strike, unless it is flat-footed already.
+  if (treatAsFlatFooted && targetActor) {
+    const { flatFootedLoss, treatedFlatFootedRow } = await import("./strike-options.mjs");
+    const row = treatedFlatFootedRow({
+      alreadyFlatFooted: Boolean(targetActor.hasCondition?.("flatFooted")) || Boolean(conditionTerms?.flatFootedBy) || surpriseAttackOn,
+      loses: flatFootedLoss(targetActor.system?.combat?.defence),
+      targetName: targetActor.name,
+      label: optionLabel || "this Strike"
+    });
+    if (row) modifiers.push(row);
+  }
 
   // Hunt Prey (Ranger, 1st): "You may add your class bonus to all
   // checks made against your prey." The attack roll against the
@@ -1770,7 +1911,9 @@ export async function rollWeaponAttack(actor, weapon, {
   }
   if (map) {
     modifiers.push({
-      label: `Multiple Attack Penalty (attack ${attackIndex + 1}${relentlessRelief ? `, Relentless Hunter +${relentlessRelief}` : ""})`,
+      // A penalty SET by the caller (Flow Strike's "as if it was your third
+      // strike") is not the count's: name what set it, not attack N (3.668.1).
+      label: `Multiple Attack Penalty (${mapSetBy({ mapOverride, optionLabel, attackIndex })}${relentlessRelief ? `, Relentless Hunter +${relentlessRelief}` : ""})`,
       value: map,
       type: "untyped"
     });
@@ -2009,7 +2152,14 @@ export async function rollWeaponAttack(actor, weapon, {
     Array.from(actor.items ?? []).some(
       (i) => i.type === "ability" && String(i.name).trim().toLowerCase() === "opportunist's strike"
     );
-  let targetFlanked = Boolean(flankingAlly);
+  // CONSIDERED FLANKED (3.668.0; Shadowy Step): the flanking bonus, and
+  // flanked for Sneak Attack, "regardless of your actual positioning".
+  if (treatAsFlanked && !isRanged) {
+    const { treatedFlankingRow } = await import("./strike-options.mjs");
+    const row = treatedFlankingRow({ alreadyFlanking: Boolean(flankingAlly), cannotBeFlanked: Boolean(targetCannotBeFlanked), bonus: FLANKING_BONUS, label: optionLabel || "this Strike" });
+    if (row) modifiers.push(row);
+  }
+  let targetFlanked = Boolean(flankingAlly) || (treatAsFlanked && !isRanged && !targetCannotBeFlanked);
   if (rogueAsks && !targetFlanked && positional && !targetCannotBeFlanked) {
     const targetOrigin = tokenOrigin(targetToken);
     if (targetOrigin) {
@@ -2033,7 +2183,7 @@ export async function rollWeaponAttack(actor, weapon, {
 
   const sneakTargetQualifies = Boolean(targetActor) && sneakAttackTargetQualifies({
     flatFooted: Boolean(targetActor?.hasCondition?.("flatFooted")) || surpriseAttackOn
-      || Boolean(conditionTerms?.flatFootedBy),
+      || Boolean(conditionTerms?.flatFootedBy) || Boolean(treatAsFlatFooted),
     flanked: targetFlanked
   });
 
@@ -2048,6 +2198,36 @@ export async function rollWeaponAttack(actor, weapon, {
       traits: weaponData.traits
     })) {
     sneakDice = sneakDiceFor(actor, system.skills?.stealth?.ranks ?? 0);
+  }
+
+  // AMBUSH DICE (3.668.0; Inner Tempest's Unseen Assault). Settled here,
+  // where the target and the weapon are known: once per round, the weapon
+  // half, and why the target is flat-footed to you (Graham's B4-3). A cause
+  // that needs a person is asked on the hit, not before the roll. See
+  // combat/ambush-dice.mjs.
+  const { ambushCause, ambushDiceCount, ambushExtrasFor, ambushRoundKey, ambushWeaponEligible, declaredAmbush, declaredAmbushExtras } = await import("./ambush-dice.mjs");
+  const ambushCarriers = [...Array.from(actor.items ?? []), ...Array.from(actor.appliedEffects ?? actor.effects ?? [])];
+  const ambushDeclared = targetActor ? declaredAmbush(ambushCarriers) : null;
+  let ambush = null;
+  if (ambushDeclared) {
+    const roundKey = ambushRoundKey(game.combat?.id ?? "", game.combat?.started ? Number(game.combat.round ?? 0) : 0);
+    const usedThisRound = ambushDeclared.oncePerRound && roundKey && actor.getFlag?.(SYSTEM_ID, "ambushRound") === roundKey;
+    const fromFlag = targetActor.getFlag?.(SYSTEM_ID, "flatFootedFrom");
+    const cause = ambushCause({
+      flatFootedBy: conditionTerms?.flatFootedBy ?? null,
+      targetFlatFooted: Boolean(targetActor.hasCondition?.("flatFooted")),
+      fromOwnAbility: Boolean(fromFlag?.uuid) && fromFlag.uuid === actor.uuid,
+      otherwiseFlatFooted: Boolean(surpriseAttackOn) || Boolean(treatAsFlatFooted)
+    });
+    const eligible = ambushWeaponEligible({
+      isRanged: isRanged && !thrownByDistance,
+      isThrown: Boolean(thrownByDistance) || String(weaponData.attackMode ?? "").trim().toLowerCase() === "thrown",
+      traits: weaponData.traits,
+      rangeBand: rangeBandOf({ isRanged, distance: distanceToTarget, rangeIncrement })
+    });
+    if (!usedThisRound && cause && eligible) {
+      ambush = { declared: ambushDeclared, cause, roundKey, count: ambushDiceCount(ambushDeclared, actorLevel), undetected: conditionTerms?.flatFootedBy === "undetected" };
+    }
   }
 
   // Precision Hunter (Ranger, Hunter's Method): "Once per round, the
@@ -2219,8 +2399,24 @@ export async function rollWeaponAttack(actor, weapon, {
   // ask about later — the same reason the uuid is passed from here.
   const attackerAlignments = alignedTraitsOf(actor.system ?? {});
   const typedDefence = targetActor
-    ? defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments)
+    // …AND ITS TRAITS (3.664.0): Spirit Stance's DB "against spirits and
+    // incorporeal creatures".
+    ? defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments, creatureTraits(actor.system ?? {}))
     : { total: 0, entries: [] };
+  // STANCE BONUSES IGNORED (3.668.0; Formless Cut): what the target's
+  // stances give its DB against this Strike, paid back as a bonus on it.
+  if (ignoreTargetStance && targetActor) {
+    const { stanceDefenceOf } = await import("./strike-options.mjs");
+    const { activeStanceEffects } = await import("../stance-declarations.mjs");
+    const ignored = stanceDefenceOf({
+      breakdown: targetActor.system?.combat?.defence?.breakdown?.entries ?? [],
+      stanceUuids: activeStanceEffects(Array.from(targetActor.appliedEffects ?? targetActor.effects ?? [])).map((e) => e.uuid),
+      dcEntries: typedDefence.entries ?? []
+    });
+    if (ignored.total > 0) {
+      modifiers.push({ label: `${optionLabel || "This Strike"}: ignores ${targetActor.name}'s stance (${ignored.labels.join(", ")})`, value: ignored.total, type: "untyped" });
+    }
+  }
   // AID DEFENSIVE (Chapter 4): "+N circumstance to Defence, only against
   // that target's next attack." Read here rather than off a shared
   // circumstance pool because "only against THAT target" is a fact about
@@ -2300,8 +2496,13 @@ export async function rollWeaponAttack(actor, weapon, {
   // Essence Attacks' "you may have the attack deal essence damage instead".
   // Asked in the same breath as Versatile; see combat/strike-type-options.mjs.
   const strikeTypeOptions = [...declaredStrikeTypeOptions(Array.from(actor.appliedEffects ?? actor.effects ?? [])), ...weaponStrikeTypeOptions(weapon)];
-  const damageTypeChoices = strikeTypeChoices(weaponData, strikeTypeOptions, versatileAlternate);
-  if (damageTypeChoices.length > 1) {
+  // A TYPE SET RATHER THAN OFFERED (3.670.0; Tiger and Wolf Stance): it is
+  // the Strike's type, and nothing else is asked; two set at once are asked
+  // between.
+  const forcedTypes = forcedStrikeTypes(weaponData, strikeTypeOptions);
+  const damageTypeChoices = forcedTypes.length ? forcedTypes : strikeTypeChoices(weaponData, strikeTypeOptions, versatileAlternate);
+  if (forcedTypes.length === 1) versatileDamageType = forcedTypes[0].type;
+  else if (damageTypeChoices.length > 1) {
     versatileDamageType = await promptVersatileDamageType(weapon.name, damageTypeChoices);
     if (versatileDamageType === null) return null;
   }
@@ -2330,7 +2531,20 @@ export async function rollWeaponAttack(actor, weapon, {
     }
   }
 
-  const check = await TRGCheck.roll({
+  // THE TARGET'S STATE AGAINST THIS ATTACKER (3.668.0): flat-footed to you
+  // for any reason, alone (none of its allies beside it), or in a duel (none
+  // of yours beside it). Read off the board only when both tokens are on it.
+  const { targetStatesOf } = await import("./strike-options.mjs");
+  const adjacentFrom = (tokens) => (positional && targetToken)
+    ? tokens.some((t) => Number(distanceBetween(t, targetToken)) <= 5)
+    : null;
+  const targetStates = targetActor ? targetStatesOf({
+    flatFooted: Boolean(targetActor.hasCondition?.("flatFooted")) || Boolean(conditionTerms?.flatFootedBy) || Boolean(surpriseAttackOn) || Boolean(treatAsFlatFooted),
+    targetAlliesAdjacent: (positional && targetToken) ? adjacentFrom(tokensAlliedWith(targetToken, [attackerToken])) : null,
+    attackerAlliesAdjacent: (positional && targetToken) ? adjacentFrom(tokensAlliedWith(attackerToken, [targetToken])) : null
+  }) : [];
+
+  const attackCheckConfig = {
     actor,
     label: `${weapon.name} — Attack${thrownByDistance ? " (thrown)" : ""}`,
     subtitle: targetActor
@@ -2353,9 +2567,26 @@ export async function rollWeaponAttack(actor, weapon, {
     // creature — the same pairing the source side has carried since
     // 3.406.0. Blank with nothing targeted, for the same reason.
     targetTypes: creatureTypesOf(targetActor?.system ?? {}),
+    // …AND ITS TRAITS (3.664.0): Spirit Stance's "against spirits and
+    // incorporeal creatures" is a fact about the traits line.
+    targetTraits: creatureTraits(targetActor?.system ?? {}),
     // MELEE OR RANGED (3.650.0) — a conditional scoped to ranged attacks
     // (Irritating Glamour's penalty) asks this.
     attackMode: isRanged ? "ranged" : "melee",
+    // WHAT IT IS STRUCK WITH (3.667.3): "unarmed" (the fists, a gauntlet, a
+    // Monastic weapon), "natural" or "weapon". Inner Strike's +1 status to
+    // unarmed attack rolls reads it; found live on Inner Tempest 0.4.1.
+    attackForm: attackFormOf(weaponData),
+    // THE WEAPON'S GROUP (3.668.0): Weapon Discipline's scope.
+    attackGroup: String(weaponData.group ?? "").trim().toLowerCase(),
+    // HOW FAR IT REACHES (3.668.0): Stone Serpent's reach, Distant Honour's
+    // first increment.
+    rangeBand: rangeBandOf({ isRanged, distance: distanceToTarget, rangeIncrement }),
+    // ITS STATE (3.668.0): Ghost Fox, Dread Wolf, the Oath of Honour.
+    targetStates,
+    // A WEAPON ATTACK OPENS NO DIALOG, so its tick-boxes are asked before
+    // the dice (3.667.3) — unless Shift skipped the questions.
+    offerConditionals: !skipDialog(event),
     // "All attacks against you gain advantage if you cannot move" (3.621.0).
     // Handed in as the starting bias, so a disadvantage from anywhere else
     // cancels against it through `resolveBias` as the Advantage trait says.
@@ -2366,7 +2597,58 @@ export async function rollWeaponAttack(actor, weapon, {
     suppressDegree: true,
     modifiers,
     toMessage: false
-  });
+  };
+  let check = await TRGCheck.roll(attackCheckConfig);
+
+  // ALTER THE THREAD (3.667.0; Inner Tempest's Mystic, Graham's B3-5): the
+  // defender may spend conviction, once the roll is seen and before it
+  // resolves, to make this attack roll again; the new roll stands. Not on a
+  // shared strike's later creatures, whose die is the first creature's. See
+  // combat/attack-reroll-workflow.mjs.
+  if (targetActor && !presetDice) {
+    const { offerAttackReroll, postRerollCard } = await import("./attack-reroll-workflow.mjs");
+    const asked = await offerAttackReroll({ attacker: actor, defender: targetActor, check, what: weapon.name, db });
+    if (asked.rerolled) {
+      const before = Number(check.outcome?.total ?? check.total ?? 0);
+      // THE FIRST ROLL'S TICK-BOXES STAND (3.667.3): not asked again.
+      check = await TRGCheck.roll({ ...attackCheckConfig, allowConviction: false, conditionalChoices: check.conditionalChoices ?? [] });
+      await postRerollCard(targetActor, actor, asked.label, before, Number(check.outcome?.total ?? check.total ?? 0));
+    }
+  }
+
+  // YOUR OWN FUMBLE, REROLLED IN PLACE (3.669.0; Inner Tempest's Fortune's
+  // Reversal: "Reroll the triggering check and use the second result, even
+  // if it is worse"). Asked HERE, straight after the roll and before the
+  // Strike spends anything — ammunition, the loaded state, a thrown weapon,
+  // Aim, Aid, Power Attack, a once-rider, a Flourish — so the second roll is
+  // the triggering check made again and nothing else (found in review: the
+  // first build re-ran the whole Strike after all of that was spent). The
+  // fumble is confirmed first (the fumble check, audit interpretation 2),
+  // and only for an attacker who could take the reroll, so every other
+  // Strike keeps its order of cards. A reroll that fumbles again is checked
+  // as usual below, and is not offered again.
+  let fumbleConfirmedEarly = null;
+  if (!presetDice && !fumbleRerolled) {
+    const face = Math.floor(Number(check.dice?.unmodified ?? 0) || 0);
+    const window = proficient ? 1 : 2;
+    const risk = face <= window || (clumsy && face === window + 1);
+    const { fumbleRerollAvailable } = await import("../fumble-reroll-workflow.mjs");
+    if (risk && fumbleRerollAvailable(actor, "attack")) {
+      const dcHalved = !(face <= window);
+      fumbleConfirmedEarly = await confirmAttackFumble(actor, weapon, { dcHalved, weaponData });
+      if (fumbleConfirmedEarly) {
+        const { offerFumbleReroll } = await import("../fumble-reroll-workflow.mjs");
+        const taken = await offerFumbleReroll(actor, "attack");
+        if (taken) {
+          const before = Number(check.outcome?.total ?? 0);
+          check = await TRGCheck.roll({ ...attackCheckConfig, conditionalChoices: check.conditionalChoices ?? [], allowConviction: false });
+          fumbleRerolled = true;
+          fumbleConfirmedEarly = null;
+          await postCard(actor, taken.label, [line(`The fumble is not rolled on its table: the attack check is made again (${before} → <strong>${Number(check.outcome?.total ?? 0)}</strong>), and the second result stands, even if it is worse.`)]);
+        }
+      }
+    }
+  }
 
   // Opportunist's Strike: "this bonus does not apply if the attack is
   // made with disadvantage." Whether the roll ended up at disadvantage
@@ -2396,7 +2678,10 @@ export async function rollWeaponAttack(actor, weapon, {
   // that stood when the action began, and the action then advances the
   // counter by two itself ("this counts as two attacks").
   if (!isReaction && !mapFrozen && !offTurn) {
-    const mapSteps = powerAttack && !isRanged && !ownsFeat("furious focus") ? 2 : 1;
+    const powerSteps = powerAttack && !isRanged && !ownsFeat("furious focus") ? 2 : 1;
+    // The larger of the two (3.670.0): a Perfect Strike made as a Power
+    // Attack counts as two, not three.
+    const mapSteps = Math.max(powerSteps, Math.max(1, Math.trunc(Number(mapStepsOption) || 1)));
     await setSharedMapCount(actor, attackIndex + mapSteps);
   }
 
@@ -2528,6 +2813,10 @@ export async function rollWeaponAttack(actor, weapon, {
     clumsy,
     missForgiveness
   });
+  // ONE CRITICAL FOR THE PAIR (3.668.2): read as an ordinary hit before the
+  // card is written, so the card, the bonus dice and the injury all agree.
+  const criticalDowngraded = Boolean(noCritical) && Boolean(outcome.critical);
+  if (criticalDowngraded) outcome.critical = null;
 
   // Focused Strike (Class, Chapter 5): a strike "only counts towards
   // your multiple attack penalty if it hits your target" — the counter
@@ -2674,6 +2963,7 @@ export async function rollWeaponAttack(actor, weapon, {
     );
   }
   if (diversionNote) lines.push(line(diversionNote));
+  if (interceptNote) lines.push(line(interceptNote));
   if (arrowCatchingDB) {
     lines.push(
       line(
@@ -2788,6 +3078,9 @@ export async function rollWeaponAttack(actor, weapon, {
     }
   }
 
+  if (criticalDowngraded) {
+    lines.push(line(`<em>${optionLabel || "Only one critical"}: this critical counts as an ordinary hit — no bonus dice and no injury.</em>`));
+  }
   check.compact = true;
   check.compactSummary = compactSummary;
   check.extraDetailLines = lines;
@@ -2802,6 +3095,21 @@ export async function rollWeaponAttack(actor, weapon, {
       `critical hit with ${weapon.name}${targetActor ? ` against ${targetActor.name}` : ""}`
     );
   }
+
+  // THE PAIR DECIDES BEFORE ANYTHING LANDS (3.668.2). Double Slice rolls its
+  // second Strike here, while this one waits; a fumble there makes this one
+  // miss, before its injury, damage or grab are applied.
+  let voidedByPair = false;
+  if (typeof beforeDamage === "function") {
+    const verdict = await beforeDamage({ outcome, check });
+    if (verdict?.void && outcome.hits) {
+      voidedByPair = true;
+      outcome.hits = false;
+      outcome.critical = null;
+    }
+  }
+  check.voidedByPair = voidedByPair;
+  check.criticalDowngraded = criticalDowngraded;
 
   let armourAmended = false;
   let locationArmoured = true;
@@ -2855,59 +3163,83 @@ export async function rollWeaponAttack(actor, weapon, {
   // above have already been counted, per Graham's ruling.
   // A CRITICAL REPLACEMENT (3.650.0; block 17 R8, Prankster's Cruelty): the
   // attacker may trade the injury for a lesser effect, asked before it rolls.
-  let injuryReplaced = false;
-  if (strikeLands && outcome.critical && !outcome.critical.injuryImmune && targetActor) {
-    const { offerCriticalReplacement } = await import("../creature-reactions-workflow.mjs");
-    injuryReplaced = await offerCriticalReplacement(actor, weapon, targetActor);
+  // HELD (3.668.0): the hit is decided; its critical and damage wait.
+  const held = Boolean(holdDamage) && strikeLands && outcome.hits && Boolean(targetActor);
+  if (held) {
+    const { heldStrikeRecord } = await import("./held-strike.mjs");
+    const record = heldStrikeRecord({
+      weaponId: weapon.id, weaponName: weapon.name, targetUuid: targetActor.uuid, targetName: targetActor.name,
+      critical: outcome.critical?.severity ?? null, damageType: versatileDamageType || weaponData.damageType || "",
+      label: optionLabel || "Held blow", combatId: game.combat?.id ?? "", round: Number(game.combat?.round ?? 0)
+    });
+    await actor.setFlag(SYSTEM_ID, "heldStrike", record);
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor }),
+      content: `<div class="trg-prime trg-check-card">${line(`<strong>${record.label}</strong>: the blow against <strong>${targetActor.name}</strong> is held${record.critical ? ` (a ${record.critical} critical)` : ""} — its critical and damage are rolled at the start of ${targetActor.name}'s turn.`)}</div>`
+    });
   }
-  if (strikeLands && outcome.critical && !outcome.critical.injuryImmune && !injuryReplaced) {
-    const isMook = targetActor?.type === "npc" && Boolean(targetActor?.system?.gm?.isMook);
-    if (isMook) {
-      await rollQuickCrit(targetActor, {
-        attacker: actor,
-        weapon,
-        severity: outcome.critical.severity,
-        attackerIsSwarm: isSwarm(actor?.system),
-        baseDamage: weaponData.damage || "1d6",
-        damageType: versatileDamageType || weaponData.damageType || "slashing"
+  let injuryReplaced = false;
+  // A HELD BLOW (3.668.0) rolls no injury now: it lands with the damage.
+  if (!held) {
+    if (strikeLands && outcome.critical && !outcome.critical.injuryImmune && targetActor) {
+      const { offerCriticalReplacement } = await import("../creature-reactions-workflow.mjs");
+      injuryReplaced = await offerCriticalReplacement(actor, weapon, targetActor);
+    }
+    if (strikeLands && outcome.critical && noCriticalInjury) {
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor }),
+        content: `<div class="trg-prime trg-check-card">${line(`<em>${seriesLabel || "This series"}: only one critical injury — this critical's bonus damage dice count, but no injury is rolled.</em>`)}</div>`
       });
-    } else {
-      const injuryResult = await rollCriticalInjury(actor, {
-        targetActor,
-        // VERSATILE (3.364.0). This read `weaponData.damageType` alone,
-        // so a spear set to piercing for this attack dealt piercing
-        // damage and then rolled its critical on the SLASHING injury
-        // table. The mook quick-crit six lines above already honoured the
-        // choice, and `versatileDamageType`'s own comment says it is
-        // "used everywhere weaponData.damageType would otherwise be read
-        // directly" — this was the one place that had been missed.
-        //
-        // Found while pinning Graham's ruling that a critical belongs to
-        // the weapon's own damage: it does, and the weapon's own damage
-        // for THIS attack is the type the player chose for it.
-        damageType: versatileDamageType || weaponData.damageType || "slashing",
-        severity: outcome.critical.severity,
-        attackBonus: Number(system.combat?.attack?.total ?? 0),
-        hasSerrated: /\bserrated\b/i.test(String(weaponData.traits ?? "")),
-        // Ambush and Sniping are reactions to this critical; capture the
-        // mechanical half of each one's trigger now, while the weapon and
-        // range are still in hand. Ambush wants an Agile weapon; Sniping a
-        // ranged weapon inside its first range increment. Distance uses
-        // the effective (ammo-adjusted) increment, the same figure the
-        // range-penalty and Penetrating paths above already use.
-        weaponIsRanged: isRanged,
-        weaponHasAgile: /\bagile\b/i.test(String(weaponData.traits ?? "")),
-        withinFirstIncrement:
-          isRanged &&
-          withinFirstRangeIncrement(rangedDistance, effectiveRangeIncrement(weaponData, ammoSystem)),
-        weaponTraits: String(weaponData.traits ?? ""),
-        // VORPAL is a rune rather than a trait, so the weapon itself is
-        // handed over and `rollCriticalInjury` reads its runes.
-        weapon
-      });
-      armourAmended = injuryResult.armourAmended;
-      locationArmoured = injuryResult.locationArmoured;
-      hitLocation = injuryResult.hitLocation;
+    }
+    if (strikeLands && outcome.critical && !outcome.critical.injuryImmune && !injuryReplaced && !noCriticalInjury) {
+      const isMook = targetActor?.type === "npc" && Boolean(targetActor?.system?.gm?.isMook);
+      if (isMook) {
+        await rollQuickCrit(targetActor, {
+          attacker: actor,
+          weapon,
+          severity: outcome.critical.severity,
+          attackerIsSwarm: isSwarm(actor?.system),
+          baseDamage: weaponData.damage || "1d6",
+          damageType: versatileDamageType || weaponData.damageType || "slashing"
+        });
+      } else {
+        const injuryResult = await rollCriticalInjury(actor, {
+          targetActor,
+          // VERSATILE (3.364.0). This read `weaponData.damageType` alone,
+          // so a spear set to piercing for this attack dealt piercing
+          // damage and then rolled its critical on the SLASHING injury
+          // table. The mook quick-crit six lines above already honoured the
+          // choice, and `versatileDamageType`'s own comment says it is
+          // "used everywhere weaponData.damageType would otherwise be read
+          // directly" — this was the one place that had been missed.
+          //
+          // Found while pinning Graham's ruling that a critical belongs to
+          // the weapon's own damage: it does, and the weapon's own damage
+          // for THIS attack is the type the player chose for it.
+          damageType: versatileDamageType || weaponData.damageType || "slashing",
+          severity: outcome.critical.severity,
+          attackBonus: Number(system.combat?.attack?.total ?? 0),
+          hasSerrated: /\bserrated\b/i.test(String(weaponData.traits ?? "")),
+          // Ambush and Sniping are reactions to this critical; capture the
+          // mechanical half of each one's trigger now, while the weapon and
+          // range are still in hand. Ambush wants an Agile weapon; Sniping a
+          // ranged weapon inside its first range increment. Distance uses
+          // the effective (ammo-adjusted) increment, the same figure the
+          // range-penalty and Penetrating paths above already use.
+          weaponIsRanged: isRanged,
+          weaponHasAgile: /\bagile\b/i.test(String(weaponData.traits ?? "")),
+          withinFirstIncrement:
+            isRanged &&
+            withinFirstRangeIncrement(rangedDistance, effectiveRangeIncrement(weaponData, ammoSystem)),
+          weaponTraits: String(weaponData.traits ?? ""),
+          // VORPAL is a rune rather than a trait, so the weapon itself is
+          // handed over and `rollCriticalInjury` reads its runes.
+          weapon
+        });
+        armourAmended = injuryResult.armourAmended;
+        locationArmoured = injuryResult.locationArmoured;
+        hitLocation = injuryResult.hitLocation;
+      }
     }
   }
 
@@ -2917,7 +3249,17 @@ export async function rollWeaponAttack(actor, weapon, {
   // damage — none of which `outcome` can answer, because it reports the
   // ATTACK and not its consequences.
   let damageOutcome = null;
-  if (outcome.hits && strikeLands) {
+  // EVERYTHING THE HIT DEALT THE TARGET (3.668.1): the weapon's packet, and
+  // its runes' and riders' own, each announced as it is applied. Backswing
+  // and Twin ask whether the Strike "inflicts damage"; a flaming blade whose
+  // fire lands when DR stops the steel did.
+  let hitDealt = 0;
+  const hitDealtHook = targetActor && outcome.hits && strikeLands && !held
+    ? Hooks.on("trgPrimeDamageApplied", ({ actor: hurt, amount } = {}) => {
+      if (hurt && hurt.uuid === targetActor.uuid) hitDealt += Math.max(0, Number(amount) || 0);
+    })
+    : null;
+  if (outcome.hits && strikeLands && !held) {
     // Precision Hunter's window is "the first time you DAMAGE your
     // hunted prey" — the marker burns here, on a hit that rolls
     // damage, not on the attempt.
@@ -2935,9 +3277,84 @@ export async function rollWeaponAttack(actor, weapon, {
     // CONDITIONALS SCOPED TO THE DAMAGE ROLL (3.626.1): the `auto` rows
     // taken, the rest asked, before the formula is built. See
     // combat/damage-conditionals.mjs for why this had never applied.
-    const declaredDamage = await declaredDamageBonus(actor, weapon, { skipPrompt: skipDialog(event) });
+    const declaredDamage = await declaredDamageBonus(actor, weapon, {
+      skipPrompt: skipDialog(event),
+      // THE SAME FACTS THE ATTACK'S OWN CHECK CARRIES (3.668.0).
+      context: {
+        targetUuid: attackCheckConfig.targetUuid,
+        targetTypes: attackCheckConfig.targetTypes,
+        targetTraits: attackCheckConfig.targetTraits,
+        attackMode: attackCheckConfig.attackMode,
+        attackForm: attackCheckConfig.attackForm,
+        attackGroup: attackCheckConfig.attackGroup,
+        rangeBand: attackCheckConfig.rangeBand,
+        targetStates: attackCheckConfig.targetStates
+      }
+    });
+    // AMBUSH DICE ON THE HIT (3.668.0): asked when the cause needs a person
+    // (never with Shift), then the extras (Ghost Blade's AR, Ambusher's
+    // Patience's dice), and the once-per-round and once-per-creature marks.
+    let ambushDice = 0; let ambushAR = 0; const ambushLines = [];
+    if (ambush) {
+      const DialogV2 = globalThis.foundry?.applications?.api?.DialogV2;
+      let take = ambush.cause === "auto";
+      if (!take && !skipDialog(event) && DialogV2) {
+        take = Boolean(await DialogV2.confirm({
+          window: { title: `${ambush.declared.label} — ${targetActor.name}` },
+          content: `<p>Is <strong>${targetActor.name}</strong> flat-footed to you because of your own Stealth, Deception or ${ambush.declared.label} ability? Flanking alone does not count.</p>`,
+          rejectClose: false
+        }));
+      }
+      if (take) {
+        const encounterKey = game.combat?.id ?? "";
+        const ambushed = actor.getFlag?.(SYSTEM_ID, "ambushedCreatures") ?? {};
+        const already = Boolean(encounterKey) && (ambushed[encounterKey] ?? []).includes(targetActor.uuid);
+        const extras = ambushExtrasFor(declaredAmbushExtras(ambushCarriers), { level: actorLevel, undetected: ambush.undetected, alreadyAmbushed: already });
+        let extraDice = extras.dice; let spendsCreature = extras.spendsCreature;
+        for (const row of extras.asks) {
+          if (skipDialog(event) || !DialogV2) continue;
+          const yes = await DialogV2.confirm({
+            window: { title: `${row.label} — ${targetActor.name}` },
+            content: `<p>Had <strong>${targetActor.name}</strong> not detected you before this attack?</p>`,
+            rejectClose: false
+          });
+          if (yes) { extraDice += Number(row.dice) || 0; extras.labels.push(`${row.label}: +${Number(row.dice)}d6`); if (row.oncePerCreature) spendsCreature = true; }
+        }
+        ambushDice = ambush.count + extraDice;
+        ambushAR = extras.ar;
+        ambushLines.push(...extras.labels);
+        if (ambush.roundKey) await actor.setFlag(SYSTEM_ID, "ambushRound", ambush.roundKey);
+        if (spendsCreature && encounterKey) {
+          await actor.setFlag(SYSTEM_ID, "ambushedCreatures", { [encounterKey]: [...(ambushed[encounterKey] ?? []), targetActor.uuid] });
+        }
+      }
+    }
+    // ARMOUR RENDING BY DECLARATION (3.668.0; Inner Tempest's Challenge,
+    // Oaths of Vengeance and Fealty, Distant Honour): scoped like a
+    // conditional, against this Strike's facts. A one-shot (Retribution's
+    // "+2 AR") is spent by the Strike it joined. See combat/declared-rending.mjs.
+    const { declaredRending, declaredRendingRows } = await import("./declared-rending.mjs");
+    const { scalingFor } = await import("../conditionals.mjs");
+    const rending = declaredRending(
+      declaredRendingRows([...Array.from(actor.items ?? []), ...Array.from(actor.appliedEffects ?? actor.effects ?? [])], scalingFor(actor)),
+      {
+        targetUuid: attackCheckConfig.targetUuid,
+        targetTypes: attackCheckConfig.targetTypes,
+        targetTraits: attackCheckConfig.targetTraits,
+        attackMode: attackCheckConfig.attackMode,
+        attackForm: attackCheckConfig.attackForm,
+        attackGroup: attackCheckConfig.attackGroup,
+        rangeBand: attackCheckConfig.rangeBand,
+        targetStates: attackCheckConfig.targetStates
+      }
+    );
+    for (const { sourceId } of rending.spent) await actor.effects?.get?.(sourceId)?.delete?.();
     damageOutcome = await resolveWeaponDamage(actor, weapon, {
       damageRiders,
+      drWaived,
+      seriesLabel,
+      declaredRending: rending.total + ambushAR,
+      declaredRendingLines: [...rending.lines, ...(ambushAR ? ambushLines.filter((l) => /: AR /.test(l)) : [])],
       // THE HIT PATH ONLY. The miss branch below is a Strike that did
       // not land; there is nothing for the mark to add to.
       deathMarkBonus: mark.damageBonus,
@@ -2958,7 +3375,7 @@ export async function rollWeaponAttack(actor, weapon, {
         : versatileDamageType ?? (stoneFist || armouredFist.source ? weaponData.damageType : null),
       // FIST OF ROCK'S 1d6 (3.577.0): `resolveWeaponDamage` reads the
       // weapon's own die, which for the Unarmed Strike is 1d4.
-      damageOverride: stoneFist?.damage ?? extraBaseDiceOverride(weaponData.damage, extraBaseDice),
+      damageOverride: stoneFist?.damage ?? extraBaseDiceOverride(weaponData.damage, extraBaseDice + (brace?.extraDice ?? 0)),
       extraTypedDamage,
       sharedDamage,
       usedTwoHanded,
@@ -2968,14 +3385,15 @@ export async function rollWeaponAttack(actor, weapon, {
       ammoCoat: oilCoatOf(ammo),
       powerAttack: powerAttack && !isRanged,
       sneakDice,
-      precisionDice: precisionDice + compoundPrecision,
+      precisionDice: precisionDice + compoundPrecision + ambushDice,
       // EACH SOURCE NAMED (3.663.3; found in the block 34 live test): Pack
       // Attack's die was printed as "Precision Hunter — first damage against
       // your hunted prey", the only label the card had for precision dice.
       precisionParts: [
         precisionDice ? { dice: precisionDice, label: "Precision Hunter", why: "first damage against your hunted prey this round" } : null,
         Math.max(0, Math.floor(Number(extraPrecisionDice) || 0)) ? { dice: Math.max(0, Math.floor(Number(extraPrecisionDice) || 0)), label: "The action", why: "its own precision dice" } : null,
-        packDice ? { dice: packDice, label: "Pack Attack", why: "the target is within reach of at least two of its allies" } : null
+        packDice ? { dice: packDice, label: "Pack Attack", why: "the target is within reach of at least two of its allies" } : null,
+        ambushDice ? { dice: ambushDice, label: ambush.declared.label, why: `flat-footed to you${ambushLines.some((l) => /d6/.test(l)) ? `; ${ambushLines.filter((l) => /d6/.test(l)).join(", ")}` : ""}` } : null
       ].filter(Boolean),
       // THE BIGGER THEY ARE (3.377.0) needs the target's size, and this
       // damage function had no target reference at all — the only thing
@@ -2991,6 +3409,12 @@ export async function rollWeaponAttack(actor, weapon, {
       // damage step the fact the rule wants and nothing else.
       meleeDistance: isRanged ? null : distanceToTarget
     });
+    // AMBUSH DEALT (3.668.0): announced after the damage, for what follows
+    // it — Inner Tempest's Vanishing Retreat ("Trigger: you inflict Unseen
+    // Assault damage against a creature").
+    if (ambushDice > 0 && targetActor) {
+      Hooks.callAll("trgPrimeAmbushDealt", { actor, target: targetActor, weapon, dice: ambushDice, label: ambush.declared.label });
+    }
   } else if (strayStruckToken) {
     // THE STRAY SHOT LANDS (3.579.0; page 192, Graham's R2). The same
     // damage step a hit takes, aimed at the bystander instead:
@@ -3023,6 +3447,7 @@ export async function rollWeaponAttack(actor, weapon, {
       targetTokenOverride: strayStruckToken
     });
   }
+  if (hitDealtHook !== null) Hooks.off("trgPrimeDamageApplied", hitDealtHook);
 
   /*
    * A BLOW THAT WEARS A SPELL DOWN (3.608.0, R8). Stoneskin: "Each time you
@@ -3123,7 +3548,9 @@ export async function rollWeaponAttack(actor, weapon, {
   // an unmodified 1 is the same 1: its fumble check and table were rolled on
   // the first creature, and are not rolled again for each one after it.
   if (outcome.fumbleRisk && !presetDice) {
-    const fumbled = await rollFumbleCheck(actor, weapon, { dcHalved: outcome.fumbleDcHalved, weaponData, thrown: thrownAttack });
+    // CONFIRMED ALREADY (3.669.0) when Fortune's Reversal was asked and
+    // declined: the fumble check is not rolled twice.
+    const fumbled = await rollFumbleCheck(actor, weapon, { dcHalved: outcome.fumbleDcHalved, weaponData, thrown: thrownAttack, confirmed: fumbleConfirmedEarly });
     confirmedFumble = Boolean(fumbled);
 
     // SAVAGE JAW (Creature Codex, Chapter 3): "Trigger an enemy fumbles
@@ -3209,6 +3636,51 @@ export async function rollWeaponAttack(actor, weapon, {
   // separately so every existing caller is untouched.
   check.attackOutcome = outcome;
   check.attackFumbled = confirmedFumble;
+  // WHAT THE HIT DEALT THE TARGET (3.668.1), after its defences: 0 for a
+  // miss, a held blow, or damage that went to a bystander. Double Slice
+  // reads it for Twin and Backswing.
+  const hitTaken = outcome?.hits && strikeLands && !held ? Math.max(Number(damageOutcome?.taken ?? 0) || 0, hitDealt) : 0;
+  check.damageTaken = hitTaken;
+  check.damageType = hitTaken ? String(damageOutcome?.damageType ?? weaponData.damageType ?? "") : "";
+  // BACKSWING (3.668.1; Inner Tempest, Chapter 6): "Your multiple attack
+  // penalty is only considered after a successful attack (one that inflicts
+  // damage)." The count this Strike added is taken back. Focused Strike's
+  // roll-back above is the same step; the two together take it back once.
+  if (backswingRefund({
+    weaponSystem: weaponData, isReaction, offTurn, mapFrozen,
+    resolved: Boolean(outcome?.resolved), hits: Boolean(outcome?.hits) && strikeLands, held, damageTaken: hitTaken
+  })) {
+    await setSharedMapCount(actor, attackIndex);
+    await postCard(actor, `${weapon.name} — Backswing`, [
+      line(`No damage inflicted: this Strike does not count towards ${actor.name}'s multiple attack penalty.`)
+    ]);
+  }
+  // A DEFENCE THAT LASTED THIS ATTACK (3.666.0): Nimble Dodge, Evade,
+  // Impact Absorption — declared when targeted, spent by the attack they
+  // answered, damage included. See one-attack.mjs.
+  if (targetActor) {
+    const { consumeOneAttackEffects } = await import("./target-relay-workflow.mjs");
+    await consumeOneAttackEffects(targetActor, { kind: "weapon", attackerUuid: actor?.uuid ?? "" });
+  }
+  // A STRIKE RESOLVED (3.668.0): announced once the hit, the critical and
+  // the damage are settled, with what happened. `trgPrimeStrikeRolled` is
+  // too early for "on a hit" and "when it misses you": Inner Tempest's Flow
+  // Strike, Steel Viper, Echoing Crane, Form Reversal and Shadow Counter
+  // listen here. `held` is Black Lotus's blow, not yet landed.
+  if (targetActor) {
+    Hooks.callAll("trgPrimeStrikeResolved", {
+      attacker: actor, target: targetActor, weapon,
+      hits: Boolean(outcome?.hits) && strikeLands, critical: outcome?.critical?.severity ?? null,
+      melee: !isRanged, thrown: Boolean(thrownByDistance) || String(weaponData.attackMode ?? "").trim().toLowerCase() === "thrown",
+      isReaction: Boolean(isReaction), mapFrozen: Boolean(mapFrozen), optionLabel: String(optionLabel ?? ""),
+      held: Boolean(held), damageTaken: Number(damageOutcome?.taken ?? 0) || 0,
+      // THE ATTACK MISSED (3.670.0, found in review): resolved, and not a
+      // hit. `hits` is false too for an attack never resolved and for a hit
+      // that lands nothing (a grab, a carried spell), and neither is a miss
+      // to answer (Snake Stance, Waiting Blade), as offerMissedReactions reads it.
+      resolved: Boolean(outcome?.resolved), missed: Boolean(outcome?.resolved) && !outcome?.hits
+    });
+  }
   return check;
 }
 
@@ -3737,6 +4209,19 @@ export async function rollCriticalInjury(
           lines.push(line(`<em>Plant Resistance: ${split.gm.map((t) => t.label ?? t.key).join(", ")} applied only if appropriate to its anatomy — GM's call (not applied).</em>`));
         }
         tags = split.keep;
+      }
+    }
+    // A DECLARED BLEED BONUS (3.670.0; Tiger Stance). See combat/bleed-bonus.mjs.
+    // Not on an injury a creature deals itself (a poison's critical, a
+    // fumble's, a backlash's: found in review).
+    {
+      const { declaredBleedBonus, withBleedBonus } = await import("./bleed-bonus.mjs");
+      const bleed = targetActor === actor ? { value: 0, labels: [] }
+        : declaredBleedBonus([...Array.from(actor?.items ?? []), ...Array.from(actor?.appliedEffects ?? actor?.effects ?? [])]);
+      const raised = withBleedBonus(tags, bleed.value);
+      if (raised !== tags) {
+        tags = raised;
+        lines.push(line(`<em>${bleed.labels.join(", ")}: any bleed you inflict is increased by ${bleed.value}.</em>`));
       }
     }
     if (skeweringActive) lines.push(line(`<em>Skewering Strikes: any bleed from this ${severity} critical is increased by ${{ minor: 1, serious: 2, deadly: 3 }[String(severity).toLowerCase()] ?? 0}.</em>`));
@@ -4434,7 +4919,25 @@ function viciousStarves(actor, weapon) {
   return Boolean(defences?.resistances?.has?.("essence") || defences?.immunities?.has?.("essence"));
 }
 
-export async function rollFumbleCheck(actor, weapon, { dcHalved = false, weaponData = null, thrown = false } = {}) {
+export async function rollFumbleCheck(actor, weapon, { dcHalved = false, weaponData = null, thrown = false, confirmed = null } = {}) {
+  // THE CHECK ALREADY MADE (3.669.0): `confirmed` true or false when the
+  // Strike confirmed the fumble early, for Fortune's Reversal. False: it was
+  // averted, and its card already said so.
+  if (confirmed === false) return null;
+  // THE TABLE THE ATTACK WAS MADE ON (3.576.0): melee, missile, thrown or
+  // unarmed, by what was swung and whether it was thrown.
+  const swung = weaponData ?? weapon.system ?? {};
+  const category = fumbleTableFor(swung, { thrown });
+  if (confirmed !== true && !(await confirmAttackFumble(actor, weapon, { dcHalved, weaponData }))) return null;
+  return fumbleTableAfterConfirmation(actor, weapon, category);
+}
+
+/**
+ * THE FUMBLE CHECK ALONE (split out at 3.669.0): the DC, Vicious's automatic
+ * fumble, the check, and "Fumble Averted". Resolves true when the fumble
+ * stands. The Strike asks it early when Fortune's Reversal could answer.
+ */
+async function confirmAttackFumble(actor, weapon, { dcHalved = false, weaponData = null } = {}) {
   // THE WEAPON AS IT WAS SWUNG (3.575.0): metal bracers make an Unarmed
   // Strike a gauntlet attack, with the gauntlet's fumble DC. The caller
   // passes what it attacked with; the document is the fallback.
@@ -4480,10 +4983,6 @@ export async function rollFumbleCheck(actor, weapon, { dcHalved = false, weaponD
   // ETERNAL ESSENCE (Creature Codex; 3.631.0): "lowers all FDC by 1".
   const { abilityFumbleDCShift } = await import("../creature-ability-rules.mjs");
   const fumbleDC = Math.max(0, (dcHalved ? Math.floor(baseFumbleDC / 2) : baseFumbleDC) + abilityFumbleDCShift(Array.from(actor.items ?? [])));
-  // THE TABLE THE ATTACK WAS MADE ON (3.576.0): melee, missile, thrown or
-  // unarmed. It was chosen by attack mode alone, so the Unarmed table was
-  // never rolled and a thrown dagger fumbled on the melee one.
-  const category = fumbleTableFor(swung, { thrown });
 
   /*
    * VICIOUS MUST BE FED (3.618.0, C6 of block 37): "if its wielder has either
@@ -4509,8 +5008,18 @@ export async function rollFumbleCheck(actor, weapon, { dcHalved = false, weaponD
     await postCard(actor, "Fumble Averted", [
       line("The attack is merely a miss.")
     ]);
-    return null;
+    return false;
   }
+  return true;
+}
+
+/**
+ * After a fumble stands: Devotion, then the table. The table the attack was
+ * made on (3.576.0) is melee, missile, thrown or unarmed — chosen by attack
+ * mode alone it was never Unarmed, and a thrown dagger fumbled on the melee
+ * one.
+ */
+async function fumbleTableAfterConfirmation(actor, weapon, category) {
 
   // Devotion (Crusader, 1st): "Trigger: You fumble a check with either
   // a class skill or favoured weapon attack. ...expend 2 PP treat the
@@ -4638,7 +5147,7 @@ export async function rollFumbleCheck(actor, weapon, { dcHalved = false, weaponD
 async function resolveWeaponDamage(
   actor,
   weapon,
-  { critical = null, glancing = false, locationArmoured = true, armourAmended = false, distance = null, damageTypeOverride = null, damageOverride = null, usedTwoHanded = false, hitLocation = null, ammo = null, ammoName = "", ammoCoat = null, powerAttack = false, sneakDice = 0, precisionDice = 0, precisionParts = null, damageRiders = [], targetSize = null, meleeDistance = null, spinBonus = null, targetTokenOverride = null, deathMarkBonus = 0, declaredBonus = 0, declaredBonusLines = [], compoundFlat = 0, compoundFlatLines = [], extraTypedDamage = [], sharedDamage = null } = {}
+  { critical = null, glancing = false, locationArmoured = true, armourAmended = false, distance = null, damageTypeOverride = null, damageOverride = null, usedTwoHanded = false, hitLocation = null, ammo = null, ammoName = "", ammoCoat = null, powerAttack = false, sneakDice = 0, precisionDice = 0, precisionParts = null, damageRiders = [], targetSize = null, meleeDistance = null, spinBonus = null, targetTokenOverride = null, deathMarkBonus = 0, declaredBonus = 0, declaredBonusLines = [], compoundFlat = 0, compoundFlatLines = [], extraTypedDamage = [], sharedDamage = null, drWaived = false, seriesLabel = "", declaredRending = 0, declaredRendingLines = [] } = {}
 ) {
   /*
    * WHETHER THIS BLOW TREATS ITS TARGET AS UNARMOURED (3.585.0).
@@ -4741,6 +5250,11 @@ async function resolveWeaponDamage(
   // Strength of a two-handed larger weapon still applies below. Before this
   // only the Strength half was read, and the die never moved.
   // A Vital Strike's extra base dice arrive as an override and step too.
+  // TRAINED FISTS AT DAMAGE (3.667.0): the die (when nothing else set one),
+  // the flat "total unarmed damage", and what the blow counts as. See
+  // combat/unarmed-profile.mjs.
+  const unarmed = unarmedProfileFor(actor, weaponData);
+  if (!damageOverride && unarmed?.damage) damageOverride = unarmed.damage;
   const handAndAHalfDamage = usedTwoHanded && heldInTwoHandGrip(weapon)
     ? steppedCreatureDamage(damageOverride ?? weaponData.damage, 1)
     : null;
@@ -4963,6 +5477,11 @@ async function resolveWeaponDamage(
   // A COMPOUND STRIKE'S FLAT DAMAGE (3.640.0, Storm of Blades' +5 a blade).
   const compoundFlatTotal = Math.max(0, Math.trunc(Number(compoundFlat) || 0));
   if (compoundFlatTotal) formula += ` + ${compoundFlatTotal}`;
+  // "AN ADDITIONAL POINT OF TOTAL UNARMED DAMAGE" (3.667.0): total, not
+  // base, so it is added to the formula after the dice, like the compound
+  // flat above, and the card names it.
+  const unarmedFlat = Math.max(0, Math.trunc(Number(unarmed?.flat) || 0));
+  if (unarmedFlat) formula += ` + ${unarmedFlat}`;
 
   // Power Attack (Class, Chapter 5): "+2d8 damage... At BAB +12, 3d8
   // and at BAB +18 4d8" — same type as the base damage.
@@ -5074,6 +5593,7 @@ async function resolveWeaponDamage(
   }
   for (const said of Array.isArray(declaredBonusLines) ? declaredBonusLines : []) lines.push(line(said));
   for (const said of Array.isArray(compoundFlatLines) ? compoundFlatLines : []) lines.push(line(said));
+  if (unarmedFlat) lines.push(line(`<em>${unarmed.flatLabel}: total unarmed damage.</em>`));
   // SAID OUT LOUD, because dice that silently vanish read as a bug. The
   // player spent Sneak Attack or the once-per-round Precision Hunter die
   // on this strike and has to see where it went.
@@ -5209,10 +5729,11 @@ async function resolveWeaponDamage(
     // single combined pool split between the two sources.
     // Per Graham directly: ammunition Armour Rending adds to the
     // weapon's own rather than replacing it or taking the higher.
+    // …AND WHAT ABILITIES DECLARE (3.668.0), added as ammunition's is.
     const arValue = combinedArmourRending(
       armourRendingValue(weaponData.traits, weaponData.quality || "standard"),
       ammo
-    );
+    ) + Math.max(0, Number(declaredRending) || 0);
     // The Chapter 6 *weapon* trait, deliberately read through the weapon
     // namespace helper — Appendix 3's similar trait is now called
     // Penetrate and must never be picked up here.
@@ -5262,10 +5783,12 @@ async function resolveWeaponDamage(
       // …AND THE ACTOR'S OWN DECLARATION (3.625.0): Sanctioned Strike's
       // "against your Judged Subject", Consecrated Armament's "with that
       // weapon". See combat/magical-attacks.mjs.
-      || Boolean(magicalAttackSource(declaredMagicalAttacks(Array.from(actor.appliedEffects ?? actor.effects ?? [])), { targetUuid: targetActor?.uuid ?? "", weaponName: weapon?.name ?? "" }))
+      || Boolean(magicalAttackSource(declaredMagicalAttacks(Array.from(actor.appliedEffects ?? actor.effects ?? [])), { targetUuid: targetActor?.uuid ?? "", weaponName: weapon?.name ?? "", targetTraits: creatureTraits(targetActor?.system ?? {}) }))
       // …AND A TYPE CHOSEN THROUGH AN OPTION THAT SAYS SO (3.627.0): Essence
       // Attacks' "the attack remains magical".
-      || strikeTypeIsMagical(weaponData, declaredStrikeTypeOptions(Array.from(actor.appliedEffects ?? actor.effects ?? [])), effectiveDamageType, extractVersatileType(weaponData.traits));
+      || strikeTypeIsMagical(weaponData, declaredStrikeTypeOptions(Array.from(actor.appliedEffects ?? actor.effects ?? [])), effectiveDamageType, extractVersatileType(weaponData.traits))
+      // …AND TRAINED FISTS THAT "CLASS AS MAGICAL" (3.667.0, Powerful Fists at BAB 3).
+      || Boolean(unarmed?.magical);
     // PENETRATING STRIKES (Creature Codex; 3.631.0): "the creature's
     // indicated physical attacks treat all DR as half" — a MELEE attack
     // carrying the penetrating trait (a stat block prints "Claws +18
@@ -5274,12 +5797,24 @@ async function resolveWeaponDamage(
     // holds, which is how the Codex's rule and the weapon's share a word
     // without sharing a path. Halved the way the Swarm halves.
     const penetratingStrike = isMelee && weaponData.attackMode !== "thrown" && hasWeaponTrait(weaponData, "penetrating") && !penetrating;
-    const effectiveDrForHit = attackerIsSwarm || penetratingStrike ? swarmReducedDR(rendedDr) : rendedDr;
-    const effectiveNaturalArmourDr = attackerIsSwarm || penetratingStrike
-      ? swarmReducedDR(rendedNaturalArmourDr)
-      : rendedNaturalArmourDr;
+    // DR MET ONCE BY A SERIES (3.667.0): a later Strike of a Flurry of
+    // Blows on the creature the first already hit meets no DR again.
+    const effectiveDrForHit = drWaived ? 0
+      : attackerIsSwarm || penetratingStrike ? swarmReducedDR(rendedDr) : rendedDr;
+    const effectiveNaturalArmourDr = drWaived ? 0
+      : attackerIsSwarm || penetratingStrike
+        ? swarmReducedDR(rendedNaturalArmourDr)
+        : rendedNaturalArmourDr;
+    if (drWaived && (rendedDr > 0 || rendedNaturalArmourDr > 0)) {
+      lines.push(line(`<em>${seriesLabel || "This series"}: ${targetActor.name}'s DR was applied once, to the first hit — none again here.</em>`));
+    }
     if (penetratingStrike && (rendedDr > 0 || rendedNaturalArmourDr > 0)) {
       lines.push(line(`<em>Penetrating Strikes: ${targetActor.name}'s DR is halved — ${rendedDr + rendedNaturalArmourDr} → ${effectiveDrForHit + effectiveNaturalArmourDr}.</em>`));
+    }
+    // WHAT THE DECLARED AR WAS (3.668.0), so the card says why the armour
+    // gave less: "Challenge: AR 3".
+    if (declaredRending > 0 && (dr > 0 || naturalArmourDrValue > 0)) {
+      lines.push(line(`<em>${(declaredRendingLines ?? []).join("; ")} — added to the weapon's Armour Rending.</em>`));
     }
     if (attackerIsSwarm && (rendedDr > 0 || rendedNaturalArmourDr > 0)) {
       lines.push(line(
@@ -5310,7 +5845,7 @@ async function resolveWeaponDamage(
     const ghostTouchHere = (
       (Boolean(equippedEventRune([weapon], "ghostTouch")) && runeUsageAllows("ghostTouch", weaponUsage(weaponData)).ok)
       || runeGhostTouch(weapon)
-      || actorGhostTouch(actor)
+      || actorGhostTouch(actor, { magical: strikeIsMagical })
     ) && isIncorporeal(targetActor.system);
 
     // UNSTOPPABLE FORCE (3.659.0; block 28 R8): "bypasses all resistance
@@ -5353,7 +5888,9 @@ async function resolveWeaponDamage(
       magical: strikeIsMagical,
       // GHOST TOUCH against the incorporeal (3.618.0, C6).
       incorporealTouch: ghostTouchHere,
-      material: materialDefenceWord(struck.material),
+      // TRAINED FISTS "TREATED AS COLD IRON AND SILVER" (3.667.0): the
+      // weapon's own material first, then every one the training names.
+      material: [materialDefenceWord(struck.material), ...(unarmed?.materials ?? [])].filter(Boolean).join(", "),
       // A STRIKE IS TARGETED BY DEFINITION (3.548.0). Graham's ruling:
       // targeted is "any attack that requires an attack roll to hit
       // (weapon or spell)", and this is the path every attack roll in
@@ -5405,7 +5942,9 @@ async function resolveWeaponDamage(
       // What a death guard asks of the blow (3.627.0): its type, and whose level it is opposed by.
       damageTypes: [String(effectiveDamageType ?? "").trim().toLowerCase()].filter(Boolean),
       sourceLevel: Number(actor.system?.identity?.level ?? 0),
-      sourceName: actor.name
+      sourceName: actor.name,
+      sourceUuid: actor.uuid ?? "",
+      context: { kind: "strike", melee: isMelee, damageType: String(effectiveDamageType ?? ""), weaponName: weapon?.name ?? "" }
     });
     finalCase = damageResult?.case ?? null;
     finalHP = Number.isFinite(damageResult?.newHP) ? damageResult.newHP : null;
@@ -5814,7 +6353,7 @@ async function resolveWeaponDamage(
   return { total, taken: finalTaken, damageCase: finalCase, newHP: finalHP, targetActor, damageType: effectiveDamageType, drStoppedCritical };
 }
 
-export async function rollWeaponDamage(actor, weapon) {
+export async function rollWeaponDamage(actor, weapon, { preset = null } = {}) {
   const weaponData = weapon.system;
   // Sneak Attack, on the standalone damage path: this dialog has no
   // target in hand, so the flanked/flat-footed question is a tickbox
@@ -5843,8 +6382,12 @@ export async function rollWeaponDamage(actor, weapon) {
   });
   const versatileAlternate = extractVersatileType(weaponData.traits);
   // Versatile and any declared type option (3.627.0), as the strike asks.
-  const standaloneTypeChoices = strikeTypeChoices(
-    weaponData, declaredStrikeTypeOptions(Array.from(actor.appliedEffects ?? actor.effects ?? [])), versatileAlternate);
+  // A TYPE SET RATHER THAN OFFERED (3.670.0; Tiger and Wolf Stance), here
+  // as on the attack path: one is the type without a question.
+  const standaloneOptions = declaredStrikeTypeOptions(Array.from(actor.appliedEffects ?? actor.effects ?? []));
+  const standaloneForced = forcedStrikeTypes(weaponData, standaloneOptions);
+  const standaloneTypeChoices = standaloneForced.length ? standaloneForced : strikeTypeChoices(
+    weaponData, standaloneOptions, versatileAlternate);
   const showVersatile = standaloneTypeChoices.length > 1;
   const showHandAndAHalf = /\bhand\s*&\s*a\s*half\b/i.test(String(weaponData.traits ?? ""));
   // THE SAME x1.5 THE ATTACK PATH USES (3.575.0): a one-size-larger weapon
@@ -5852,7 +6395,19 @@ export async function rollWeaponDamage(actor, weapon) {
   const twoHandedHere = weaponData.attackMode === "melee" &&
     twoHandedStrengthApplies(weapon, actor.system?.identity?.size ?? "medium");
 
-  const result = await DialogV2.wait({
+  // A HELD BLOW LANDING (3.668.0; Black Lotus): set by the hit it came from,
+  // so nothing is asked. See combat/held-strike.mjs.
+  const result = preset ? {
+    critical: preset.critical || "",
+    // HALF DAMAGE (3.668.0; Steel Viper's "if you miss with an attack, roll
+    // the damage and deal it as half damage"), through the glancing halving.
+    glancing: Boolean(preset.glancing),
+    locationArmoured: preset.locationArmoured !== false,
+    armourAmended: Boolean(preset.armourAmended),
+    damageType: preset.damageType || null,
+    sneakAttack: false,
+    precisionHunter: false
+  } : await DialogV2.wait({
     window: { title: `${weapon.name} — Damage`, icon: "fa-solid fa-burst" },
     classes: ["trg-prime"],
     position: { width: 380 },
@@ -5940,15 +6495,20 @@ export async function rollWeaponDamage(actor, weapon) {
   // live test): Vowkeeper's class bonus was offered on a Strike's damage and
   // not on the sheet's own Damage roll — the second time a damage bonus
   // reached one of these two paths and not the other (see Fist of Rock).
-  const standaloneDeclared = await declaredDamageBonus(actor, weapon);
+  const standaloneDeclared = await declaredDamageBonus(actor, weapon, preset?.targetToken?.actor ? {
+    context: { targetUuid: preset.targetToken.actor.uuid, attackMode: weaponData.attackMode === "melee" ? "melee" : "ranged", attackGroup: String(weaponData.group ?? "").trim().toLowerCase() }
+  } : {});
   const damageResult = await resolveWeaponDamage(actor, weapon, {
     declaredBonus: standaloneDeclared.bonus,
-    declaredBonusLines: standaloneDeclared.lines,
+    declaredBonusLines: [...(preset?.note ? [preset.note] : []), ...standaloneDeclared.lines],
+    ...(preset?.targetToken ? { targetTokenOverride: preset.targetToken } : {}),
     critical: result.critical || null,
     glancing: Boolean(result.glancing),
     locationArmoured: Boolean(result.locationArmoured),
     armourAmended: Boolean(result.armourAmended),
-    damageTypeOverride: showVersatile ? result.damageType || null : (standaloneFist?.damageType ?? null),
+    damageTypeOverride: showVersatile ? result.damageType || null
+      : standaloneForced.length === 1 ? standaloneForced[0].type
+      : (standaloneFist?.damageType ?? null),
     damageOverride: standaloneFist?.damage ?? null,
     usedTwoHanded: twoHandedHere,
     sneakDice: result.sneakAttack ? sneakOfferDice : 0,
@@ -5963,12 +6523,15 @@ export async function rollWeaponDamage(actor, weapon) {
  * Stance" }` — every Strike it makes counts as Ghost Touch while that
  * stance's effect is up (or always, with no `whileStance`).
  */
-function actorGhostTouch(actor) {
+function actorGhostTouch(actor, { magical = false } = {}) {
   const effects = Array.from(actor?.appliedEffects ?? actor?.effects ?? []);
   for (const effect of effects) {
     if (effect?.disabled) continue;
     const raw = effect?.flags?.["trg-prime"]?.ghostTouch;
     if (!raw || typeof raw !== "object") continue;
+    // MAGICAL ATTACKS ONLY (3.664.0): Inner Tempest's Ethereal Sight — "any
+    // magical attacks you make against them inflict damage normally".
+    if (raw.magicalOnly === true && !magical) continue;
     const stance = String(raw.whileStance ?? "").trim().toLowerCase();
     if (!stance) return true;
     // THE STANCE'S OWN EFFECT, by name: Shadow Stance is made by its feat's
@@ -5995,6 +6558,15 @@ async function sharedRoll(shared, key, formula) {
   const roll = await new Roll(formula).evaluate();
   shared[slot] = roll.toJSON();
   return roll;
+}
+
+/**
+ * This Strike's unarmed profile (3.667.0), from the attacker's items and
+ * applied effects, or null. See combat/unarmed-profile.mjs.
+ */
+function unarmedProfileFor(actor, weaponSystem) {
+  const carriers = [...Array.from(actor?.items ?? []), ...Array.from(actor?.appliedEffects ?? actor?.effects ?? [])];
+  return unarmedProfile(weaponSystem, declaredUnarmedRows(carriers), Number(actor?.system?.combat?.bab?.total ?? 0));
 }
 
 function extraBaseDiceOverride(damage, extra = 0) {

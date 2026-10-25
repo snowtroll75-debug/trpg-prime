@@ -423,6 +423,23 @@
       </article>
     {{/if}}
 
+    {{#if runestone}}
+      <article class="ornate-card runestone-card">
+        <h2>Runestone</h2>
+        <label class="wide-field"><span>Stored rune</span>
+          <input type="text" name="system.runes" value="{{system.runes}}" placeholder="e.g. Flaming I"
+            {{#if runestone.cracked}}disabled{{/if}}
+            data-tooltip="One rune at a time, typed as the book prints it. A stored rune does nothing until it is moved onto an item with the Transfer Runes Crafting check (Chapter 4), which costs nothing from a runestone.">
+        </label>
+        {{#if runestone.traitsLabel}}
+          <p class="hint">Etched: the stone carries the rune's <strong>{{runestone.traitsLabel}}</strong> trait{{#if runestone.plural}}s{{/if}} until the rune is transferred off it.</p>
+        {{/if}}
+        {{#if runestone.cracked}}
+          <p class="hint"><i class="fa-solid fa-heart-crack"></i> Cracked by a Transfer Runes Partial: it can never store a rune again{{#if system.runes}}, though the rune it holds can still be transferred off{{/if}}.</p>
+        {{/if}}
+      </article>
+    {{/if}}
+
     {{#if isSpellbookContainer}}
       <article class="ornate-card spellbook-growth-card">
         <div class="section-heading">

@@ -208,6 +208,14 @@ async function rollDeclaredSave(actor, targetActor, spec, level, severity, damag
   // becomes petrified" — read from the values this save is about to lay.
   const reached = thresholdConditions(spec, Object.fromEntries(tags.map((t) => [t.key, Number(t.value) || 0])));
   for (const key of reached) if (!tags.some((t) => t.key === key)) tags.push({ key, value: null, label: conditionLabel(key) });
+  // A DECLARED BLEED BONUS (3.670.0; Tiger Stance): bleed this Strike lays
+  // is raised by the attacker's declaration. See combat/bleed-bonus.mjs.
+  {
+    const { declaredBleedBonus, withBleedBonus } = await import("./bleed-bonus.mjs");
+    const bleed = declaredBleedBonus([...Array.from(actor?.items ?? []), ...Array.from(actor?.appliedEffects ?? actor?.effects ?? [])]);
+    const raised = withBleedBonus(tags, bleed.value);
+    if (raised !== tags) { tags.splice(0, tags.length, ...raised); lines.push(`${bleed.labels.join(", ")}: the bleed is increased by ${bleed.value}.`); }
+  }
   const applied = await relayConditionTags(targetActor, tags, {}, () => applyConditionTags(targetActor, tags, {}));
   lines.push(`Applied to ${targetActor.name}: ${formatAppliedTags(applied)}.`);
   for (const tag of tags.filter((t) => t.conditionSave)) {

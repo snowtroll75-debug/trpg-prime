@@ -286,8 +286,51 @@ export const TIME_LADDERS = Object.freeze({
  * @param {string} actionKey
  * @returns {object|null}
  */
-export function timeLadder(actionKey) {
-  return TIME_LADDERS[actionKey] ?? null;
+export function timeLadder(actionKey, action = null) {
+  return TIME_LADDERS[actionKey] ?? declaredTimeLadder(action);
+}
+
+/**
+ * A LADDER AN ACTION DECLARES FOR ITSELF (3.666.0). The table above is keyed
+ * by core actions, so a module action could not offer "10 minutes, or 1
+ * minute at -2, 1 round at -5, 1 AP at -10" (Inner Tempest's Centred Balance)
+ * or "1 minute -2, 10 minutes, 1 hour +2" (Elemental Ward). An action may now
+ * carry `timeLadder: {options: [{key, label, modifier, apCost}], defaultKey,
+ * rowLabel, title, hint, button, icon}`; the same dialog and the same row
+ * read it. A core ladder of the same key still wins.
+ *
+ * Normalised, or null when the declaration is unusable: every rung needs a
+ * key, a label, a whole-number modifier and a cost, and the default must be
+ * one of them.
+ *
+ * @param {object|null} action
+ * @returns {object|null}
+ */
+export function declaredTimeLadder(action) {
+  const raw = action?.timeLadder;
+  if (!raw || typeof raw !== "object" || !Array.isArray(raw.options) || !raw.options.length) return null;
+  const options = [];
+  for (const o of raw.options) {
+    const key = String(o?.key ?? "").trim();
+    const label = String(o?.label ?? "").trim();
+    const modifier = Number(o?.modifier ?? 0);
+    const apCost = String(o?.apCost ?? "").trim();
+    if (!key || !label || !Number.isInteger(modifier) || !apCost) return null;
+    options.push(Object.freeze({ key, label, modifier, apCost }));
+  }
+  const defaultKey = String(raw.defaultKey ?? options[0].key);
+  if (!options.some((o) => o.key === defaultKey)) return null;
+  const name = String(action?.name ?? "This action");
+  return Object.freeze({
+    actionKey: String(action?.key ?? ""),
+    options: Object.freeze(options),
+    defaultKey,
+    rowLabel: String(raw.rowLabel ?? "Time spent"),
+    title: String(raw.title ?? `${name} — time spent`),
+    icon: String(raw.icon ?? "fa-solid fa-hourglass-half"),
+    button: String(raw.button ?? name),
+    hint: String(raw.hint ?? "How long do you spend? The modifier applies to the check.")
+  });
 }
 
 /**

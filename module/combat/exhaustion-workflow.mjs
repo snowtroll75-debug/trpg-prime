@@ -57,6 +57,14 @@ export async function rollExhaustionCheck(actor, { modifier = 0, activity = "", 
   // September 2026). Fortitude is what the page prints and what this
   // defaults to; the GM may call for Will instead, chosen in the prompt.
   const saveKey = exhaustionSave(save);
+  // IMMUNE TO NATURAL HEAT (3.664.0; Inner Tempest's Zenki): no check, no
+  // damage, no Fatigue from Extreme Heat.
+  const { heatEnvironmentImmunity } = await import("../creature-ability-rules.mjs");
+  const heatImmune = heatEnvironmentImmunity(Array.from(actor?.items ?? []), environment);
+  if (heatImmune) {
+    await postCard(actor, "Exhaustion Check — Extreme Heat", [`<p style="margin:2px 0">${actor.name} is immune to the harmful effects of mundane environmental heat (${heatImmune}) — no check, no damage, no Fatigue.</p>`]);
+    return null;
+  }
   const saveData = actor.system?.combat?.saves?.[saveKey];
   const saveLabel = saveKey === "will" ? "Will" : "Fortitude";
   const modifiers = [...(saveData?.checkModifiers ?? [

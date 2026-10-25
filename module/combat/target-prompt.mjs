@@ -206,3 +206,80 @@ export function selectedTargetIds(raw) {
   const rows = Array.isArray(raw) ? raw : [raw];
   return rows.filter((id) => typeof id === "string" && id.trim() !== "");
 }
+
+/**
+ * WHY THERE IS NOTHING TO PICK (3.666.3). The picker used to return "go on"
+ * in silence when the player's canvas held no tokens, and a spell attack then
+ * printed "No target selected — resolve the attack by hand" with no dialog
+ * ever shown. Graham, 22 October 2026: "Some attack spells are not asking for
+ * a target when casting … such as orb of fire." A player whose screen is on a
+ * scene with no tokens, or who plays with the game canvas switched off, sees
+ * no tokens to pick, and is now told so, with the way out.
+ *
+ * @param {object} args
+ * @param {boolean} args.canvasOff the client's "Disable Game Canvas" is set
+ * @param {string} args.sceneName the scene this client is viewing
+ * @param {string} args.activeName the scene the GM has made active
+ * @returns {string}
+ */
+export function noCandidatesText({ canvasOff = false, sceneName = "", activeName = "", otherLevels = [] } = {}) {
+  if (canvasOff) {
+    return "Your game canvas is switched off (Configure Settings → Disable Game Canvas), so there are no tokens to pick. "
+      + "Turn the canvas on to choose a target, or continue with none and resolve it by hand.";
+  }
+  const where = sceneName ? `the scene you are viewing (${sceneName})` : "the scene you are viewing";
+  // ANOTHER LEVEL OF THIS SCENE (3.666.3) is the likelier answer than another
+  // scene, so it is said first — and the dialog offers to view it.
+  if (otherLevels?.length) {
+    return `There are no tokens on ${where} to pick from. This scene's tokens are on another level: ${otherLevels.join(", ")}. `
+      + "View that level to choose a target, or continue with none and resolve it by hand.";
+  }
+  const elsewhere = activeName && sceneName && !sceneName.startsWith(activeName)
+    ? ` The GM's active scene is ${activeName}.` : "";
+  return `There are no tokens on ${where} to pick from.${elsewhere} `
+    + "Go to the scene where the creatures are to choose a target, or continue with none and resolve it by hand.";
+}
+
+/*
+ * SCENE LEVELS (Foundry V14; 3.666.3). Found live on 22 October 2026, logged
+ * in as Lewi: Oldwatch Main has three levels, every token stands on "Upper
+ * Signal Room", and a client that loads the scene opens on its default level,
+ * where Foundry draws none of them. Lewi's screen had no tokens at all, so the
+ * picker had nothing to offer and skipped itself, and Orb of Fire went off at
+ * nobody. Joe's screen was on the right level, which is why his Hurling found
+ * its target. These two rules say which level a client should be on.
+ */
+
+/**
+ * The level a client should switch to so the acting creature's own token is
+ * drawn, or null when it already is (or the scene has no levels).
+ *
+ * @param {object} args
+ * @param {Array<{actorId: string, id: string, level: string|null}>} args.tokens the viewed scene's token documents
+ * @param {string} args.actorId
+ * @param {string|null} [args.tokenId] the acting token, when the actor is a token's
+ * @param {string|null} args.viewedLevel the level this client is viewing
+ * @returns {string|null}
+ */
+export function levelForActor({ tokens = [], actorId = "", tokenId = null, viewedLevel = null } = {}) {
+  if (!viewedLevel) return null;
+  const own = tokens.find((t) => (tokenId ? t?.id === tokenId : t?.actorId === actorId) && t?.level);
+  if (!own || own.level === viewedLevel) return null;
+  return own.level;
+}
+
+/**
+ * The other levels of the scene that hold tokens, most tokens first.
+ *
+ * @param {Array<{level: string|null}>} tokens
+ * @param {string|null} viewedLevel
+ * @returns {Array<{level: string, count: number}>}
+ */
+export function levelsWithTokens(tokens = [], viewedLevel = null) {
+  const counts = new Map();
+  for (const t of tokens ?? []) {
+    if (!t?.level || t.level === viewedLevel) continue;
+    counts.set(t.level, (counts.get(t.level) ?? 0) + 1);
+  }
+  return Array.from(counts, ([level, count]) => ({ level, count })).sort((a, b) => b.count - a.count);
+}

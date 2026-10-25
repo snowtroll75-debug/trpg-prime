@@ -22,14 +22,13 @@
  * across both, only one critical survives, a fumble anywhere spoils
  * everything, and the counter moves by two at the end.
  *
- * THE ONE RETROACTIVE CASE IS AFFORDABLE. Three of the four resolve
- * forwards — the second swing knows what the first did — but "if either
- * attack fumbles, the other automatically misses" can strike backwards,
- * when the SECOND swing fumbles after the first has already hit. That
- * would be a problem if damage were rolled inline. It is not: damage in
- * this system is a button on the card, pressed afterwards, so a first
- * swing corrected to a miss has cost nothing yet. The pair's own card
- * says so plainly and is the one the player acts on.
+ * THE ONE RETROACTIVE CASE. Three of the four resolve forwards — the
+ * second swing knows what the first did — but "if either attack fumbles,
+ * the other automatically misses" can strike backwards, when the SECOND
+ * swing fumbles after the first has already hit. Damage is applied inline
+ * now (it was a button when this was written), so since 3.668.2 the
+ * workflow rolls the second swing while the first waits, before the first
+ * one's damage, and a fumble there voids it.
  */
 
 import { itemRequiredHands } from "../held-items.mjs";

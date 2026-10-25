@@ -29,6 +29,11 @@ import { TRGPartySheet } from "../module/sheets/party-sheet.mjs";
 import { registerPartySocket } from "../module/party-socket.mjs";
 import { registerTargetRelay } from "../module/combat/target-relay-workflow.mjs";
 import { registerGMAuthorisation } from "../module/combat/gm-authorisation.mjs";
+import { registerDefenceOffers } from "../module/combat/defence-offer-workflow.mjs";
+import { registerOwnLevelView } from "../module/combat/level-view-workflow.mjs";
+import { registerAttackRerollOffers } from "../module/combat/attack-reroll-workflow.mjs";
+import { registerFocusExtraTopUps } from "../module/focus-extra-workflow.mjs";
+import { registerConvictionNow } from "../module/dice/conviction-now-workflow.mjs";
 import { registerPerilHooks } from "../module/peril-workflow.mjs";
 import { promptEnvironmentalDamage, registerWeatherConfig } from "../module/environment-workflow.mjs";
 import { TRGItemSheet } from "../module/sheets/item-sheet.mjs";
@@ -108,6 +113,8 @@ import { registerAuraHooks } from "../module/creature-aura-workflow.mjs";
 import { registerDistanceTriggers } from "../module/magic/distance-trigger-workflow.mjs";
 import { registerInscribedRunes } from "../module/magic/inscribed-rune-workflow.mjs";
 import { registerEmanations } from "../module/magic/emanation-workflow.mjs";
+import { registerPlacedLights } from "../module/magic/placed-light-workflow.mjs";
+import { registerWardZones } from "../module/combat/ward-zone-workflow.mjs";
 import { registerHazardTerrain } from "../module/magic/hazard-terrain-workflow.mjs";
 import { registerEntryChecks } from "../module/magic/entry-check-workflow.mjs";
 import { registerStasis } from "../module/magic/stasis-workflow.mjs";
@@ -271,6 +278,11 @@ Hooks.once("init", () => {
   // you are inside it (3.426.0) — the same Region machinery auras use,
   // registered beside them for that reason. See magic/emanation.mjs.
   registerEmanations();
+  // A WARD ZONE (3.666.0) — see module/combat/ward-zone-workflow.mjs.
+  registerWardZones();
+  // A PLAYER'S PLACED LIGHT, MOVED OR REMOVED BY THE ACTING GM (3.669.0;
+  // Inner Tempest's Foxfire) — see module/magic/placed-light-workflow.mjs.
+  registerPlacedLights();
   // HAZARDOUS TERRAIN, beside the emanation sweep and asking a different
   // question of a different hook — see hazard-terrain-workflow.mjs.
   registerHazardTerrain();
@@ -879,6 +891,17 @@ Hooks.once("ready", async () => {
   registerTargetRelay();
   // THE GM'S SAY-SO FOR AN OFF-TURN STRIKE (3.646.0) — see gm-authorisation.mjs.
   registerGMAuthorisation();
+  // A REACTION TO BEING ATTACKED, ASKED BEFORE THE ROLL (3.666.1) — see
+  // combat/defence-offer.mjs: Nimble Dodge, and whatever a module registers.
+  registerDefenceOffers();
+  // A PLAYER'S SCREEN ON THEIR OWN TOKEN'S LEVEL (3.666.3) — see
+  // combat/level-view-workflow.mjs: a V14 scene opens on its default level.
+  registerOwnLevelView();
+  registerAttackRerollOffers();
+  registerFocusExtraTopUps();
+  // THE CONVICTION BONUS, ASKED ON THE CARD (3.667.2): the buttons and the
+  // answer from another screen. See dice/conviction-now-workflow.mjs.
+  registerConvictionNow();
   // A SUPPRESSED HAUNT'S CLOCK (3.629.0): re-armed when game time passes it.
   registerPerilHooks();
   // CODEX INHERITANCE (3.631.0): every Codex ability copy takes its entry's

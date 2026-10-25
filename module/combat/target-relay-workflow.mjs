@@ -188,6 +188,28 @@ export async function createEffectsOn(target, effects, applyDirect) {
   return [];
 }
 
+/**
+ * THE DEFENDER'S ONE-ATTACK EFFECTS THAT THIS ATTACK SPENT (3.666.0) — see
+ * one-attack.mjs. Called by every attack against a creature once the attack
+ * has resolved; relayed to the GM when this client does not own the
+ * defender. Returns the ids removed. A failure to relay is announced, not
+ * swallowed: the bonus would otherwise linger for a second attack.
+ */
+export async function consumeOneAttackEffects(target, event, { direct = false } = {}) {
+  if (!target) return [];
+  const { oneAttackEffectIds } = await import("./one-attack.mjs");
+  const ids = oneAttackEffectIds(target.effects, event);
+  if (!ids.length) return [];
+  if (direct || !needsRelay(target)) {
+    await target.deleteEmbeddedDocuments("ActiveEffect", ids);
+    return ids;
+  }
+  const reply = await ask(RELAY_ACTIONS.ONE_ATTACK, target, { event });
+  if (reply.ok) return reply.result ?? [];
+  await announceRelayFailure(target, null, reply.reason, "A defence that lasts one attack could not be removed");
+  return [];
+}
+
 /** Treat Wounds and the other Medicine card buttons. */
 /**
  * Set (or clear) an attached light on a token the asker may not own.
@@ -320,6 +342,22 @@ export async function relaySpellRune(target, itemId, update, applyDirect) {
   return { ok: Boolean(reply.ok), reason: reply.reason };
 }
 
+/**
+ * A creature dropped to a stated destination below zero, through the GM when
+ * it is not ours (3.666.1). A failure is said on a card, never thrown, so the
+ * spell's card still posts.
+ */
+export async function relayDyingAt(target, finalHP, options, applyDirect) {
+  if (!needsRelay(target)) return applyDirect();
+  const reply = await ask(RELAY_ACTIONS.DYING_AT, target, {
+    finalHP: Math.trunc(Number(finalHP) || 0),
+    isCritical: options?.isCritical === true
+  });
+  if (reply.ok) return reply.result;
+  await announceRelayFailure(target, `a drop to ${finalHP} HP`, reply.reason, "Not applied");
+  return { case: "relay-failed", newHP: Number(target?.system?.resources?.hp?.value ?? 0), relayError: reply.reason };
+}
+
 export async function relayItemHp(target, itemId, value, applyDirect) {
   if (!needsRelay(target)) return applyDirect();
   const reply = await ask(RELAY_ACTIONS.ITEM_HP, target, { itemId, value });
@@ -344,6 +382,13 @@ async function liveDeps() {
     toggleStatus: (target, status, options) => target.toggleStatusEffect(status, options),
     setHpZero: (target) => target.update({ "system.resources.hp.value": 0 }),
     createEffects: (target, effects) => target.createEmbeddedDocuments("ActiveEffect", effects),
+    // The GM owns the target, so `enterDyingAt` writes rather than asks again.
+    enterDyingAt: async (target, finalHP, options) => {
+      const { enterDyingAt } = await import("./dying-workflow.mjs");
+      return enterDyingAt(target, finalHP, options);
+    },
+    // `direct` STOPS THE RELAY RECURSING — the GM already owns the target.
+    consumeOneAttack: async (target, event) => consumeOneAttackEffects(target, event, { direct: true }),
     applyHealing: async (target, amount, options) => {
       const { healActor } = await import("../magic/spell-effects.mjs");
       // `direct` STOPS THE RELAY RECURSING. The GM already owns the
@@ -392,6 +437,13 @@ async function liveDeps() {
       if (kind === "apWatch") {
         const { armApSpendWatch } = await import("./critical-ap-watch.mjs");
         await armApSpendWatch(target, entry);
+        return true;
+      }
+      if (kind === "soulDestroyed") {
+        // Built here from the two fields read, never from a record sent whole.
+        const { SOUL_DESTROYED_FLAG, soulDestroyedRecord } = await import("../magic/resurrection.mjs");
+        await target.setFlag("trg-prime", SOUL_DESTROYED_FLAG,
+          soulDestroyedRecord(String(entry.spellName ?? ""), Number(entry.worldTime) || 0));
         return true;
       }
       if (kind === "air") {

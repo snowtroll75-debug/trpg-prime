@@ -11,6 +11,8 @@
  * advances the counter afterwards.
  */
 
+import { hasWeaponTrait } from "./weapon-chapter6-traits.mjs";
+import { attackCountOf, setAttackCount } from "./turn-records.mjs";
 import { hasFreeHandAvailable } from "../held-items.mjs";
 import { hasQuickLoadTrait, needsReloading } from "./reload.mjs";
 import { spendActionCost } from "./action-points-workflow.mjs";
@@ -129,7 +131,8 @@ export async function strikePlan(actor, weapon, featKey, { extraModifiers = [], 
   const plan = mapPlanFor(entry?.map);
   const { rollWeaponAttack } = await import("./attack-workflow.mjs");
 
-  const before = Number(actor.getFlag(SYSTEM_ID, "attackCount") ?? 0);
+  // COMBAT ONLY (3.666.0) — see turn-records.mjs.
+  const before = attackCountOf(actor);
   const checks = [];
 
   // NO WEAPON, NO STRIKE — and said, not thrown. `meleeWeapon` returns
@@ -167,9 +170,16 @@ export async function strikePlan(actor, weapon, featKey, { extraModifiers = [], 
   // twice. And a Strike the workflow REFUSED — no ammunition, no reach,
   // no free hand — rolled nothing and owes nothing. See `ladderOwed`.
   const resolved = checks.filter(Boolean).length;
-  const owed = ladderOwed(plan.advanceBy, resolved);
+  // BACKSWING (3.668.1; Inner Tempest, Chapter 6): "Your multiple attack
+  // penalty is only considered after a successful attack (one that inflicts
+  // damage)." The feat's cost is the action's, as above: owed when one of
+  // its Strikes inflicted damage, nothing when none did.
+  const counted = weapon && hasWeaponTrait(weapon.system, "backswing")
+    ? checks.filter((c) => c && Number(c.damageTaken) > 0).length
+    : resolved;
+  const owed = ladderOwed(plan.advanceBy, counted);
   if (owed > 0) {
-    await actor.setFlag(SYSTEM_ID, "attackCount", before + owed);
+    await setAttackCount(actor, before + owed);
   }
   // AND THE CARD SAYS SO. A feat that charged its AP and produced no
   // Strike is the most confusing possible outcome; the warning that
@@ -482,7 +492,6 @@ export async function runKnifeFlurry(actor) {
   // THE PENALTY CLIMBS. "This action has the attack trait and is
   // therefore subject to your multiple attack penalty" — subject to it
   // means it is one of your attacks, so it advances the ladder too.
-  const before = Number(actor.getFlag(SYSTEM_ID, "attackCount") ?? 0);
-  await actor.setFlag(SYSTEM_ID, "attackCount", before + 1);
+  await setAttackCount(actor, attackCountOf(actor) + 1);
   return true;
 }

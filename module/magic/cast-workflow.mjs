@@ -1,3 +1,4 @@
+import { attackCountOf, setAttackCount } from "../combat/turn-records.mjs";
 import { TRGCheck } from "../dice/check.mjs";
 import { innateAttackFor, innateSaveFor } from "./innate-printed.mjs";
 import { highMagicFumble, highMagicHeightens, highMagicSaveStep } from "./high-magic.mjs";
@@ -27,6 +28,7 @@ import { rollCriticalInjury } from "../combat/attack-workflow.mjs";
 import { resolveAgainstDefences } from "../combat/damage-workflow.mjs";
 import { drainBracers } from "../bracers-workflow.mjs";
 import { innateCastLevel } from "../item-innate-level.mjs";
+import { innateAbilityKey, innateLevelRefusal, innatePPAllowanceOf } from "../focus-declarations.mjs";
 import { spellDamageSource, spellSourceTraits } from "./spell-source.mjs";
 import { divineDamageMark } from "../regeneration-rules.mjs";
 import { damageScope, damageScopeLine, inDamageScope } from "./damage-scope.mjs";
@@ -93,7 +95,7 @@ import { featSlotSpellcraftAbility } from "./feat-casting.mjs";
 import {
   aggregateWarpSelection, applyFreeWarp, applyWarpDiscount, buildWarpChooser, emptyWarp,
   mergeWarpSelections,
-  innateWarpBudget, innateWarpFits
+  innateWarpBudget, innateWarpFits, innateCantripOf
 } from "./spell-warp.mjs";
 import { conjuredCreatureLevel, conjuredCreatureNote } from "./conjured-creature.mjs";
 import { applyPowerPointCost } from "../power-points-workflow.mjs";
@@ -663,6 +665,21 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   if (innateTracked && itemUsesRemaining(spell) <= 0) {
     ui.notifications.warn(`${spell.name}: no innate uses remain today.`);
     return null;
+  }
+  // THE INNATE PP LIMIT (3.664.0; Graham, 20 Oct 2026): an innate spell
+  // cannot be cast while its base PP is above the level it is cast at.
+  // Characters and companions only — a stat block's spell-likes are the
+  // creature's own. Refused before anything is committed.
+  if (isInnate) {
+    const gateLevel = innateCastLevel(spell, Array.from(actor.items ?? []), Number(system.identity?.level ?? 0)).level;
+    const refusal = innateLevelRefusal({
+      actorType: actor.type, basePP: spellData.ppCost, castLevel: gateLevel, isItemCast,
+      allowance: innatePPAllowanceOf(spell)
+    });
+    if (refusal) {
+      ui.notifications.warn(`${spell.name}: ${refusal}.`);
+      return null;
+    }
   }
   /*
    * AN ITEM'S REST BETWEEN USES (3.616.0, Graham's R11 of block 36). Air
@@ -1271,7 +1288,13 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // Metamagic is a learned caster's feat set — an innate spell-like warps
   // automatically and has nothing to pay a feat with.
   const { metamagicRodsOf } = await import("../rod-powers.mjs");
-  const mmOptions = (isCantrip || isInnate) ? [] : buildMetamagicOptions({
+  // …UNLESS THE INNATE SPELL TAKES IT (3.670.0; Inner Tempest's Mystic,
+  // B6-8: "Metamagic Feats where compatible with innate spells"). A spell
+  // flagged `innateMetamagic` offers the caster's Metamagic feats, paid from
+  // its free innate budget below rather than from the pool. Never a cantrip
+  // and never an item's spell.
+  const innateMetamagic = isInnate && !isItemCast && !isCantrip && !innateCantripOf(spellData) && spell.getFlag?.(SYSTEM_ID, "innateMetamagic") === true;
+  const mmOptions = (isCantrip || (isInnate && !innateMetamagic)) ? [] : buildMetamagicOptions({
     // THE METAMAGIC RODS HELD (3.616.0, R12) — see rod-powers.mjs.
     rods: metamagicRodsOf(Array.from(actor.items ?? [])),
     featNames: Array.from(actor.items ?? [])
@@ -1281,12 +1304,15 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       .map((e) => e.getFlag?.(SYSTEM_ID, "elementalSpellType"))
       .filter(Boolean),
     spellData,
-    basePP,
+    // A MARKED INNATE SPELL'S FEATS ARE PRICED ON ITS PRINTED COST (3.670.0,
+    // found in review): Temporal Extension's half of 0 was free.
+    basePP: innateMetamagic ? Math.max(0, Number(spellData.ppCost ?? 0)) : basePP,
     casterLevel,
     tradition,
     // Echoing Performance needs the number, not the word "Cha".
     charisma: Number(system.attributes?.charisma?.total ?? 0)
-  });
+  // Economic Spell lowers a pool cost a marked innate spell does not have.
+  }).filter((o) => !(innateMetamagic && o.kind === "economic"));
   // INNATE CASTS NOW CHOOSE THEIR WARPS, FREE, UP TO THE CHARACTER'S
   // LEVEL (3.332.0, Graham's ruling 18 Aug 2026).
   //
@@ -1331,6 +1357,12 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     if (form === null || form === undefined) return null;
     warp = aggregateWarpSelection(warpSpell.system?.warps, form);
     warpPP = warp.ppSpent;
+    // Read here, before the innate budget is checked (3.670.0): a marked
+    // innate spell's Metamagic feats are spent from that budget.
+    mm = aggregateMetamagicSelection(mmOptions, form, {
+      damageFormula: String(spellData.damage?.formula ?? ""),
+      baseDamage: String(spellData.baseDamage ?? "")
+    });
 
     // THE INNATE BUDGET IS SPENT HERE AND CHARGED NOWHERE.
     //
@@ -1340,15 +1372,16 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     // floors an innate cast at 0, so leaving `warpPP` non-zero would
     // charge Power Points a creature does not have and refuse the cast.
     if (isInnate) {
-      const fit = innateWarpFits(warp, innateBudget);
+      const fit = innateWarpFits(warp, innateBudget, { countRaw: innateMetamagic, metamagicPP: mm.ppSpent });
       if (!fit.ok) {
         ui.notifications.warn(
           `${spell.name}: ${fit.spent} PP of warping chosen, ${fit.over} more than your free budget of ${fit.budget} (${innateAt.itemName ? innateLevelWord : "your level"}).`
         );
         return null;
       }
-      if (fit.spent) warp.notes.push(`Free: ${fit.spent} of ${fit.budget} PP innate warping (${innateAt.itemName ? innateLevelWord : "your level"})`);
-      warpPP = warp.rawPP;
+      if (fit.spent) warp.notes.push(`Free: ${fit.spent} of ${fit.budget} PP innate warping${innateMetamagic && warp.rawPP ? " and Metamagic" : ""} (${innateAt.itemName ? innateLevelWord : "your level"})`);
+      // The Metamagic box was spent from the budget, not the pool (3.670.0).
+      warpPP = innateMetamagic ? 0 : warp.rawPP;
     }
     // Menora (Chapter 2): the chosen healing spell "costs one less PP to
     // Warp". Recorded on the granted spell itself at pick time, so it
@@ -1428,10 +1461,6 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
         warpPP = discounted;
       }
     }
-    mm = aggregateMetamagicSelection(mmOptions, form, {
-      damageFormula: String(spellData.damage?.formula ?? ""),
-      baseDamage: String(spellData.baseDamage ?? "")
-    });
   }
   const warpMods = warp.mods;
 
@@ -1565,8 +1594,10 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // Component Savant (Chapter 5 metamagic): a queued one-cast component
   // swap costs +1 PP, folded into the warp bucket for spend maths.
   const componentSwap = actor.getFlag(SYSTEM_ID, "componentSwapNext") ?? null;
+  // A marked innate spell's feats were spent from its free budget above
+  // (3.670.0, found in review: they were charged to the pool).
   const metamagicPP = (componentSwap ? Math.max(0, Number(componentSwap.pp ?? 1)) : 0) +
-    mm.ppSpent;
+    (innateMetamagic ? 0 : mm.ppSpent);
 
   // Signature Spell (Class, Chapter 5): "when you Warp this spell, the
   // total PP cost is reduced by 1" — only when something was actually
@@ -2406,8 +2437,17 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // as `check`, is what lets the shared resolution below treat both callers
   // identically. The old innate path rolled almost this exact check and
   // then threw it away, which is why its card said "Awaiting Difficulty".
+  // ONE SPELL'S OWN ABILITY (3.664.0): `castingAbilityOverride` on an innate
+  // spell ("Wisdom is your magical ability score for this spell").
+  const innateAbilityAttr = isInnate
+    ? innateAbilityKey(spell, system.magic?.castingAbility, system.attributes ?? {})
+    : system.magic?.castingAbility;
+  // THE ABILITY THIS CAST IS MADE WITH (3.666.1): the innate spell's own, or
+  // the Spellcraft swap above, or the sheet's. A damage row that adds "your
+  // magical ability score" (Hurling) adds this one.
+  const castAbilityKey = String((isInnate ? innateAbilityAttr : (swapAbility ?? system.magic?.castingAbility)) ?? "");
   const innateAbility = Number(
-    system.attributes?.[system.magic?.castingAbility]?.total ??
+    system.attributes?.[innateAbilityAttr]?.total ??
       system.magic?.castingAbilityScore ??
       0
   );
@@ -2516,6 +2556,18 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     if (firstTarget && attackTermsAgainst(firstTarget, actor).advantage) castContext.bias = "advantage";
   }
 
+  // THE DEFENDERS' REACTIONS, BEFORE THE ATTACK IS ROLLED (3.666.1). A spell
+  // attack's roll is this check, so each marked target's player is asked
+  // here, before it — Nimble Dodge's "+2 against the triggering attack" was
+  // otherwise only ever declared after the number was on the table. See
+  // combat/defence-offer.mjs.
+  if (isAttack) {
+    const { offerDefences } = await import("../combat/defence-offer-workflow.mjs");
+    for (const defender of new Set(Array.from(game.user?.targets ?? []).map((t) => t.actor).filter(Boolean))) {
+      await offerDefences(actor, defender, { kind: "spell", what: spell.name });
+    }
+  }
+
   const check = noCheckCantrip
     ? null
     : ritual?.check
@@ -2539,6 +2591,9 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
         ? await TRGCheck.roll({
           actor,
           label: `${spell.name} — Innate Attack`,
+          // AN INNATE SPELL'S ATTACK, BY NAME (3.669.0), for a conditional
+          // scoped to innate spells (Inner Tempest's Elemental Attunement).
+          actionKey: "innateSpellAttack",
           subtitle: `Innate spell-like — 0 PP, cast at ${innateLevelWord} with up to ${innateBudget} PP of free warping${tradition ? `, ${tradition}` : ""}. Innate attack +${innateAttackHere.value} (${innateAttackHere.from ? `${innateAttackHere.from}'s attack bonus` : innateAttackHere.printed ? "printed" : "magical ability + level"})`,
           type: "attack",
           ...castContext,
@@ -3195,7 +3250,9 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // the third, and a third copy of "which score is the casting ability" is
   // three places for it to drift.
   const castingAbility = Number(
-    system.attributes?.[system.magic?.castingAbility]?.total ??
+    system.attributes?.[isInnate
+      ? innateAbilityKey(spell, system.magic?.castingAbility, system.attributes ?? {})
+      : system.magic?.castingAbility]?.total ??
       system.magic?.castingAbilityScore ??
       0
   );
@@ -3280,7 +3337,7 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       // A caster's own declared bonus for this spell's traits (3.627.0) — not
       // on an item's spell, which is not "your own spellcasting".
       declaredBonuses: [...(isItemCast ? [] : declaredSpellDCBonuses(
-        Array.from(actor.appliedEffects ?? actor.effects ?? []), spellData.traits)),
+        Array.from(actor.appliedEffects ?? actor.effects ?? []), spellData.traits, { innate: isInnate })),
         // THE CARRYING STRIKE'S CRITICAL (3.655.0, block 22 R5): "+1 per level of severity".
         ...(Number(carried?.dcBonus) > 0 ? [{ label: `${carried.label ?? "Carried"} (${carried.severity} critical)`, value: Number(carried.dcBonus) }] : [])]
     });
@@ -4111,7 +4168,11 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       splashSaveDC: nominalSaveDC,
       // THE ROD OF ACCURACY'S ITEM BONUS (3.616.0, R14), stacked with the
       // attack pool so an item bonus from elsewhere is not paid twice.
-      extraAttackRows: accuracyAttackRow ? [accuracyAttackRow] : []
+      extraAttackRows: accuracyAttackRow ? [accuracyAttackRow] : [],
+      // "+ MAGICAL ABILITY SCORE" (3.666.1, Hurling): the ability this cast's
+      // Spellcraft rolled off, the swap included, so the damage adds the same
+      // score the card's check named.
+      castingAbilityKey: castAbilityKey
     });
   } else if (outcome.cast && !damageChoiceRefused && (effDefence ?? spellData.defence) && saveDC != null && !touchMissed
       && !spellDefersItsSave(spellData.effects)
@@ -5060,7 +5121,7 @@ async function resolveSpellVolley(actor, spell, check, lines, clMods = null, war
   // FROZEN BEFORE THE FIRST RAY, so every ray rolls at the same penalty —
   // "you don't increase your multiple attack penalty until after your spell
   // attacks have been resolved."
-  const mapBefore = Number(actor.getFlag?.(SYSTEM_ID, "attackCount") ?? 0);
+  const mapBefore = attackCountOf(actor);
   lines.push(line(volleyOpeningLine(spell.name, rays, picked.length)));
 
   const results = [];
@@ -5084,7 +5145,7 @@ async function resolveSpellVolley(actor, spell, check, lines, clMods = null, war
   const { spellCountsTowardMAP: counts } = await import("../combat/attack.mjs");
   const advance = volleyMapAdvance(results.length);
   if (advance && counts(spell.system)) {
-    await actor.setFlag?.(SYSTEM_ID, "attackCount", mapBefore + advance);
+    await setAttackCount(actor, mapBefore + advance);
   }
   lines.push(line(volleyClosingLine(results.length, mapBefore)));
 
@@ -5156,7 +5217,9 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
   // handed in — the number a save against this spell would have used.
   splashSaveDC = null,
   // Bonus rows from the cast itself — the Rod of Accuracy (3.616.0).
-  extraAttackRows = []
+  extraAttackRows = [],
+  // The ability this cast rolled off (3.666.1) — see spell-damage-ability.mjs.
+  castingAbilityKey = ""
 } = {}) {
   const spellData = spell.system;
   // THE CHOSEN TYPE, WHEN THE CAST MADE A CHOICE (3.603.0). The same
@@ -5180,10 +5243,12 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
   // AND THE CASTER'S OWN ABILITY, where the row says so (3.611.0, R10) —
   // Guiding Stone's "2d6 plus your melee damage modifier". See
   // magic/spell-damage-ability.mjs.
+  // …OR THE ABILITY THE CAST WAS MADE WITH (3.666.1): Hurling's "1d6 +
+  // magical ability score", from the key castSpell resolved.
   const { withDamageAbility } = await import("./spell-damage-ability.mjs");
   const damageFormula = withDamageAbility(
     addDice(addDice(warpedRowExtra(dmg.formula, warpMods), clMods?.damageDice), warpMods?.damageDice),
-    dmg, actor.system ?? {}).formula;
+    dmg, actor.system ?? {}, castingAbilityKey).formula;
   const warpPersistent = Number(warpMods?.persistent ?? 0);
   const targetActor = targetOverride ?? Array.from(game.user?.targets ?? [])[0]?.actor ?? null;
   if (!targetActor) {
@@ -5316,7 +5381,7 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
   // the turn), so Strike-then-bolt and bolt-then-Strike both ladder.
   // FROZEN FOR A VOLLEY. `mapCount` is the count as it stood before the first
   // ray, so every ray in one cast rolls at the same penalty.
-  const mapBefore = mapCount ?? Number(actor.getFlag?.(SYSTEM_ID, "attackCount") ?? 0);
+  const mapBefore = mapCount ?? attackCountOf(actor);
   const spellMap = spellCountsTowardMAP(spellData) ? mapPenalty(mapBefore) : 0;
   if (spellMap && !quiet) {
     lines.push(line(
@@ -5324,6 +5389,22 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
       + `${mapBefore === 1 ? "your second" : "a subsequent"} attack this turn.</em>`));
   }
 
+  // ALTER THE THREAD (3.667.0; Graham's B3-5): "any attack roll" — a spell
+  // attack too. The cast itself stands; the dice the attack compares are
+  // rolled again and the new roll stands. ASKED ON EVERY RAY, of that ray's
+  // creature: each ray is an attack roll against it. The reroll is that
+  // creature's alone (the shared check is not changed for the other rays),
+  // and conviction's one point a round keeps one defender to one reroll of
+  // a volley. See combat/attack-reroll-workflow.mjs.
+  if (!check?.rerolledFrom) {
+    const { offerAttackReroll, rerolledSpellCheck, postRerollCard } = await import("../combat/attack-reroll-workflow.mjs");
+    const asked = await offerAttackReroll({ attacker: actor, defender: targetActor, check, what: spell.name, db: baseDB });
+    if (asked.rerolled) {
+      const before = Number(check.outcome?.total ?? 0);
+      check = await rerolledSpellCheck(actor, check);
+      await postRerollCard(targetActor, actor, asked.label, before, Number(check.outcome?.total ?? 0));
+    }
+  }
   const attackTotal = assembledSpellAttackTotal({
     checkTotal: check.outcome?.total,
     attackWarp,
@@ -5339,7 +5420,13 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
   // resolved — "you don't increase your multiple attack penalty until after
   // your spell attacks have been resolved". See magic/ray-volley.mjs.
   if (!deferMapAdvance && spellCountsTowardMAP(spellData)) {
-    await actor.setFlag?.(SYSTEM_ID, "attackCount", mapBefore + 1);
+    await setAttackCount(actor, mapBefore + 1);
+  }
+  // A DEFENCE THAT LASTED ONE ATTACK (3.666.0) — the spell attack has been
+  // rolled against the DB it raised. See combat/one-attack.mjs.
+  {
+    const { consumeOneAttackEffects } = await import("../combat/target-relay-workflow.mjs");
+    await consumeOneAttackEffects(targetActor, { kind: "spell", attackerUuid: actor?.uuid ?? "" });
   }
   if (attackWarp && !quiet) {
     lines.push(line(`<em>Caster level modifications: ${attackWarp > 0 ? "+" : ""}${attackWarp} to the attack.</em>`));
@@ -5483,7 +5570,7 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
     const applied = await applyDamageAndCheckDying(targetActor, packet.taken, {
       isCritical: Boolean(outcome.critical),
       // For a death guard (3.627.0): the type, and the caster it is opposed by.
-      damageTypes: [String(damageType ?? "").toLowerCase(), ...divineDamageMark(spellDamageSource(spell).sourceTraits)].filter(Boolean), sourceLevel: Number(actor?.system?.identity?.level ?? 0), sourceName: actor?.name ?? ""
+      damageTypes: [String(damageType ?? "").toLowerCase(), ...divineDamageMark(spellDamageSource(spell).sourceTraits)].filter(Boolean), sourceLevel: Number(actor?.system?.identity?.level ?? 0), sourceName: actor?.name ?? "", sourceUuid: actor?.uuid ?? "", context: { kind: "spell", spellName: spell?.name ?? "" }
     });
     newHP = applied?.newHP;
   }
@@ -6115,7 +6202,7 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
       // AND WHO EXACTLY (3.406.0) — Forbidding Ward's "+1 to saving
       // throws against the TARGET ENEMY'S ... spells" is a claim about
       // one caster, not about a category of them.
-      sourceUuid: actor?.uuid ?? "",
+      sourceUuid: actor?.uuid ?? "", context: { kind: "spell", spellName: spell?.name ?? "" },
       subject: parsed.key,
       dc: saveDC,
       modifiers: [
@@ -6208,7 +6295,8 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
         taken = rungPacket.taken;
         if (taken > 0) {
           const applied = await applyDamageAndCheckDying(target, taken, {
-            isCritical: Boolean(outcome.severity)
+            isCritical: Boolean(outcome.severity),
+            sourceUuid: actor?.uuid ?? "", context: { kind: "spell", spellName: spell?.name ?? "" }
           });
           newHP = applied?.newHP;
         }
@@ -6256,8 +6344,12 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
        */
       if (outcome.soulDestroyed) {
         const { SOUL_DESTROYED_FLAG, soulDestroyedRecord, soulDestroyedByLine } = await import("./resurrection.mjs");
-        await target.setFlag?.(SYSTEM_ID, SOUL_DESTROYED_FLAG,
-          soulDestroyedRecord(spell.name, Number(game.time?.worldTime ?? 0)));
+        // THROUGH THE GM WHEN THE BODY IS NOT OURS (3.666.1): a direct write
+        // from a player's cast threw and lost the whole card.
+        const { relayInjuryRecord } = await import("../combat/target-relay-workflow.mjs");
+        const worldTime = Number(game.time?.worldTime ?? 0);
+        await relayInjuryRecord(target, "soulDestroyed", { spellName: spell.name, worldTime },
+          () => target.setFlag?.(SYSTEM_ID, SOUL_DESTROYED_FLAG, soulDestroyedRecord(spell.name, worldTime)));
         lines.push(line(soulDestroyedByLine(target.name, spell.name)));
       }
       /*
@@ -6424,14 +6516,14 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
       if (packet.taken > 0) {
         const applied = await applyDamageAndCheckDying(target, packet.taken, {
           isCritical: Boolean(bs.criticalSeverity),
-          damageTypes: [String(damageType ?? "").toLowerCase(), ...divineDamageMark(spellDamageSource(spell).sourceTraits)].filter(Boolean), sourceLevel: Number(actor?.system?.identity?.level ?? 0), sourceName: actor?.name ?? ""
+          damageTypes: [String(damageType ?? "").toLowerCase(), ...divineDamageMark(spellDamageSource(spell).sourceTraits)].filter(Boolean), sourceLevel: Number(actor?.system?.identity?.level ?? 0), sourceName: actor?.name ?? "", sourceUuid: actor?.uuid ?? "", context: { kind: "spell", spellName: spell?.name ?? "" }
         });
         newHP = applied?.newHP;
       }
       if (secondPacket && secondPacket.taken > 0) {
         const appliedSecond = await applyDamageAndCheckDying(target, secondPacket.taken, {
           isCritical: Boolean(bs.criticalSeverity),
-          damageTypes: [String(secondary.type ?? "").toLowerCase(), ...divineDamageMark(spellDamageSource(spell).sourceTraits)].filter(Boolean), sourceLevel: Number(actor?.system?.identity?.level ?? 0), sourceName: actor?.name ?? ""
+          damageTypes: [String(secondary.type ?? "").toLowerCase(), ...divineDamageMark(spellDamageSource(spell).sourceTraits)].filter(Boolean), sourceLevel: Number(actor?.system?.identity?.level ?? 0), sourceName: actor?.name ?? "", sourceUuid: actor?.uuid ?? "", context: { kind: "spell", spellName: spell?.name ?? "" }
         });
         newHP = appliedSecond?.newHP ?? newHP;
       }

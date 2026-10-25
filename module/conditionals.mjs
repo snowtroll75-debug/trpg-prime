@@ -42,6 +42,7 @@
  */
 
 import { wornAndStanding } from "./item-quality.mjs";
+import { inAnyStance, stanceGatedRows } from "./stance-declarations.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -201,7 +202,47 @@ export const SCOPE_AXES = Object.freeze([
   // Irritating Glamour is "-1 to Perception checks and RANGED attacks". An
   // attack check knows which it is; nothing else does, so an entry scoped to
   // it matches no other roll.
-  "attackModes"
+  "attackModes",
+  // WHAT THE TARGET IS, BY TRAIT (3.664.0). Inner Tempest's Spirit Stance:
+  // "+1 circumstance bonus to AB and DB against spirits, incorporeal
+  // creatures…" — spirit and incorporeal are creature TRAITS, not types,
+  // so `targetTypes` cannot say it. Filled from `creatureTraits` on the
+  // target by the same callers that fill `targetTypes`.
+  "targetTraits",
+  // WHAT THE BLOW IS STRUCK WITH (3.667.3). Inner Strike: "+1 status bonus
+  // to unarmed attack rolls" — your fists, a weapon the core declares
+  // unarmed (the Gauntlet family), or a Monastic weapon (D11). The weapon
+  // attack knows which (`attackFormOf`, combat/unarmed-profile.mjs):
+  // "unarmed", "natural" (a claw or a bite) or "weapon". Blank on every
+  // other roll, so an entry scoped to it matches no other roll.
+  //
+  // FOUND LIVE (Inner Tempest 0.4.1, 23 October 2026). Without this axis
+  // the +1 could only be written as a tick-box, and a weapon attack never
+  // opens the dialog that offers one — so it never applied.
+  "attackForms",
+  // THE WEAPON'S GROUP (3.668.0). Inner Tempest's Kensai, Weapon
+  // Discipline: "while wielding a weapon from this group … your class bonus
+  // -1 to attack and damage rolls". A weapon attack and its damage say the
+  // group ("sword", "axe"); every other roll carries none.
+  "attackGroups",
+  // HOW FAR THE STRIKE REACHES (3.668.0): "adjacent" or "reach" for a melee
+  // Strike (beyond 5 ft is reach), "first" for a ranged or thrown Strike
+  // within its first range increment, "far" beyond it. Inner Tempest's
+  // Stone Serpent ("when attacking from reach") and Distant Honour ("bow
+  // weapons … within the weapon's first range increment"). Blank when the
+  // distance is unknown, and on every other roll.
+  "rangeBands",
+  // WHAT STATE THE TARGET IS IN, AGAINST THIS ATTACKER (3.668.0), read off
+  // the board and the conditions where the Strike is rolled:
+  //   "flatfooted"  flat-footed to you, for any reason (Ghost Fox: "when
+  //                 attacking a flat-footed target")
+  //   "isolated"    none of its own allies adjacent to it (Dread Wolf: "a
+  //                 creature not adjacent to any ally")
+  //   "duel"        none of yours adjacent to it (Oath of Honour: "none of
+  //                 your allies are adjacent to your challenged target")
+  // A list, like targetTraits; blank when nothing is targeted or the board
+  // cannot say.
+  "targetStates"
 ]);
 
 /**
@@ -224,7 +265,12 @@ export const AXIS_CONTEXT_KEYS = Object.freeze({
   targetTypes: "targetTypes",
   sourceUuids: "sourceUuid",
   targetUuids: "targetUuid",
-  attackModes: "attackMode"
+  attackModes: "attackMode",
+  targetTraits: "targetTraits",
+  attackForms: "attackForm",
+  attackGroups: "attackGroup",
+  rangeBands: "rangeBand",
+  targetStates: "targetStates"
 });
 
 /**
@@ -293,19 +339,42 @@ export function scalingFor(actor) {
   return out;
 }
 
-/** The figure a `valueFrom` names — one key, or "a-b" for a difference; null when unknown. */
-function scaledValue(from, scaling = {}) {
+/**
+ * The figure a `valueFrom` names; null when unknown.
+ *
+ *   "classBonus"          one figure
+ *   "intelligence-wisdom" a difference of two (3.625.0)
+ *   "classBonus-1"        a figure and a whole number (3.668.0): - + * /,
+ *   "intelligence/2"      division rounding down
+ *   "intelligence*5"
+ *
+ * THE ARITHMETIC FORMS ARE NEW AT 3.668.0, for Inner Tempest's Kensai:
+ * Weapon Discipline's "your class bonus -1", the forms' "+1 per 2 Int mod"
+ * and "+2 per Int mod", Steel Viper's "Int mod x5". A minimum ("min +1")
+ * is the entry's own `valueMin`, applied by the caller.
+ *
+ * EXPORTED so stat rows (stat-rows.mjs) read the same grammar.
+ */
+export function scaledFigure(from, scaling = {}) {
   const text = String(from ?? "").trim();
-  const m = /^([a-zA-Z]+)-([a-zA-Z]+)$/.exec(text);
-  if (m) {
-    if (!SCALING_KEYS.includes(m[1]) || !SCALING_KEYS.includes(m[2])) return null;
-    const a = Number(scaling?.[m[1]]), b = Number(scaling?.[m[2]]);
-    if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
-    return Math.trunc(a) - Math.trunc(b);
+  const read = (key) => (SCALING_KEYS.includes(key) && Number.isFinite(Number(scaling?.[key])) ? Math.trunc(Number(scaling[key])) : null);
+  const pair = /^([a-zA-Z]+)-([a-zA-Z]+)$/.exec(text);
+  if (pair) {
+    const a = read(pair[1]), b = read(pair[2]);
+    return a === null || b === null ? null : a - b;
   }
-  if (!SCALING_KEYS.includes(text) || !Number.isFinite(Number(scaling?.[text]))) return null;
-  return Math.trunc(Number(scaling[text]));
+  const arith = /^([a-zA-Z]+)\s*([-+*/])\s*(\d+)$/.exec(text);
+  if (arith) {
+    const a = read(arith[1]); const n = Number(arith[3]);
+    if (a === null) return null;
+    if (arith[2] === "-") return a - n;
+    if (arith[2] === "+") return a + n;
+    if (arith[2] === "*") return a * n;
+    return n === 0 ? null : Math.floor(a / n);
+  }
+  return read(text);
 }
+const scaledValue = scaledFigure;
 
 export function normaliseConditional(raw, source = {}, index = 0, scaling = {}) {
   if (!raw || typeof raw !== "object") return null;
@@ -376,7 +445,9 @@ export function normaliseConditional(raw, source = {}, index = 0, scaling = {}) 
     if (from) {
       const scaled = scaledValue(from, scaling);
       if (scaled === null) return null;
-      value = scaled * (Number(raw.sign) === -1 ? -1 : 1);
+      // A FLOOR (3.668.0): "+1 per 2 Int mod (min +1)".
+      const floored = Number.isFinite(Number(raw.valueMin)) ? Math.max(scaled, Math.trunc(Number(raw.valueMin))) : scaled;
+      value = floored * (Number(raw.sign) === -1 ? -1 : 1);
     }
     // A modifier of zero is a no-op that would still occupy a row in the
     // dialog, so it is treated as malformed rather than shown.
@@ -440,6 +511,7 @@ export function collectConditionals(items = [], effects = [], declared = [], sca
     if (entry) found.push(entry);
   }
 
+  const stanced = inAnyStance(effects);
   const harvest = (documents, kind) => {
     for (const document of documents ?? []) {
       if (kind === "effect" && document?.disabled) continue;
@@ -452,8 +524,12 @@ export function collectConditionals(items = [], effects = [], declared = [], sca
       // the Goods conditionals already use. No core equipment carries a
       // conditional (measured 29 Sep 2026), so nothing shipped changes.
       if (kind === "item" && !equipmentInUse(document)) continue;
-      const declared = document?.flags?.[SYSTEM_ID]?.conditionals;
-      if (!Array.isArray(declared)) continue;
+      const plain = document?.flags?.[SYSTEM_ID]?.conditionals;
+      // WHILE IN A STANCE (3.664.0): the same rows under a second name,
+      // read only while a stance is up. See stance-declarations.mjs.
+      const gated = stanced ? stanceGatedRows(document, "stanceConditionals") : [];
+      if (!Array.isArray(plain) && !gated.length) continue;
+      const declared = [...(Array.isArray(plain) ? plain : []), ...gated];
       /*
        * AN EFFECT AN ITEM OWNS IS NOT AN EFFECT THE ACTOR HAS (3.587.0).
        *
@@ -569,6 +645,26 @@ export function matchesCheck(entry, context = {}) {
   // MELEE OR RANGED (3.650.0): "melee" or "ranged" on an attack check,
   // nothing on any other.
   const attackModes = [String(context.attackMode ?? "").trim().toLowerCase()].filter(Boolean);
+  // WHAT IT IS STRUCK WITH (3.667.3): "unarmed", "natural" or "weapon" on a
+  // weapon attack, nothing on any other roll.
+  const attackForms = [String(context.attackForm ?? "").trim().toLowerCase()].filter(Boolean);
+  // THE WEAPON'S GROUP (3.668.0), read the same way.
+  const attackGroups = [String(context.attackGroup ?? "").trim().toLowerCase()].filter(Boolean);
+  const rangeBands = [String(context.rangeBand ?? "").trim().toLowerCase()].filter(Boolean);
+  const targetStates = (Array.isArray(context.targetStates)
+    ? context.targetStates
+    : String(context.targetStates ?? "").split(/[,;]/)
+  )
+    .map((t) => String(t ?? "").trim().toLowerCase())
+    .filter(Boolean);
+  // THE TARGET'S TRAITS (3.664.0), read like targetTypes: blank on a roll
+  // aimed at nobody, at which point a trait-scoped entry matches nothing.
+  const targetTraits = (Array.isArray(context.targetTraits)
+    ? context.targetTraits
+    : String(context.targetTraits ?? "").split(/[,;]/)
+  )
+    .map((t) => String(t ?? "").trim().toLowerCase())
+    .filter(Boolean);
 
   // Exclusions are tested first and apply even to an `always` entry —
   // "everywhere except X" is a shape worth being able to write.
@@ -606,6 +702,11 @@ export function matchesCheck(entry, context = {}) {
   if (excludes(excluded.sourceUuids, sourceUuids)) return false;
   if (excludes(excluded.targetUuids, targetUuids)) return false;
   if (excludes(excluded.attackModes, attackModes)) return false;
+  if (excludes(excluded.targetTraits, targetTraits)) return false;
+  if (excludes(excluded.attackForms, attackForms)) return false;
+  if (excludes(excluded.attackGroups, attackGroups)) return false;
+  if (excludes(excluded.rangeBands, rangeBands)) return false;
+  if (excludes(excluded.targetStates, targetStates)) return false;
 
   if (entry.always) return true;
 
@@ -614,7 +715,12 @@ export function matchesCheck(entry, context = {}) {
     traits: wanted, traditions: wantedTraditions, sourceTypes: wantedSourceTypes,
     targetTypes: wantedTargetTypes,
     sourceUuids: wantedSourceUuids, targetUuids: wantedTargetUuids,
-    attackModes: wantedAttackModes
+    attackModes: wantedAttackModes,
+    targetTraits: wantedTargetTraits,
+    attackForms: wantedAttackForms,
+    attackGroups: wantedAttackGroups,
+    rangeBands: wantedRangeBands,
+    targetStates: wantedTargetStates
   } = entry.when ?? {};
 
   if (checkTypes && !checkTypes.includes(checkType)) return false;
@@ -642,6 +748,11 @@ export function matchesCheck(entry, context = {}) {
   // everybody — the Stone Shield defect with the sign flipped.
   if (wantedTargetUuids && !wantedTargetUuids.some((t) => targetUuids.includes(t))) return false;
   if (wantedAttackModes && !wantedAttackModes.some((t) => attackModes.includes(t))) return false;
+  if (wantedTargetTraits && !wantedTargetTraits.some((t) => targetTraits.includes(t))) return false;
+  if (wantedAttackForms && !wantedAttackForms.some((t) => attackForms.includes(t))) return false;
+  if (wantedAttackGroups && !wantedAttackGroups.some((t) => attackGroups.includes(t))) return false;
+  if (wantedRangeBands && !wantedRangeBands.some((t) => rangeBands.includes(t))) return false;
+  if (wantedTargetStates && !wantedTargetStates.some((t) => targetStates.includes(t))) return false;
 
   return true;
 }
@@ -726,6 +837,17 @@ export function resolveBias(chosen, kinds = [], bias) {
   if (hasAdvantage) return bias.ADVANTAGE;
   if (hasDisadvantage) return bias.DISADVANTAGE;
   return bias.NORMAL;
+}
+
+/**
+ * A chosen bias with further kinds reconciled in ONE pass (3.665.0): a
+ * defender's disadvantage row and the action's own advantage cancel to
+ * Normal, rather than whichever was applied last winning. With no kinds
+ * the chosen bias is returned exactly as it came, so a roll that gains
+ * nothing receives what it received before.
+ */
+export function biasWithKinds(chosen, kinds = [], bias) {
+  return Array.isArray(kinds) && kinds.length ? resolveBias(chosen, kinds, bias) : chosen;
 }
 
 /**

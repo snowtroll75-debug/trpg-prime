@@ -18,7 +18,7 @@ import { IMMUNITY_TOKENS } from "../defences.mjs";
 import { actorDefences } from "../creature-traits.mjs";
 import { endTakeCover, isInFullDefence } from "./basic-action-stances.mjs";
 import { flyMovementCost, recordFlyAction } from "./fly-workflow.mjs";
-import { wildStrideCost, terrainReliefName } from "./passive-feats.mjs";
+import { declaresFirstMoveNoReactions, firstDifficultSquareCost, firstMoveIsFree, ignoresFirstDifficultSquare, wildStrideCost, terrainReliefName } from "./passive-feats.mjs";
 import { moveActionProvokes } from "./opportunity-rules.mjs";
 import { FULL_DEFENCE_MOVES_FLAG, fullDefenceMovementBlock } from "./reactions.mjs";
 import {
@@ -27,7 +27,7 @@ import {
   resolveChargeStrike,
   validateCharge
 } from "./charge-workflow.mjs";
-import { movementLimitBonus, movementFractionOverride } from "../feats.mjs";
+import { declaredStepBonus, movementLimitBonus, movementFractionOverride } from "../feats.mjs";
 import { mayEndInSquare, passageThrough } from "./space.mjs";
 import { regionContains, surfaceMovementEffect, unusualSurfaceOf } from "./surfaces.mjs";
 import { feetFromPointToToken, tokenSquares } from "./geometry.mjs";
@@ -247,6 +247,15 @@ function pathCost(movement, actor = null, armedKey = null) {
       distance: proposedDistance(movement),
       eases: Boolean(easedBy)
     });
+    // …OR ITS FIRST SQUARE ONLY, ON A STRIDE (3.670.0; Dragon Stance). A
+    // Stride is a move made as no other armed action. See passive-feats.mjs.
+    if (!eased.eased && (!armedKey || armedKey === "stride")) {
+      const firstBy = ignoresFirstDifficultSquare(actor);
+      if (firstBy) {
+        const first = firstDifficultSquareCost({ cost: base, distance: proposedDistance(movement), square: Number(globalThis.canvas?.scene?.grid?.distance) || 5 });
+        if (first.eased) return { cost: first.cost, flown: null, eased: true, easedBy: `${firstBy} (the first square)` };
+      }
+    }
     return { cost: eased.cost, flown: null, eased: eased.eased, easedBy };
   }
   const flown = flyMovementCost(movement);
@@ -302,6 +311,15 @@ async function maybeOfferMovementAoO(tokenDocument, movement, armedKey) {
     // reads and clears, whatever move that is.
     const jumpAvoided = Boolean(actor?.getFlag?.(SYSTEM_ID, "jumpReactionsAvoided"));
     if (jumpAvoided) actor?.unsetFlag?.(SYSTEM_ID, "jumpReactionsAvoided")?.catch?.(() => {});
+    // THE FIRST MOVE OF THE TURN (3.670.0; Mantis Stance, B6-4): recorded on
+    // each move of the mover's own turn while it carries the rule, so the
+    // second is never the first. Only then (found in review): a move made
+    // before the stance was entered does not spend it, and nobody else's
+    // move writes the record.
+    const turnKey = `${game.combat.id}:${game.combat.round}:${game.combat.turn}`;
+    const carriesFirstMove = declaresFirstMoveNoReactions(actor);
+    const firstFree = firstMoveIsFree(carriesFirstMove, actor?.getFlag?.(SYSTEM_ID, "firstMoveTurn") ?? null, turnKey);
+    if (carriesFirstMove && actor?.getFlag?.(SYSTEM_ID, "firstMoveTurn") !== turnKey) actor?.setFlag?.(SYSTEM_ID, "firstMoveTurn", turnKey)?.catch?.(() => {});
     /*
      * IMMUNE TO REACTIONS PROVOKED BY MOVEMENT (3.548.0) — the Swarm's
      * fourth immunity, which nothing had ever read. Resolved through
@@ -315,7 +333,7 @@ async function maybeOfferMovementAoO(tokenDocument, movement, armedKey) {
     // action, `{ fullMoveOnly: true }`). Read with the Swarm's immunity, as
     // one more property of the mover.
     const { movementProvokeExempt } = await import("../creature-ability-rules.mjs");
-    const moverImmune = jumpAvoided || Boolean(
+    const moverImmune = jumpAvoided || firstFree || Boolean(
       actorDefences(actor?.system ?? {}).immunities?.has?.(IMMUNITY_TOKENS.movementReaction))
       || movementProvokeExempt(Array.from(actor?.items ?? []), {
         movedFeet: proposedDistance(movement),
@@ -661,8 +679,17 @@ export async function resizeTokenInPlace(tokenDocument, side) {
   }
 }
 
+/** Is this client a player while the game is paused? Foundry will refuse its move. */
+function movePausedForUser(gameLike) {
+  return Boolean(gameLike?.paused) && !gameLike?.user?.isGM;
+}
+
 function onPreMoveToken(tokenDocument, movement) {
   if (RESIZING.has(tokenDocument?.id)) return true;
+  // A PLAYER'S MOVE WHILE THE GAME IS PAUSED (3.669.1; found live): Foundry
+  // refuses it after this hook has run, so nothing here may be charged or
+  // recorded for it. The GM may still move tokens while paused.
+  if (movePausedForUser(globalThis.game)) return true;
   // TAKE COVER ENDS WHEN YOU MOVE (Chapter 4; Graham, 18 Aug 2026).
   //
   // Called at each point this hook ALLOWS a real displacement, and at
@@ -984,7 +1011,12 @@ function movementFeatNames(actor) {
 /** Extra feet a feat grants this actor for one armed movement action
  *  (Graceful Step: Step reaches 10 ft for the same 1 AP). */
 function featMovementBonus(actor, actionKey) {
-  return movementLimitBonus(actionKey, movementFeatNames(actor));
+  const named = movementLimitBonus(actionKey, movementFeatNames(actor));
+  if (actionKey !== "step") return named;
+  // …OR A DECLARED STEP (3.670.0; Tiger Stance), the longer standing.
+  const speed = Number(speedForMovement(actor?.system, "walk")?.speed ?? 0) || 0;
+  const carriers = [...Array.from(actor?.items ?? []), ...Array.from(actor?.appliedEffects ?? actor?.effects ?? [])];
+  return Math.max(named, declaredStepBonus(carriers, speed));
 }
 
 /** A feat that makes an action's limit a FRACTION of Speed rather than a

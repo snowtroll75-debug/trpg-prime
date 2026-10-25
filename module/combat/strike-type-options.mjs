@@ -27,10 +27,17 @@
  * Pure and Foundry-free; the attack workflow reads the effects and asks.
  */
 import { isNaturalAttack, isUnarmedAttack } from "./unarmed.mjs";
+import { attackFormOf } from "./unarmed-profile.mjs";
 
 const SYSTEM_ID = "trg-prime";
 const STRIKE_TYPE_OPTION_FLAG = "strikeTypeOption";
-const SCOPES = Object.freeze(["natural", "unarmed", "any"]);
+/**
+ * "unarmed-form" (3.670.0) is the narrower unarmed: a Strike that counts as
+ * unarmed (the fists, a gauntlet, a Monastic weapon; unarmed-profile.mjs),
+ * the conditionals' `attackForms: ["unarmed"]`. "unarmed" keeps its 3.627.0
+ * meaning, every natural and unarmed attack.
+ */
+const SCOPES = Object.freeze(["natural", "unarmed", "unarmed-form", "any"]);
 
 /** One declaration, normalised, or null when it names no type. */
 function normaliseStrikeTypeOption(raw) {
@@ -44,7 +51,10 @@ function normaliseStrikeTypeOption(raw) {
     type,
     label: String(raw.label ?? "").trim() || type,
     scope: scope.length ? scope : ["any"],
-    magical: raw.magical === true
+    magical: raw.magical === true,
+    // SET, NOT OFFERED (3.670.0; Inner Tempest's Tiger and Wolf Stance, B6-1:
+    // "your unarmed attacks deal that type … without asking").
+    replace: raw.replace === true
   };
 }
 
@@ -78,7 +88,27 @@ function optionReaches(option, weaponSystem = {}) {
   if (option.scope.includes("any")) return true;
   if (option.scope.includes("natural") && isNaturalAttack(weaponSystem)) return true;
   if (option.scope.includes("unarmed") && isUnarmedAttack(weaponSystem)) return true;
+  if (option.scope.includes("unarmed-form") && attackFormOf(weaponSystem) === "unarmed") return true;
   return false;
+}
+
+/**
+ * THE TYPES SET FOR THIS STRIKE (3.670.0): the `replace` options in reach,
+ * each type once. One is the Strike's type without a question; two (two
+ * stances held at once under Stance Mastery) are asked between, and nothing
+ * else is offered beside them.
+ *
+ * @param {object} weaponSystem
+ * @param {Array} options normalised options
+ * @returns {Array<{type: string, source: string}>}
+ */
+export function forcedStrikeTypes(weaponSystem = {}, options = []) {
+  const out = [];
+  for (const option of options ?? []) {
+    if (!option?.replace || !optionReaches(option, weaponSystem)) continue;
+    if (!out.some((c) => c.type === option.type)) out.push({ type: option.type, source: option.label });
+  }
+  return out;
 }
 
 /**

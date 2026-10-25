@@ -12,7 +12,7 @@ import { senseMissChance } from "../conditions/condition-rules.mjs";
 import { activeToken } from "./geometry.mjs";
 import {
   targetPromptText, targetRowNote, warnsOnEmptySelection, selectedTargetIds,
-  EMPTY_SELECTION_WARNING
+  EMPTY_SELECTION_WARNING, noCandidatesText, levelForActor, levelsWithTokens
 } from "./target-prompt.mjs";
 
 const { DialogV2 } = foundry.applications.api;
@@ -54,6 +54,31 @@ function candidateTokens() {
     return canvas.tokens.placeables;
   } catch {
     return [];
+  }
+}
+
+/**
+ * View the level of the scene the acting creature's token stands on, when this
+ * client is viewing another (3.666.3) — see `levelForActor`. Resolves true
+ * when the view moved.
+ */
+async function viewActorLevel(actor) {
+  try {
+    const scene = globalThis.canvas?.scene ?? null;
+    if (!scene?.levels?.size || !globalThis.canvas?.level) return false;
+    const level = levelForActor({
+      tokens: Array.from(scene.tokens ?? []).map((t) => ({ id: t.id, actorId: t.actorId, level: t.level ?? null })),
+      actorId: actor?.id ?? "",
+      tokenId: actor?.isToken ? actor.token?.id ?? null : null,
+      viewedLevel: globalThis.canvas.level.id
+    });
+    if (!level || !scene.levels.get(level)) return false;
+    await scene.view({ level });
+    ui.notifications?.info?.(`Viewing ${scene.levels.get(level).name}, where ${actor?.name ?? "your token"} is.`);
+    return true;
+  } catch (error) {
+    console.warn("TRG Prime | could not view the acting creature's level", error);
+    return false;
   }
 }
 
@@ -111,13 +136,62 @@ export async function promptTargetSelection(
 ) {
   // ITS OWN TOKEN (3.622.3; the 3.622.2 drive's F1, Graham's R1): by actor id,
   // a second unlinked copy of the same actor found the first copy's token.
-  const actorToken = activeToken(actor);
-  const candidates = candidateTokens();
+  let actorToken = activeToken(actor);
+  let candidates = candidateTokens();
 
-  if (!candidates.length) {
-    // Nothing to target on this scene — nothing to prompt for either.
-    return true;
+  // THE CASTER'S OWN LEVEL FIRST (3.666.3). A client on the wrong level of a
+  // V14 scene draws no tokens; the acting creature's own level is where its
+  // action happens, so the view moves there before anything is asked.
+  if (!candidates.length && await viewActorLevel(actor)) {
+    actorToken = activeToken(actor);
+    candidates = candidateTokens();
   }
+
+  for (let pass = 0; !candidates.length && pass < 3; pass += 1) {
+    // NOTHING TO PICK IS SAID, NOT SKIPPED (3.666.3). This returned true in
+    // silence, so a player viewing an empty scene, or playing with the canvas
+    // off, cast an attack spell at nobody without ever seeing a question.
+    // See `noCandidatesText`. "Continue" keeps the old behaviour (no target);
+    // "Go back" stops the action before anything is spent.
+    // …AND THE SCENE'S OTHER LEVELS, BY NAME (3.666.3): a button for each
+    // level that holds tokens, which views it and asks again.
+    const scene = globalThis.canvas?.scene ?? null;
+    const others = scene?.levels?.size
+      ? levelsWithTokens(Array.from(scene.tokens ?? []).map((t) => ({ level: t.level ?? null })), globalThis.canvas?.level?.id ?? null)
+        .filter(({ level }) => scene.levels.get(level))
+      : [];
+    const levelButtons = others.map(({ level, count }) => ({
+      action: `level:${level}`,
+      label: `View ${scene.levels.get(level).name} (${count})`,
+      icon: "fa-solid fa-layer-group"
+    }));
+    const goOn = await DialogV2.wait({
+      window: { title, icon: "fa-solid fa-crosshairs" },
+      classes: ["trg-prime"],
+      position: { width: 400 },
+      content: `<div class="trg-prime trg-check-dialog"><p><strong>No tokens to choose from.</strong></p><p class="hint">${noCandidatesText({
+        canvasOff: Boolean(globalThis.game?.settings?.get?.("core", "noCanvas")),
+        sceneName: [scene?.name, globalThis.canvas?.level?.name && scene?.levels?.size > 1 ? globalThis.canvas.level.name : null].filter(Boolean).join(", ")
+          || globalThis.game?.scenes?.viewed?.name || "",
+        activeName: globalThis.game?.scenes?.active?.name ?? "",
+        otherLevels: others.map(({ level, count }) => `${scene.levels.get(level).name} (${count})`)
+      })}</p></div>`,
+      buttons: [
+        ...levelButtons,
+        { action: "back", label: "Go back", icon: "fa-solid fa-rotate-left", default: true },
+        { action: "continue", label: "Continue with no target", icon: "fa-solid fa-triangle-exclamation" }
+      ],
+      rejectClose: false
+    });
+    if (typeof goOn === "string" && goOn.startsWith("level:")) {
+      await scene.view({ level: goOn.slice("level:".length) });
+      actorToken = activeToken(actor);
+      candidates = candidateTokens();
+      continue;
+    }
+    return goOn === "continue";
+  }
+  if (!candidates.length) return false;
 
   const currentlyTargeted = new Set(
     Array.from(game.user.targets ?? []).map((t) => t.id)
@@ -322,7 +396,7 @@ export async function missChanceAvoidance(targetActor, { attackerName = "", sour
     ? seeInvisibleLevel(Array.from(attackerActor?.appliedEffects ?? attackerActor?.effects ?? []))
     : SEE_INVISIBLE.NONE;
 
-  const { missChanceDC, invisibleAvoidanceDC } = await import("./attack.mjs");
+  const { missChanceDC, invisibleAvoidanceDC, missCheckIncreaseFor } = await import("./attack.mjs");
   let baseDC = missChanceDC({ hidden, concealed, invisible, seeInvisible });
   if (baseDC === null) return { avoided: false, dc: null, condition: null };
 
@@ -341,9 +415,19 @@ export async function missChanceAvoidance(targetActor, { attackerName = "", sour
   // check to avoid being hit when concealed or hidden by 2" — a HARDER
   // avoidance for the defender, the mirror of Blind Fight's hidden
   // clause above, and applying to both conditions rather than one.
+  //
+  // SCOPED TO A CONDITION (3.664.0): Inner Tempest's Ethereal Sight raises
+  // the flat check "a hidden target makes" by 2, and Zen Awareness that of
+  // a creature "with the hidden or invisible condition" by 1. Declared as
+  // `{value, conditions: ["hidden", "invisible"]}`; a bare number is
+  // Osp-Iar's, and reaches every condition.
+  const invisibleDC = invisible ? invisibleAvoidanceDC(seeInvisible) : null;
+  const condition = invisibleDC === baseDC && invisibleDC !== null
+    ? "Invisible"
+    : concealed && baseDC === 17 ? "Concealed" : "Hidden";
   const attackerIncrease = Array.from(attackerActor?.appliedEffects ?? attackerActor?.effects ?? [])
     .filter((e) => !e.disabled)
-    .reduce((total, e) => total + Math.max(0, Number(e.getFlag?.("trg-prime", "missCheckDCIncrease") ?? 0)), 0);
+    .reduce((total, e) => total + missCheckIncreaseFor(e.getFlag?.("trg-prime", "missCheckDCIncrease"), condition), 0);
 
   // Darkened Veil (Chapter 5): queued one-shot DC reduction for the defender.
   const reduction = Math.max(0, Number(targetActor.getFlag?.("trg-prime", "missCheckDCReduction") ?? 0));
@@ -358,10 +442,6 @@ export async function missChanceAvoidance(targetActor, { attackerName = "", sour
    * that says "Concealed" for a check the invisibility set tells the table
    * the wrong thing about why the attack might miss.
    */
-  const invisibleDC = invisible ? invisibleAvoidanceDC(seeInvisible) : null;
-  const condition = invisibleDC === baseDC && invisibleDC !== null
-    ? "Invisible"
-    : concealed && baseDC === 17 ? "Concealed" : "Hidden";
   // NAMED WHEN IT IS THE LIGHT rather than the condition, so the table can
   // see why a creature nobody marked concealed is suddenly harder to hit.
   const bySource = byLight.concealed && !targetActor.hasCondition("concealed")

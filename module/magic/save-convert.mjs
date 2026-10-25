@@ -122,3 +122,21 @@ export function convertedOutcome(outcome, to = "success") {
   if (!from || !DEGREE_BY_KEY[to]) return outcome;
   return { ...outcome, degree: DEGREE_BY_KEY[to], bonusCheck: bonusCheckModifier(to), shiftedFrom: from };
 }
+
+/**
+ * AN OUTCOME DECLARED AT A DEGREE (3.669.2): a day's first declared `exact`
+ * (Tianzhi Discipline: "a Critical result without the need for a roll").
+ * The degree is set, the outcome marked declared (the card then reads
+ * "Declared — the dice do not count"), and no Chaos banner rides with dice
+ * nobody reads. Unchanged when there is no degree yet (a DC the GM sets
+ * later: the card applies this when it arrives) or the key is unknown.
+ *
+ * @param {object} outcome from buildOutcome
+ * @param {string} degreeKey
+ * @returns {object}
+ */
+export function declaredAt(outcome, degreeKey) {
+  const set = convertedOutcome(outcome, String(degreeKey ?? ""));
+  if (set === outcome) return outcome;
+  return { ...set, shiftedFrom: undefined, declared: true, chaos: false };
+}

@@ -253,6 +253,30 @@ export function heatExhaustionAdvantage(items = [], environment = "") {
   return null;
 }
 
+/**
+ * IMMUNE TO NATURAL HEAT (3.664.0; Inner Tempest's Zenki: "immune to the
+ * harmful effects of mundane environmental heat, including extreme heat").
+ * Declared as `derives.heatEnvironmentImmune`; read when an Exhaustion check
+ * is called for Extreme Heat, which such a creature does not make. Returns
+ * the declaring item's name, or null.
+ */
+export function heatEnvironmentImmunity(items = [], environment = "") {
+  if (String(environment ?? "") !== "extremeHeat") return null;
+  for (const { item, derives } of abilityDerives(items)) if (derives.heatEnvironmentImmune === true) return String(item?.name ?? "Heat immunity");
+  return null;
+}
+
+/**
+ * BREATHES WATER AS WELL AS AIR (3.664.0; Inner Tempest's Zennyo: "You can
+ * breathe both air and water"). Declared as `derives.breathesWater`; the
+ * same answer the Water Breathing marker gives, from what the creature is.
+ * Returns the declaring item's name, or null.
+ */
+export function breathesWaterSource(items = []) {
+  for (const { item, derives } of abilityDerives(items)) if (derives.breathesWater === true) return String(item?.name ?? "Amphibious");
+  return null;
+}
+
 /** Regeneration that applies itself: `{ auto: true }` on the turn-start derive. */
 export function regenerationIsAutomatic(items = []) {
   return (items ?? []).some((i) => {

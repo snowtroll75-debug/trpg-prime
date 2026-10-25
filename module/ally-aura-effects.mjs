@@ -82,6 +82,10 @@ export function wantedAllyGrants({ subjects = [], emitters = [] } = {}) {
         if (aura?.kind !== "ally") continue;
         // ITS OWN SOURCE ONLY WHEN DECLARED (3.646.0, `includeSelf`).
         if (self && !aura.includeSelf) continue;
+        // ONLY WHILE SWITCHED ON (3.669.0; Inner Tempest's Spirit Beacon and
+        // Mist Veil, auras a Use raises for a while): the gate the save
+        // auras already keep (creature-auras.mjs `aurasCatching`).
+        if (aura.emitterState && !(emitter.states ?? []).includes(aura.emitterState)) continue;
         const effect = opposed ? aura.enemyEffect : aura.allyEffect;
         if (!effect) continue;
         const reach = auraReachFeet(aura.radius, emitter.widthFeet) + Math.max(0, (Number(subject.widthFeet) || 5) - 5) / 2;

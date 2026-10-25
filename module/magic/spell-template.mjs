@@ -330,7 +330,17 @@ function showAimBanner(label, config, anchored) {
   return () => { doc.getElementById(AIM_BANNER_ID)?.remove(); };
 }
 
-export async function placeSpellTemplate(config, actor, rangeFeet = null, label = "Spell Area") {
+/*
+ * `opts` (3.669.0), for a placed thing that is not a fresh area — Inner
+ * Tempest's Foxfire motes, "move each flame up to 30 feet to another
+ * location within range":
+ *   commit(x, y, direction)  replaces the Region this would create; its
+ *                            answer is what the aim resolves to.
+ *   fromPoint {x, y}, maxFeetFrom   the aim also stays within this many
+ *                            feet of that point, and is clamped along the
+ *                            line from it rather than from the caster.
+ */
+export async function placeSpellTemplate(config, actor, rangeFeet = null, label = "Spell Area", opts = {}) {
   if (!config || !canvas?.ready) return null;
 
   const token = actor?.getActiveTokens?.()[0] ?? null;
@@ -343,7 +353,7 @@ export async function placeSpellTemplate(config, actor, rangeFeet = null, label 
   const feetToPx = (ft) => (ft / canvas.dimensions.distance) * canvas.dimensions.size;
   const colorCss = game.user.color?.css ?? game.user.color ?? "#ff0000";
 
-  const commit = async (x, y, direction) => {
+  const commit = typeof opts?.commit === "function" ? opts.commit : async (x, y, direction) => {
     const [created] = await canvas.scene.createEmbeddedDocuments("Region", [{
       name: label,
       color: colorCss,
@@ -368,8 +378,14 @@ export async function placeSpellTemplate(config, actor, rangeFeet = null, label 
     startY = edge.y;
   }
 
+  // A MOVE STARTS WHERE THE THING IS (3.669.0).
+  if (!isDirectional && opts?.fromPoint) {
+    startX = Number(opts.fromPoint.x) || startX;
+    startY = Number(opts.fromPoint.y) || startY;
+  }
+
   // No-range circle / emanation: drop it on the caster, no aiming needed.
-  if (centredOnCaster) {
+  if (centredOnCaster && !opts?.fromPoint) {
     return commit(startX, startY, 0);
   }
 
@@ -455,7 +471,12 @@ export async function placeSpellTemplate(config, actor, rangeFeet = null, label 
         // passes the test rather than scaled by a ratio from the other
         // metric. Twelve halvings resolve to well under a pixel.
         let p = canvas.grid.getSnappedPoint(point, { mode: CONST.GRID_SNAPPING_MODES.CENTER });
+        const from = opts?.fromPoint && Number(opts?.maxFeetFrom) >= 0 ? opts.fromPoint : null;
+        const withinMove = (candidate) => !from
+          || Number(canvas.grid.measurePath?.([from, candidate])?.distance ?? 0) <= Number(opts.maxFeetFrom);
         const inRange = (candidate) => {
+          if (!withinMove(candidate)) return false;
+          if (!(rangeFeet > 0)) return true;
           const feet = token ? feetFromPointToToken(candidate, token) : null;
           if (feet === null) {
             // No token to measure from (a caster off-canvas): fall back to
@@ -465,12 +486,15 @@ export async function placeSpellTemplate(config, actor, rangeFeet = null, label 
           }
           return feet <= rangeFeet;
         };
-        if (rangeFeet > 0 && !inRange(p)) {
+        if ((rangeFeet > 0 || from) && !inRange(p)) {
           let lo = 0;
           let hi = 1;
+          // A MOVE IS CLAMPED FROM WHERE THE THING IS, which already
+          // satisfies both limits; an area from the caster, as before.
+          const o = from ?? center;
           const at = (t) => ({
-            x: center.x + (p.x - center.x) * t,
-            y: center.y + (p.y - center.y) * t
+            x: o.x + (p.x - o.x) * t,
+            y: o.y + (p.y - o.y) * t
           });
           for (let i = 0; i < 12; i++) {
             const mid = (lo + hi) / 2;

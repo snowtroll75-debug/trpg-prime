@@ -7,10 +7,15 @@ import { carriedWeightOf } from "../items.mjs";
 import { grantedInnateTakesFocus, withFocusTrait } from "../combat/refocus.mjs";
 import { wealthRollNeeded } from "../starting-wealth.mjs";
 import { abilityScoresOf, classMinimumShortfall, classMinimumWarning } from "../class-progression.mjs";
-import { focusInnateDefaultUses } from "../uses.mjs";
+import { focusDefaultUses } from "../uses.mjs";
+import { focusExtraUses } from "../focus-declarations.mjs";
+import { declarationCarriers } from "../declaration-carriers.mjs";
 import { secondAspectRefusal } from "../aspect-rules.mjs";
 import { exclusiveFeatRefusal } from "../module-api.mjs";
 import { applyCodexInheritance } from "../codex-inheritance-workflow.mjs";
+import { formLosesOf, naturalAlwaysReady } from "../combat/natural-ready.mjs";
+import { RUNESTONE_TRAITS_FLAG, runestoneRefusal, runestoneTraitsUpdate } from "../runestone.mjs";
+import { isCracked, isRunestone } from "../rune-transfer.mjs";
 
 // WHICH ITEMS CARRY RUNES: `runeKindOf` (rune-bearing.mjs), since 3.577.0.
 
@@ -217,13 +222,42 @@ export class TRGItem extends Item {
     const traits = this._applyGrantedFocusTrait(this.system);
     if (traits !== null) this.updateSource({ "system.traits": traits });
     // …AND ARRIVES WITH THAT ONE USE AVAILABLE (3.562.0). The default count
-    // lives in focusInnateDefaultUses; a stored 0 would read as spent.
-    const focusUses = focusInnateDefaultUses({ ...this.system, traits: traits ?? this.system?.traits }, this.type);
-    if (focusUses !== null && Number(this.system?.usesValue ?? 0) < focusUses) {
-      this.updateSource({ "system.usesValue": focusUses });
+    // lives in focusDefaultUses; a stored 0 would read as spent. A Focus
+    // feat or ability is primed the same way (3.665.0, D1).
+    const focusUses = focusDefaultUses({ ...this.system, traits: traits ?? this.system?.traits }, this.type);
+    if (focusUses !== null) {
+      // …WITH EVERY USE IT HAS (3.667.1): the extra uses the owner's carriers
+      // declare (Inner Tempest's Deep Focus) arrive full too. Found in the
+      // live test of 3.667.0: a Disciple's techniques arrived 1 of 2.
+      const owner = this.parent?.documentName === "Actor" ? this.parent : null;
+      const extra = owner
+        ? focusExtraUses({ name: this.name, system: { ...this.system, traits: traits ?? this.system?.traits } }, declarationCarriers(owner))
+        : 0;
+      const full = focusUses + extra;
+      if (Number(this.system?.usesValue ?? 0) < full) this.updateSource({ "system.usesValue": full });
     }
     await this._recordWealthRoll();
+    // A RUNESTONE ARRIVING WITH A RUNE ON IT (3.666.2) carries that rune's
+    // school and tradition traits; one arriving with two is refused.
+    if (this._refusedAsRunestone(this.system?.runes ?? "", "")) return false;
+    const stone = runestoneTraitsUpdate(this, this.system?.runes ?? "");
+    if (stone) {
+      this.updateSource({ "system.traits": stone.traits, [`flags.${SYSTEM_ID}.${RUNESTONE_TRAITS_FLAG}`]: stone.added });
+    }
     return allowed;
+  }
+
+  /**
+   * THE RUNESTONE'S ONE RUNE (3.666.2): "You can inscribe only one rune upon
+   * the stone at any one time", and a cracked stone stores none. Refused
+   * with the reason rather than trimmed, so nothing typed is silently lost.
+   */
+  _refusedAsRunestone(after, before) {
+    if (this.type !== "gear" || !isRunestone(this)) return false;
+    const reason = runestoneRefusal({ after, before, cracked: isCracked(this) });
+    if (!reason) return false;
+    ui.notifications?.warn?.(`${this.name}: ${reason}.`);
+    return true;
   }
 
   /**
@@ -265,6 +299,17 @@ export class TRGItem extends Item {
   async _preUpdate(changed, options, user) {
     const allowed = await super._preUpdate(changed, options, user);
     if (allowed === false) return false;
+    // A RUNESTONE'S RUNE CHANGING (3.666.2): one at a time, and the stone's
+    // traits follow it — a Transfer Runes off the stone takes them away. See
+    // runestone.mjs.
+    if (changed?.system?.runes !== undefined) {
+      if (this._refusedAsRunestone(changed.system.runes, this.system?.runes ?? "")) return false;
+      const stone = runestoneTraitsUpdate(this, changed.system.runes, changed.system.traits);
+      if (stone) {
+        foundry.utils.setProperty(changed, "system.traits", stone.traits);
+        foundry.utils.setProperty(changed, `flags.${SYSTEM_ID}.${RUNESTONE_TRAITS_FLAG}`, stone.added);
+      }
+    }
     // Several feats convert an existing spell by setting `system.innate`
     // on it, which never passes through _preCreate. Same rule, applied to
     // what the document is ABOUT to become.
@@ -319,6 +364,7 @@ export class TRGItem extends Item {
   prepareDerivedData() {
     super.prepareDerivedData();
     this._resizeNaturalAttack();
+    this._readyNaturalAttack();
     this._applyRunes();
 
     if (!Object.hasOwn(this.system, "weight")) return;
@@ -440,6 +486,20 @@ export class TRGItem extends Item {
     // bonus to DB has to be applied.
     this.system.runeDefenceBonus = modifiers.db;
     this.system.runeHitPoints = modifiers.hp;
+  }
+
+  /**
+   * A CHARACTER'S NATURAL ATTACK IS ALWAYS READY (3.666.0; Graham, 21 Oct
+   * 2026). Read as equipped wherever `system.equipped` is read — see
+   * combat/natural-ready.mjs for who, and for the form that sets one aside.
+   * Derived, never written: the stored value is left as it was.
+   */
+  _readyNaturalAttack() {
+    if (this.type !== "weapon" || !this.system?.natural || this.system.equipped) return;
+    const actor = this.actor;
+    if (!actor) return;
+    const loses = formLosesOf(actor.effects, "trg-prime", "changeShapeForm");
+    if (naturalAlwaysReady({ type: this.type, natural: true, name: this.name }, actor.type, loses)) this.system.equipped = true;
   }
 
   _resizeNaturalAttack() {

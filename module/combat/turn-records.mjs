@@ -59,6 +59,48 @@ export async function clearAttackCount(actor) {
   await clearFlag(actor, ATTACK_COUNT_FLAG, attackCountIsClear, 0);
 }
 
+/*
+ * THE MULTIPLE ATTACK PENALTY IS A COMBAT RULE (3.666.0; Graham's ruling of
+ * 21 October 2026, "Combat only"). Out of combat no turn ever starts, so the
+ * counter was never reset: in the 3.665.0 live test a Shove took no penalty,
+ * the Trip after it -5 and the next Shove -10, and the ladder would have
+ * climbed for ever. So an actor's attacks count, and are penalised, only
+ * while it is a combatant in a combat that has started. Every reader and
+ * writer of the counter goes through these two.
+ */
+
+/**
+ * Is this actor a combatant in a started combat? Matched by the document
+ * itself or its uuid, so an unlinked token's actor is its own combatant.
+ *
+ * @param {Actor} actor
+ * @param {Iterable<Combat>} combats defaults to every combat in the world
+ */
+export function attacksCount(actor, combats = globalThis.game?.combats) {
+  if (!actor) return false;
+  for (const combat of Array.from(combats ?? [])) {
+    if (!combat?.started) continue;
+    for (const combatant of Array.from(combat.combatants ?? [])) {
+      const a = combatant?.actor;
+      if (a && (a === actor || (a.uuid && a.uuid === actor.uuid))) return true;
+    }
+  }
+  return false;
+}
+
+/** The attack count the penalty is read from: 0 outside combat. */
+export function attackCountOf(actor, combats) {
+  if (!attacksCount(actor, combats)) return 0;
+  return Math.max(0, Math.floor(Number(actor?.getFlag?.(SYSTEM_ID, ATTACK_COUNT_FLAG) ?? 0) || 0));
+}
+
+/** Record the attack count — only in combat; outside it nothing counts. */
+export async function setAttackCount(actor, value, combats) {
+  if (!attacksCount(actor, combats)) return false;
+  await actor.setFlag(SYSTEM_ID, ATTACK_COUNT_FLAG, Math.max(0, Math.floor(Number(value) || 0)));
+  return true;
+}
+
 /**
  * THE OPENING FLAT-FOOTED (3.622.2; the 3.622.1 drive's F3, Graham's R3).
  * A combatant is flat-footed until its first turn; one whose first turn never

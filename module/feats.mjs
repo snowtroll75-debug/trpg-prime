@@ -343,6 +343,36 @@ export function movementLimitBonus(actionKey, featNames = []) {
 }
 
 /**
+ * A STEP AN ITEM OR EFFECT LENGTHENS (3.670.0; Inner Tempest's Tiger Stance:
+ * "As long as your Speed is at least 20 feet while in Tiger Stance, you can
+ * Step 10 feet"). Declared on any item or applied effect:
+ *
+ *   flags.trg-prime.stepFeet = { feet: 10, minSpeed: 20, label: "Tiger Stance" }
+ *
+ * The extra feet over a 5-ft Step, from the longest declaration whose Speed
+ * condition holds (land Speed at that moment). It does not add to Graceful
+ * Step: both say "Step 10 feet", so the longer of the two stands.
+ *
+ * @param {Iterable<object>} carriers
+ * @param {number} speed the creature's land Speed now
+ * @returns {number} feet beyond 5
+ */
+export function declaredStepBonus(carriers = [], speed = 0) {
+  let best = 0;
+  for (const carrier of carriers ?? []) {
+    if (!carrier || carrier.disabled) continue;
+    const raw = carrier.flags?.["trg-prime"]?.stepFeet;
+    for (const row of Array.isArray(raw) ? raw : raw ? [raw] : []) {
+      const feet = Math.trunc(Number(row?.feet));
+      const min = Math.trunc(Number(row?.minSpeed) || 0);
+      if (!Number.isFinite(feet) || feet <= 5 || Number(speed) < min) continue;
+      best = Math.max(best, feet - 5);
+    }
+  }
+  return best;
+}
+
+/**
  * Feats that change an armed movement action from a FIXED distance to a
  * FRACTION OF SPEED. A different shape from MOVEMENT_LIMIT_FEATS above,
  * and deliberately a separate table rather than a cleverer one entry:
@@ -983,6 +1013,37 @@ export function effectiveClasses(className, archetypeFeatNames = []) {
     }
   }
   return classes.join(", ");
+}
+
+/**
+ * A CLASS'S FEATS OPENED BY ANY OWNED FEAT (3.670.0; Inner Tempest's Inner
+ * Magic: "you may also learn feats which are available only to the Mystic
+ * (Adept) class", ruled B6-7 as the feats with the Mystic trait). Archetype
+ * feats open class lists through `registerArchetype`; a feat of any other
+ * category declares it:
+ *
+ *   flags.trg-prime.classFeatAccess = ["Mystic"]
+ *
+ * The class names whose TRAIT the picker then accepts on a class feat
+ * (`traitClasses`), beside the character's own classes. Only the trait: a
+ * class's registered access list and its source-tagged feats are not opened
+ * (found in review: Inner Magic opened the Mystic's list of core feats). A
+ * class TYPE (Adept) is not opened by this: only the class named.
+ *
+ * @param {Iterable<object>} items the actor's items
+ * @returns {string[]}
+ */
+export function declaredClassFeatAccess(items = []) {
+  const out = [];
+  for (const item of items ?? []) {
+    if (item?.type !== "feat") continue;
+    const raw = item.flags?.["trg-prime"]?.classFeatAccess;
+    for (const name of Array.isArray(raw) ? raw : raw ? [raw] : []) {
+      const clean = String(name ?? "").trim();
+      if (clean && !out.some((c) => c.toLowerCase() === clean.toLowerCase())) out.push(clean);
+    }
+  }
+  return out;
 }
 
 /**

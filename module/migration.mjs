@@ -69,7 +69,12 @@ const WORLD_SCHEMA_SETTING = "worldSchemaVersion";
  * type's disease immunity). The stamp equals the newest pass, as above.
  */
 // 3.648.0: the pack-copy pass re-gated for Channel The Aspect's aspects.
-export const TRG_SCHEMA_VERSION = "3.648.0";
+// 3.665.0: one use for Focus feats and abilities with no count (D1). The
+// stamp equals the newest pass, as above.
+// 3.666.1: the pack-copy pass re-gated for Hurling's magical ability score.
+// 3.666.3: stale queued copies of dedicated rows (Keldran's ten).
+// 3.666.4: effect entries baked into the stored defence lists.
+export const TRG_SCHEMA_VERSION = "3.666.4";
 
 /**
  * Register the hidden world setting used to determine whether a migration is
@@ -233,6 +238,15 @@ export async function checkWorldMigration() {
     }
     if (result.staleTurnRecords?.length) {
       alsoDid.push(`${result.staleTurnRecords.length} stale per-turn record(s) cleared (${result.staleTurnRecords.join(", ")})`);
+    }
+    if (result.stalePending?.length) {
+      alsoDid.push(`${result.stalePending.reduce((n, r) => n + r.removed, 0)} queued modifier(s) removed that a dedicated rule already applies or that repeated one already queued (${result.stalePending.map((r) => `${r.owner}: ${r.removed}`).join(", ")})`);
+    }
+    if (result.bakedDefences?.length) {
+      alsoDid.push(`${result.bakedDefences.length} stored defence list(s) cleaned of copies their effects already grant (${result.bakedDefences.map((r) => `${r.owner}: ${r.list}`).join(", ")})`);
+    }
+    if (result.focusDefaults?.length) {
+      alsoDid.push(`${result.focusDefaults.length} Focus feat(s) and abilit(ies) with no use count given their one use (${result.focusDefaults.map((r) => `${r.owner}: ${r.item}`).join(", ")})`);
     }
     if (result.npcLuck?.length) {
       alsoDid.push(`${result.npcLuck.length} NPC(s) given luck 0 instead of the player's 15 (${result.npcLuck.join(", ")})`);
@@ -762,7 +776,7 @@ export async function migrateWorldData(fromVersion = "") {
   // them. `verify-pack-repairs` F1b caught it the moment the entries landed,
   // which is the whole reason that check exists.
   // RE-VERSIONED TO 3.648.0: Channel The Aspect's four aspects.
-  const packCopies = (await runIf("3.648.0", "stale owned copies of repaired pack items",
+  const packCopies = (await runIf("3.666.1", "stale owned copies of repaired pack items",
     () => migrateStalePackCopies([...actors, ...tokenActors], Array.from(game.items ?? []))))
     ?? { repaired: [], kept: [] };
   result.packCopies = packCopies;
@@ -818,6 +832,31 @@ export async function migrateWorldData(fromVersion = "") {
   const effectRepairs = (await runIf("3.627.1", "declared effect repairs on owned items (Undead disease immunity)",
     () => migrateOwnedEffectRepairs(actors, tokenActors, Array.from(game.items ?? [])))) ?? [];
   result.effectRepairs = effectRepairs;
+
+  // 3.665.0 — FOCUS FEATS AND ABILITIES WITH NO COUNT are one use (D1,
+  // Graham, 21 Oct 2026). Untracked until now, so none of them can have
+  // been spent: the ones already on sheets and on placed creatures start
+  // with that use rather than reading as spent. See migrateFocusDefaultUses.
+  const focusDefaults = (await runIf("3.665.0", "one use for Focus feats and abilities with no count",
+    () => migrateFocusDefaultUses(actors, tokenActors))) ?? [];
+  result.focusDefaults = focusDefaults;
+
+  // 3.666.3 — QUEUED COPIES OF ROWS A DEDICATED RULE APPLIES, and repeats of
+  // one lasting modifier. Graham, 22 Oct 2026: Keldran's dialogs offered ten
+  // copies of Detect Deception's Fumble penalty on every roll. See
+  // combat/dedicated-rows.mjs and migrateStalePendingCopies.
+  const stalePending = (await runIf("3.666.3", "queued copies of Detect Deception and Aid rows, and repeated lasting modifiers",
+    () => migrateStalePendingCopies(actors, tokenActors))) ?? [];
+  result.stalePending = stalePending;
+
+  // 3.666.4 — EFFECT ENTRIES BAKED INTO THE STORED DEFENCE LISTS. The sheet
+  // saved the derived Resistances / Immunities / Weaknesses, so every save
+  // stored what a creature type or ability grants once more (a Lesser Echo
+  // held the Construct immunities nine times). See defence-lists.mjs and
+  // migrateBakedDefenceLists.
+  const bakedDefences = (await runIf("3.666.4", "creature-type and effect entries baked into stored resistances, immunities and weaknesses",
+    () => migrateBakedDefenceLists(actors, tokenActors))) ?? [];
+  result.bakedDefences = bakedDefences;
 
   const actorUpdates = buildUpdates(actors);
 
@@ -2233,6 +2272,124 @@ async function migrateNpcLuck(actors = [], tokenActors = []) {
     }
   }
   return reset;
+}
+
+/**
+ * One use for every owned Focus feat or ability with no printed count
+ * (3.665.0, D1).
+ *
+ * BEFORE 3.665.0 THESE WERE UNTRACKED, so a stored 0 cannot mean "spent":
+ * nothing ever spent them. From 3.665.0 they count, and a 0 would refuse
+ * the first use — on a placed Fiends & Fables creature, until it
+ * Refocused. Feats and abilities only: an innate spell has counted since
+ * 3.562.0 and its 0 may be a real spend.
+ *
+ * Idempotent: a second run finds every count already at 1.
+ *
+ * @returns {Promise<Array<{owner: string, item: string}>>}
+ */
+export async function migrateFocusDefaultUses(actors = [], tokenActors = []) {
+  const { focusDefaultUses, FOCUS_DEFAULT_TYPES } = await import("./uses.mjs");
+  const report = [];
+  for (const actor of [...actors, ...tokenActors]) {
+    if (!actor) continue;
+    const updates = [];
+    for (const item of Array.from(actor.items ?? [])) {
+      if (!FOCUS_DEFAULT_TYPES.includes(item.type)) continue;
+      const max = focusDefaultUses(item.system, item.type);
+      if (max === null) continue;
+      const stored = Number(item._source?.system?.usesValue ?? item.system?.usesValue);
+      if (Number.isFinite(stored) && stored >= max) continue;
+      updates.push({ _id: item.id, "system.usesValue": max });
+      report.push({ owner: actor.name, item: item.name });
+    }
+    if (!updates.length) continue;
+    try {
+      await actor.updateEmbeddedDocuments("Item", updates);
+    } catch (error) {
+      console.error(`TRG Prime | Focus default uses could not be set for "${actor.name}"`, error);
+    }
+  }
+  return report;
+}
+
+/**
+ * Remove queued pending modifiers that should never have been queued
+ * (3.666.3): the generic reader's copies of rows a dedicated rule applies
+ * (Detect Deception's Fumble, Aid Defensive and Offensive), and every repeat
+ * of a lasting modifier already queued. Characters and placed creatures.
+ * A second run finds nothing to remove.
+ *
+ * @returns {Promise<Array<{owner: string, removed: number}>>}
+ */
+async function migrateStalePendingCopies(actors = [], tokenActors = []) {
+  const { staleDedicatedCopies, lastingDuplicateIds } = await import("./combat/dedicated-rows.mjs");
+  const { extractModifier } = await import("./outcome-effects.mjs");
+  const { SKILL_ACTIONS } = await import("./data/skill-actions.mjs");
+  const { BASIC_ACTIONS } = await import("./data/basic-actions.mjs");
+  const tables = [...SKILL_ACTIONS, ...BASIC_ACTIONS];
+  const report = [];
+  for (const actor of [...actors, ...tokenActors]) {
+    const entries = actor?.getFlag?.(SYSTEM_ID, "pendingModifiers");
+    if (!Array.isArray(entries) || !entries.length) continue;
+    const stale = new Set(staleDedicatedCopies(entries, tables, extractModifier));
+    const left = entries.filter((e) => !stale.has(String(e?.id)));
+    for (const id of lastingDuplicateIds(left)) stale.add(id);
+    if (!stale.size) continue;
+    try {
+      await actor.setFlag(SYSTEM_ID, "pendingModifiers", entries.filter((e) => !stale.has(String(e?.id))));
+      report.push({ owner: actor.name, removed: stale.size });
+    } catch (error) {
+      console.error(`TRG Prime | stale queued modifiers could not be cleared for "${actor.name}"`, error);
+    }
+  }
+  return report;
+}
+
+/**
+ * Stored defence lists that effects' entries were baked into (3.666.4).
+ *
+ * Until 3.666.4 the sheet's Resistances, Immunities and Weaknesses boxes
+ * were filled from the derived value and saved on every change, so each save
+ * stored the entries a creature type or ability adds, and the effect then
+ * added them again. A stored list with a repeated entry is cleaned: repeats
+ * go, and so does every entry an effect on the actor still grants. A list
+ * with no repeat is the GM's typing and is not touched. See
+ * `bakedDefenceList`.
+ *
+ * Not exported: the harness reads it by source. World actors and unlinked
+ * tokens; compendium actors are fixed the first time they are saved, since
+ * the sheet now saves only what was typed.
+ *
+ * @returns {Promise<Array<{owner: string, list: string}>>}
+ */
+async function migrateBakedDefenceLists(actors = [], tokenActors = []) {
+  const { DEFENCE_LIST_KEYS, bakedDefenceList, defenceEntriesAddedBy } = await import("./defence-lists.mjs");
+  const report = [];
+  for (const actor of [...actors, ...tokenActors]) {
+    const stored = actor?._source?.system?.combat;
+    if (!stored) continue;
+    const effects = typeof actor.allApplicableEffects === "function"
+      ? Array.from(actor.allApplicableEffects())
+      : Array.from(actor.effects ?? []);
+    const update = {};
+    for (const key of DEFENCE_LIST_KEYS) {
+      const granted = effects
+        .filter((e) => !e?.disabled)
+        .flatMap((e) => Array.from(e?.changes ?? []).flatMap((c) => defenceEntriesAddedBy(c, key)));
+      const cleaned = bakedDefenceList(stored[key], granted);
+      if (cleaned === null || cleaned === stored[key]) continue;
+      update[`system.combat.${key}`] = cleaned;
+      report.push({ owner: actor.name, list: key });
+    }
+    if (!Object.keys(update).length) continue;
+    try {
+      await actor.update(update);
+    } catch (error) {
+      console.error(`TRG Prime | baked defence lists could not be cleaned for "${actor.name}"`, error);
+    }
+  }
+  return report;
 }
 
 /**

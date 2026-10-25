@@ -1369,21 +1369,27 @@
             <input
               type="text"
               name="system.combat.resistances"
-              value="{{system.combat.resistances}}"
+              value="{{defenceStored.resistances}}"
               placeholder="fire, cold, physical"
               data-tooltip="Damage types, halved. A group name covers its whole group: physical, energy, special."
             >
           </label>
+          {{#if defenceGranted.resistances}}
+            <p class="hint trg-defence-granted" data-tooltip="Added by effects on this creature (its creature type, abilities, items, conditions). Not typed here, so not saved here: change the effect to change these.">Also from effects: {{defenceGranted.resistances}}</p>
+          {{/if}}
           <label class="wide-field">
             <span>Immunities</span>
             <input
               type="text"
               name="system.combat.immunities"
-              value="{{system.combat.immunities}}"
+              value="{{defenceStored.immunities}}"
               placeholder="stun, mental, fire"
               data-tooltip="One list. Each entry applies wherever it is valid: a damage type stops damage and criticals of that type, a condition stops that condition, a trait stops any effect carrying it. Mental does all three."
             >
           </label>
+          {{#if defenceGranted.immunities}}
+            <p class="hint trg-defence-granted" data-tooltip="Added by effects on this creature (its creature type, abilities, items, conditions). Not typed here, so not saved here: change the effect to change these.">Also from effects: {{defenceGranted.immunities}}</p>
+          {{/if}}
           {{#if defenceSummary.length}}
             <ul class="trg-defence-summary">
               {{#each defenceSummary}}
@@ -1398,11 +1404,14 @@
             <input
               type="text"
               name="system.combat.weaknesses"
-              value="{{system.combat.weaknesses}}"
+              value="{{defenceStored.weaknesses}}"
               placeholder="fire, cold"
               data-tooltip="Damage types, increased by 50%. Group names work here too."
             >
           </label>
+          {{#if defenceGranted.weaknesses}}
+            <p class="hint trg-defence-granted" data-tooltip="Added by effects on this creature (its creature type, abilities, items, conditions). Not typed here, so not saved here: change the effect to change these.">Also from effects: {{defenceGranted.weaknesses}}</p>
+          {{/if}}
         </article>
       </div>
     </section>
@@ -2281,9 +2290,15 @@
               <span>{{item.system.range}}</span>
               <span>{{item.system.totalWeight}}</span>
               <div class="item-controls">
+                {{#if item.alwaysReady}}
+                <span class="always-ready" data-tooltip="Natural attack — always ready, and it takes no hand">
+                  <i class="fa-solid fa-hand-fist"></i>
+                </span>
+                {{else}}
                 <button type="button" data-action="toggleItemEquipped" data-tooltip="{{#if item.system.equipped}}Equipped — click to unequip{{else}}Not equipped — click to equip{{/if}}">
                   <i class="fa-solid fa-hand-fist{{#unless item.system.equipped}} muted-icon{{/unless}}"></i>
                 </button>
+                {{/if}}
                 <button type="button" data-action="rollWeaponAttack" data-tooltip="Attack (targets the selected token)"><i class="fa-solid fa-dice-d20"></i></button>
                 <button type="button" data-action="rollWeaponDamage" data-tooltip="Damage"><i class="fa-solid fa-burst"></i></button>
                 {{#if item.hasLoad}}

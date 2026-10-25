@@ -22,6 +22,7 @@
  * SPELL'S light as if it were the original.
  */
 
+import { isActingGM } from "./acting-gm.mjs";
 import {
   lightSourceKeysOn, brightestSourceKey, foundryLightConfig
 } from "./light-sources.mjs";
@@ -170,7 +171,20 @@ export function registerAttachedLightCleanup() {
       // NOT AWAITED — a hook cannot be async and returning a promise
       // here would be a promise nobody holds. Errors are caught inside
       // rather than escaping into Foundry's hook dispatcher.
-      restoreTokenLight(actor).catch((err) => {
+      //
+      // REDRAWN, NOT ONLY RESTORED (3.669.0). With a second light still
+      // running — Spirit Beacon ending over Living Lantern, a cast Light
+      // ending over a lit torch — restoring did nothing and the token went
+      // on drawing the light that had ended. The refresh draws the brightest
+      // that is left, and restores the original only when nothing is.
+      //
+      // ON ONE CLIENT, AND DIRECTLY (found in review). The hook fires on
+      // every connected client, and each non-owner used to relay its own
+      // write to the GM — one token update per client per light. The acting
+      // GM writes it; with no GM connected, the actor's owner does.
+      const here = isActingGM() || (!globalThis.game?.users?.activeGM && actor.isOwner);
+      if (!here) return;
+      refreshAttachedLight(actor, { direct: true }).catch((err) => {
         console.warn(`${SYSTEM_ID} | could not restore token light`, err);
       });
     } catch (err) {

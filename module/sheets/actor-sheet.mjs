@@ -1,4 +1,5 @@
 import { stashCapacity } from "../stowage.mjs";
+import { ALWAYS_READY_ACTOR_TYPES } from "../combat/natural-ready.mjs";
 import { coinValueInGP } from "../items.mjs";
 import { describeDefenceField } from "../defences.mjs";
 import { CONDITIONS } from "../conditions/registry.mjs";
@@ -56,6 +57,7 @@ import {
 import { clearFeatSlot, featSlotContext, openFeatSlotPick } from "../magic/feat-casting-workflow.mjs";
 import { memorisationContext, openMemoriseCantrip, openMemoriseSpell } from "../magic/memorisation-workflow.mjs";
 import { innateAttackFor, innateSaveFor } from "../magic/innate-printed.mjs";
+import { innateAbilityKey } from "../focus-declarations.mjs";
 import { elAdjustOf } from "../el-adjust.mjs";
 import { rollAidAnother, rollAutoCheck } from "../skills.mjs";
 import { activateItem, investItem, rollItemDepletion } from "../magic-items-workflow.mjs";
@@ -81,7 +83,7 @@ import {
 import { spellListFilterOptions, wireSpellListFilters } from "./list-filters.mjs";
 import { rollFrightenedRecovery, rollSickenedRetch } from "../combat/conditions-workflow.mjs";
 import { chargedItemSheetWarnings } from "../charged-items-workflow.mjs";
-import { SKILL_POINT_BONUSES, companionFeatBudget, featBudget, registeredFeatPicks, featDisplayName, freeGrantSources, effectiveRaces, effectiveClasses, effectiveTiers, substituteSkillActions } from "../feats.mjs";
+import { SKILL_POINT_BONUSES, companionFeatBudget, featBudget, registeredFeatPicks, featDisplayName, freeGrantSources, effectiveRaces, effectiveClasses, effectiveTiers, declaredClassFeatAccess, substituteSkillActions } from "../feats.mjs";
 import { companionEffectiveLevel, companionSyncState, isCompanion, masterIdOf } from "../companion.mjs";
 import {
   familiarAbilityBudget, familiarActionPoints, familiarEffectiveLevel,
@@ -164,6 +166,7 @@ import {
 import {
   abilityScoresOf, classItemOf, classMinimumShortfall, classMinimumWarning
 } from "../class-progression.mjs";
+import { DEFENCE_LIST_KEYS, grantedDefenceEntries, tidyDefenceList } from "../defence-lists.mjs";
 
 const { ActorSheetV2 } = foundry.applications.sheets;
 const { DialogV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -641,6 +644,17 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     // which is exactly how "Concentration" for "Concentrate" hid for
     // three releases.
     context.defenceSummary = describeDefenceField(system.combat?.immunities);
+    // THE BOXES HOLD WHAT WAS TYPED (3.666.4). They showed the derived
+    // lists, effects included, and this sheet submits the whole form on
+    // every change: each save stored a Construct's eleven immunities once
+    // more, and its creature type added them again on top. The stored value
+    // fills the box; what effects add is listed under it, read only. See
+    // defence-lists.mjs.
+    const storedCombat = actor._source?.system?.combat ?? {};
+    context.defenceStored = Object.fromEntries(DEFENCE_LIST_KEYS.map((key) =>
+      [key, tidyDefenceList(storedCombat[key])]));
+    context.defenceGranted = Object.fromEntries(DEFENCE_LIST_KEYS.map((key) =>
+      [key, grantedDefenceEntries(system.combat?.[key], storedCombat[key]).join(", ")]));
     context.showEffectInternals = Boolean(actor.getFlag(SYSTEM_ID, SHOW_INTERNALS_FLAG));
     // Whether the Attributes breakdown (folded into Summary, 3.219.0) is
     // open. An INSTANCE flag, not an actor flag: this sheet submits on
@@ -1350,6 +1364,11 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         row.notProficient = !verdict.proficient;
         row.proficiencyWhy = verdict.why;
       }
+      // ALWAYS READY (3.666.0): a character's natural attack has no equip
+      // toggle — it is part of the body. See combat/natural-ready.mjs.
+      if (item.type === "weapon" && item.system?.natural && ALWAYS_READY_ACTOR_TYPES.includes(this.actor.type)) {
+        row.alwaysReady = true;
+      }
 
       if (["feat", "ability"].includes(item.type)) {
         row.usesMax = itemUsesMax(item);
@@ -1587,8 +1606,11 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
           // so the button says so rather than doing nothing when pressed.
           row.usesFull = row.usesTracked && row.usesRemaining >= row.usesMax;
           row.isFocus = hasFocusTrait(item.system?.traits);
-          row.innateAttack = innateAttackFor(item, innateAbility, innateLevel).value;
-          row.innateSave = innateSaveFor(item, innateAbility, innateLevel).value;
+          // The spell's own ability when it declares one (3.664.0).
+          const ownAbilityKey = innateAbilityKey(item, this.actor.system?.magic?.castingAbility, this.actor.system?.attributes ?? {});
+          const ownAbility = Number(this.actor.system?.attributes?.[ownAbilityKey]?.total ?? innateAbility);
+          row.innateAttack = innateAttackFor(item, ownAbility, innateLevel).value;
+          row.innateSave = innateSaveFor(item, ownAbility, innateLevel).value;
           row.isAttack = String(item.system?.category ?? "").toLowerCase() === "attack";
           row.isSave = String(item.system?.category ?? "").toLowerCase() === "save";
           groups.innateSpells.push(row);
@@ -1789,6 +1811,9 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       // itself still applies the automatic conditionals — otherwise the
       // fast path would be a way to dodge a racial penalty.
       conditionalsResolved: Boolean(situational?.conditionalsResolved),
+      // SHIFT SKIPS THE QUESTIONS TOO (3.667.3): no tick-box prompt in
+      // place of the dialog it skipped. See dice/offered-conditionals.mjs.
+      offerConditionals: !skipDialog(event),
       dc: situational?.dc ?? config.dc ?? null,
       difficulty: situational?.difficulty ?? "medium",
       bias: situational?.bias,
@@ -2718,7 +2743,15 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       .map((i) => i.name);
     const context = {
       race: effectiveRaces(adoptedRace || (items.find((i) => i.type === "race")?.name ?? ""), heritageFeats),
+      // 3.669.0: a registered access list may be limited to one heritage.
+      heritage: items.find((i) => i.type === "heritage")?.name ?? "",
       class: effectiveClasses(items.find((i) => i.type === "class")?.name ?? "", archetypeFeats),
+      // THE CLASS TRAITS AN OWNED FEAT OPENS (3.670.0; Inner Magic, B6-7:
+      // the feats with the Mystic trait). Only a feat's own class trait is
+      // matched against these: not a registered access list, not a feat's
+      // source class (found in review: Inner Magic opened the Mystic's whole
+      // list of core feats). See feats.mjs `declaredClassFeatAccess`.
+      traitClasses: declaredClassFeatAccess(items).join(", "),
       // The class the character ACTUALLY is, separate from the lists an
       // archetype opens. A "Non-Fighter" prerequisite is about what you
       // are, not what feats you can reach: a Wizard who takes Thief has
@@ -3096,6 +3129,10 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static async toggleItemEquipped(event, target) {
     const item = this.actor.items.get(target.closest("[data-item-id]")?.dataset.itemId);
     if (!item) return;
+    if (item.type === "weapon" && item.system?.natural && ALWAYS_READY_ACTOR_TYPES.includes(this.actor.type)) {
+      ui.notifications.info(`${item.name} is a natural attack: always ready, and it takes no hand.`);
+      return;
+    }
     const willBeEquipped = !item.system.equipped;
     const changes = { "system.equipped": willBeEquipped };
     if (willBeEquipped) {

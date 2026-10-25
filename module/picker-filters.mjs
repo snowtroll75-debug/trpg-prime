@@ -785,6 +785,10 @@ export function buildPickerFilter(slotKey, context = {}) {
   // them refused a Wizard-with-Thief every Non-Rogue feat.
   const {
     race = "", class: className = "", ownClass = className, tradition = "", tier = "",
+    // Classes whose TRAIT gates only are opened (3.670.0; Inner Magic).
+    traitClasses = "",
+    // The heritage, for an access list limited to one (3.669.0).
+    heritage = "",
     // Whether the sheet asking is a companion's. Read from the actor's
     // TYPE rather than guessed from its name or its master, because
     // "companion" is a document type in this system and nothing else
@@ -822,7 +826,7 @@ export function buildPickerFilter(slotKey, context = {}) {
       // another race — Pillars' "Existing racial feats" — beside the tag.
       return (entry) =>
         entry.system?.category === "Racial" &&
-        (matchesSource(entry.system?.sourceRace, race) || hasRegisteredFeatAccess("race", race, entry.name));
+        (matchesSource(entry.system?.sourceRace, race) || hasRegisteredFeatAccess("race", race, entry.name, heritage));
     case "classFeat":
       // Class feats gate on their TRAITS (Chapter 5): class names
       // (Fighter, Druid...) require one of the actor's effective classes
@@ -868,7 +872,7 @@ export function buildPickerFilter(slotKey, context = {}) {
         // access to Bardic Lore, Familiar..." — the feat's own trait says
         // Bard; the registration says the Archivist may take it too.
         if (hasRegisteredFeatAccess("class", className, entry.name)) return true;
-        const myClasses = String(className ?? "")
+        const myClasses = [className, traitClasses].join(", ")
           .split(/,\s*/)
           .map((c) => c.trim().toLowerCase())
           .filter(Boolean);

@@ -28,6 +28,7 @@
  * Pure and Foundry-free.
  */
 
+import { declaredCarryStrength } from "./focus-declarations.mjs";
 import { carriedWeightOf } from "./items.mjs";
 
 /**
@@ -79,7 +80,8 @@ export function carryStrengthBonus({ featNames = [], items = [], animal = false 
   }
   const fromItems = [...worn].reduce((total, key) => total + CARRY_STRENGTH_ITEMS[key].value, 0);
 
-  return hauler + fromItems;
+  // DECLARED (3.664.0): `carryStrength` on any owned item.
+  return hauler + fromItems + declaredCarryStrength(items);
 }
 
 /**

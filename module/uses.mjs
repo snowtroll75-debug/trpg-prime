@@ -125,6 +125,81 @@ export function focusInnateDefaultUses(system, type = "spell") {
   return /\bfocus\b/i.test(String(system?.traits ?? "")) ? 1 : null;
 }
 
+/**
+ * EVERY FOCUS FEAT AND ABILITY IS ONE USE TOO (3.665.0; Inner Tempest's D1,
+ * approved by Graham on 21 October 2026).
+ *
+ * The rule above covered innate spells only, so a feat or ability carrying
+ * the Focus trait with no printed count was untracked: never spent, never
+ * refused, never offered to Refocus. Five core feats were in that state
+ * (Ebon Bind, Ferocious Charge, Injury Relief, Primal Shape, Void Step),
+ * with one Fiends & Fables feat and its creatures' Focus breaths and
+ * screeches, and every Inner Tempest technique would have been.
+ *
+ * FEATS AND ABILITIES ONLY, beside the innate-spell rule. A spell that is
+ * not innate is cast from Power Points and its Focus trait is not a count;
+ * the Channels and form spells write a blank count on purpose so their
+ * shared pool is the only counter (feats-workflow), and both stay as they
+ * were.
+ *
+ * Pure: the item's system data and type in, the implied count out (null
+ * when no default applies). `itemUsesMax` and item creation read this.
+ */
+export const FOCUS_DEFAULT_TYPES = Object.freeze(["feat", "ability"]);
+
+export function focusDefaultUses(system, type = "spell") {
+  if (type === "spell") return focusInnateDefaultUses(system, type);
+  if (!FOCUS_DEFAULT_TYPES.includes(String(type ?? ""))) return null;
+  if (String(system?.usesPerDay ?? "").trim()) return null;
+  return /\bfocus\b/i.test(String(system?.traits ?? "")) ? 1 : null;
+}
+
+/**
+ * SPENT BY THE USE BUTTON (3.665.1). Found in the live test of 3.665.0: D1
+ * gave Void Step, Abyssal Healing and the rest a count of one, but their own
+ * Use handlers were written when they had none, so nothing spent it and
+ * nothing refused a spent one. Each of those handlers would need the same two
+ * lines; the Use button is the one place they all pass through, so it gates
+ * and spends there, for the DEFAULTED count only — an item that prints a
+ * count has a handler that already spends it (Crusader's Mercy).
+ *
+ * Pure: whether the Use should spend the use now.
+ *   max      focusDefaultUses for the item (null: not a defaulted count)
+ *   before   the stored count when the Use began
+ *   after    the stored count when its handler returned
+ *   acted    whether the handler did something (it posted a card)
+ *
+ * Not spent when the handler spent it itself (the area-ability path does),
+ * when it was refused or cancelled (no card), or when it reported failure.
+ */
+export function focusDefaultSpend({ max = null, before = NaN, after = NaN, acted = false, result } = {}) {
+  if (max === null || max === undefined) return false;
+  if (result === false || result === null) return false;
+  if (!acted) return false;
+  const b = Number(before), a = Number(after);
+  if (!Number.isFinite(b) || b <= 0) return false;
+  return a === b;
+}
+
+/**
+ * Item source data with a defaulted Focus count primed to its one use, or
+ * null when nothing needs writing.
+ *
+ * THE STORED COUNT STARTS AT 0, which reads as spent. An item dropped on a
+ * sheet is primed by its own `_preCreate`; an actor arriving WITH its items
+ * (a creature imported from Fiends & Fables, a duplicate) is primed by the
+ * actor's, through this.
+ *
+ * @param {object} itemSource an item's source data ({type, system})
+ * @returns {number|null} the usesValue to store, or null
+ */
+export function focusDefaultPrime(itemSource) {
+  const max = focusDefaultUses(itemSource?.system ?? {}, itemSource?.type);
+  if (max === null) return null;
+  const stored = Number(itemSource?.system?.usesValue);
+  return Number.isFinite(stored) && stored >= max ? null : max;
+}
+
 export function usesMax(formula, attributeTotals, bonus = 0, level = null) {
   const resolved = resolveUsesPerDay(formula, attributeTotals, level);
   if (resolved === null) return null;

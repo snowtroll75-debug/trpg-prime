@@ -414,6 +414,11 @@ function effectTargets(peril, spec, chosen = null) {
     const emitterWidth = (Number(token.width) || 1) * squareFeet;
     for (const t of token.parent?.tokens ?? []) {
       if (t.id === token.id || !t.actor || isPeril(t.actor)) continue;
+      // ALLIES LEFT OUT (3.669.0; Inner Tempest's Blinding Majesty, "You may
+      // exclude any number of allies"): `enemiesOnly`, as a swarm's space
+      // already reads it.
+      const ally = t.disposition === token.disposition;
+      if (spec.enemiesOnly && ally) continue;
       const centre = t.object?.center ?? null;
       const distance = origin && centre ? canvas?.grid?.measurePath?.([origin, centre])?.distance ?? null : null;
       if (distance === null || distance <= areaReachFeet(spec.radiusFeet, emitterWidth, (Number(t.width) || 1) * squareFeet)) actors.push(t.actor);

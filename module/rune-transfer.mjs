@@ -320,6 +320,13 @@ export function transferSources(items = []) {
  * The items that could receive one: rune-bearing kinds, never the source
  * itself, and never a cracked runestone.
  *
+ * AND AN EMPTY RUNESTONE (3.666.2). Graham, 22 October 2026: "A rune can be
+ * transferred onto a runestone from an item." It holds "only one rune … at
+ * any one time", so a stone already carrying one is not offered, and a
+ * cracked one is "useless for future rune storing". The transfer is then the
+ * between-items variant (the source is an item), and the stone takes the
+ * rune's school and tradition traits as it is etched (runestone.mjs).
+ *
  * @param {Array} items
  * @param {object} [options]
  * @param {object} [options.exclude] The chosen source.
@@ -330,6 +337,7 @@ export function transferTargets(items = [], { exclude = null } = {}) {
     if (!item) return false;
     if (exclude && item.id === exclude.id) return false;
     if (isCracked(item)) return false;
+    if (isRunestone(item)) return item?.type === "gear" && !splitRuneEntries(item?.system?.runes ?? "").length;
     // Runed clothing too (3.577.0, R9) — see rune-bearing.mjs.
     return Boolean(runeKindOf(item));
   });

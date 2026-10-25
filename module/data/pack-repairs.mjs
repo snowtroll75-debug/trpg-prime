@@ -2245,6 +2245,23 @@ export const PACK_REPAIRS = Object.freeze([
     to: [{"ap": 2, "label": "Body \u2014 +4 status to Fortitude saves and Swim (Athletics)", "effects": [{"kind": "bonus", "target": "self", "slot": "fortitude", "value": 4, "bonusType": "status", "note": "(Body)"}, {"kind": "conditional", "label": "Channel The Aspect (Body)", "target": "self", "grants": [{"kind": "modifier", "value": 4, "label": "Channel The Aspect (Body)", "scope": "Swim (Athletics) checks", "when": {"actions": ["swim"]}, "auto": true, "bonusType": "status"}]}]}, {"ap": 2, "label": "Limbs \u2014 quickened, for Move or Strike only", "effects": [{"kind": "condition", "target": "self", "condition": "quickened", "apFor": ["move", "strike"]}]}, {"ap": 2, "label": "Mind \u2014 +4 status to Recall Knowledge and Awareness (Perception)", "effects": [{"kind": "conditional", "label": "Channel The Aspect (Mind)", "target": "self", "grants": [{"kind": "modifier", "value": 4, "label": "Channel The Aspect (Mind)", "scope": "Recall Knowledge and Awareness (Perception) checks", "when": {"actions": ["recallKnowledge", "awareness"]}, "auto": true, "bonusType": "status"}]}]}, {"ap": 2, "label": "Spirit \u2014 +4 status to Will saves and Demoralise (Intimidate)", "effects": [{"kind": "bonus", "target": "self", "slot": "will", "value": 4, "bonusType": "status", "note": "(Spirit)"}, {"kind": "conditional", "label": "Channel The Aspect (Spirit)", "target": "self", "grants": [{"kind": "modifier", "value": 4, "label": "Channel The Aspect (Spirit)", "scope": "Demoralise (Intimidate) checks", "when": {"actions": ["demoralise"]}, "auto": true, "bonusType": "status"}]}]}],
     reason: "Limbs' quickened was a note to apply by hand; it is now the condition, its extra AP for Move or Strike only (restricted-ap.mjs). Body's Swim, Mind's Recall Knowledge and Awareness, and Spirit's Demoralise are conditionals on those actions rather than whole-skill bonuses with a note to take them off."
   },
+  /* HURLING (3.666.1). Graham, 22 October 2026: "The spell Hurling is not
+   * adding magical ability score to its damage." Every caster with the
+   * cantrip owns a copy, so the copy is where the game is played. */
+  {
+    id: "hurling-damage-casting-ability-36661", pack: "spells", name: "Hurling",
+    field: "damage", since: "3.666.1",
+    from: { formula: "1d6", type: "bludgeoning", persistent: "" },
+    to: { formula: "1d6", type: "bludgeoning", persistent: "", addAbility: "casting" },
+    reason: "\"1d6 + magical ability score\": the row adds the ability the cast rolled its Spellcraft off (spell-damage-ability.mjs). Without it the attack rolled a bare 1d6."
+  },
+  {
+    id: "hurling-effects-note-36661", pack: "spells", name: "Hurling",
+    field: "effects", since: "3.666.1",
+    from: [{ kind: "note", text: "Damage is 1d6 + your magical ability score modifier (the flat ability bonus is added by hand)." }],
+    to: [],
+    reason: "The note said to add the ability by hand. Left on a copy whose damage now adds it, it invites adding it twice."
+  },
 ]);
 
 /* ==================================================================== *

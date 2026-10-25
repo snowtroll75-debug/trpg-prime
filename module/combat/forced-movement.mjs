@@ -224,8 +224,31 @@ export function plannedPush({
  * @param {string} targetName
  * @returns {string}
  */
+/**
+ * HOW MUCH SHORTER A PUSH IS FOR THIS CREATURE (3.669.0; Inner Tempest's
+ * Immovable Plating: "whenever a physical effect would forcibly move you,
+ * reduce the distance moved by 5 feet, to a minimum of 0 feet"). The sum of
+ * `flags.trg-prime.forcedMovementReduction` (feet) on its declaration
+ * carriers.
+ */
+export function forcedMovementReduction(carriers = []) {
+  let feet = 0;
+  for (const c of carriers ?? []) {
+    const n = Number(c?.flags?.["trg-prime"]?.forcedMovementReduction);
+    if (Number.isFinite(n) && n > 0) feet += Math.trunc(n);
+  }
+  return feet;
+}
+
+/** The push's feet after a reduction, never below 0. */
+export function reducedPushFeet(feet, reduction = 0) {
+  return Math.max(0, Math.trunc(Number(feet) || 0) - Math.max(0, Math.trunc(Number(reduction) || 0)));
+}
+
 export function describePush(plan, targetName = "The target") {
   if (!plan?.ok) return `No push: ${plan?.reason ?? "unknown reason"}.`;
+  const reduced = plan.reducedBy ? ` (${plan.reducedBy} ft shorter: ${plan.reducedLabel || "it resists being moved"})` : "";
+  if (plan.reducedBy && !plan.requestedFeet) return `${targetName} is not moved${reduced}.`;
   if (!plan.moved) {
     return `${targetName} cannot be pushed — something is in the way immediately behind them.`;
   }
@@ -233,7 +256,7 @@ export function describePush(plan, targetName = "The target") {
     return `${targetName} is pushed ${plan.movedFeet} ft of the ${plan.requestedFeet} ft `
       + "and stops there — something is in the way.";
   }
-  return `${targetName} is pushed ${plan.movedFeet} ft.`;
+  return `${targetName} is pushed ${plan.movedFeet} ft${reduced}.`;
 }
 
 /**

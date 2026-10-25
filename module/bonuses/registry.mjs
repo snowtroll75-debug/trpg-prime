@@ -279,7 +279,10 @@ export function resolveBonuses({
       label: entry.label ?? "Effect",
       value,
       type: BONUS_TYPES[entry.type] ? entry.type : "untyped",
-      source: entry.source ?? "effect"
+      source: entry.source ?? "effect",
+      // WHO GAVE A DECLARED ROW (3.668.0), when it says: the effect a stat
+      // row came from, for Formless Cut's "ignores stance bonuses".
+      ...(entry.carrierUuid ? { carrierUuid: String(entry.carrierUuid) } : {})
     });
   }
 

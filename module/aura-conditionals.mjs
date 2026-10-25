@@ -198,6 +198,8 @@ export function allyConditionalsInForce({ subject, emitters = [] } = {}) {
       // rule would mean no mutation of either could be caught — the
       // same shape as the duplicated Abyssal-Darkness guard collapsed in
       // module/light.mjs. One rule, one place.
+      // ONLY WHILE SWITCHED ON (3.669.0), as ally-aura-effects.mjs.
+      if (aura.emitterState && !(emitter.states ?? []).includes(aura.emitterState)) continue;
       const reach = auraReachFeet(aura.radius, emitter.widthFeet);
       if (!withinAura(emitter.centreFeet, subject.centreFeet, reach)) continue;
       found.push(...allyAuraConditionals(aura, emitter));

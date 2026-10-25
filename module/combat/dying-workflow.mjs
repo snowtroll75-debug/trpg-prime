@@ -58,6 +58,24 @@ async function postCard(actor, title, lines) {
  * this system separates mechanics from presentation.
  */
 export async function applyDamageAndCheckDying(
+  actor, damage, { isCritical = false, nonlethal = false, redirected = false, damageTypes = [], sourceLevel = null, sourceName = "", sourceUuid = "", context = null } = {}
+) {
+  const result = await applyDamageAndCheckDyingInner(actor, damage, { isCritical, nonlethal, redirected, damageTypes, sourceLevel, sourceName });
+  // DAMAGE, FOR WHOEVER LISTENS (3.667.0): Inner Tempest's Flame Within —
+  // "Trigger you take damage … resets when you end your turn without taking
+  // or dealing damage". Called on the client that applied it, after the HP
+  // has moved (or the relay has answered). `sourceUuid` is the creature the
+  // damage came from, where the caller knows it.
+  const taken = Math.max(0, Number(damage) || 0);
+  if (actor && taken > 0) {
+    // `context` says what the blow was, where the caller knows: a Strike's
+    // {kind: "strike", melee, damageType, weaponName}, a spell's {kind: "spell"}.
+    Hooks.callAll("trgPrimeDamageApplied", { actor, amount: taken, isCritical, nonlethal, damageTypes, sourceUuid: String(sourceUuid ?? ""), sourceName, context: context ?? null });
+  }
+  return result;
+}
+
+async function applyDamageAndCheckDyingInner(
   actor, damage, { isCritical = false, nonlethal = false, redirected = false, damageTypes = [], sourceLevel = null, sourceName = "" } = {}
 ) {
   // THE PERMISSION BOUNDARY (3.339.4). Writing HP to a target the current
@@ -541,6 +559,13 @@ async function applyDamageDirect(
  */
 export async function enterDyingAt(actor, finalHP, { isCritical = false } = {}) {
   if (!actor) return { case: "none", newHP: 0 };
+  // THE PERMISSION BOUNDARY, as `applyDamageAndCheckDying` crosses it
+  // (3.666.1): a player's Word Of Death on the GM's creature wrote its hit
+  // points directly, and the throw lost the spell's card.
+  if (!actor.isOwner) {
+    const { relayDyingAt } = await import("./target-relay-workflow.mjs");
+    return relayDyingAt(actor, finalHP, { isCritical }, () => null);
+  }
   const hp = Math.trunc(Number(finalHP) || 0);
 
   // ABOVE ZERO IS NOT A DROP INTO DYING. A ladder naming a positive

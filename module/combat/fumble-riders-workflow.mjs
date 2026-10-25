@@ -206,7 +206,9 @@ export async function applyFumbleRiders(actor, row, { weapon = null, category = 
 
   /* ── the weapon is dropped (R5: unequip) ───────────────────────── */
   const dropped = dropWeaponRider(effect);
-  if (dropped && weapon) {
+  // A NATURAL ATTACK IS NOT HELD (3.666.0): a fist or a claw cannot be
+  // dropped, so the rider passes it by.
+  if (dropped && weapon && !weapon.system?.natural) {
     if (weapon.system?.equipped) await weapon.update({ "system.equipped": false });
     lines.push(say(
       `<strong>${weapon.name} is dropped at ${actor.name}'s feet</strong> — unequipped.`

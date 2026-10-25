@@ -1,5 +1,6 @@
+import { attackCountOf, setAttackCount } from "./turn-records.mjs";
 import { BIAS, TRGCheck } from "../dice/check.mjs";
-import { resolveBias } from "../conditionals.mjs";
+import { resolveBias, biasWithKinds } from "../conditionals.mjs";
 import { tracklessStepApplies } from "./passive-feats.mjs";
 import { cannySmugglerEarnIncome, fullSpeedTrackingDC, groupCoercionFreeTargets, schooledInSecretsSkills, surveyWildlifeOutcome, shadowbornAgilityDegree, shadowbornStepNote } from "../skill-feats.mjs";
 import { promptCheckConfiguration, skipDialog } from "../apps/check-dialog.mjs";
@@ -19,6 +20,9 @@ import { thornboundOffer } from "../codex-runes.mjs";
 import { resolveShieldBlock } from "./shield-block-workflow.mjs";
 import { resolveAlignedControl } from "../aligned-control-workflow.mjs";
 import { refocusBlunderFormula } from "./refocus.mjs";
+import { actionAbilityRows } from "../focus-declarations.mjs";
+import { declarationCarriers } from "../declaration-carriers.mjs";
+import { DAILY_FIRSTS_FLAG, dailyFirstAdvantage, dailyFirstDegree, dailyFirstExact, dailyFirstExactDegree, dailyFirstSpent, hasDailyFirst } from "../daily-firsts.mjs";
 import { applyRefocusOutcome, chooseRefocusTarget, restoreRefocusCompanion } from "./refocus-workflow.mjs";
 import { rallyReduction } from "./rally.mjs";
 import { repairHPRestored } from "./repair.mjs";
@@ -132,6 +136,7 @@ import { immuneToEffect, secretRollMode, hasTrait } from "../traits.mjs";
 import { ownedCreatureTypeSystem } from "../creature-type-rules.mjs";
 import { extractDurationRounds, extractModifier } from "../outcome-effects.mjs";
 import { addPendingModifier } from "../pending-modifiers.mjs";
+import { readsGenericModifier, scopeNamesAction } from "./dedicated-rows.mjs";
 import {
   adjustableRows,
   criticalAdjustAllowance,
@@ -212,7 +217,7 @@ import {
   startEarnIncomeTask
 } from "../earn-income-workflow.mjs";
 import {
-  CONSUMABLE_ITEM_TYPES, alchemicalCheckTraits, consumableDCModifier, meetsRankRequirement, ruinedOnTheDay
+  CONSUMABLE_ITEM_TYPES, alchemicalCheckTraits, actionCheckTraits, consumableDCModifier, meetsRankRequirement, ruinedOnTheDay
 } from "../create-crafting.mjs";
 import {
   activeCreateProject,
@@ -788,6 +793,15 @@ async function promptReleaseItem(actor) {
  * collects is a list of actors, and what matters is the single question of
  * whether any of them makes the roll harder.
  */
+/**
+ * The roll's bias with further advantage/disadvantage kinds reconciled in
+ * one pass (3.665.0). With no kinds the chosen bias is returned untouched —
+ * exactly what the roll received before.
+ */
+function rollBiasWith(chosen, kinds = []) {
+  return biasWithKinds(chosen, kinds, BIAS);
+}
+
 export function tracklessBias(chosen, quarry) {
   const applies = tracklessStepApplies(
     Array.from(quarry ?? []).map((a) => Array.from(a?.items ?? [])
@@ -1168,7 +1182,7 @@ function checkConfiguration(actor, action, invokedSkillKey, targetActor) {
   // declared as `derives.mapExempt: ["grapple"]` on the ability.
   const mapExempt = abilityMapExemptActions(Array.from(actor.items ?? [])).has(String(action.key ?? "").toLowerCase());
   if (countsTowardMAP(action.traits) && !mapExempt) {
-    const map = mapPenalty(Number(actor.getFlag(SYSTEM_ID, "attackCount") ?? 0));
+    const map = mapPenalty(attackCountOf(actor));
     if (map) config.modifiers = [...config.modifiers, { label: "Multiple attack penalty", value: map, type: "untyped" }];
   }
   return config;
@@ -1405,7 +1419,25 @@ function placeNotes(actor, action) {
   return out;
 }
 
-export async function resolveAction(actor, action, { invokedSkillKey: requestedSkillKey = null, event = null } = {}) {
+export async function resolveAction(actor, action, {
+  invokedSkillKey: requestedSkillKey = null, event = null, readied = false,
+  // ONE ROLL AGAINST SEVERAL CREATURES (3.669.0; Inner Tempest's Spirit Roar:
+  // "Make a single Demoralise check and compare the result against the Level
+  // DC of each enemy within the area … as though you had used Demoralise
+  // against it"). `presetDice` is the first roll's die, met here again;
+  // `dcOverride` the DC this creature is met at (`dcLabel` names it);
+  // `ignoreActionImmunity` neither asks nor stamps the action's own
+  // temporary immunity, which the ability replaces with its own.
+  presetDice = null, dcOverride = null, dcLabel = "", ignoreActionImmunity = false,
+  // THE SHARED ROLL'S CONVICTION DIE (3.669.1): when the first creature's
+  // check spent conviction's +1d6, the creatures meeting that roll after it
+  // meet it with the same die, and are not asked again.
+  presetConvictionDie = 0,
+  // ANOTHER CHECK'S RESULT AS THIS ONE (3.670.0; Drunken Strike, B6-3):
+  // with `presetDice`, that check's modifiers replace this one's, so the
+  // total is that check's. See TRGCheck.
+  presetModifiers = null
+} = {}) {
   // Same fix as promptTrackQuarry above: two dialogs in this function used
   // DialogV2 without binding it.
   const { DialogV2 } = foundry.applications.api;
@@ -1784,7 +1816,11 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
       // Declared as action keys on the feature rather than by matching its
       // name, so any later ability with the same clause works unchanged —
       // the same reasoning as Lys-Fod's linguistLanguageBonus flag.
-      const exempt = Array.from(actor.items ?? [])
+      // ANOTHER CHECK'S RESULT STANDS AS THIS ONE (3.670.1; found live,
+      // Inner Tempest's Drunken Strike, B6-3): nothing is rolled with the
+      // skill, so its training is not asked for. See `presetModifiers`.
+      const presetResult = Boolean(presetDice) && Array.isArray(presetModifiers);
+      const exempt = presetResult || Array.from(actor.items ?? [])
         .concat(Array.from(actor.appliedEffects ?? []).filter((e) => !e.disabled))
         .some((source) => {
           const declared = source?.flags?.[SYSTEM_ID]?.untrainedActions;
@@ -2189,7 +2225,9 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
     }
 
     // A STRIKE ALREADY PAID FOR — a readied one (3.645.0, F7) — costs no AP.
-    return rollWeaponAttack(actor, chosen, { event, apPaid: String(action.apCost ?? "").trim() === "0" });
+    // READIED, SAID SO (3.668.1): Inner Tempest's Brace trait reads "if you
+    // use a Ready action to attack".
+    return rollWeaponAttack(actor, chosen, { event, apPaid: String(action.apCost ?? "").trim() === "0", readied: Boolean(readied) });
   }
 
   // IMPROVISED ATTACK (3.576.0): the same Strike, with a held item as the
@@ -2266,7 +2304,7 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
   // REFUSED BEFORE THE AP IS SPENT, and said out loud with the time
   // remaining, because "nothing happened" is the one answer a player
   // cannot act on.
-  if (targetActor && ACTION_IMMUNITIES[action.key]) {
+  if (targetActor && ACTION_IMMUNITIES[action.key] && !ignoreActionImmunity) {
     const { isTemporarilyImmune, immunityRemaining, describeRemaining, IMMUNITY_FLAG } =
       await import("../temporary-immunity.mjs");
     const key = actionImmunityKey(action.key, actor?.uuid ?? "");
@@ -2508,7 +2546,8 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
 
         const done = await resolveAction(actor, { ...storedAction, apCost: "0" }, {
           invokedSkillKey: storedAction.invokedSkillKey,
-          event
+          event,
+          readied: true
         });
         if (done) {
           await consumeReadiedAction(actor);
@@ -2931,10 +2970,13 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
   // saying why, is the kind of thing that gets reported as the maths being
   // wrong.
   const defenceDCLines = [];
+  // A DEFENDER'S "DISADVANTAGE ON THIS CHECK" ROW (3.665.0, Tsuchi): read
+  // with the DC rows below, applied to the roll's bias further down.
+  let defenceDisadvantages = [];
   if (targetActor && resolved.dc !== null) {
     const defence = defenceDCBonus(
       targetActor, action.against, action.key,
-      creatureTypesOf(actor?.system ?? {}), actor?.uuid ?? "");
+      creatureTypesOf(actor?.system ?? {}), actor?.uuid ?? "", [], creatureTraits(actor?.system ?? {}));
     if (defence.total) {
       resolved.dc += defence.total;
       for (const entry of defence.entries) {
@@ -2943,6 +2985,12 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
             entry.value} to ${resolved.label}${entry.scope ? ` — ${entry.scope}` : ""}.</em>`
         );
       }
+    }
+    defenceDisadvantages = defence.disadvantages ?? [];
+    for (const entry of defenceDisadvantages) {
+      defenceDCLines.push(
+        `<em>${targetActor.name}: ${entry.label} — this check is rolled at disadvantage${entry.scope ? ` (${entry.scope})` : ""}.</em>`
+      );
     }
   }
 
@@ -3225,11 +3273,12 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
       // all, and it is offered pre-ticked because targeting a Wyrm
       // settles its whole scope.
       targetTypes: creatureTypesOf(targetActor?.system ?? {}),
+      targetTraits: creatureTraits(targetActor?.system ?? {}),
       targetUuid: targetActor?.uuid ?? "",
       // WHAT IS BEING MADE (3.577.0): "alchemical" on a Crafting (alchemy)
       // check, so the Alchemy Lab's +4 is offered there and nowhere else.
       // BOTH PATHS, as the axes above are — see the roll below.
-      traits: alchemicalCheckTraits(action.key, createItemTypeKey),
+      traits: actionCheckTraits(action, createItemTypeKey),
       defaultDifficulty: actionDifficulty,
       // A PERIL'S SITUATIONAL BONUSES (3.629.0): the Empty Chair's remembered
       // name, the False Confession's examined ledger — offered, unticked.
@@ -3246,6 +3295,11 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
   let finalDC = situational
     ? situational.dc ?? resolved.dc
     : resolved.dc ?? suggestedDC;
+  if (dcOverride !== null && dcOverride !== undefined && Number.isFinite(Number(dcOverride))) {
+    finalDC = Number(dcOverride);
+    resolved.label = String(dcLabel || `DC ${finalDC}`);
+    resolved.missingTarget = false;
+  }
   // NAMED ONLY WHEN IT IS ACTUALLY THE RUNG. If the GM typed a number of
   // their own, calling it "Medium (level + 14)" on the card would be a
   // caption describing a different DC than the one beside it.
@@ -3367,6 +3421,11 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
     }
     if (action.key === "track" && fullSpeedTrackingDC(tradeoffFeats) === 0) {
       waivers.fullSpeed = { dc: 0 };
+    }
+    // …AND ANY AN ITEM OR EFFECT DECLARES (3.670.0; Monkey Stance's 1-AP jumps).
+    {
+      const { declaredTradeoffWaivers } = await import("../difficulty-tradeoffs.mjs");
+      Object.assign(waivers, declaredTradeoffWaivers([...Array.from(actor.items ?? []), ...Array.from(actor.appliedEffects ?? actor.effects ?? [])], action.key));
     }
     tradedDifficulty = await promptDifficultyTradeoffs(action.key, action.name, { waivers });
     if (tradedDifficulty === null) return null;
@@ -3547,7 +3606,8 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
   // dialog, the AP actually charged and the modifier all come from the
   // same table; picking the ladder for the prompt and the modifier
   // separately is how a player gets charged for a rung they did not pick.
-  const baseLadder = skipDialog(event) ? null : timeLadder(action.key);
+  // A module action may declare its own (3.666.0) — see declaredTimeLadder.
+  const baseLadder = skipDialog(event) ? null : timeLadder(action.key, action);
   const actionLadder = (baseLadder && action.key === "identifyPower")
     ? identifyPowerLadderFor(baseLadder, actorFeatNames)
     : baseLadder;
@@ -3745,6 +3805,8 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
     rechargeSetup,
     gatherHerbsSetup,
     coverTracksCount,
+    // ONE ROLL AGAINST SEVERAL (3.669.0): Spirit Roar's own immunity replaces the action's.
+    ignoreActionImmunity: Boolean(ignoreActionImmunity),
     // TRAILING COMMA ON PURPOSE: every entry here is mirrored in
     // pendingOutcomeContext and restoreOutcomeContext, and whichever one
     // is last should not have to change shape when the next is added.
@@ -3780,9 +3842,21 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
     });
   }
 
+  // ADVANTAGE ON THE DAY'S FIRST USE (3.669.0; Tianzhi Meditation). See
+  // daily-firsts.mjs. Spent once the check is rolled.
+  const firstAdvantage = dailyFirstAdvantage(declarationCarriers(actor), action.key, actor.flags?.[SYSTEM_ID]);
+  // A FIRST WHOSE DICE ARE NOT READ (3.669.1): no conviction is asked for it.
+  const exactFirst = dailyFirstExact(declarationCarriers(actor), action.key, dailyFirstSpent(actor.flags?.[SYSTEM_ID], action.key));
+  // …AND DECLARED AT ITS DEGREE (3.669.2): the card no longer shows the
+  // unread dice's degree above the outcome's.
+  const exactDegree = exactFirst ? dailyFirstExactDegree(declarationCarriers(actor), action.key) : null;
+
   const check = await TRGCheck.roll({
     pendingOutcome,
     actor,
+    ...(presetDice ? { presetDice, presetConvictionDie } : {}),
+    ...(presetDice && Array.isArray(presetModifiers) ? { presetModifiers } : {}),
+    ...(exactFirst ? { allowConviction: false, declaredDegree: exactDegree } : {}),
     label: config.label,
     subtitle:
       `${apCostLabel(effectiveApCost) ? `${apCostLabel(effectiveApCost)} — ` : ""}` +
@@ -3797,16 +3871,24 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
     // already carrying Advantage from somewhere comes out Normal instead of
     // having its advantage silently replaced — the same lesson the save
     // family paid for in 3.356.0.
-    bias: actionAttackTerms?.advantage
-      ? resolveBias(tracklessBias(situational?.bias, tracklessQuarry), ["advantage"], BIAS)
-      : tracklessBias(situational?.bias, tracklessQuarry),
+    // AND A DEFENDER'S DISADVANTAGE ROW (3.665.0, Tsuchi), in the SAME
+    // reconciliation as the attack's own advantage, so the two cancel to
+    // Normal rather than whichever was applied last winning.
+    bias: rollBiasWith(tracklessBias(situational?.bias, tracklessQuarry), [
+      ...(actionAttackTerms?.advantage ? ["advantage"] : []),
+      ...(defenceDisadvantages.length ? ["disadvantage"] : []),
+      ...(firstAdvantage ? ["advantage"] : [])
+    ]),
     // SECRET (Appendix 3): "the GM rolls the check in secret." Forced
     // rather than defaulted — a Secret check the player can read isn't
     // secret, so an explicit roll-mode choice in the dialog doesn't
     // override it.
     rollMode: secretRollMode(action) ?? situational?.rollMode,
-    convictionAdvantage: Boolean(situational?.convictionAdvantage),
-    useLuck: Boolean(situational?.useLuck),
+    // NOTHING SPENT ON DICE NOBODY READS (3.669.2, found in review): a day's
+    // first declared `exact` takes no conviction Advantage and no Luck, though
+    // the dialog offered them.
+    convictionAdvantage: !exactFirst && Boolean(situational?.convictionAdvantage),
+    useLuck: !exactFirst && Boolean(situational?.useLuck),
     // Scoped racial/feature bonuses: the dialog offered them all if it
     // opened, otherwise the roll applies the automatic ones itself so
     // that a Shift-skipped action still honours (and cannot dodge) them.
@@ -3821,8 +3903,9 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
     // check a Dracoris ever rolled. Blank with nothing targeted, at which
     // point the entry correctly stays out of the dialog entirely.
     targetTypes: creatureTypesOf(targetActor?.system ?? {}),
+    targetTraits: creatureTraits(targetActor?.system ?? {}),
     targetUuid: targetActor?.uuid ?? "",
-    traits: alchemicalCheckTraits(action.key, createItemTypeKey),
+    traits: actionCheckTraits(action, createItemTypeKey),
     // WHAT THIS ACTION'S BANNER MAY SAY (3.508.0). Graham's ruling: "the
     // card banner should only show available results". 103 of the 105
     // actions that roll a check declare a subset of the seven degrees, so
@@ -3830,6 +3913,8 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
     // one the action actually has. The DEGREE itself is untouched.
     declaredOutcomes: declaredOutcomeKeys(action),
     conditionalsResolved: Boolean(situational?.conditionalsResolved),
+    // SHIFT SKIPS THE QUESTIONS TOO (3.667.3). See dice/offered-conditionals.mjs.
+    offerConditionals: !skipDialog(event),
     bonusCheck: Boolean(action.bonusCheck),
     modifiers: [
       ...config.modifiers,
@@ -3837,6 +3922,14 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
       ...(situational?.modifiers ?? []),
       ...(studyTimeModifier ? [studyTimeModifier] : []),
       ...(identifyTimeModifier ? [identifyTimeModifier] : []),
+      // ANOTHER ABILITY FOR THIS ACTION (3.664.0): Considered Mind's
+      // Intelligence, Unwavering Purpose's Charisma — for Refocus only.
+      ...actionAbilityRows(
+        declarationCarriers(actor),
+        action.key,
+        actor.system?.skills?.[readInvokedSkillKey(invokedSkillKey ?? "").key || action.skills?.[0] || ""]?.ability ?? "",
+        actor.system?.attributes ?? {}
+      ),
       ...subsistRows,
       ...dispelRows,
       ...auraRows,
@@ -3857,11 +3950,21 @@ export async function resolveAction(actor, action, { invokedSkillKey: requestedS
   // next attack's penalty, whether it hit or missed — the counter the
   // Strike keeps, advanced here for everything else that has the trait.
   if (check && countsTowardMAP(action.traits)) {
-    const before = Number(actor.getFlag(SYSTEM_ID, "attackCount") ?? 0);
-    await actor.setFlag(SYSTEM_ID, "attackCount", before + 1);
+    // COMBAT ONLY (3.666.0) — see turn-records.mjs.
+    await setAttackCount(actor, attackCountOf(actor) + 1);
+  }
+  // A DEFENCE THAT LASTED ONE ATTEMPT (3.666.0): Root the Body's raised DC
+  // against this Shove or Trip, spent by it. See one-attack.mjs.
+  if (check && targetActor) {
+    const { consumeOneAttackEffects } = await import("./target-relay-workflow.mjs");
+    await consumeOneAttackEffects(targetActor, { kind: "action", actionKey: action.key, attackerUuid: actor?.uuid ?? "" });
   }
 
   const lines = headerLines(action, effectiveApCost);
+  if (check && firstAdvantage) {
+    await actor.setFlag(SYSTEM_ID, DAILY_FIRSTS_FLAG, { ...(actor.getFlag(SYSTEM_ID, DAILY_FIRSTS_FLAG) ?? {}), [firstAdvantage.slot]: true });
+    lines.push(line(`<em>${firstAdvantage.label}: the first today — rolled with advantage.</em>`));
+  }
   // A rider whose Command an Animal suddenly costs nothing should be told
   // why, and told that it was this round's one use.
   if (bornToRideSpent) {
@@ -3993,7 +4096,8 @@ async function applyActionOutcome({
     dispelSetup = null,
     rechargeSetup = null,
     gatherHerbsSetup = null,
-    coverTracksCount = null
+    coverTracksCount = null,
+    ignoreActionImmunity = false
   } = ctx ?? {};
   // Re-derived rather than passed: it is a class reference, not state.
   const { DialogV2 } = foundry.applications.api;
@@ -4042,9 +4146,24 @@ async function applyActionOutcome({
   const attitudeImproved = helpfulSteps
     ? (improveDegree(shadowborn.degree, helpfulSteps) ?? shadowborn.degree)
     : shadowborn.degree;
-  const degree = rawDegree
-    ? declaredDegree(declaredOutcomeKeys(action), attitudeImproved, DEGREES)
+  // THE FIRST TIME EACH DAY (3.664.0; Inner Tempest's Centred Recovery and
+  // Tianzhi Discipline) — see daily-firsts.mjs. The day's first use is
+  // spent whether or not a declaration changed it.
+  const firstCarriers = rawDegree && hasDailyFirst(declarationCarriers(actor), action.key, "degree") ? declarationCarriers(actor) : null;
+  const dailyFirst = firstCarriers
+    ? dailyFirstDegree(firstCarriers, action.key, attitudeImproved, dailyFirstSpent(actor.flags?.[SYSTEM_ID], action.key))
     : null;
+  if (firstCarriers && !dailyFirstSpent(actor.flags?.[SYSTEM_ID], action.key)) {
+    await actor.setFlag(SYSTEM_ID, DAILY_FIRSTS_FLAG, { ...(actor.getFlag(SYSTEM_ID, DAILY_FIRSTS_FLAG) ?? {}), [action.key]: true });
+  }
+  const degree = rawDegree
+    ? declaredDegree(declaredOutcomeKeys(action), dailyFirst?.degree ?? attitudeImproved, DEGREES)
+    : null;
+  const dailyFirstNote = dailyFirst?.exact
+    ? `<em>${dailyFirst.labels.join(", ")}: the first ${action.name} today is a <strong>${dailyFirst.degree}</strong> without the need for a roll (the dice above are not read).</em>`
+    : dailyFirst && dailyFirst.degree !== dailyFirst.from
+      ? `<em>${dailyFirst.labels.join(", ")}: the first ${action.name} today — your ${dailyFirst.from} is treated as a <strong>${dailyFirst.degree}</strong>.</em>`
+      : "";
   const shadowbornNote = shadowbornStepNote(shadowborn, action.key);
   let healAmount = null;
   let conditionReduction = null;
@@ -4065,7 +4184,7 @@ async function applyActionOutcome({
   //
   // After the roll and not before, though: an attempt abandoned in a
   // dialog has not used anybody up.
-  if (targetActor && rawDegree && ACTION_IMMUNITIES[action.key]) {
+  if (targetActor && rawDegree && ACTION_IMMUNITIES[action.key] && !ignoreActionImmunity) {
 
     const { withImmunity, prunedImmunities, IMMUNITY_FLAG, describeRemaining } =
       await import("../temporary-immunity.mjs");
@@ -4286,6 +4405,7 @@ async function applyActionOutcome({
     // that plainly did not critical says why in the line above it rather
     // than leaving the player to conclude the system is broken.
     if (shadowbornNote) lines.push(line(shadowbornNote));
+    if (dailyFirstNote) lines.push(line(dailyFirstNote));
     // SAID ON THE CARD, for the same reason Shadowborn Agility's note is:
     // a card reading "Critical" over a die that plainly did not critical
     // has to say why in the line above it.
@@ -4311,10 +4431,18 @@ async function applyActionOutcome({
           )
         );
       }
-      healAmount = extractHealAmount(outcome.text);
+      // AN ACTION WHOSE MODULE APPLIES ITS OWN ROWS (3.666.0) declares
+      // `outcomesApplied: true`, and the generic readers below leave its
+      // text alone: Inner Tempest's Maintain Clarity prints "an additional
+      // -1 circumstance penalty to Concentrate and Mental actions until the
+      // beginning of your next turn", which its own code lays scoped to those
+      // traits and timed to that turn — read here too, it was a second,
+      // unscoped copy in the next roll dialog.
+      const readsText = !action.outcomesApplied;
+      healAmount = readsText ? extractHealAmount(outcome.text) : null;
       // Read off the SAME outcome text the player is reading, so the card
       // can never offer a push the sentence beside it does not describe.
-      pushDetail = extractPushDistance(outcome.text);
+      pushDetail = readsText ? extractPushDistance(outcome.text) : null;
       // Good Healer (Chapter 5): "Whenever you Treat Wounds, you heal an
       // additional amount of hit points equal to your ranks in Medicine."
       // Keyed on the action key, so Battle Medic's 3 AP copy (same key)
@@ -4402,7 +4530,13 @@ async function applyActionOutcome({
         durationRounds && game.combat?.started
           ? Number(game.combat.round ?? 0) + durationRounds
           : null;
-      if (durationRounds && !game.combat?.started) {
+      const applied = basicActionConditionEffects(action.key, degree);
+      // ONLY WHEN A CONDITION WAS LAID HERE (3.666.0). The clock above is
+      // for the conditions this table applies; an action that lays none
+      // (every module action, whose own code keeps its own clocks: Inner
+      // Tempest's Steady Heart and Read Intent) was told to "clear it by
+      // hand" about nothing, out of combat.
+      if (durationRounds && !game.combat?.started && applied.length) {
         lines.push(
           line(
             `<em>Lasts ${durationRounds} round${durationRounds === 1 ? "" : "s"} — no encounter running, so clear it by hand.</em>`
@@ -4410,11 +4544,18 @@ async function applyActionOutcome({
         );
       }
 
-      const applied = basicActionConditionEffects(action.key, degree);
       await applyBasicActionConditionEffects(applied, actor, targetActor, { expiresRound, actionKey: action.key });
       // WHO HOLDS THE GRAB (3.631.0): Constrict, Elemental Grasp and Swallow
       // act on "creatures grabbed … by it", so a Grapple that lands records
       // the grappler on the target. Read only while Grabbed stands.
+      // WHO LEFT IT FLAT-FOOTED (3.668.0): a Feint or a Diversion that lands
+      // records its maker on the target, as a Grapple records the grappler.
+      // Inner Tempest's Unseen Assault needs a target "flat-footed to you as
+      // a direct result of your own … Deception" (Graham's B4-3), and the
+      // condition alone cannot say whose it is.
+      if (["feint", "createADiversion"].includes(action.key) && targetActor?.hasCondition?.("flatFooted") && targetActor.setFlag) {
+        await targetActor.setFlag(SYSTEM_ID, "flatFootedFrom", { uuid: actor.uuid, name: actor.name, action: action.key, round: Number(game.combat?.round ?? 0) });
+      }
       if (action.key === "grappleAttack" && targetActor?.hasCondition?.("grabbed") && targetActor.setFlag) {
         await targetActor.setFlag(SYSTEM_ID, "grabbedBy", { uuid: actor.uuid, name: actor.name, round: Number(game.combat?.round ?? 0) });
       }
@@ -4486,7 +4627,7 @@ async function applyActionOutcome({
       // TOWARD THE ACTOR, because every printed instance says "toward
       // YOU": the attitude belongs to the target and is about the person
       // who impressed or offended them. See module/attitude.mjs.
-      if (targetActor && outcome.matched) {
+      if (targetActor && outcome.matched && !action.outcomesApplied) {
         const steps = extractAttitudeShift(outcome.text);
         if (steps !== null) {
           const { shiftAttitudeToward, attitudeLine } =
@@ -4559,7 +4700,10 @@ async function applyActionOutcome({
       // in that character's next roll dialog rather than pushed blindly
       // into a bonus pool, which would apply it to every roll of that
       // kind against everybody, for ever.
-      const modifier = extractModifier(outcome.text);
+      // NOT A ROW A DEDICATED RULE ALREADY APPLIES (3.666.3): Detect
+      // Deception's Fumble and Aid's bonus each had their own rule AND this
+      // reader's unscoped copy — Keldran held ten. See dedicated-rows.mjs.
+      const modifier = readsGenericModifier(action) ? extractModifier(outcome.text) : null;
       if (modifier) {
         const holder = modifier.subject === "target" ? targetActor : actor;
         if (holder) {
@@ -4568,7 +4712,9 @@ async function applyActionOutcome({
             type: modifier.type,
             label: action.name,
             scope: modifier.scope,
-            oneShot: modifier.oneShot
+            oneShot: modifier.oneShot,
+            // A row naming its own action waits for that action's checks.
+            ...(modifier.subject !== "target" && scopeNamesAction(modifier.scope, action.name) ? { actions: [action.key] } : {})
           });
           lines.push(
             line(
@@ -5483,6 +5629,7 @@ function pendingOutcomeContext(actor, action, ctx) {
     rechargeSetup: ctx.rechargeSetup ?? null,
     gatherHerbsSetup: ctx.gatherHerbsSetup ?? null,
     coverTracksCount: ctx.coverTracksCount ?? null,
+    ignoreActionImmunity: Boolean(ctx.ignoreActionImmunity),
     treatWoundsExtraDC: Number(ctx.treatWoundsExtraDC ?? 0),
     treatWoundsExtraTargets: Number(ctx.treatWoundsExtraTargets ?? 0),
     painToleranceExtraDC: Number(ctx.painToleranceExtraDC ?? 0),
@@ -5546,6 +5693,7 @@ async function restoreOutcomeContext(stored) {
       rechargeSetup: stored?.rechargeSetup ?? null,
       gatherHerbsSetup: stored?.gatherHerbsSetup ?? null,
       coverTracksCount: stored?.coverTracksCount ?? null,
+      ignoreActionImmunity: Boolean(stored?.ignoreActionImmunity),
       treatWoundsExtraDC: Number(stored?.treatWoundsExtraDC ?? 0),
       treatWoundsExtraTargets: Number(stored?.treatWoundsExtraTargets ?? 0),
       painToleranceExtraDC: Number(stored?.painToleranceExtraDC ?? 0),

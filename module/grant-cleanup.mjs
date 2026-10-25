@@ -21,6 +21,7 @@ import { reconcileAllGrants } from "./feats-workflow.mjs";
 import { removeSpecialistSkillGrants, declaresSpecialistSkills } from "./specialist-grants.mjs";
 import { FOUNDATION_ITEM_TYPES } from "./config.mjs";
 import { deletionValue } from "./deletion.mjs";
+import { declaredConvictionTakeBack } from "./focus-declarations.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -86,6 +87,15 @@ export function registerGrantCleanup() {
     // the point itself has to be taken back, or dragging a Crusader (or
     // Fighter) on and off is a free point per cycle. The maximum is
     // derived and drops on its own.
+    // DECLARED CONVICTION (3.664.0): the one-off point leaves with the item.
+    {
+      const current = Number(actor._source?.system?.resources?.conviction?.value ?? 0);
+      const back = declaredConvictionTakeBack(item, current);
+      if (back !== null && back !== current) {
+        await actor.update({ "system.resources.conviction.value": back });
+        ui.notifications.info(`${item.name} removed — its conviction point went with it.`);
+      }
+    }
     for (const resolve of [
       { flag: "divineResolveGiven", label: "Divine Resolve" },
       { flag: "warriorsResolveGiven", label: "Warrior's Resolve" },

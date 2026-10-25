@@ -327,6 +327,67 @@ export function wildStrideCost({ cost = 0, distance = 0, eases = false, magical 
   return { cost: Math.round(measured * eased), eased: true };
 }
 
+/**
+ * THE FIRST SQUARE OF DIFFICULT TERRAIN, IGNORED (3.670.0; Inner Tempest's
+ * Dragon Stance: "you can ignore the first square of difficult terrain while
+ * Striding"). Declared on any item or applied effect:
+ *
+ *   flags.trg-prime.ignoresFirstDifficultSquare = true
+ *
+ * READ OFF THE COST, as Wild Stride is: Foundry prices difficult ground by
+ * multiplying the path's cost, so what arrives is one total. The extra a
+ * single square of difficult terrain adds is one square's length; it comes
+ * off, never more than the path's whole surcharge. Per Stride (the audit's
+ * interpretation 9): each move is priced on its own.
+ *
+ * @param {{cost: number, distance: number, square: number}} state
+ * @returns {{cost: number, eased: boolean}}
+ */
+export function firstDifficultSquareCost({ cost = 0, distance = 0, square = 5 } = {}) {
+  const charged = Math.max(0, Number(cost) || 0);
+  const measured = Math.max(0, Number(distance) || 0);
+  const surcharge = charged - measured;
+  if (!measured || surcharge <= 0) return { cost: charged, eased: false };
+  const off = Math.min(surcharge, Math.max(0, Number(square) || 5));
+  return { cost: charged - off, eased: off > 0 };
+}
+
+/** Does anything this creature carries ignore the first difficult square? */
+export function ignoresFirstDifficultSquare(actor) {
+  const carries = (d) => !d?.disabled && d?.flags?.["trg-prime"]?.ignoresFirstDifficultSquare === true;
+  const carrier = Array.from(actor?.items ?? []).find(carries)
+    ?? Array.from(actor?.appliedEffects ?? actor?.effects ?? []).find(carries);
+  return carrier ? (String(carrier.name ?? "") || "Your training") : null;
+}
+
+/**
+ * THE FIRST MOVE OF EACH TURN, PROVOKING NOTHING (3.670.0; Inner Tempest's
+ * Mantis Stance: "may take one Move action each turn that does not provoke
+ * reactions", ruled B6-4 as the first Move action each turn, automatically).
+ * Declared on any item or applied effect:
+ *
+ *   flags.trg-prime.firstMoveNoReactions = true
+ *
+ * The turn is keyed `combatId:round:turn`; the record is the key of the turn
+ * whose first move has been made. The first move of a turn is free whether
+ * or not it would have provoked: a Step spends it as well as a Stride.
+ *
+ * @param {boolean} carries the mover declares it
+ * @param {string|null} record the key of the turn whose first move is made
+ * @param {string} turnKey this turn's key
+ * @returns {boolean} this move triggers no reactions
+ */
+export function firstMoveIsFree(carries, record, turnKey) {
+  return Boolean(carries) && Boolean(turnKey) && record !== turnKey;
+}
+
+/** Does anything this creature carries declare it? */
+export function declaresFirstMoveNoReactions(actor) {
+  const carries = (d) => d?.flags?.["trg-prime"]?.firstMoveNoReactions === true;
+  if (Array.from(actor?.items ?? []).some(carries)) return true;
+  return Array.from(actor?.appliedEffects ?? actor?.effects ?? []).some((e) => !e?.disabled && carries(e));
+}
+
 /* ------------------------------------------------------------------ */
 /* Trackless Step                                                      */
 /* ------------------------------------------------------------------ */

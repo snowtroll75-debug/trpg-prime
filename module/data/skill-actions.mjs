@@ -516,7 +516,7 @@ const RAW_SKILL_ACTIONS = [
       fumble: "As Failure, and you also destroy the item you were attempting to transfer the rune to.",
       blunder: ""
     },
-    description: "General Skill Action — use one of the magical skills to transfer a magical rune from a Runestone to another item. You choose the rune, the item receiving it and the time before rolling: 1 minute raises the difficulty by 2 and 1 round by 5, and transferring from an item rather than a Runestone raises it by a further 5. The rune is moved for you on a Success, the runestone is marked cracked on a Partial, and the destruction a Failure or Fumble calls for is offered at the moment it happens — a Failure destroys the source, a Fumble the receiving item too (both items, when transferring item to item)."
+    description: "General Skill Action — use one of the magical skills to transfer a magical rune from a Runestone to another item (or, per Graham's ruling of 22 October 2026, from an item onto an empty Runestone). You choose the rune, the item receiving it and the time before rolling: 1 minute raises the difficulty by 2 and 1 round by 5, and transferring from an item rather than a Runestone raises it by a further 5. The rune is moved for you on a Success, the runestone is marked cracked on a Partial, and the destruction a Failure or Fumble calls for is offered at the moment it happens — a Failure destroys the source, a Fumble the receiving item too (both items, when transferring item to item)."
   },
   {
     key: "learnSpell",

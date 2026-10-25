@@ -148,6 +148,37 @@ export function declaresSpecialistSkills(sourceItem) {
   return typeof literal === "string" && parseSpecialistList(literal).length > 0;
 }
 
+/**
+ * WHICH OF THIS ITEM'S SPECIALIST SKILLS ANOTHER ITEM ALREADY CONFERS, when
+ * the item declares that it then grants an alternative (3.665.0).
+ *
+ * Graham's ruling of 21 October 2026, on Inner Tempest's Spirit Warrior: a
+ * Miraku gets Spirit Lore from the race, and the background printing Spirit
+ * Lore as well gave them nothing — so the background "offers an alternative
+ * Lore". Declared on the item as `flags.trg-prime.specialistAlternative`
+ * ({label, prompt, placeholder, suffix}); an item without it is unchanged,
+ * which is every core background.
+ *
+ * Pure: the item and the actor's OTHER items in, the duplicated labels out
+ * (empty when no alternative is owed).
+ *
+ * @param {object} item
+ * @param {object[]} otherItems
+ * @returns {string[]}
+ */
+export function specialistAlternativeOwed(item, otherItems = []) {
+  const alternative = item?.flags?.[SYSTEM_ID]?.specialistAlternative;
+  if (!alternative || typeof alternative !== "object") return [];
+  const mine = specialistNamesFor(item);
+  if (!mine.length) return [];
+  const elsewhere = new Set();
+  for (const other of otherItems ?? []) {
+    if (!other || other === item || (item?.id && other.id === item.id)) continue;
+    for (const name of specialistNamesFor(other)) elsewhere.add(String(name).trim().toLowerCase());
+  }
+  return mine.filter((name) => elsewhere.has(String(name).trim().toLowerCase()));
+}
+
 export async function applySpecialistSkillGrants(actor, sourceItem) {
   const names = specialistNamesFor(sourceItem);
   if (!names.length) return { created: [], skipped: [] };

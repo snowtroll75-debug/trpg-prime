@@ -36,6 +36,7 @@
 
 import { FOUNDATION_ITEM_TYPES } from "./config.mjs";
 import { declaresSpecialistSkills } from "./specialist-grants.mjs";
+import { owesConvictionPoint } from "./focus-declarations.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -127,7 +128,9 @@ export async function queueGrantPass(actor) {
       // exactly as before and produce no extra pass and no extra card.
       if (item.flags?.[SYSTEM_ID]?.grantedBy
         && !declaresGrants(item.system, GRANT_FIELDS[item.type])
-        && !declaresSpecialistSkills(item)) continue;
+        && !declaresSpecialistSkills(item)
+        // …OR A CONVICTION POINT IT STILL OWES (3.667.1): see owesConvictionPoint.
+        && !owesConvictionPoint(item)) continue;
       await applyAllGrants(actor, item, { quietIfNothingNew: true });
     }
   });
@@ -202,7 +205,10 @@ export function registerGrantAutorun() {
       const { declaresGrants } = await import("./grants.mjs");
       // A literal specialist-skill grant (3.563.0 — a discipline's lore
       // skill) is a grant too, though it lives in a flag, not a field.
-      if (!declaresGrants(item.system, GRANT_FIELDS[item.type]) && !declaresSpecialistSkills(item)) return;
+      if (!declaresGrants(item.system, GRANT_FIELDS[item.type]) && !declaresSpecialistSkills(item)
+        // A granted class ability that raises the conviction pool gives its
+        // point on arrival (3.667.1, owesConvictionPoint).
+        && !owesConvictionPoint(item)) return;
     }
 
     // NOT DURING A COMPENDIUM IMPORT. `keepId` is what an import passes and

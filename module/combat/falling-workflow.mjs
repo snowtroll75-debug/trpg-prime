@@ -8,6 +8,8 @@ import { actorInCombat, spendActionPoints } from "./action-points-workflow.mjs";
 import { spendTemporaryHP } from "./temporary-hp.mjs";
 import { rollCriticalInjury } from "./attack-workflow.mjs";
 import { skyfeatherCatches } from "../codex-runes.mjs";
+import { declaredFallReduction } from "../focus-declarations.mjs";
+import { declarationCarriers } from "../declaration-carriers.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -95,7 +97,7 @@ export async function rollFalling(actor, { distance: prefilled = 0, onto = undef
     position: { width: 400 },
     content: `
       <div class="trg-prime trg-check-dialog">
-        <p class="hint">Enter the final distance fallen — already reduced for a soft landing (20 ft, or 30 ft if you intentionally dove in, capped at the depth) or a successful Grab an Edge, if either applied.</p>
+        <p class="hint">Enter the final distance fallen — already reduced for a soft landing (20 ft, or 30 ft if you intentionally dove in, capped at the depth) or a successful Grab an Edge, if either applied. Racial and ability reductions (a Ren's 20 feet) are taken off automatically.</p>
         <div class="form-group">
           <label for="trg-fall-distance">Distance fallen (feet)</label>
           <input id="trg-fall-distance" type="number" name="distance" value="${startingDistance}" min="0">
@@ -121,7 +123,11 @@ export async function rollFalling(actor, { distance: prefilled = 0, onto = undef
 
   if (!result || result === "cancel") return null;
 
-  const distance = Number(result.distance || 0);
+  // DECLARED REDUCTIONS (3.664.0): a Ren's "treat the distance fallen as
+  // 20 feet shorter" and its kin, taken off what the table entered.
+  const fallCut = declaredFallReduction(declarationCarriers(actor));
+  const entered = Number(result.distance || 0);
+  const distance = Math.max(0, entered - fallCut.feet);
 
   // SKYFEATHER (Creature Codex, Chapter 3): "Trigger you are falling...
   // This acts as a Feather Fall spell." The spell, in this system's own
@@ -177,6 +183,9 @@ export async function rollFalling(actor, { distance: prefilled = 0, onto = undef
   // Fumble, "no time to use reactions", belongs on the card the fall
   // itself posts, beside the number it would otherwise have changed.
   if (String(note ?? "").trim()) lines.push(line(`<em>${String(note).trim()}</em>`));
+  if (fallCut.feet > 0 && entered > 0) {
+    lines.push(line(`<em>${entered} feet entered, treated as ${distance}: ${fallCut.labels.join(", ")}.</em>`));
+  }
 
   if (rounds > 1) {
     lines.push(line(`The descent takes <strong>${rounds} rounds</strong> — ${

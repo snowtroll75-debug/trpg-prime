@@ -1,8 +1,9 @@
 import { alreadyGrantedNames, matchGrants, parseGrantList, parseLevelledGrantList, parseMaybeLevelledGrantList } from "./grants.mjs";
 import { runExclusiveForActor } from "./grant-queue.mjs";
-import { applySpecialistSkillGrants, declaresSpecialistSkills } from "./specialist-grants.mjs";
+import { applySpecialistSkillGrants, declaresSpecialistSkills, specialistAlternativeOwed } from "./specialist-grants.mjs";
 import { alignmentFeat, alignmentFeatNames, aspectItems, divineResolveTopUp } from "./crusader.mjs";
 import { warriorsResolveTopUp } from "./fighter.mjs";
+import { declaredConvictionTopUp, grantedSpellAbilityFor } from "./focus-declarations.mjs";
 import { scoundrelsLuckTopUp } from "./rogue.mjs";
 import { FOUNDATION_ITEM_TYPES } from "./config.mjs";
 import { packItemData } from "./items.mjs";
@@ -438,6 +439,9 @@ export async function applyGrant(
     if (data.type === "spell") {
       const uses = grantedSpellUsesFor(sourceItem, data.name);
       if (uses !== null) data.system.usesPerDay = uses;
+      // ITS OWN MAGICAL ABILITY, WHEN THE GRANT NAMES ONE (3.664.0).
+      const ownAbility = grantedSpellAbilityFor(sourceItem, data.name);
+      if (ownAbility) foundry.utils.setProperty(data, "flags.trg-prime.castingAbilityOverride", ownAbility);
     }
     created.push(data);
   }
@@ -530,7 +534,11 @@ export const GRANT_FIELDS = Object.freeze({
     { field: "racialAbilities", pack: "abilities" },
     // Galad-Iar casts dancing lights and light; several Ascendan
     // heritages grant a named specialist spell.
-    { field: "grantedSpells", pack: "spells" }
+    { field: "grantedSpells", pack: "spells" },
+    // A HERITAGE MAY GRANT A NATURAL ATTACK (3.664.0). Inner Tempest's
+    // Kamiri "gain … the Raptorial Blade natural attack"; the Suzume gains
+    // a Sting. From the companions pack, as a race's and a feat's are.
+    { field: "grantedWeapons", pack: "companions" }
   ],
   // Feats can grant spells, abilities AND other feats (Chapter 5 — Animal
   // Magic grants Calm Animal; the Heritage feats grant Nightvision; the
@@ -855,6 +863,22 @@ async function applyAllGrantsExclusive(actor, sourceItem, { quietIfNothingNew = 
       lines.push(line(`<em>${label}</em> already on the sheet — skipped.`));
     }
 
+    // AN ALTERNATIVE OWED (3.665.0; Graham, 21 Oct 2026 — Spirit Warrior's
+    // Spirit Lore on a Miraku). Asked of EVERY item on the sheet that
+    // declares one, not only the item being applied, because the order is
+    // the player's: a race added after the background is what makes the
+    // background's lore a duplicate. Named until the alternative is chosen.
+    for (const carrier of Array.from(actor.items ?? [])) {
+      const owed = specialistAlternativeOwed(carrier, Array.from(actor.items ?? []));
+      if (!owed.length) continue;
+      if ((actor.getFlag?.("trg-prime", "backgroundChoiceKeys") ?? {})[carrier.id]?.some?.(Boolean)) continue;
+      anyRequested = true;
+      const alternative = carrier.getFlag?.("trg-prime", "specialistAlternative") ?? {};
+      lines.push(line(
+        `<strong>${owed.join(", ")}</strong> is already yours from another source, so ${carrier.name} grants ${alternative.label ?? "another specialist skill"} instead — press <em>Use</em> on ${carrier.name} to name it.`
+      ));
+    }
+
     // A feat the background grants with its CHOICE already made — Martial
   // Artist's "Weapon Focus (Unarmed)", Miner's "Favoured Terrain
   // (Underground)". The book decided; making the player re-decide on a
@@ -1043,6 +1067,19 @@ async function applyAllGrantsExclusive(actor, sourceItem, { quietIfNothingNew = 
     }
   }
 
+  // DECLARED CONVICTION (3.664.0): any item carrying `convictionPool` puts
+  // its one-off point in the pool when it is granted, once.
+  {
+    const stored = actor._source?.system?.resources?.conviction?.value;
+    const topped = declaredConvictionTopUp(sourceItem, stored);
+    if (topped !== null) {
+      anyRequested = true;
+      await actor.update({ "system.resources.conviction.value": topped });
+      await sourceItem.setFlag("trg-prime", "convictionGiven", true);
+      lines.push(line(`<strong>${sourceItem.name}:</strong> conviction pool and points both raised — now ${topped}.`));
+    }
+  }
+
   // The instinctive repertoire (3.224.0): a class declaring the style
   // owes its picks through the Magic tab's Repertoire card — surfaced
   // here the same way an aspect's spell choice is, so applying the
@@ -1139,7 +1176,7 @@ async function applyAllGrantsExclusive(actor, sourceItem, { quietIfNothingNew = 
     // skillChoice or spellChoice, so adding the generic nudge as well
     // told the player twice, in two different wordings, about the same
     // button. Seen live on the Human's ethnicity lore, 15 Sep 2026.
-    const alreadyNamed = ["specialistChoice", "skillChoice", "spellChoice"]
+    const alreadyNamed = ["specialistChoice", "skillChoice", "spellChoice", "specialistAlternative"]
       .some((flag) => Boolean(sourceItem.getFlag?.("trg-prime", flag)));
     if (!alreadyNamed && setupChoicePending(actor, sourceItem)) {
       anyRequested = true;

@@ -921,10 +921,29 @@ export function innateWarpBudget(level) {
  * @param {number} budget
  * @returns {{ok:boolean, spent:number, budget:number, over:number}}
  */
-export function innateWarpFits(warp, budget) {
+export function innateWarpFits(warp, budget, { countRaw = false, metamagicPP = 0 } = {}) {
   const cap = innateWarpBudget(budget);
-  const spent = Math.max(0, (Number(warp?.ppSpent) || 0) - (Number(warp?.rawPP) || 0));
+  // METAMAGIC FROM THE SAME FREE BUDGET (3.670.0; Inner Tempest's Mystic,
+  // B6-8: Metamagic feats on its innate spells, "paid from the spell's PP").
+  // `countRaw` counts the Metamagic box against the budget too, and with it
+  // the Metamagic feats ticked (`metamagicPP`, their aggregated cost; found
+  // in review: they were charged to the pool).
+  const feats = countRaw ? Math.max(0, Number(metamagicPP) || 0) : 0;
+  const spent = Math.max(0, (Number(warp?.ppSpent) || 0) - (countRaw ? 0 : (Number(warp?.rawPP) || 0))) + feats;
   return { ok: spent <= cap, spent, budget: cap, over: Math.max(0, spent - cap) };
+}
+
+/**
+ * AN INNATE CANTRIP (3.670.0, found in review). The cast workflow reads an
+ * innate spell's cost as 0, so its own cantrip test is never true for one:
+ * a cantrip is read from the spell's data, PP 0 and the Cantrip trait, as
+ * the choosers read it (casting.mjs). Inner Tempest's Mystic: its Metamagic
+ * feats reach its innate spells, "not cantrips" (B6-8).
+ *
+ * @param {object} spellData the spell's system data
+ */
+export function innateCantripOf(spellData) {
+  return Math.max(0, Math.trunc(Number(spellData?.ppCost) || 0)) === 0 && /\bcantrip\b/i.test(String(spellData?.traits ?? ""));
 }
 
 /**

@@ -294,6 +294,9 @@ export function resolveDamagePacket({
   // The attacking weapon's special material, settled once: it decides
   // both a bracketed bypass below and the material weakness after it.
   const materialKey = String(material ?? "").trim().toLowerCase();
+  // MORE THAN ONE MATERIAL (3.667.0): Powerful Fists' blows are "treated as
+  // cold iron and silver", so the field may name several, comma-separated.
+  const materialKeys = materialKey.split(",").map((m) => m.trim()).filter(Boolean);
 
   let drApplied = 0;
   // WHAT THE WORN ARMOUR ACTUALLY STOPPED (3.617.0, Graham's R17 of block
@@ -338,7 +341,7 @@ export function resolveDamagePacket({
    * field nothing read, and 50 creatures declare a material weakness
    * that nothing applied.
    */
-  const materialWeak = Boolean(materialKey) && has(weaknessMaterials, materialKey);
+  const materialWeak = materialKeys.some((key) => has(weaknessMaterials, key));
   /*
    * A WEAKNESS MAY KEY ON THE SHAPE OR THE TRAIT OF THE EFFECT (3.548.0).
    *
@@ -380,7 +383,7 @@ export function resolveDamagePacket({
    * from `weaknesses: silver`, which adds 50% instead. Both patterns are
    * in the template data, meaning different things.
    */
-  const bypassed = Boolean(materialKey) && has(resistanceBypassMaterials, materialKey);
+  const bypassed = materialKeys.some((key) => has(resistanceBypassMaterials, key));
   /*
    * "ALL DAMAGE EXCEPT ESSENCE OR FORCE" (3.548.0). The blanket
    * resistance stops covering the types the record names as exceptions —

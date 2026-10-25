@@ -109,6 +109,12 @@ function emptyRegistry() {
      * `declares`. See rune-catalogue.mjs `runesFor` and module/rune-declarations.mjs.
      */
     runes: new Map(),
+    /**
+     * Light-source key → an entry in LIGHT_SOURCES shape (3.669.0), for a
+     * module's own light: Inner Tempest's Spirit Beacon and Living Lantern.
+     * See light-sources.mjs `lightSource`.
+     */
+    lightSources: new Map(),
     /** Automation key → { hint, use } for a wondrous item's `use` ability (3.626.0). */
     itemAutomation: new Map(),
     /**
@@ -375,37 +381,61 @@ export function registeredHeritageRaceGrant(featName) {
  * core feat still says `sourceRace: "Human"`, and a module cannot edit
  * the core pack, so the picker asks here as well.
  *
+ * A HERITAGE LIMIT (3.669.0; Inner Tempest's "Bestial Resilience (Mujina)"):
+ * a feat may be given as `{ name, heritages: ["Mujina"] }`, opened only to a
+ * character of that race with one of those heritages. A plain name opens the
+ * feat to the whole race, as before; registering it both ways opens it to all.
+ *
  * @param {"race"|"class"} kind
  * @param {string} ownerName The race or class name.
- * @param {string[]} featNames
+ * @param {Array<string|{name: string, heritages?: string[]}>} featNames
  */
 export function registerFeatAccess(kind, ownerName, featNames, moduleId = null) {
   const k = String(kind ?? "").trim().toLowerCase();
   const owner = registryKey(ownerName);
-  const names = (Array.isArray(featNames) ? featNames : [featNames]).map(registryKey).filter(Boolean);
-  if (!["race", "class"].includes(k) || !owner || !names.length) {
+  const entries = (Array.isArray(featNames) ? featNames : [featNames])
+    .map((f) => (f && typeof f === "object"
+      ? { name: registryKey(f.name), heritages: (Array.isArray(f.heritages) ? f.heritages : []).map(registryKey).filter(Boolean) }
+      : { name: registryKey(f), heritages: [] }))
+    .filter((e) => e.name);
+  if (!["race", "class"].includes(k) || !owner || !entries.length) {
     problem(`registerFeatAccess: needs kind "race" or "class", an owner and at least one feat name (got ${JSON.stringify({ kind, ownerName })})`);
     return false;
   }
   const id = `${k}:${owner}`;
-  const set = registry.featAccess.get(id) ?? new Set();
-  for (const n of names) set.add(n);
-  registry.featAccess.set(id, set);
+  const map = registry.featAccess.get(id) ?? new Map();
+  for (const { name, heritages } of entries) {
+    const had = map.get(name);
+    // ANY HERITAGE WINS: once opened to the whole race, a later limit does
+    // not narrow it.
+    if (had === ANY_HERITAGE) continue;
+    if (!heritages.length || k !== "race") { map.set(name, ANY_HERITAGE); continue; }
+    map.set(name, new Set([...(had ?? []), ...heritages]));
+  }
+  registry.featAccess.set(id, map);
   noteContributor(moduleId);
   return true;
 }
+
+/** The marker for a feat opened to every heritage of the race. */
+const ANY_HERITAGE = "*";
 
 /**
  * Is this feat opened to any of these owners by a registration? Owners
  * are a comma-joined list the way the picker carries effective races and
  * classes ("Bard, Fighter").
  */
-export function hasRegisteredFeatAccess(kind, owners, featName) {
+export function hasRegisteredFeatAccess(kind, owners, featName, heritage = "") {
   const k = String(kind ?? "").trim().toLowerCase();
   const feat = registryKey(featName);
   if (!feat) return false;
+  const mine = String(heritage ?? "").split(",").map(registryKey).filter(Boolean);
   return String(owners ?? "").split(",").map(registryKey).filter(Boolean)
-    .some((owner) => registry.featAccess.get(`${k}:${owner}`)?.has(feat));
+    .some((owner) => {
+      const open = registry.featAccess.get(`${k}:${owner}`)?.get(feat);
+      if (!open) return false;
+      return open === ANY_HERITAGE || mine.some((h) => open.has(h));
+    });
 }
 
 /* ------------------------------------------------------------------ */
@@ -648,6 +678,68 @@ export function registerRunes(runes, moduleId = null) {
   return count;
 }
 
+/* ------------------------------------------------------------------ */
+/* Light sources (3.669.0)                                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A light a module's content sheds, in the LIGHT_SOURCES shape, so the
+ * illumination ladder, the token's glow and the GM relay all read it as they
+ * read a torch. A core key cannot be replaced; the clash is reported.
+ *
+ *   { key, label, steps (signed, non-zero), cap (null for none) or floor,
+ *     magical, radiusFeet (the reach the ladder counts),
+ *     dimFeet?, brightFeet? (what is drawn, when it differs) }
+ *
+ * @param {object|object[]} entries
+ * @param {string[]} coreKeys the core table's keys, which win
+ */
+export function registerLightSources(entries, moduleId = null, coreKeys = []) {
+  let count = 0;
+  const taken = new Set((coreKeys ?? []).map(String));
+  for (const raw of Array.isArray(entries) ? entries : [entries]) {
+    const key = String(raw?.key ?? "").trim();
+    const steps = Math.trunc(Number(raw?.steps));
+    const radiusFeet = Number(raw?.radiusFeet);
+    if (!key || !Number.isFinite(steps) || steps === 0 || !(radiusFeet > 0)) {
+      problem(`registerLightSources: "${key || "?"}" needs a key, non-zero steps and a radiusFeet`);
+      continue;
+    }
+    if (taken.has(key)) {
+      problem(`registerLightSources: "${key}" is a core light source and cannot be replaced`);
+      continue;
+    }
+    if (steps < 0 && !Number.isFinite(Number(raw.floor))) {
+      problem(`registerLightSources: "${key}" lowers the light and needs a numeric floor`);
+      continue;
+    }
+    const feet = (v) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : undefined);
+    const entry = {
+      label: String(raw.label ?? key).trim() || key,
+      item: String(raw.item ?? raw.label ?? key).trim(),
+      pack: "module",
+      module: true,
+      steps,
+      magical: raw.magical === true,
+      radiusFeet
+    };
+    if (steps > 0) entry.cap = raw.cap === null || raw.cap === undefined || !Number.isFinite(Number(raw.cap)) ? null : Math.trunc(Number(raw.cap));
+    else entry.floor = Math.trunc(Number(raw.floor));
+    if (feet(raw.dimFeet) !== undefined) entry.dimFeet = feet(raw.dimFeet);
+    if (feet(raw.brightFeet) !== undefined) entry.brightFeet = feet(raw.brightFeet);
+    if (moduleId) entry.moduleId = String(moduleId);
+    registry.lightSources.set(key, Object.freeze(entry));
+    count += 1;
+  }
+  if (count) noteContributor(moduleId);
+  return count;
+}
+
+/** A module's light source by key, or null. */
+export function registeredLightSource(key) {
+  return registry.lightSources.get(String(key ?? "")) ?? null;
+}
+
 /** Every registered rune, or those that go on one kind of item. */
 export function registeredRunes(kind = "") {
   const want = String(kind ?? "").trim().toLowerCase();
@@ -762,7 +854,7 @@ export function queuedSkillActions() {
 export function queueFeatAutomation(name, entry, moduleId = null) {
   const key = registryKey(name);
   if (!key || typeof entry?.use !== "function") { problem(`registerFeatAutomation: "${name}" needs a name and a use() function`); return false; }
-  registry.featAutomation.set(key, { hint: String(entry.hint ?? ""), use: entry.use });
+  registry.featAutomation.set(key, { hint: String(entry.hint ?? ""), use: entry.use, ownsFocusUse: entry.ownsFocusUse === true });
   noteContributor(moduleId);
   return true;
 }

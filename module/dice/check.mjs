@@ -200,6 +200,12 @@ export class TRGCheck {
     // and each further one is handed that same die (`presetDice`) to meet its
     // own DB with. Nothing is rolled again, so nothing can differ.
     this.presetDice = config.presetDice ?? null;
+    // AND ITS CONVICTION DIE (3.669.1): the first creature's +1d6, if spent,
+    // met again here; a later creature is never asked for its own.
+    this.presetConvictionDie = Math.max(0, Math.trunc(Number(config.presetConvictionDie) || 0));
+    // A DEGREE SET WITHOUT THE NEED FOR A ROLL (3.669.2): a day's first
+    // declared `exact` (Tianzhi Discipline). See `roll`.
+    this.declaredDegree = config.declaredDegree ? String(config.declaredDegree) : "";
     this.convictionAdvantage = Boolean(config.convictionAdvantage);
     // LUCK ASKED FOR IN THE DIALOG (3.624.0, block 40's R11). Luck armed
     // from the sheet is read off the actor instead; see applyLuckToCheck.
@@ -260,6 +266,24 @@ export class TRGCheck {
     this.targetUuid = config.targetUuid ?? "";
     // MELEE OR RANGED (3.650.0) — an attack check's, for the conditionals.
     this.attackMode = config.attackMode ?? "";
+    // THE TARGET'S CREATURE TRAITS (3.664.0) — Spirit Stance's "against
+    // spirits and incorporeal creatures". Filled beside `targetTypes`.
+    this.targetTraits = config.targetTraits ?? "";
+    // WHAT A WEAPON ATTACK IS STRUCK WITH (3.667.3): "unarmed", "natural"
+    // or "weapon". See conditionals.mjs's `attackForms` axis.
+    this.attackForm = config.attackForm ?? "";
+    // THE WEAPON'S GROUP (3.668.0), for conditionals' `attackGroups` axis.
+    this.attackGroup = config.attackGroup ?? "";
+    // HOW FAR IT REACHES (3.668.0), for the `rangeBands` axis.
+    this.rangeBand = config.rangeBand ?? "";
+    // THE TARGET'S STATE AGAINST THIS ATTACKER (3.668.0): flatfooted,
+    // isolated, duel. See conditionals.mjs's `targetStates` axis.
+    this.targetStates = config.targetStates ?? "";
+    // TICK-BOXES ON A ROLL WITH NO DIALOG (3.667.3): asked unless the roller
+    // skipped the questions (Shift). A roll made again carries the first
+    // roll's answer in `conditionalChoices` and is not asked twice.
+    this.offerConditionals = config.offerConditionals !== false;
+    this.conditionalChoices = Array.isArray(config.conditionalChoices) ? [...config.conditionalChoices] : null;
     this.conditionalsResolved = Boolean(config.conditionalsResolved);
 
     // THE SAVE-ADVANTAGE FAMILY (Chapter 5): Evasion, Juggernaut and
@@ -288,6 +312,17 @@ export class TRGCheck {
 
     // A flat check "never includes any modifiers, bonuses, or penalties".
     this.modifiers = this.flat ? [] : [...(config.modifiers ?? [])];
+    // ANOTHER CHECK'S WHOLE RESULT, MET AGAIN (3.670.0; Inner Tempest's
+    // Drunken Strike, B6-3: "your attack total stands as your Feint check").
+    // With `presetDice`, the other check's modifiers replace this one's, so
+    // the total is that check's exactly; nothing else is added to it (no
+    // tick-box, no waiting bonus, no conviction: they were the other roll's).
+    this.presetModifiers = Array.isArray(config.presetModifiers) && config.presetDice;
+    if (this.presetModifiers) {
+      this.modifiers = config.presetModifiers.map((m) => ({ ...m }));
+      this.conditionalsResolved = true;
+      this.allowConviction = false;
+    }
 
     this.difficulty = config.difficulty ?? "medium";
     this.baseDC = config.dc ?? null;
@@ -422,7 +457,9 @@ export class TRGCheck {
    * follows.
    */
   async #takeCuttingWords() {
-    if (!this.actor) return;
+    // Not on another check's result met again (3.670.0, found in review):
+    // its total is that check's, and nothing waiting is spent on it.
+    if (!this.actor || this.presetModifiers) return;
     try {
       const { cuttingWordsConsumes, pendingCuttingWordsModifier } =
         await import("../magic/cutting-words.mjs");
@@ -455,7 +492,9 @@ export class TRGCheck {
    * question" shape inverted — one place deciding two.
    */
   async #takeCounterPerform() {
-    if (!this.actor) return;
+    // Not on another check's result met again (3.670.0, found in review):
+    // its total is that check's, and nothing waiting is spent on it.
+    if (!this.actor || this.presetModifiers) return;
     try {
       const { counterPerformConsumes, pendingCounterPerformModifier } =
         await import("../magic/counter-perform.mjs");
@@ -485,7 +524,9 @@ export class TRGCheck {
    * reading three flags would be one place deciding three questions.
    */
   async #takeInspireCompetence() {
-    if (!this.actor) return;
+    // Not on another check's result met again (3.670.0, found in review):
+    // its total is that check's, and nothing waiting is spent on it.
+    if (!this.actor || this.presetModifiers) return;
     try {
       const { inspireCompetenceConsumes, pendingInspireCompetenceModifier } =
         await import("../magic/inspire-competence.mjs");
@@ -521,7 +562,9 @@ export class TRGCheck {
    * leaves the vision intact — only USING it ends the spell.
    */
   async #takeSeersVision() {
-    if (!this.actor) return;
+    // Not on another check's result met again (3.670.0, found in review):
+    // its total is that check's, and nothing waiting is spent on it.
+    if (!this.actor || this.presetModifiers) return;
     // ONE CHANCE EFFECT A ROLL (3.622.0) — see `chanceUsed`.
     if (this.chanceUsed) return;
     try {
@@ -876,6 +919,12 @@ export class TRGCheck {
               // LUCK CHANGED THIS CHECK (3.624.0, R12): no Conviction Bonus,
               // no reroll from another fortune effect.
               luckUsed: Boolean(this.luckUsed),
+              // A DECLARED REFUND ALREADY GIVEN (3.669.0), so a late DC does
+              // not give it twice. See conviction-refund.mjs.
+              convictionRefunded: Boolean(this.convictionRefunded),
+              // A DEGREE DECLARED WITHOUT THE ROLL (3.669.2), so a DC the
+              // GM sets later declares it too, rather than showing the dice's.
+              declaredDegree: this.declaredDegree || "",
               diceDisplay: this.#buildDiceDisplay()
             }
           }
@@ -935,7 +984,9 @@ export class TRGCheck {
         scalingFor(check.actor)
       );
       if (entries.length) {
-        const applied = automaticSelections(entries, {
+        // ONE CONTEXT FOR BOTH HALVES (3.667.3): what applies unasked, and
+        // what is offered as a tick-box below. Two copies would drift.
+        const conditionalContext = {
           checkType: check.type,
           subject: check.subject,
           actionKey: check.actionKey,
@@ -955,8 +1006,14 @@ export class TRGCheck {
           // kept the silent half hidden. See conditionals.mjs's header.
           sourceUuid: check.sourceUuid,
           targetUuid: check.targetUuid,
-          attackMode: check.attackMode
-        });
+          attackMode: check.attackMode,
+          targetTraits: check.targetTraits,
+          attackForm: check.attackForm,
+          attackGroup: check.attackGroup,
+          rangeBand: check.rangeBand,
+          targetStates: check.targetStates
+        };
+        const applied = automaticSelections(entries, conditionalContext);
         check.modifiers.push(...applied.modifiers);
         if (applied.kinds.length) {
           check.bias = resolveBias(check.bias, applied.kinds, BIAS);
@@ -973,6 +1030,14 @@ export class TRGCheck {
           else ui.notifications?.warn?.(
             `${label || "A one-shot bonus"} was used but could not be cleared — remove it by hand.`);
         }
+        // …AND THE TICK-BOXES, ASKED (3.667.3; Graham, 23 October 2026).
+        // A roll that opens no dialog — a weapon attack, a Spellcraft
+        // check, a forced save — never offered a conditional its author
+        // left unticked, so it never applied. Now the matching ones are
+        // asked in one small prompt before the dice. See
+        // dice/offered-conditionals.mjs.
+        const { offerConditionalsOnRoll } = await import("./offered-conditionals.mjs");
+        await offerConditionalsOnRoll(check, entries, conditionalContext, BIAS);
       }
     }
 
@@ -991,8 +1056,11 @@ export class TRGCheck {
       const { resolveBias } = await import("../conditionals.mjs");
       // A ROW SCOPED TO A KIND OF CHECK (3.650.0; block 17 R8) waits for one:
       // Prankster's Cruelty's "-2 to its next ATTACK" is not spent on a save.
+      // …AND ONE NAMING AN ACTION, FOR THAT ACTION (3.666.3).
+      const { pendingFitsCheck } = await import("../combat/dedicated-rows.mjs");
       const auto = pendingModifierRows(check.actor).filter((row) => row.auto
-        && (!Array.isArray(row.checkTypes) || !row.checkTypes.length || row.checkTypes.includes(check.type)));
+        && (!Array.isArray(row.checkTypes) || !row.checkTypes.length || row.checkTypes.includes(check.type))
+        && pendingFitsCheck(row, check.actionKey ?? ""));
       if (auto.length) {
         const taken = applyPendingSelections(auto, auto.map((row) => row.id));
         check.modifiers.push(...taken.modifiers);
@@ -1004,7 +1072,9 @@ export class TRGCheck {
     // LUCK (3.624.0, block 40's R11/R12): rolled before the dice and
     // before every other fortune or Chance offer, which it then closes —
     // "you may only apply a fortune effect to a check once".
-    if (check.actor && !check.flat && check.type !== "luck") {
+    // NOT ON DICE NOBODY READS (3.669.2, found in review): Luck armed from
+    // the sheet stays armed through a day's first declared `exact`.
+    if (check.actor && !check.flat && check.type !== "luck" && !check.declaredDegree && !check.presetModifiers) {
       const { applyLuckToCheck } = await import("../luck-workflow.mjs");
       const said = await applyLuckToCheck(check, { requested: check.useLuck });
       if (said.length) check.extraDetailLines = [...(check.extraDetailLines ?? []), ...said];
@@ -1046,6 +1116,16 @@ export class TRGCheck {
             type: "untyped"
           });
         }
+        // A REACTION THAT ROLLS A SKILL AND ADDS ITS BONUS CHECK (3.666.0):
+        // Inner Tempest's Steel the Mind — see magic/save-bonus-reactions.mjs.
+        // Asked here for the same reason as the advantage family: before
+        // the dice, which is when "declared before the save is rolled"
+        // fires.
+        const { offerSaveBonusReaction } = await import("../magic/save-bonus-reactions.mjs");
+        const bonus = await offerSaveBonusReaction(check.actor, {
+          save, traits: check.traits, saveName: save, sourceLabel: check.saveSource || check.label
+        });
+        if (bonus) check.modifiers.push({ label: bonus.label, value: bonus.value, type: bonus.type });
       }
     }
 
@@ -1091,7 +1171,7 @@ export class TRGCheck {
      * dice, held rods only, and combined through `resolveBias` like every
      * other source of advantage here. See rod-powers.mjs.
      */
-    if (check.actor && ["skill", "spellcraft"].includes(check.type) && !check.flat && !check.rodAdvantageResolved) {
+    if (check.actor && ["skill", "spellcraft"].includes(check.type) && !check.flat && !check.rodAdvantageResolved && !check.presetModifiers) {
       const { advantageRodFor, bonusRodFor } = await import("../rod-powers.mjs");
       // ONE ROD A ROUND (3.622.0; R11): not offered once a Rod has been used.
       const { rodUsedThisRound } = await import("../trait-rules-workflow.mjs");
@@ -1180,7 +1260,7 @@ export class TRGCheck {
     // deduct before the dice are rolled.
     let advantageSpent = false;
     let advantageKept = false;
-    if (check.convictionAdvantage && check.actor) {
+    if (check.convictionAdvantage && check.actor && !check.declaredDegree) {
       advantageSpent = await spendConvictionAdvantage(check.actor);
       // LUCK OF HEROES (3.619.0, R8): a DC 15 flat check keeps the point.
       if (advantageSpent) advantageKept = await luckOfHeroes(check.actor, "advantage");
@@ -1251,6 +1331,38 @@ export class TRGCheck {
         ...(check.extraDetailLines ?? []),
         "Scoundrel's Luck — the check failed: the conviction point spent on advantage is refunded, and does not count as this round's spend."
       ];
+    } else if (advantageSpent && !advantageKept && check.actor) {
+      // A DECLARED REFUND ON A GOOD RESULT (3.669.0; Inner Tempest's
+      // Adaptive Mind, Graham's B5-3). See conviction-refund.mjs.
+      const { convictionRefundRow, convictionRefundLine } = await import("../conviction-refund.mjs");
+      const refund = convictionRefundRow(check.actor.items, {
+        checkType: check.type, subject: check.subject, degree: check.outcome?.degree?.key ?? ""
+      });
+      if (refund) {
+        await awardConviction(check.actor, 1);
+        await check.actor.unsetFlag(SYSTEM_ID, "convictionSpent");
+        check.convictionRefunded = true;
+        check.extraDetailLines = [...(check.extraDetailLines ?? []), convictionRefundLine(refund.label)];
+      }
+    }
+
+    // A DEGREE SET WITHOUT THE NEED FOR A ROLL (3.669.2; found live). A
+    // day's first declared `exact` — Inner Tempest's Tianzhi Discipline, "the
+    // first Refocus check … is treated as a Critical result without the need
+    // for a roll" — is rolled but not read. Its card showed the dice's own
+    // degree ("Fumble, fails DC by 18") above the outcome's Critical. Declared
+    // here at that degree, before anybody reads it, as Prism Lotus's Success
+    // is: the card says "Declared — the dice do not count", and nothing that
+    // answers the dice (conviction, a reroll, a conversion) is offered.
+    // A DC the GM sets later arrives at the card, which declares it there.
+    if (check.declaredDegree && !check.flat && check.outcome?.degree?.key) {
+      const { declaredAt } = await import("../magic/save-convert.mjs");
+      const set = declaredAt(check.outcome, check.declaredDegree);
+      if (set !== check.outcome) {
+        check.outcome = set;
+        check.luckUsed = true;
+        check.saveReactionResolved = true;
+      }
     }
 
     // SAID WHEN A SHIFT MOVED THE DEGREE (3.612.0, R4).
@@ -1265,7 +1377,8 @@ export class TRGCheck {
 
     // A DECLARED SUCCESS (3.630.0) — Prism Lotus (Fate). Asked before any
     // reroll or conversion, because a declared Success leaves none to make.
-    if (check.actor && !check.flat && !check.chanceUsed && check.outcome?.degree?.key) {
+    // Not on a degree already declared (3.669.2).
+    if (check.actor && !check.flat && !check.chanceUsed && !check.outcome?.declared && check.outcome?.degree?.key) {
       const { offerFateDeclare } = await import("./fate-declare-workflow.mjs");
       const declared = await offerFateDeclare(check);
       if (declared) {
@@ -1303,6 +1416,26 @@ export class TRGCheck {
         const { offerSaveConvert } = await import("../magic/save-convert-workflow.mjs");
         const converted = await offerSaveConvert(check);
         if (converted) check.extraDetailLines = [...(check.extraDetailLines ?? []), converted];
+      }
+    }
+
+    // YOUR OWN FUMBLE, REROLLED (3.669.0; Inner Tempest's Fortune's
+    // Reversal): a skill check or a save that came out a Fumble, offered to
+    // the roller before anybody reads it, and the second result stands.
+    // A BLUNDER TOO (3.669.1; Graham's B5-5 of 24 October 2026): it fails by
+    // more than a Fumble does.
+    if (check.actor && !check.flat && !check.fumbleRerolled && !check.presetDice && ["skill", "save"].includes(check.type)
+      && ["fumble", "blunder"].includes(check.outcome?.degree?.key)) {
+      const { offerFumbleReroll } = await import("../fumble-reroll-workflow.mjs");
+      const { fumbleWords } = await import("../fumble-reroll.mjs");
+      // CALLED WHAT IT WAS (3.669.2; found live): "the blunder is rerolled".
+      const firstDegree = check.outcome.degree.key;
+      const taken = await offerFumbleReroll(check.actor, check.type, { degree: firstDegree });
+      if (taken) {
+        check.fumbleRerolled = true;
+        await check.reroll();
+        check.extraDetailLines = [...(check.extraDetailLines ?? []),
+          `${taken.label}: the ${fumbleWords(firstDegree).noun} is rerolled — ${check.outcome?.degree?.label ?? "?"} (${check.outcome?.total ?? "?"}) stands, even if worse.`];
       }
     }
 
@@ -1356,8 +1489,23 @@ export class TRGCheck {
  *
  * A save or skill check still waiting on the GM's DC keeps the card button,
  * which works there: nothing has read the card yet.
+ *
+ * ASKED ON A CARD SINCE 3.667.2, not a dialog: the dice and the total, never
+ * the DB, the DC or the degree — "after the dice is rolled but before the
+ * result is known" (Graham, 23 October 2026).
  */
 async function offerConvictionBonusNow(check) {
+  // A SHARED ROLL (3.669.1; found live on Spirit Roar, the card asked once
+  // per enemy): only the first creature's check is asked. The others meet
+  // its die, and its +1d6 when it was spent.
+  if (check.presetDice) {
+    check.convictionDecided = true;
+    if (check.presetConvictionDie > 0 && check.outcome) {
+      check.applyExtraModifier({ label: "Conviction (+1d6, the shared roll's)", value: check.presetConvictionDie, type: "untyped" });
+      check.convictionDie = check.presetConvictionDie;
+    }
+    return;
+  }
   if (!check.allowConviction || check.luckUsed) return;
   if (!CONVICTION_SPENDS.bonus.checkTypes.includes(check.type)) return;
   if (!check.outcome) return;
@@ -1371,32 +1519,31 @@ async function offerConvictionBonusNow(check) {
   if (!state.ok) return;
   if (!readsNow && !check.convictionCouldMove()) return;
 
-  const DialogV2 = foundry.applications?.api?.DialogV2;
-  if (!DialogV2) return;
+  // ON THE CARD, BEFORE THE RESULT IS KNOWN (3.667.2; Graham, 23 Oct 2026).
+  // The dice and the total are posted with Spend and No; the DB, the DC and
+  // the degree are not. The roll waits for the press — the owner's or the
+  // GM's, on any screen. See dice/conviction-now-workflow.mjs.
+  const { askConvictionOnCard, settleConvictionCard } = await import("./conviction-now-workflow.mjs");
   const total = check.outcome.total;
-  const against = dc === null || dc === undefined
-    ? ""
-    : check.type === "attack"
-      ? ` against DB <strong>${dc}</strong>`
-      : ` against DC <strong>${dc}</strong> — <strong>${check.outcome.degree?.label ?? ""}</strong>`;
-  const spend = await DialogV2.confirm({
-    window: { title: `${check.actor.name}: Conviction` },
-    content: `<p><strong>${check.label ?? "Check"}</strong>: total <strong>${total}</strong>${against}.</p>`
-      + `<p>Spend a conviction point to add <strong>+1d6</strong> before this resolves? (${state.value} left)</p>`,
-    rejectClose: false
-  });
-  if (!spend) return;
+  const { spend, message } = await askConvictionOnCard(check, state);
+  const card = { actorName: check.actor.name, label: check.label ?? "Check", total };
+  if (!spend) { await settleConvictionCard(message, { ...card, spent: false }); return; }
   // ASKED AGAIN AT THE SPEND, as the card button does: another window may
-  // have spent this round's point while the dialog was open.
-  if (!getConvictionState(check.actor).ok) return;
+  // have spent this round's point while the card waited.
+  if (!getConvictionState(check.actor).ok) {
+    await settleConvictionCard(message, { ...card, spent: false });
+    return;
+  }
   const roll = await new Roll("1d6").evaluate();
   // ONE ROLL, ON THE MESSAGE AS IT IS CREATED — Dice So Nice shows it once.
   check.rolls.push(roll);
   check.applyExtraModifier({ label: "Conviction (+1d6)", value: roll.total, type: "untyped" });
   check.convictionBonusSpent = true;
+  check.convictionDie = roll.total;
   await markConvictionSpent(check.actor);
   check.extraDetailLines = [...(check.extraDetailLines ?? []),
     `Conviction: +1d6 rolled <strong>${roll.total}</strong> before the result was read — the total is now <strong>${check.outcome.total}</strong>.`];
+  await settleConvictionCard(message, { ...card, spent: true, die: roll.total, newTotal: check.outcome.total });
   await luckOfHeroes(check.actor, "bonus");
 }
 

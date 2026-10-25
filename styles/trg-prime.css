@@ -1687,6 +1687,18 @@
     opacity: 0.4;
   }
 
+  /* A natural attack's fist (3.666.0): always ready, so no button — the same
+     footprint and the equipped colour, with nothing to click. */
+  .trg-prime .item-controls .always-ready {
+    width: 27px;
+    height: 27px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--trg-gold-dark);
+    cursor: default;
+  }
+
   /* Repeater magazine count, a small badge in the corner of the reload button. */
   .trg-prime .item-controls button[data-action="reloadWeapon"] {
     position: relative;

@@ -22,6 +22,8 @@
  * Ticked ones are consumed if the outcome said "next" and kept if it said
  * "future" or gave a span of time.
  */
+import { duplicateLasting } from "./combat/dedicated-rows.mjs";
+
 const SYSTEM_ID = "trg-prime";
 const FLAG = "pendingModifiers";
 
@@ -89,6 +91,11 @@ export async function addPendingModifier(actor, entry) {
   // stayed unautomatable for two blocks.
   if (kind === PENDING_KINDS.MODIFIER && !value) return null;
   const existing = pendingModifiers(actor);
+  // THE SAME LASTING MODIFIER IS OWED ONCE (3.666.3). Keldran carried ten
+  // copies of one "-4 on all future Detect Deception checks", each offered
+  // on every roll. See combat/dedicated-rows.mjs.
+  const same = duplicateLasting({ ...entry, kind }, existing);
+  if (same) return same;
   const turns = Number(entry?.turns);
   const record = {
     id: `${Date.now().toString(36)}-${existing.length}`,
@@ -111,6 +118,9 @@ export async function addPendingModifier(actor, entry) {
   if (uses > 1 && record.oneShot) record.usesLeft = uses;
   // ONE KIND OF CHECK (3.650.0): "-2 to its next attack" waits for an attack.
   if (Array.isArray(entry?.checkTypes) && entry.checkTypes.length) record.checkTypes = entry.checkTypes.map((t) => String(t).toLowerCase());
+  // ONE ACTION'S CHECKS (3.666.3): "-2 to Subsist checks for 1 week" is
+  // offered on Subsist and nowhere else. See `pendingFitsCheck`.
+  if (Array.isArray(entry?.actions) && entry.actions.length) record.actions = entry.actions.map(String);
   await actor.setFlag(SYSTEM_ID, FLAG, [...existing, record]);
   return record;
 }

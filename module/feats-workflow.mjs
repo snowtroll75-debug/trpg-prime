@@ -1,4 +1,5 @@
 import { SKILLS, WEAPON_GROUPS, blankSpecialistSkill, slugifyKey, uniqueKey } from "./config.mjs";
+import { bonusCheckModifier as bonusCheckModifierOf, levelDC as levelDCOf } from "./dice/resolution.mjs";
 import { generalAP } from "./combat/restricted-ap.mjs";
 import { lastStanceRoundIn, stanceStamp } from "./traits-workflow.mjs";
 import { isCantripSpell } from "./magic/casting.mjs";
@@ -530,7 +531,11 @@ async function useBackground(actor, item) {
   if (item?.getFlag?.(SYSTEM_ID, "skillChoice")) did = await chooseBackgroundSkills(actor, item) || did;
   if (item?.getFlag?.(SYSTEM_ID, "spellChoice")) did = await chooseBackgroundSpell(actor, item) || did;
   if (item?.getFlag?.(SYSTEM_ID, "specialistChoice")) did = await useBackgroundSpecialistChoice(actor, item) || did;
-  if (!did && !item?.getFlag?.(SYSTEM_ID, "skillChoice") &&
+  // AN ALTERNATIVE TO A DUPLICATED SPECIALIST SKILL (3.665.0) — asked only
+  // while it is owed; see specialistAlternativeOwed.
+  const alternativeDeclared = Boolean(item?.getFlag?.(SYSTEM_ID, "specialistAlternative"));
+  if (alternativeDeclared) did = await useSpecialistAlternative(actor, item) || did;
+  if (!did && !alternativeDeclared && !item?.getFlag?.(SYSTEM_ID, "skillChoice") &&
     !item?.getFlag?.(SYSTEM_ID, "spellChoice") && !item?.getFlag?.(SYSTEM_ID, "specialistChoice")) {
     ui.notifications.warn(`${item?.name ?? "This background"} has nothing to choose.`);
   }
@@ -623,13 +628,37 @@ async function chooseBackgroundSkills(actor, item) {
  * tagged so it leaves with the background.
  */
 export function backgroundSpellFilter(spec) {
-  return (s) =>
-    (spec?.ppCost === undefined || Number(s.system?.ppCost ?? -1) === Number(spec.ppCost)) &&
-    (!spec?.tradition || new RegExp(spec.tradition, "i").test(String(s.system?.tradition ?? "")));
+  // A NAMED LIST AND A TRAIT (3.669.0; Inner Tempest's Elemental Power,
+  // Supremacy and Ascendant: "one of the following PP 2 spells which has a
+  // trait that matches your racial element"). `names` limits the choice to
+  // the printed list; `traitsAny` keeps a spell carrying any of the traits;
+  // `alsoNames` are on the list and kept whatever their traits.
+  const names = Array.isArray(spec?.names) && spec.names.length ? new Set(spec.names.map((n) => String(n).trim().toLowerCase())) : null;
+  const also = new Set((Array.isArray(spec?.alsoNames) ? spec.alsoNames : []).map((n) => String(n).trim().toLowerCase()));
+  const traitsAny = (Array.isArray(spec?.traitsAny) ? spec.traitsAny : []).map((t) => String(t).trim().toLowerCase()).filter(Boolean);
+  const hasTrait = (s) => {
+    const own = String(s.system?.traits ?? "").split(",").map((t) => t.trim().toLowerCase());
+    return traitsAny.some((t) => own.includes(t));
+  };
+  return (s) => {
+    const name = String(s.name ?? "").trim().toLowerCase();
+    if (names && !names.has(name)) return false;
+    if (traitsAny.length && !hasTrait(s) && !also.has(name)) return false;
+    return (spec?.ppCost === undefined || Number(s.system?.ppCost ?? -1) === Number(spec.ppCost)) &&
+      (!spec?.tradition || new RegExp(spec.tradition, "i").test(String(s.system?.tradition ?? "")));
+  };
 }
 
-async function chooseBackgroundSpell(actor, item) {
-  const spec = item.getFlag(SYSTEM_ID, "spellChoice");
+/**
+ * The same chooser for a module that builds the spec itself (3.669.0): an
+ * Inner Tempest feat whose list depends on the character's element.
+ */
+async function chooseSpellFor(actor, item, spec) {
+  return chooseBackgroundSpell(actor, item, spec);
+}
+
+async function chooseBackgroundSpell(actor, item, given = null) {
+  const spec = given ?? item.getFlag(SYSTEM_ID, "spellChoice");
   if (!spec) return false;
   // NOT innate, unless the entry says so. Weaver's rule is "cast it using
   // your spellcraft bonus", which is the ordinary casting path — an
@@ -647,6 +676,9 @@ async function chooseBackgroundSpell(actor, item) {
     innate: Boolean(spec.innate),
     addTrait: spec.innate ? "focus" : "",
     grantNote: spec.note ?? "",
+    // "…using Wisdom as the magical ability" (3.664.0): the chosen spell
+    // carries its own ability, which innateAbilityKey honours.
+    extraFlags: spellChoiceExtraFlags(spec),
     sourceItem: item
   });
   return Boolean(created);
@@ -813,8 +845,35 @@ function carrierLabel(item) {
   return item?.name ? `${item.name}` : "the item that granted it";
 }
 
-async function useBackgroundSpecialistChoice(actor, item) {
-  const choice = item?.getFlag?.(SYSTEM_ID, "specialistChoice");
+/**
+ * The alternative a duplicated specialist skill is owed (3.665.0; Graham's
+ * ruling of 21 October 2026 on Spirit Warrior). Asks through the very
+ * chooser a "name your lore" background uses, so the answer is recorded,
+ * replaced on a second press and removed with the item exactly as theirs.
+ */
+async function useSpecialistAlternative(actor, item) {
+  const { specialistAlternativeOwed } = await import("./specialist-grants.mjs");
+  const owed = specialistAlternativeOwed(item, Array.from(actor?.items ?? []));
+  const alternative = item?.getFlag?.(SYSTEM_ID, "specialistAlternative") ?? {};
+  if (!owed.length) {
+    const names = (await import("./specialist-grants.mjs")).specialistNamesFor(item);
+    await postCard(actor, item.name, [
+      line(`<strong>${esc(names.join(", "))}</strong> comes from ${carrierLabel(item)} itself — no other source grants it, so there is no alternative to choose.`),
+      line("<em>If another lore was named here earlier, it stays until you remove it from the Skills tab.</em>")
+    ]);
+    return false;
+  }
+  return useBackgroundSpecialistChoice(actor, item, {
+    count: 1,
+    label: alternative.label ?? "another specialist skill",
+    prompt: alternative.prompt ?? `${owed.join(", ")} is already yours — name ${alternative.label ?? "another specialist skill"} instead`,
+    placeholder: alternative.placeholder ?? "",
+    suffix: alternative.suffix ?? ""
+  });
+}
+
+async function useBackgroundSpecialistChoice(actor, item, choiceOverride = null) {
+  const choice = choiceOverride ?? item?.getFlag?.(SYSTEM_ID, "specialistChoice");
   if (!choice) {
     ui.notifications.warn(`${item?.name ?? "This background"} declares no specialist-skill choice.`);
     return false;
@@ -1505,6 +1564,8 @@ import { hasHulkingForm, hulkingFormEffectData, hulkingFormNote } from "./hulkin
 import { deletionValue } from "./deletion.mjs";
 import { speedValue } from "./combat/speed-pool.mjs";
 import { contentPack } from "./content-packs.mjs";
+import { spellChoiceExtraFlags } from "./focus-declarations.mjs";
+import { activeStanceEffects } from "./stance-declarations.mjs";
 export { CLASS_SKILL_GRANTS };
 
 /**
@@ -1524,6 +1585,10 @@ export const MODULE_HELPERS = Object.freeze({
   // module heritage that says "select any one Lore specialist skill" is
   // the same chooser a core background is.
   useBackground,
+  // A SPELL CHOICE THE MODULE BUILT (3.669.0): the same chooser, with a spec
+  // the item does not carry — `{ names, traitsAny, alsoNames, ppCost,
+  // innate, castingAbility, note }`. See backgroundSpellFilter.
+  chooseSpell: (actor, item, spec) => chooseSpellFor(actor, item, spec),
   /**
    * A module archetype's "choose one of these skills as a class skill"
    * (3.571.0): the feat registers its CLASS_SKILL_GRANTS entry through
@@ -1531,6 +1596,17 @@ export const MODULE_HELPERS = Object.freeze({
    * chooser the Priest's does. Nothing to do when no entry is registered
    * under the feat's name.
    */
+  /**
+   * ENTER A STANCE (3.664.0) — Inner Tempest's stances and Combat Forms. The
+   * core's own entry, rules and all: the one-round wait, replacing the
+   * previous stance, Stance Mastery's second, Reactive Stance's free entry,
+   * the AP. `flags` rides on the stance's effect (conditionals, defenceDC,
+   * magicalAttacks, stanceActionMods' siblings). Resolves true when the
+   * stance was entered, false when a rule refused it.
+   */
+  enterStance: (actor, item, options = {}) => enterFeatStance(actor, item, options),
+  /** The stance effects up on an actor (3.664.0). */
+  activeStances: (actor) => activeStanceEffects(Array.from(actor?.effects ?? [])),
   useClassSkillGrant: async (actor, item) => {
     const grant = CLASS_SKILL_GRANTS.find((g) => g.name === normalise(item?.name));
     if (!grant) {
@@ -1539,6 +1615,42 @@ export const MODULE_HELPERS = Object.freeze({
     }
     await chooseClassSkill(actor, item, grant);
     return true;
+  },
+  /**
+   * THE BONUS CHECK TABLE (CRB p.63; exposed at 3.666.0): Heroic 4 …
+   * Blunder −2. Inner Tempest's Evade, Root the Body, Centred Balance and
+   * their kin compare a check to it; one copy of the table, not two.
+   */
+  bonusCheckModifier: (degreeKey) => bonusCheckModifierOf(degreeKey),
+  /** A creature of this level's Level DC (3.666.0). */
+  levelDC: (level) => levelDCOf(level),
+  /**
+   * A WARD ZONE (3.666.0; Elemental Ward): a circle around the actor's
+   * token whose occupants carry resistance (or, on a Blunder, weakness) to
+   * one damage type while inside, for `seconds` of world time. See
+   * combat/ward-zone.mjs. Resolves the Region, or null with no token.
+   */
+  placeWardZone: async (actor, options = {}) => {
+    const { placeWardZone } = await import("./combat/ward-zone-workflow.mjs");
+    return placeWardZone(actor, options);
+  },
+  /**
+   * LOWER A VALUED CONDITION (3.666.0; Inner Tempest's Steady Heart: "reduce
+   * your frightened condition by 2"), the way Rally does: never below the
+   * floor an area holds it at (Song of Despair, a Korath's Demoralise), and
+   * removed at 0. Resolves {from, to, floor}: what actually changed.
+   */
+  reduceCondition: async (actor, key, by = 1) => {
+    const from = Math.max(0, Number(actor?.getConditionValue?.(key) ?? 0) || 0);
+    if (!from) return { from: 0, to: 0, floor: 0 };
+    const { conditionFloorFor } = await import("./magic/emanation-workflow.mjs");
+    const floor = Math.max(0, Number(conditionFloorFor(actor, key)) || 0);
+    const to = Math.max(0, from - Math.max(0, Math.trunc(Number(by) || 0)), floor);
+    if (to !== from) {
+      if (to > 0) await actor.toggleStatusEffect(key, { value: to });
+      else await actor.toggleStatusEffect(key, { active: false });
+    }
+    return { from, to, floor };
   }
 });
 
@@ -1604,14 +1716,19 @@ const FEAT_STANCE_FLAG = "featStance";
  * apReductions: {actionKey: n}}` — which the action workflow applies
  * while the stance is up.
  */
-async function enterFeatStance(actor, item, { name, apCost = 1, description, changes = [], stanceActionMods = null, extraLines = [] }) {
+async function enterFeatStance(actor, item, { name, apCost = 1, description, changes = [], stanceActionMods = null, extraLines = [], flags = null, waiveWait = false }) {
   /* eslint-disable-next-line no-param-reassign -- see the Reactive Stance note below */
   const round = game.combat?.started ? (game.combat?.round ?? null) : null;
   // KEYED BY COMBAT (3.622.0; block 39's A15) — see `lastStanceRoundIn`.
   const lastStance = lastStanceRoundIn(actor);
-  if (round !== null && lastStance !== null && round <= lastStance) {
+  // A RULE THAT CHANGES STANCE AT ONCE (3.668.0): Inner Tempest's Form
+  // Reversal, "A creature misses you with a melee attack. You may
+  // immediately change your active Combat Form." The feat is the exception
+  // to the one-round wait, so its caller waives the wait and nothing else:
+  // the previous stance is still replaced and the round still stamped.
+  if (!waiveWait && round !== null && lastStance !== null && round <= lastStance) {
     ui.notifications.warn(`${name}: you must wait at least one round after entering a Stance before using another.`);
-    return;
+    return false;
   }
   // REACTIVE STANCE (Chapter 5) waives the cost for ONE entry, taken free
   // when initiative is rolled. The flag is set by the offer and cleared
@@ -1625,7 +1742,7 @@ async function enterFeatStance(actor, item, { name, apCost = 1, description, cha
   const ap = generalAP(actor); // 3.648.0: not Haste's or Fast Attack's point
   if (game.combat?.started && apCost > 0 && ap < apCost) {
     ui.notifications.warn(`${name}: ${apCost} AP required.`);
-    return;
+    return false;
   }
 
   const existing = Array.from(actor.effects ?? [])
@@ -1651,6 +1768,11 @@ async function enterFeatStance(actor, item, { name, apCost = 1, description, cha
     changes,
     flags: {
       [SYSTEM_ID]: {
+        // A MODULE STANCE'S OWN DECLARATIONS (3.664.0): conditionals,
+        // defenceDC rows, magicalAttacks — whatever the stance's rule is,
+        // carried on its effect so it lasts exactly as long as the stance.
+        // Spread first, so the stance's own flags always win.
+        ...(flags && typeof flags === "object" ? flags : {}),
         [FEAT_STANCE_FLAG]: true,
         [FEAT_SOURCE_FLAG]: item.id,
         ...(stanceActionMods ? { stanceActionMods } : {})
@@ -1663,6 +1785,7 @@ async function enterFeatStance(actor, item, { name, apCost = 1, description, cha
     ...(mastery && existing.length ? [line("<em>Stance Mastery: a second stance is running alongside — make an Exhaustion check each round beyond the first that both are maintained (both drop on a failure).</em>")] : []),
     ...extraLines
   ]);
+  return true;
 }
 
 /* -------------------------------------------------------------------- */
@@ -6312,6 +6435,18 @@ export const FEAT_AUTOMATION = {
         ui.notifications.warn("Nimble Dodge: not usable while suffering an ACP or encumbrance penalty.");
         return;
       }
+      // THE REACTION IS SPENT, AND THE +2 LASTS ONE ATTACK (3.666.0). The
+      // card said "Reaction spent" and nothing spent it; the effect told the
+      // player to delete it by hand. Graham's ruling of 21 October 2026:
+      // declared when you are targeted, and that attack spends it — see
+      // combat/one-attack.mjs. Refused, before anything changes, when no
+      // reaction is left in combat.
+      const { actorInCombat, spendReaction } = await import("./combat/action-points-workflow.mjs");
+      const inCombat = actorInCombat(actor);
+      if (inCombat && !(Number(actor.system?.resources?.reactions?.value ?? 0) > 0)) {
+        ui.notifications.warn("Nimble Dodge: no reaction left this round.");
+        return;
+      }
       await replaceFeatEffect(actor, item, {
         name: "Nimble Dodge (+2 vs one attack)",
         img: item.img,
@@ -6321,10 +6456,12 @@ export const FEAT_AUTOMATION = {
           value: "2",
           priority: 20
         }],
-        description: "Reaction: +2 dodge to DB against the triggering attack ONLY — delete this effect once that attack resolves."
+        flags: { [SYSTEM_ID]: { oneAttack: true } },
+        description: "Reaction: +2 dodge to DB against the next attack made against you; that attack removes it."
       });
+      if (inCombat) await spendReaction(actor, "Nimble Dodge");
       await postCard(actor, "Nimble Dodge", [
-        line("Reaction spent — <strong>+2 dodge to DB</strong> against the incoming attack. Remove the effect once the attack resolves.")
+        line(`${inCombat ? "Reaction spent — " : ""}<strong>+2 dodge to DB</strong> against the next attack made against you. That attack removes it.`)
       ]);
     }
   },
@@ -8213,7 +8350,54 @@ async function useAbilityChoice(actor, item) {
  */
 const USE_IN_FLIGHT = new Set();
 
+/**
+ * A FOCUS FEAT OR ABILITY WITH NO PRINTED COUNT, AT THE USE BUTTON (3.665.1).
+ * See focusDefaultSpend in uses.mjs. Refused before anything happens when its
+ * use is spent; after the handler, spent if the handler did something and did
+ * not spend it itself. Every other item passes straight through.
+ */
+async function withFocusDefault(actor, item, run) {
+  const { focusDefaultUses, focusDefaultSpend } = await import("./uses.mjs");
+  const max = focusDefaultUses(item?.system, item?.type);
+  if (max === null) return run();
+  // A MODULE USE THAT KEEPS ITS OWN FOCUS USE (3.668.1). Inner Tempest's Combat
+  // Form learns the forms a level owes (free, and allowed while expended) and
+  // enters one (gated on, and spending, the use). Neither gate nor default
+  // spend here: the handler does both. The core table declares none.
+  if (ownsFocusUse(item)) return run();
+  const { itemUsesRemaining } = await import("./uses-workflow.mjs");
+  if (!(itemUsesRemaining(item) > 0)) {
+    ui.notifications.warn(`${item.name}: its Focus use is spent — Refocus restores it.`);
+    return null;
+  }
+  const before = Number(item.system?.usesValue);
+  // By id, not by timestamp: a message's time is stamped by whichever clock
+  // created it, and the server's and this browser's need not agree.
+  const known = new Set(Array.from(game.messages?.keys?.() ?? []));
+  const result = await run();
+  const current = actor?.items?.get?.(item.id) ?? item;
+  // THIS ACTOR SAID SOMETHING: every handler posts a card when it acts, and
+  // none when it is cancelled or refused.
+  const acted = Array.from(game.messages ?? []).some((m) =>
+    !known.has(m.id) && m.speaker?.actor === actor?.id);
+  if (focusDefaultSpend({ max, before, after: Number(current.system?.usesValue), acted, result })) {
+    await current.update({ "system.usesValue": Math.max(0, before - 1) });
+  }
+  return result;
+}
+
+/** Whether the item's Use is a module automation that declared `ownsFocusUse`. */
+function ownsFocusUse(item) {
+  if (TYPE_AUTOMATION[item?.type]) return false;
+  const automation = FEAT_AUTOMATION[normalise(item?.name)];
+  return automation?.module === true && automation?.ownsFocusUse === true;
+}
+
 export async function useFeat(actor, item) {
+  return withFocusDefault(actor, item, () => useFeatNow(actor, item));
+}
+
+async function useFeatNow(actor, item) {
   // The type table wins. An aspect named War must not be driven by a
   // feat that happens to share its name.
   const automation = TYPE_AUTOMATION[item?.type] ?? FEAT_AUTOMATION[normalise(item?.name)];

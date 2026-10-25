@@ -70,13 +70,25 @@ export const RELAY_ACTIONS = Object.freeze({
   // player's critical on the GM's NPC threw a permission error and the whole
   // strike — damage and card — was lost. Found live on 7 October 2026.
   INJURY_RECORD: "target.injuryRecord",
+  // A DEFENCE THAT LASTED ONE ATTACK (3.666.0): the attacker's client asks
+  // the GM's to remove the defender's one-attack effects that attack spent.
+  // The payload names the ATTACK, not effect ids, so the GM's client decides
+  // what it spends by the defender's own declarations (one-attack.mjs).
+  ONE_ATTACK: "target.oneAttack",
+  // A STATED DESTINATION BELOW ZERO (3.666.1): Word Of Death's "otherwise it
+  // drops to -10 HP" and Slay The Soul's Failure, cast by a player on the
+  // GM's creature. A named operation, as HP_ZERO is: the GM's client runs
+  // the dying rule's own branch with the two numbers it reads.
+  DYING_AT: "target.dyingAt",
   RESULT: "target.result"
 });
 
 /** The records an INJURY_RECORD request may write, and nothing else. */
 // "ppDrain" and "apWatch" joined at 3.627.2: the Aligned 19 row's "Drained of
 // 2 PP" and the AP-spend watch a critical arms were the same direct write.
-const INJURY_RECORD_KINDS = Object.freeze(["persistence", "fatal", "location", "air", "ppDrain", "apWatch"]);
+// "soulDestroyed" joined at 3.666.1: Soul Destruction's rung marks the body
+// for a later Resurrection, and a player's cast wrote it directly.
+const INJURY_RECORD_KINDS = Object.freeze(["persistence", "fatal", "location", "air", "ppDrain", "apWatch", "soulDestroyed"]);
 
 /** How long a client waits for the GM's answer before giving up. */
 export const RELAY_TIMEOUT_MS = 8000;
@@ -116,6 +128,45 @@ export function shouldHandleAsGM(user, activeGM) {
 export function needsRelay(document) {
   if (!document) return false;
   return !document.isOwner;
+}
+
+/**
+ * Must a condition toggle on this actor go through the GM (3.666.1)?
+ *
+ * Asked by `Actor#toggleStatusEffect` itself, so every caller is covered.
+ * Never on a GM's client (the GM owns everything and is the relay's own
+ * end), never with no user (a harness, or a world still loading), and
+ * never for an actor this user owns.
+ *
+ * @param {{isOwner: boolean}} actor
+ * @param {{isGM: boolean}|null} user
+ */
+export function statusRelayNeeded(actor, user) {
+  if (!actor || !user || user.isGM) return false;
+  return needsRelay(actor);
+}
+
+/** The toggle options that mean anything on the GM's client, as plain data. */
+// Not `force`: the GM's override of an immunity is the GM's, and a player's
+// client asking for it through the relay would be a way round the guard.
+const RELAYABLE_STATUS_OPTIONS = Object.freeze(["active", "value", "damageType", "overlay"]);
+
+/**
+ * The options a relayed toggle carries: plain data, and only the keys the
+ * GM's own toggle reads, so nothing unserialisable reaches the socket.
+ *
+ * @param {object} options
+ */
+export function relayableStatusOptions(options = {}) {
+  const out = {};
+  for (const key of RELAYABLE_STATUS_OPTIONS) {
+    const value = options?.[key];
+    if (value === undefined || value === null) continue;
+    if (key === "value") { if (Number.isFinite(Number(value))) out.value = Number(value); continue; }
+    if (key === "damageType") { out.damageType = String(value); continue; }
+    out[key] = Boolean(value);
+  }
+  return out;
 }
 
 /**
@@ -369,6 +420,21 @@ export async function performRelay(request, deps) {
       if (!INJURY_RECORD_KINDS.includes(kind)) return { ok: false, reason: `not an injury record: ${kind}` };
       const result = await deps.recordInjury(target, kind, payload.entry ?? {});
       return { ok: true, result: result ?? null };
+    }
+    case RELAY_ACTIONS.DYING_AT: {
+      const finalHP = Math.trunc(Number(payload.finalHP));
+      if (!Number.isFinite(finalHP)) return { ok: false, reason: "no hit points named" };
+      const result = await deps.enterDyingAt(target, finalHP, { isCritical: payload.isCritical === true });
+      return { ok: true, result: result ?? null };
+    }
+    case RELAY_ACTIONS.ONE_ATTACK: {
+      const event = {
+        kind: String(payload.event?.kind ?? ""),
+        actionKey: String(payload.event?.actionKey ?? ""),
+        attackerUuid: String(payload.event?.attackerUuid ?? "")
+      };
+      const removed = await deps.consumeOneAttack(target, event);
+      return { ok: true, result: removed ?? [] };
     }
     default:
       return { ok: false, reason: `unknown relay action: ${action}` };

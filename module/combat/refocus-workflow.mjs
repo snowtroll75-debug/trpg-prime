@@ -29,6 +29,8 @@ import {
   restoredUses
 } from "./refocus.mjs";
 import { itemUsesMax, itemUsesRemaining } from "../uses-workflow.mjs";
+import { refocusRestoredUses, refocusRestoresAll } from "../focus-declarations.mjs";
+import { declarationCarriers } from "../declaration-carriers.mjs";
 import { refocusCompanionCandidates, refocusCompanions, refocusSucceeded } from "./refocus.mjs";
 import { skipDialog } from "../apps/check-dialog.mjs";
 
@@ -224,7 +226,14 @@ async function returnOneUse(item) {
     return { name: item.name, next: 1, max: 1 };
   }
   const max = itemUsesMax(item);
-  const next = restoredUses(itemUsesRemaining(item), max);
+  // ALL USES, WHERE A DECLARATION SAYS SO (3.664.0; Graham, 20 Oct 2026):
+  // only an ability with extra uses from Deep Focus or Ghost Art Mastery
+  // gets every use back. Anything else keeps the one use `restoredUses`
+  // has always handed back.
+  const all = item.actor ? refocusRestoresAll(item, declarationCarriers(item.actor)) : false;
+  const next = all
+    ? refocusRestoredUses(itemUsesRemaining(item), max, true)
+    : restoredUses(itemUsesRemaining(item), max);
   await item.update({ "system.usesValue": next });
   return { name: item.name, next, max };
 }

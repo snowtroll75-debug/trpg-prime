@@ -1,5 +1,7 @@
 import { weaponUsage } from "../weapon-rune-usage.mjs";
 import { isRunedClothing } from "../rune-bearing.mjs";
+import { isCracked, isRunestone } from "../rune-transfer.mjs";
+import { RUNESTONE_TRAITS_FLAG } from "../runestone.mjs";
 import { DAMAGE_TYPES, SIZE_TABLE, TRADITIONS } from "../config.mjs";
 import { donningTimeFor, runeUsageNotes } from "../codex-runes.mjs";
 import { isFullSuit } from "../donning.mjs";
@@ -160,6 +162,15 @@ export class TRGItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     // RUNED CLOTHING (3.577.0, R9): Travellers "can be upgraded like
     // armour", so its sheet carries the same Runes panel.
     if (context.isGear && isRunedClothing(this.item)) this._runeContext(context);
+    // A RUNESTONE (3.666.2): its one stored rune, what that rune lends the
+    // stone, and whether a Partial has cracked it. See runestone.mjs.
+    context.runestone = context.isGear && isRunestone(this.item)
+      ? {
+        cracked: isCracked(this.item),
+        traitsLabel: (this.item.flags?.["trg-prime"]?.[RUNESTONE_TRAITS_FLAG] ?? []).join(", "),
+        plural: (this.item.flags?.["trg-prime"]?.[RUNESTONE_TRAITS_FLAG] ?? []).length > 1
+      }
+      : null;
     // A gear item that carries the growing Spell Book itself (currently
     // only the Wizard's Spellbook, granted free through GRANT_FIELDS.class
     // — see grants-workflow.mjs) renders its own slot ladder here rather

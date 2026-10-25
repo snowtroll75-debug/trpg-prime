@@ -214,8 +214,34 @@ export async function refundActionCost(actor, apCost) {
  * @param {Actor} actor
  * @param {string} [actionName] For the warning message, if any.
  */
+/**
+ * WHY THIS ACTOR COULD NOT SPEND A REACTION NOW, or "" when it could
+ * (3.669.1). Out of combat nothing is spent, so nothing refuses. In combat:
+ * none left, or only Battle Readiness's left and this reaction carries
+ * neither the Attack nor the Martial trait. Asks nothing and changes
+ * nothing; an offer reads it before it asks (found live: Fortune's Reversal
+ * was offered, its reaction refused, and the reroll made anyway).
+ */
+export function reactionRefusal(actor, traits = "") {
+  if (!actorInCombat(actor)) return "";
+  if (Number(actor.system?.resources?.reactions?.value ?? 0) <= 0) return `${actor.name} has no reaction left this round.`;
+  if (battleReadinessBonus(actor) > 0) {
+    return battleReadinessSpendBlock({
+      hasBattleReadiness: true,
+      qualifies: reactionQualifies(traits),
+      nonQualifyingSpent: Boolean(actor.getFlag?.(SYSTEM_ID, "nonMartialReactionSpent"))
+    }) ?? "";
+  }
+  return "";
+}
+
+/**
+ * Spend the reaction. RESOLVES WHETHER IT WAS SPENT (3.669.1): true out of
+ * combat (nothing to spend) or when spent; false when Battle Readiness
+ * refused it or none was left. Callers that ignored the result still may.
+ */
 export async function spendReaction(actor, actionName = "This action", { traits = "" } = {}) {
-  if (!actorInCombat(actor)) return;
+  if (!actorInCombat(actor)) return true;
 
   // Battle Readiness (Fighter, 2nd): the extra reaction in the pool may
   // only go on a Reaction with the Attack or Martial trait, enforced as
@@ -233,7 +259,7 @@ export async function spendReaction(actor, actionName = "This action", { traits 
     });
     if (blocked) {
       ui.notifications.warn(`${actionName}: ${blocked}`);
-      return;
+      return false;
     }
     if (!qualifies) {
       await actor.setFlag(SYSTEM_ID, "nonMartialReactionSpent", true);
@@ -247,7 +273,9 @@ export async function spendReaction(actor, actionName = "This action", { traits 
 
   if (!result.sufficient) {
     ui.notifications.warn(`${actionName} needs a reaction, but ${actor.name} has none left this turn.`);
+    return false;
   }
+  return true;
 }
 
 /**

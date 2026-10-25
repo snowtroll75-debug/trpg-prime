@@ -4,7 +4,7 @@ import { SKILLS } from "./config.mjs";
 import { addPendingModifier } from "./pending-modifiers.mjs";
 import { sameSide } from "./combat/aid-bonus.mjs";
 import { activeToken } from "./combat/geometry.mjs";
-import { aidBoosts, aidGrant, aidRecipientPool, innateTeamworkExtends } from "./skill-aid.mjs";
+import { aidBoosts, aidGrant, aidRecipientPool, aidTickBlock, aidTickRows, aidTicksFor, innateTeamworkExtends } from "./skill-aid.mjs";
 
 /**
  * Aid (Chapter 4, Skill Checks — "AID"): the general, non-combat form.
@@ -71,6 +71,21 @@ export async function rollAidAnother(actor, { extraModifiers = [] } = {}) {
     .map((a) => `<option value="${a.id}">${a.name}</option>`)
     .join("");
 
+  // THE TICKS THIS AID MAY TAKE, ASKED HERE (3.669.2; Graham's ruling of 24
+  // October 2026, option (a)). Collected as the roll collects them, for each
+  // skill; see skill-aid.mjs `aidTickRows`.
+  const { collectConditionals, conditionalRows, scalingFor } = await import("./conditionals.mjs");
+  const { allyAuraConditionalsFor } = await import("./creature-aura-workflow.mjs");
+  const aidEntries = collectConditionals(
+    Array.from(actor.items ?? []),
+    Array.from(actor.appliedEffects ?? actor.effects ?? []),
+    [...(actor.system?.combat?.runeConditionals ?? []), ...allyAuraConditionalsFor(actor)],
+    scalingFor(actor)
+  );
+  const tickRows = aidTickRows(Object.fromEntries(Object.keys(SKILLS).map((key) =>
+    [key, conditionalRows(aidEntries, { checkType: "skill", subject: key, actionKey: "aidAnother" })])));
+  const firstSkill = Object.keys(SKILLS)[0] ?? "";
+
   const result = await DialogV2.wait({
     window: { title: "Aid Another", icon: "fa-solid fa-hands-helping" },
     classes: ["trg-prime"],
@@ -98,6 +113,7 @@ export async function rollAidAnother(actor, { extraModifiers = [] } = {}) {
           <label for="trg-aid-dc">Lead's DC</label>
           <input id="trg-aid-dc" type="number" name="dc" value="0">
         </div>
+        ${aidTickBlock(tickRows, firstSkill)}
       </div>`,
     buttons: [
       {
@@ -109,12 +125,29 @@ export async function rollAidAnother(actor, { extraModifiers = [] } = {}) {
           const form = button.form ?? button.closest?.("form");
           const FDE =
             foundry.applications?.ux?.FormDataExtended ?? globalThis.FormDataExtended;
-          return new FDE(form).object;
+          const ticks = Array.from(form?.querySelectorAll?.('input[name="aidTick"]:checked') ?? []).map((input) => input.value);
+          return { ...new FDE(form).object, ticks };
         }
       },
       { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark" }
     ],
-    rejectClose: false
+    rejectClose: false,
+    // A TICK FOLLOWS THE SKILL PICKED (3.669.2): one for another skill is
+    // hidden and unticked.
+    render: (event, dialog) => {
+      const root = dialog?.element ?? dialog;
+      const select = root?.querySelector?.('[name="skillKey"]');
+      if (!select) return;
+      const follow = () => {
+        for (const row of root.querySelectorAll("[data-aid-tick]")) {
+          const shown = String(row.dataset.skills ?? "").split(",").includes(select.value);
+          row.style.display = shown ? "" : "none";
+          if (!shown) { const box = row.querySelector("input"); if (box) box.checked = false; }
+        }
+      };
+      select.addEventListener("change", follow);
+      follow();
+    }
   });
 
   if (!result || result === "cancel") return null;
@@ -132,6 +165,11 @@ export async function rollAidAnother(actor, { extraModifiers = [] } = {}) {
   const check = await TRGCheck.roll({
     actor,
     label: `Aid Another — ${label}`,
+    // NAMED (3.669.1; found live): a declaration's tick for Aid — Inner
+    // Tempest's Hive Coordination — is asked on this roll by its action key.
+    actionKey: "aidAnother",
+    // …AND THE TICKS ITS DIALOG ASKED (3.669.2), applied by the roll.
+    conditionalChoices: aidTicksFor(tickRows, result.ticks, skillKey),
     subtitle: purpose
       ? `Easy check vs the lead's DC ${dc} — to ${purpose}`
       : `Easy check vs the lead's DC ${dc}`,

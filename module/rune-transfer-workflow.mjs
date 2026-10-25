@@ -61,7 +61,7 @@ export async function promptRuneTransfer(actor) {
   }
   if (!targets.length) {
     ui.notifications.warn(
-      `${actor?.name ?? "This character"} carries no weapon, armour or shield that could receive a rune.`
+      `${actor?.name ?? "This character"} carries no weapon, armour, shield or empty runestone that could receive a rune.`
     );
     return null;
   }

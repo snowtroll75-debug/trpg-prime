@@ -30,6 +30,8 @@
 
 const SYSTEM_ID = "trg-prime";
 
+import { activeStanceEffects, inAnyStance, stanceGatedRows } from "../stance-declarations.mjs";
+
 /** The DCs a defender can raise. Matches ACTION_TARGETS' own names. */
 export const DEFENCE_DC_KEYS = Object.freeze([
   "fortitudeDC", "reflexDC", "willDC", "attackDC", "defence"
@@ -124,15 +126,27 @@ export function defenceDCRowFrom(effect, spellName = "This spell", extra = 0) {
  * @param {object} source {id, name}
  * @returns {object|null}
  */
-export function normaliseDefenceDC(raw, source = {}) {
+export function normaliseDefenceDC(raw, source = {}, { stanceGated = false, fromStance = false } = {}) {
   if (!raw || typeof raw !== "object") return null;
 
-  const dc = String(raw.dc ?? "").trim();
-  if (!isDefendableDC(dc)) return null;
+  /*
+   * A ROW THAT GIVES THE ATTACKER DISADVANTAGE (3.665.0; Graham's ruling of
+   * 21 October 2026 on Inner Tempest's Tsuchi). "Advantage on checks to
+   * avoid being knocked prone or moved against your will" has the Storgar
+   * problem — the defender rolls nothing against a Shove or a Trip — and
+   * the ruling puts it on the other side: "grant the check disadvantage".
+   *
+   * It moves no DC, so it may name `dc: "any"` (a Trip is rolled against
+   * the higher of two DCs, and the ruling is about the check, not about
+   * which DC it meets). It still has to be scoped, exactly as a value row.
+   */
+  const disadvantage = String(raw.kind ?? "").trim().toLowerCase() === "disadvantage";
+  const dc = String(raw.dc ?? (disadvantage ? "any" : "")).trim();
+  if (!(isDefendableDC(dc) || (disadvantage && dc === "any"))) return null;
 
-  const value = Math.trunc(Number(raw.value));
+  const value = disadvantage ? 0 : Math.trunc(Number(raw.value));
   // Zero is a no-op that would still print a line on the card.
-  if (!Number.isFinite(value) || value === 0) return null;
+  if (!disadvantage && (!Number.isFinite(value) || value === 0)) return null;
 
   const list = (value) => (Array.isArray(value) ? value : [])
     .map((a) => String(a ?? "").trim().toLowerCase())
@@ -174,6 +188,18 @@ export function normaliseDefenceDC(raw, source = {}) {
   // against belongs to the moment of casting, not to a caster who may
   // since have died, left the scene, or changed form.
   const sourceAlignments = list(raw.when?.sourceAlignments);
+  // WHAT THE ATTACKER IS, BY TRAIT (3.664.0). Spirit Stance's "+1 to DB
+  // against spirits, incorporeal creatures…": spirit and incorporeal are
+  // traits, so `sourceTypes` cannot name them.
+  const sourceTraits = list(raw.when?.sourceTraits);
+  // EVERYONE BUT ONE (3.668.0; Inner Tempest's Challenge): "a -2
+  // circumstance penalty to DB against attacks made by all creatures other
+  // than your challenged target". The named creature is excluded; every
+  // other attacker, a nameless one included, meets the row. Case-sensitive,
+  // as `sourceUuids` is.
+  const notSourceUuids = (Array.isArray(raw.not?.sourceUuids) ? raw.not.sourceUuids : [])
+    .map((u) => String(u ?? "").trim())
+    .filter(Boolean);
 
   // NO UNSCOPED ENTRIES. An entry scoped by nothing would raise the DC
   // against everything that reads it, which is a different and much
@@ -183,15 +209,26 @@ export function normaliseDefenceDC(raw, source = {}) {
   // EITHER axis satisfies it: Storgar names an action and no attacker,
   // Thengar names an attacker and no action, and both are properly
   // narrow. What is refused is an entry naming neither.
-  if (!actions.length && !sourceTypes.length && !sourceUuids.length && !sourceAlignments.length) return null;
+  //
+  // A STANCE-GATED ROW (3.664.0) IS SCOPED BY ITS STANCE: Martial
+  // Affinity's "+1 racial bonus to DB when in any combat stance" is read
+  // only while a stance is up, which is the narrowing the rule asks for.
+  if (!stanceGated && !actions.length && !sourceTypes.length && !sourceUuids.length && !sourceAlignments.length && !sourceTraits.length && !notSourceUuids.length) return null;
 
   return {
     dc,
     value,
+    kind: disadvantage ? "disadvantage" : "modifier",
     actions,
     sourceTypes,
     sourceUuids,
     sourceAlignments,
+    sourceTraits,
+    notSourceUuids,
+    // WHAT A STANCE GIVES (3.668.0): a row read only in a stance, or carried
+    // by the stance's own effect. Formless Cut "ignores the target's active
+    // stance or form bonuses".
+    fromStance: Boolean(stanceGated || fromStance),
     label: String(raw.label ?? source.name ?? "Feature"),
     scope: String(raw.scope ?? ""),
     source: String(source.name ?? "")
@@ -209,16 +246,26 @@ export function normaliseDefenceDC(raw, source = {}) {
  */
 export function collectDefenceDC(actor) {
   const found = [];
+  const effects = Array.from(actor?.appliedEffects ?? actor?.effects ?? []);
+  // WHILE IN A STANCE (3.664.0) — see stance-declarations.mjs.
+  const stanced = inAnyStance(effects);
+  const stanceEffects = new Set(activeStanceEffects(effects));
   const consider = (document) => {
     const declared = document?.flags?.[SYSTEM_ID]?.defenceDC;
-    if (!Array.isArray(declared)) return;
-    for (const raw of declared) {
-      const entry = normaliseDefenceDC(raw, { id: document.id, name: document.name });
+    if (Array.isArray(declared)) {
+      for (const raw of declared) {
+        const entry = normaliseDefenceDC(raw, { id: document.id, name: document.name }, { fromStance: stanceEffects.has(document) });
+        if (entry) found.push(entry);
+      }
+    }
+    if (!stanced) return;
+    for (const raw of stanceGatedRows(document, "stanceDefenceDC")) {
+      const entry = normaliseDefenceDC(raw, { id: document.id, name: document.name }, { stanceGated: true });
       if (entry) found.push(entry);
     }
   };
   for (const item of Array.from(actor?.items ?? [])) consider(item);
-  for (const effect of Array.from(actor?.appliedEffects ?? actor?.effects ?? [])) {
+  for (const effect of effects) {
     if (effect?.disabled) continue;
     consider(effect);
   }
@@ -233,7 +280,7 @@ export function collectDefenceDC(actor) {
  * @param {string} actionKey The action being resolved against them.
  * @returns {{total: number, entries: object[]}}
  */
-export function defenceDCBonus(targetActor, against, actionKey, attackerTypes = [], attackerUuid = "", attackerAlignments = []) {
+export function defenceDCBonus(targetActor, against, actionKey, attackerTypes = [], attackerUuid = "", attackerAlignments = [], attackerTraits = []) {
   const key = String(actionKey ?? "").trim().toLowerCase();
   const types = (Array.isArray(attackerTypes) ? attackerTypes : String(attackerTypes ?? "").split(/[,;]/))
     .map((t) => String(t ?? "").trim().toLowerCase())
@@ -247,9 +294,17 @@ export function defenceDCBonus(targetActor, against, actionKey, attackerTypes = 
   const alignments = (Array.isArray(attackerAlignments) ? attackerAlignments : [])
     .map((a) => String(a ?? "").trim().toLowerCase())
     .filter(Boolean);
+  const traits = (Array.isArray(attackerTraits) ? attackerTraits : String(attackerTraits ?? "").split(/[,;]/))
+    .map((t) => String(t ?? "").trim().toLowerCase())
+    .filter(Boolean);
 
-  const entries = collectDefenceDC(targetActor).filter((entry) => {
-    if (entry.dc !== against) return false;
+  // A LIST OF DCS (3.666.0): a Trip is rolled against the higher of your
+  // Acrobatics and Fortitude DCs, and a row raising either belongs to it —
+  // once, however many of the list it names. Until now a list matched no
+  // row at all, so nothing could ever raise a DC against a Trip.
+  const againsts = (Array.isArray(against) ? against : [against]).map((dc) => String(dc ?? ""));
+  const matched = collectDefenceDC(targetActor).filter((entry) => {
+    if (entry.dc !== "any" && !againsts.includes(entry.dc)) return false;
     if (entry.actions.length && !entry.actions.includes(key)) return false;
     if (entry.sourceTypes.length && !entry.sourceTypes.some((t) => types.includes(t))) return false;
     // A WARD AGAINST A NAMED CREATURE RAISES NOTHING AGAINST ANYONE ELSE
@@ -265,8 +320,18 @@ export function defenceDCBonus(targetActor, against, actionKey, attackerTypes = 
     // exists, and there is nothing for it to apply against. Graham
     // confirmed on 31 August 2026 that this is deliberate.
     if (entry.sourceAlignments.length && !entry.sourceAlignments.some((a) => alignments.includes(a))) return false;
+    // AN ATTACKER WHOSE TRAITS ARE UNKNOWN MATCHES NO TRAIT ENTRY (3.664.0).
+    if ((entry.sourceTraits ?? []).length && !entry.sourceTraits.some((t) => traits.includes(t))) return false;
+    // EVERYONE BUT ONE (3.668.0): the excluded creature meets nothing.
+    if ((entry.notSourceUuids ?? []).length && entry.notSourceUuids.includes(uuid)) return false;
     return true;
   });
 
-  return { total: entries.reduce((sum, e) => sum + e.value, 0), entries };
+  // THE DC ROWS AND THE DISADVANTAGE ROWS ARE RETURNED APART (3.665.0), so
+  // every caller that sums or lists `entries` reads exactly what it read
+  // before, and only the action workflow, which rolls the check, reads the
+  // other list.
+  const entries = matched.filter((e) => e.kind !== "disadvantage");
+  const disadvantages = matched.filter((e) => e.kind === "disadvantage");
+  return { total: entries.reduce((sum, e) => sum + e.value, 0), entries, disadvantages };
 }

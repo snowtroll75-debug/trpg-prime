@@ -204,3 +204,22 @@ export function alchemicalCheckTraits(actionKey, itemTypeKey = "") {
   if (actionKey === "create" && CONSUMABLE_ITEM_TYPES.includes(String(itemTypeKey ?? ""))) return "alchemical";
   return "";
 }
+
+/**
+ * THE TRAITS AN ACTION'S CHECK CARRIES (3.666.0): the action's own, plus the
+ * alchemical trait above where it applies. Until now only "alchemical" was
+ * passed, so nothing could be scoped to "Concentrate and Mental actions"
+ * (Inner Tempest's Maintain Clarity). Checked before shipping: no bonus in
+ * any pack or in core's code that reaches a skill, attack or unarmed check
+ * names a trait, and no core action is rolled as a save or spellcraft, so
+ * nothing that applied before applies differently.
+ *
+ * @param {{key?: string, traits?: string}} action
+ * @param {string} itemTypeKey
+ * @returns {string} comma-separated, lower case
+ */
+export function actionCheckTraits(action, itemTypeKey = "") {
+  const own = String(action?.traits ?? "").split(/[,;]/).map((t) => t.trim().toLowerCase()).filter(Boolean);
+  const alchemical = alchemicalCheckTraits(action?.key, itemTypeKey);
+  return [...new Set([...own, ...(alchemical ? [alchemical] : [])])].join(", ");
+}

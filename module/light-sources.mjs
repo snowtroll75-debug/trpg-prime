@@ -57,6 +57,7 @@
  */
 
 import { LIGHT_LEVELS } from "./light.mjs";
+import { registeredLightSource } from "./module-api.mjs";
 
 /**
  * The level at which magical darkness stops a MUNDANE source.
@@ -406,14 +407,22 @@ export function lightSourceKeysOn(actor) {
   return keys;
 }
 
-/** @returns {object|null} the source entry, or null. */
+/**
+ * @returns {object|null} the source entry, or null.
+ *
+ * AND A MODULE'S OWN (3.669.0): a key the core table does not hold is looked
+ * up among the registered ones (module-api.mjs `registerLightSources`), so
+ * Inner Tempest's Spirit Beacon moves the ladder, draws its glow and crosses
+ * the GM relay exactly as a torch does. A core key always wins.
+ */
 export function lightSource(key) {
-  return LIGHT_SOURCES[String(key ?? "")] ?? null;
+  const k = String(key ?? "");
+  return Object.hasOwn(LIGHT_SOURCES, k) ? LIGHT_SOURCES[k] : registeredLightSource(k);
 }
 
 /** @returns {boolean} whether `key` names a source this system implements. */
 export function isLightSourceKey(key) {
-  return Object.hasOwn(LIGHT_SOURCES, String(key ?? ""));
+  return lightSource(key) !== null;
 }
 
 /**
@@ -535,10 +544,15 @@ export function applyLightSource(ambient, source) {
 export function foundryLightConfig(key) {
   const entry = lightSource(key);
   if (!entry || Number(entry.steps) <= 0) return null;
-  const dim = lightRadiusFeet(entry);
+  // WHAT IS DRAWN MAY DIFFER FROM WHAT IS COUNTED (3.669.0), and only a
+  // module's source says so: Spirit Beacon's "bright light within 20 feet
+  // and dim light for a further 20 feet" draws 40 and 20; Living Lantern's
+  // dim light draws no bright ring at all.
+  const dim = Number.isFinite(Number(entry.dimFeet)) ? Number(entry.dimFeet) : lightRadiusFeet(entry);
+  const bright = Number.isFinite(Number(entry.brightFeet)) ? Math.min(dim, Number(entry.brightFeet)) : Math.floor(dim / 2);
   return {
     dim,
-    bright: Math.floor(dim / 2),
+    bright,
     alpha: 0.35,
     color: "#f5c877",
     // 53° is a 75-foot cone at Foundry's default aspect. 360 is said

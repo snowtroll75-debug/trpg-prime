@@ -9,13 +9,18 @@
  * actual result.
  *
  * WHY THERE IS A THIRD CARD. Each swing posts its own, as any Strike
- * does; those are the rolls. The rules that follow can overturn what a
- * roll appeared to do — a second critical becomes an ordinary hit, and a
- * fumble anywhere makes everything miss — so the pair's own card is the
- * authoritative one, and it says which of the two rolls (if either) to
- * take damage from. Nothing has been applied by then: damage in this
- * system is a button pressed afterwards.
+ * does; those are the rolls. The pair's own card says what the pair's
+ * rules made of them.
+ *
+ * THE RULES ACT BEFORE THE DAMAGE (3.668.2). This file was written when
+ * damage was a button pressed afterwards, so the pair's card could overturn
+ * a swing. Damage is now applied as a Strike hits, and the card came too
+ * late: both criticals were inflicted, and a fumble could not unmake the
+ * other swing's damage (found in the 0.5.1 live test). The second swing is
+ * now rolled while the first waits, before anything lands — see
+ * runDoubleSlice.
  */
+import { attackCountOf, setAttackCount } from "./turn-records.mjs";
 import {
   DOUBLE_SLICE_ATTACKS,
   doubleSlicePairValid,
@@ -23,6 +28,7 @@ import {
   resolveDoubleSlice,
   secondStrikeModifier
 } from "./double-slice.mjs";
+import { backswingCounts, twinBonus } from "./weapon-chapter6-traits.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -119,56 +125,126 @@ export async function runDoubleSlice(actor, action) {
   // penalty, make two Strikes" — both swings are made at the penalty
   // that stood when the action began, not at one that climbs between
   // them, and the counter moves by two at the end instead.
-  const mapBefore = Number(actor.getFlag(SYSTEM_ID, "attackCount") ?? 0);
+  const mapBefore = attackCountOf(actor);
 
-  const firstCheck = await rollWeaponAttack(actor, pair.first, {
-    apPaid: true,
-    mapFrozen: true
-  });
-  if (!firstCheck) return null;
-
+  // THE PAIR'S RULES, DECIDED BEFORE ANYTHING LANDS (3.668.2; Graham, 23
+  // October 2026). Damage in this system is applied as a Strike hits, so the
+  // rules that act on the pair must be settled before the first swing's
+  // damage, not on a card afterwards:
+  //   - the second swing is rolled while the first waits (`beforeDamage`);
+  //   - "You can only inflict one critical": the first stands, and a second
+  //     critical counts as an ordinary hit (`noCritical`);
+  //   - "If both attacks hit, combine their damage": the target's DR is met
+  //     once, by the first swing's damage (`drWaived` on the second);
+  //   - "if either attack fumbles, then the other attack automatically
+  //     misses": a fumbled second swing voids the waiting first; a fumbled
+  //     first swing means the second is not made.
+  // A first swing that may itself fumble (an unmodified 1, or 2 when not
+  // proficient) cannot wait: its fumble check comes after it, so it finishes
+  // first and the second follows, or not.
   const sameDoubleWeapon = pair.first.id === pair.second.id;
   const penalty = secondStrikeModifier(pair.second, { sameDoubleWeapon });
-  const secondCheck = await rollWeaponAttack(actor, pair.second, {
+  const rollSecond = (firstOutcome) => rollWeaponAttack(actor, pair.second, {
     apPaid: true,
     mapFrozen: true,
     // "Both Strikes must be made against the same target" — the target
     // chosen for the first swing is still the one selected, so the
     // second does not ask again.
     skipTargetPrompt: true,
-    extraModifiers: penalty ? [penalty] : []
+    extraModifiers: penalty ? [penalty] : [],
+    noCritical: Boolean(firstOutcome?.hits && firstOutcome?.critical),
+    drWaived: Boolean(firstOutcome?.hits),
+    optionLabel: "Double Slice"
   });
+  let secondCheck = null;
+  let secondRolled = false;
+  const firstCheck = await rollWeaponAttack(actor, pair.first, {
+    apPaid: true,
+    mapFrozen: true,
+    beforeDamage: async ({ outcome: firstOutcome }) => {
+      if (firstOutcome?.fumbleRisk) return null;
+      secondCheck = await rollSecond(firstOutcome);
+      secondRolled = true;
+      return { void: Boolean(secondCheck?.attackFumbled) };
+    }
+  });
+  if (!firstCheck) return null;
+  if (!secondRolled && !firstCheck.attackFumbled) secondCheck = await rollSecond(firstCheck.attackOutcome);
 
   const outcome = resolveDoubleSlice(
     swingResult(firstCheck),
     secondCheck ? swingResult(secondCheck) : { hits: false, critical: false, fumbled: false }
   );
 
+  // WHAT EACH SWING DEALT, after the pair's rules: a swing the pair's
+  // rules turned into a miss counts as one.
+  const swings = [
+    { weaponSystem: pair.first.system, hits: outcome.firstHits, damageTaken: Number(firstCheck?.damageTaken ?? 0) || 0 },
+    { weaponSystem: pair.second.system, hits: outcome.secondHits, damageTaken: Number(secondCheck?.damageTaken ?? 0) || 0 }
+  ];
+
   // "This counts as two attacks when calculating your multiple attack
-  // penalty" — applied once, here, rather than by either swing.
-  await actor.setFlag(SYSTEM_ID, "attackCount", mapBefore + DOUBLE_SLICE_ATTACKS);
+  // penalty" — applied once, here, rather than by either swing. BACKSWING
+  // (3.668.1; Inner Tempest): a swing with a Backswing weapon that
+  // inflicted no damage is not counted.
+  const counted = backswingCounts(swings, DOUBLE_SLICE_ATTACKS);
+  await setAttackCount(actor, mapBefore + counted);
+
+  // TWIN (3.668.1; Inner Tempest, Chapter 6): "If both weapons successfully
+  // hit and inflict damage whilst using the Double Slice action, their base
+  // damage increases by 1." Each swing's damage has been dealt by then, so
+  // the increase is dealt after: 1 per weapon, of the type that swing dealt.
+  // Its DR was met by the swing's own damage; its resistance and immunity
+  // are still met.
+  const twin = twinBonus({ first: swings[0], second: swings[1], sameWeapon: sameDoubleWeapon });
+  const twinLines = [];
+  // The creature both swings struck, as the swings recorded it.
+  const twinUuid = String(secondCheck?.targetUuid || firstCheck?.targetUuid || "");
+  const twinTarget = twin && twinUuid ? await fromUuid(twinUuid).catch(() => null) : null;
+  if (twin && twinTarget) {
+    const { applyTypedDamage } = await import("./damage-workflow.mjs");
+    // ONE PACKET PER TYPE, so two blades of one type are one blow of 2.
+    const byType = new Map();
+    for (const [check, weapon] of [[firstCheck, pair.first], [secondCheck, pair.second]]) {
+      const type = String(check?.damageType || weapon.system?.damageType || "").trim().toLowerCase();
+      byType.set(type, { amount: (byType.get(type)?.amount ?? 0) + twin, names: [...(byType.get(type)?.names ?? []), weapon.name] });
+    }
+    for (const [type, { amount, names }] of byType) {
+      // NOT ON A CREATURE ALREADY DOWN (found in review): the +1 belongs to
+      // the swing's own blow, and the blow that dropped it has landed. A
+      // packet of its own would be a further blow, and worsen Dying.
+      if (!(Number(twinTarget.system?.resources?.hp?.value ?? 0) > 0)) {
+        twinLines.push(`<strong>Twin</strong> (${names.map(esc).join(", ")}): ${esc(twinTarget.name)} is already down — the +${twin} belongs to the blow that dropped it, and adds nothing more.`);
+        continue;
+      }
+      const { applied } = await applyTypedDamage(twinTarget, { amount, type, dr: 0, drBypassed: true });
+      twinLines.push(`<strong>Twin</strong> (${names.map(esc).join(", ")}): +${twin} base damage each — ${applied} ${esc(type)} more to ${esc(twinTarget.name)}.`);
+    }
+  }
 
   const verdict = (hits, weapon) =>
     `<strong>${esc(weapon.name)}</strong>: ${hits ? "hits" : "misses"}`;
+  const dealt = (check) => (outcome.firstHits || outcome.secondHits) && check
+    ? ` — ${Number(check.damageTaken ?? 0) || 0} damage taken${check.damageType ? ` (${esc(check.damageType)})` : ""}`
+    : "";
   const lines = [
-    `${verdict(outcome.firstHits, pair.first)} — first strike.`,
+    `${verdict(outcome.firstHits, pair.first)} — first strike${outcome.firstHits ? dealt(firstCheck) : ""}${firstCheck.voidedByPair ? " (its hit voided by the second swing's fumble)" : ""}.`,
     secondCheck
-      ? `${verdict(outcome.secondHits, pair.second)} — second strike${penalty ? " (−2, not agile)" : sameDoubleWeapon ? " (the double weapon's second end — agile, no penalty)" : " (agile — no penalty)"}.`
-      : `<em>The second strike was not made.</em>`,
-    ...outcome.notes.map((note) => `<em>${note}</em>`),
-    `<em>Multiple attack penalty advances by ${DOUBLE_SLICE_ATTACKS} — now at ${mapBefore + DOUBLE_SLICE_ATTACKS} attacks this turn.</em>`
+      ? `${verdict(outcome.secondHits, pair.second)} — second strike${penalty ? " (−2, not agile)" : sameDoubleWeapon ? " (the double weapon's second end — agile, no penalty)" : " (agile — no penalty)"}${outcome.secondHits ? dealt(secondCheck) : ""}.`
+      : `<em>The second strike was not made${firstCheck.attackFumbled ? " — the first fumbled, so it automatically misses" : ""}.</em>`,
+    // The fumble rule, as the pure rules state it. Their notes on a second
+    // critical and on combining are answered by the lines below instead.
+    ...outcome.notes.filter((note) => /fumbled/.test(note)).map((note) => `<em>${note}</em>`),
+    ...(secondCheck?.criticalDowngraded ? ["<em>Only one critical: the second swing's critical counted as an ordinary hit — no bonus dice and no injury.</em>"] : []),
+    ...(outcome.firstHits && outcome.secondHits ? [`<em>Both hit: their damage is combined, the target's DR met once (by the first swing). Each swing dealt its own damage type.</em>`] : []),
+    ...twinLines,
+    counted === DOUBLE_SLICE_ATTACKS
+      ? `<em>Multiple attack penalty advances by ${DOUBLE_SLICE_ATTACKS} — now at ${mapBefore + counted} attacks this turn.</em>`
+      : `<em>Backswing: a swing that inflicted no damage is not counted. Multiple attack penalty advances by ${counted} — now at ${mapBefore + counted} attacks this turn.</em>`,
+    outcome.firstHits || outcome.secondHits
+      ? "<em>The damage above has been applied.</em>"
+      : "<em>Neither swing deals damage.</em>"
   ];
-  if (!outcome.firstHits && !outcome.secondHits) {
-    lines.push("<em>Roll no damage from either card.</em>");
-  } else if (outcome.combineDamage) {
-    lines.push(
-      "<em>Roll damage from both cards and combine the totals, taking whichever damage type serves you better against this target.</em>"
-    );
-  } else {
-    lines.push(
-      `<em>Roll damage from the ${outcome.firstHits ? "first" : "second"} strike's card only.</em>`
-    );
-  }
 
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
