@@ -494,7 +494,8 @@ ok("F7 the dialog warns when a spend could not land",
 ok("F8 so does the dialog-less path, which is the one a forced save takes",
   /could not be cleared/.test(code("module", "dice", "check.mjs")));
 ok("F9 the dialog-less path spends one-shots at all",
-  /for \(const \{ sourceId, label \} of applied\.spent \?\? \[\]\)/
+  // 3.672.0: not on a preview (Foretell Failure's), which spends nothing.
+  /for \(const \{ sourceId, label \} of check\.previewOnly \? \[\] : \(applied\.spent \?\? \[\]\)\)/
     .test(code("module", "dice", "check.mjs")),
   "a rule with two call sites and one implementation is this project's named shape");
 ok("F10 and it applies AUTO pending entries there too, but only the auto ones",

@@ -72,7 +72,7 @@ const MUTATIONS = [
   { name: "one spell call forgets its context", file: CW, from: "            sourceUuid: actor?.uuid ?? \"\", context: { kind: \"spell\", spellName: spell?.name ?? \"\" }\n", to: "            sourceUuid: actor?.uuid ?? \"\"\n", breaks: "F3" },
   // G
   { name: "a declared effect may not carry stat rows", file: DE, from: "  \"statBonuses\",\n", to: "", breaks: "G1" },
-  { name: "a declared effect may not carry conditionals", file: DE, from: "  \"conditionals\"\n]);", to: "]);", breaks: "G2" },
+  { name: "a declared effect may not carry conditionals", file: DE, from: "  \"conditionals\",\n  // THE GRIMOIRE'S FLAGS", to: "  // THE GRIMOIRE'S FLAGS", breaks: "G2" },
   // H (3.667.1)
   { name: "a given point is owed again", file: FD, from: "  return n > 0 && !item?.flags?.[FLAG_SCOPE]?.convictionGiven;", to: "  return n > 0;", breaks: "H1" },
   { name: "the grant pass skips the owed point again", file: GA, from: "        && !owesConvictionPoint(item)) continue;", to: "        ) continue;", breaks: "H2" },

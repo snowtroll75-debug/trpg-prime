@@ -95,7 +95,8 @@ const MUTATIONS = [
 
   // F — R13
   { file: ATTROW, name: "R13 — a critical is read as a hit",
-    from: '  return outcomes.includes(critical ? "critical" : "hit");', to: '  return outcomes.includes("hit");', breaks: "F2" },
+    // Re-anchored at 3.672.0, where the outcome test gained a severity floor.
+    from: '  if (!outcomes.includes(critical ? "critical" : "hit")) return false;', to: '  if (!outcomes.includes("hit")) return false;', breaks: "F2" },
   { file: FX, name: "R13 — the effect engine ignores the outcome",
     from: "    recipients = attackRowRecipients(effect, recipients, attackResults);\n", to: "", breaks: "F5" },
   { file: FX, name: "R13 — the slowed outlasts the sickened",

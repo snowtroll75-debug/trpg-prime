@@ -252,15 +252,27 @@ export function normaliseStrikeRider(raw) {
   // beginning of your next turn" is the default, one round. `null` (the row
   // says `conditionRounds: 0`) leaves it until removed — Bleeding stops
   // when it is staunched, not on a clock.
+  // AND `null` KEEPS MEANING "UNTIL REMOVED" (3.672.0, found building Acidic
+  // Touch). The spec this returns stores `conditionRounds: null` for a row
+  // that said 0, and the Strike normalises it again — where `null` used to
+  // read as the one-round default. Rose of Thorns' Bleeding and Acidic
+  // Touch's Sickened both lasted a round after the round trip. `null` is
+  // this function's own output for "until removed", so it is read as that.
   const rawRounds = raw.conditionRounds;
-  const conditionRounds = rawRounds === undefined || rawRounds === null || rawRounds === ""
+  const conditionRounds = rawRounds === undefined || rawRounds === ""
     ? 1
-    : (Math.max(0, Math.trunc(Number(rawRounds) || 0)) || null);
+    : rawRounds === null
+      ? null
+      : (Math.max(0, Math.trunc(Number(rawRounds) || 0)) || null);
   // AND A SAVE AGAINST IT (3.630.0): Tangleweed's Reflex save, at the DC the
   // row carries (the herb's level DC, stamped when it is applied).
   const saveName = text(raw.conditionSave?.save).toLowerCase();
+  // AND A VALUE PER RUNG (3.672.0; Inner Tempest's Acidic Touch, C2):
+  // "Success The target is unaffected. Failure The target is Sickened 1.
+  // Fumble The target is Sickened 2." See `riderLadderValue`.
+  const ladder = normaliseRiderLadder(raw.conditionSave?.ladder);
   const conditionSave = condition && ["fortitude", "reflex", "will"].includes(saveName)
-    ? { save: saveName, dc: Math.max(0, Math.trunc(Number(raw.conditionSave?.dc) || 0)) }
+    ? { save: saveName, dc: Math.max(0, Math.trunc(Number(raw.conditionSave?.dc) || 0)), ...(ladder ? { ladder } : {}) }
     : null;
 
   const out = {
@@ -292,6 +304,56 @@ export function normaliseStrikeRider(raw) {
   if (condition && conditionRounds !== 1) out.conditionRounds = conditionRounds;
   if (conditionSave) out.conditionSave = conditionSave;
   return out;
+}
+
+/*
+ * A CONDITION SAVE'S LADDER (3.672.0; C2).
+ *
+ * A rider's save used to have one outcome: Success or better resists, and
+ * anything worse takes the rider's one value (Tangleweed). Acidic Touch
+ * prints two: Sickened 1 on a Failure, Sickened 2 on a Fumble.
+ *
+ * EXPLICIT, RUNG BY RUNG. `ladder` names a value for each failing degree it
+ * answers — `{ failure: 1, fumble: 2, blunder: 2 }` — and a degree it does
+ * not name takes nothing. So an author who wants a Partial to be the Success
+ * row (Inner Tempest's IT-m24) leaves it out, and one who wants it to bite
+ * names it. A successful degree never takes anything, ladder or not.
+ * Without a ladder the old rule stands unchanged.
+ */
+const LADDER_DEGREES = Object.freeze(["partial", "failure", "fumble", "blunder"]);
+
+/** `{degree: value}` for the failing degrees, or null when none is valid. */
+export function normaliseRiderLadder(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const out = {};
+  for (const degree of LADDER_DEGREES) {
+    if (raw[degree] === undefined || raw[degree] === null || raw[degree] === "") continue;
+    const value = Math.trunc(Number(raw[degree]));
+    if (!Number.isFinite(value) || value < 0) return null;
+    out[degree] = value;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/**
+ * The condition value a save of this degree leaves, or 0 for none.
+ * Without a ladder: the rider's own value on any failing degree.
+ */
+export function riderLadderValue(spec, degreeKey) {
+  const key = text(degreeKey).toLowerCase();
+  if (["heroic", "critical", "success"].includes(key)) return 0;
+  const ladder = spec?.conditionSave?.ladder;
+  if (!ladder) return Math.max(1, Number(spec?.conditionValue) || 1);
+  return Math.max(0, Math.trunc(Number(ladder[key]) || 0));
+}
+
+/** "sickened 1 on a Failure, 2 on a Fumble" — the ladder for a card. */
+export function riderLadderText(spec) {
+  const ladder = spec?.conditionSave?.ladder;
+  if (!ladder) return "";
+  const named = LADDER_DEGREES.filter((d) => Number(ladder[d]) > 0)
+    .map((d) => `${ladder[d]} on a ${d.charAt(0).toUpperCase()}${d.slice(1)}`);
+  return named.length ? `${spec.condition} ${named.join(", ")}` : "";
 }
 
 /** Does the rider declare a gate the strike resolves itself? */
@@ -594,6 +656,13 @@ export function riderCastLine(spec) {
   if (spec.weaponDie) return `<strong>one more of the weapon's own damage dice</strong> on ${when}`;
   // A CONDITION AND NO DIE (3.630.0).
   if (spec.conditionOnly) {
+    // A LADDER (3.672.0) names each rung; "resists" alone would hide the Fumble's 2.
+    const ladder = riderLadderText(spec);
+    if (ladder && spec.conditionSave) {
+      const who = spec.once ? `the first creature your next ${where} hits` : `each creature a ${where} hits`;
+      const save = `${spec.conditionSave.save.charAt(0).toUpperCase()}${spec.conditionSave.save.slice(1)}`;
+      return `${who} saves ${save}${spec.conditionSave.dc ? ` DC ${spec.conditionSave.dc}` : ""}: <strong>${ladder}</strong>`;
+    }
     const save = spec.conditionSave ? ` (${spec.conditionSave.save} save${spec.conditionSave.dc ? ` DC ${spec.conditionSave.dc}` : ""} resists)` : "";
     return `<strong>${spec.condition} ${spec.conditionValue}</strong>${save} on the first creature ${when.replace(/^your next /, "your next ")} damages`;
   }

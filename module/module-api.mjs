@@ -131,6 +131,12 @@ function emptyRegistry() {
     featPickBonus: new Map(),
     /** Key → async (actor, amount, ctx) => {taken} (3.630.0): Martyr's Aegis. See dying-workflow.mjs. */
     damageShare: new Map(),
+    /**
+     * Key → async (ctx) => {modifiers?, lines?} (3.672.0): asked before a
+     * casting's check is rolled — Inner Tempest's Spiritual Distraction. See
+     * magic/spell-check-gates.mjs.
+     */
+    spellCheckGates: new Map(),
     /** Skill-action entries, in SKILL_ACTIONS shape, appended by the workflow. */
     skillActions: [],
     /** Feat key → { hint, use } (FEAT_AUTOMATION shape). */
@@ -832,6 +838,24 @@ export function registerDamageShare(key, share, moduleId = null) {
 
 export function registeredDamageShares() {
   return Array.from(registry.damageShare.values());
+}
+
+/**
+ * A module's answer to a casting before its check is rolled (3.672.0; Block
+ * 8's C5): `gate(ctx)` is awaited with `{ actor, spell, spellData, innate,
+ * itemCast, attack, rollsCheck }` and may return `{ modifiers, lines }` — rows
+ * for the casting check and lines for its card. It cannot stop the casting.
+ */
+export function registerSpellCheckGate(key, gate, moduleId = null) {
+  const k = registryKey(key);
+  if (!k || typeof gate !== "function") { problem(`registerSpellCheckGate: "${key}" needs a key and a gate(ctx) function`); return false; }
+  registry.spellCheckGates.set(k, gate);
+  noteContributor(moduleId);
+  return true;
+}
+
+export function registeredSpellCheckGates() {
+  return Array.from(registry.spellCheckGates.values());
 }
 
 /* ------------------------------------------------------------------ */

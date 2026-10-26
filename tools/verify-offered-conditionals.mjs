@@ -108,7 +108,8 @@ equal("B14 a Spellcraft check is asked, and its tick applies", [asked, c.bias], 
 const ck = read("module", "dice", "check.mjs");
 ok("C1 the check asks beside its automatic conditionals, with the same context",
   /const applied = automaticSelections\(entries, conditionalContext\);/.test(ck)
-  && /const \{ offerConditionalsOnRoll \} = await import\("\.\/offered-conditionals\.mjs"\);\s*await offerConditionalsOnRoll\(check, entries, conditionalContext, BIAS\);/.test(ck));
+  && /const \{ offerConditionalsOnRoll \} = await import\("\.\/offered-conditionals\.mjs"\);\s*if \(!check\.previewOnly\) await offerConditionalsOnRoll\(check, entries, conditionalContext, BIAS\);/.test(ck));
+// 3.672.0: not on a preview (Foretell Failure's), which asks nothing.
 ok("C2 the check carries whether to ask, and an earlier answer",
   /this\.offerConditionals = config\.offerConditionals !== false;/.test(ck)
   && /this\.conditionalChoices = Array\.isArray\(config\.conditionalChoices\) \? \[\.\.\.config\.conditionalChoices\] : null;/.test(ck));

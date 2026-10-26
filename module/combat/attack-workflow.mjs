@@ -75,6 +75,7 @@ import {
   ammunitionFormulaExtra,
   combinedArmourRending,
   effectiveRangeIncrement,
+  rangeIncrementMultiplierOf,
   traitsAfterAmmunition
 } from "./ammunition.mjs";
 import { improvisedAttackModifier, improvisedDamagePackets } from "../goods.mjs";
@@ -1013,7 +1014,7 @@ export async function rollWeaponAttack(actor, weapon, {
   // rules.
   const targetCannotBeFlanked = Boolean(targetActor)
     && (cannotBeFlanked(ownedCreatureTypeSystem(targetActor))
-      || abilitiesPreventFlanking(Array.from(targetActor.items ?? [])));
+      || abilitiesPreventFlanking(Array.from(targetActor.items ?? []), Array.from(targetActor.appliedEffects ?? targetActor.effects ?? [])));
 
   // Reach (Chapter 6, melee) and range increment (Chapter 6, ranged): a
   // Strike that can never land — out of melee reach with nothing to throw
@@ -1173,7 +1174,11 @@ export async function rollWeaponAttack(actor, weapon, {
     // Far Shot (Class, Chapter 5): "The range increment for all ranged
     // weapons is doubled" — applied after Archer's flat +10.
     const farShot = ownsFeat("far shot") ? 2 : 1;
-    rangeIncrement = (effectiveRangeIncrement(weaponData, ammoSystem) + archerRange) * farShot;
+    // A PROJECTILE'S OWN MULTIPLE (3.672.0; Arrows Flight): the round's, or
+    // the thrown weapon's — see `rangeIncrementMultiplierOf`.
+    rangeIncrement = (effectiveRangeIncrement(weaponData, ammoSystem, {
+      multiplier: rangeIncrementMultiplierOf(weapon, ammo, Number(game.time?.worldTime ?? 0))
+    }) + archerRange) * farShot;
     // "piercing ranged attacks made by an underwater creature or against
     // an underwater target have their range increments halved" (page 201).
     // Applied to the increment itself, after everything that lengthens it,
@@ -2611,6 +2616,9 @@ export async function rollWeaponAttack(actor, weapon, {
     modifiers,
     toMessage: false
   };
+  // FORETELL FAILURE IS TOLD HERE, NOT ASKED (3.672.0; C8): by this line the
+  // Strike has spent its AP and its defender has been offered reactions, so
+  // it cannot be swapped for another action. See TRGCheck.roll.
   let check = await TRGCheck.roll(attackCheckConfig);
 
   // ALTER THE THREAD (3.667.0; Inner Tempest's Mystic, Graham's B3-5): the
@@ -3243,7 +3251,7 @@ export async function rollWeaponAttack(actor, weapon, {
           weaponHasAgile: /\bagile\b/i.test(String(weaponData.traits ?? "")),
           withinFirstIncrement:
             isRanged &&
-            withinFirstRangeIncrement(rangedDistance, effectiveRangeIncrement(weaponData, ammoSystem)),
+            withinFirstRangeIncrement(rangedDistance, effectiveRangeIncrement(weaponData, ammoSystem, { multiplier: rangeIncrementMultiplierOf(weapon, ammo, Number(game.time?.worldTime ?? 0)) })),
           weaponTraits: String(weaponData.traits ?? ""),
           // VORPAL is a rune rather than a trait, so the weapon itself is
           // handed over and `rollCriticalInjury` reads its runes.
@@ -5471,7 +5479,7 @@ async function resolveWeaponDamage(
     !/\bvolley\b/i.test(String(weaponData.traits ?? ""))) {
     const archerRange = String(weaponData.group ?? "").trim().toLowerCase() === "bow" &&
       ownsDamageFeat("archer") ? 10 : 0;
-    const pbIncrement = (effectiveRangeIncrement(weaponData, ammo) + archerRange) *
+    const pbIncrement = (effectiveRangeIncrement(weaponData, ammo, { multiplier: rangeIncrementMultiplierOf(weapon, ammo?.parent ?? null, Number(game.time?.worldTime ?? 0)) }) + archerRange) *
       (ownsDamageFeat("far shot") ? 2 : 1);
     if (pbIncrement > 0 && distance <= pbIncrement) formula += " + 1";
   }
@@ -5777,7 +5785,7 @@ async function resolveWeaponDamage(
     const penetrating = penetratingApplies(
       hasWeaponTrait(weaponData, "penetrating"),
       distance,
-      effectiveRangeIncrement(weaponData, ammo)
+      effectiveRangeIncrement(weaponData, ammo, { multiplier: rangeIncrementMultiplierOf(weapon, ammo?.parent ?? null, Number(game.time?.worldTime ?? 0)) })
     ) || Boolean(damagePierce.unarmoured);
     const rendedDr = drAfterRendingAndPenetrating(dr, arValue, penetrating);
     const rendedNaturalArmourDr = drAfterRendingAndPenetrating(

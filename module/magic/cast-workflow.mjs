@@ -2519,6 +2519,26 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     });
   }
   /*
+   * A MODULE'S ANSWER TO THIS CASTING (3.672.0; C5a) — Inner Tempest's
+   * Spiritual Distraction rolls its save here and hands back the penalty.
+   * Asked at the drain's moment and for the drain's reason: before the
+   * check, so a row can change a degree. Its rows reach every form the
+   * casting's roll takes (an innate or item attack included); its lines
+   * join the card. See magic/spell-check-gates.mjs.
+   */
+  const { runSpellCheckGates } = await import("./spell-check-gates.mjs");
+  const gated = await runSpellCheckGates({
+    actor, spell, spellData,
+    innate: isInnate, itemCast: isItemCast, attack: isAttack,
+    // WHETHER A CHECK IS ROLLED BELOW, by the branch that will run (review):
+    // none for a no-check cantrip, a ritual (rolled already), an item's spell
+    // whose release check was handed in, or an innate or item spell that is
+    // not an attack. A gate's penalty reaches only a check rolled here.
+    rollsCheck: !noCheckCantrip && !ritual?.check && (isItemCast ? (isAttack && !itemCheck) : isInnate ? isAttack : true)
+  });
+  modifiers.push(...gated.modifiers);
+  const gateLines = gated.lines.map((text) => line(text));
+  /*
    * THE ROD OF ACCURACY (3.616.0, Graham's R14 of block 36): "expend 1 PP
    * from the rod to gain a +1-item bonus to the attack check portion of the
    * spell check or 2 PP to gain a +2." Asked before the roll, as an
@@ -2586,7 +2606,7 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
         suppressDegree: true,
         modifiers: [...(system.magic?.spellcraft?.checkModifiers ?? [
           { label: "Spellcraft", value: Number(system.magic?.spellcraft?.total ?? 0), type: "untyped" }
-        ])]
+        ]), ...gated.modifiers]
       }))
       : null)
     : isInnate
@@ -2618,7 +2638,9 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
             },
             // THE SPELL'S OWN BONUS (3.671.0; Lotus Enchanter, Onmyoji
             // Necromancer). See magic/spell-own-bonus.mjs.
-            ...(ownBonus?.attack && !isItemCast ? [{ label: ownBonus.label, value: ownBonus.attack, type: ownBonus.type }] : [])
+            ...(ownBonus?.attack && !isItemCast ? [{ label: ownBonus.label, value: ownBonus.attack, type: ownBonus.type }] : []),
+            // A MODULE'S ANSWER (3.672.0): this roll is the casting's check.
+            ...gated.modifiers
           ]
         })
         : null)
@@ -2827,6 +2849,7 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     });
   }
 
+
   // SPONTANEOUS SCHOLAR'S ALLOWANCE IS SPENT HERE, at the point the cast
   // has actually happened — not where the gate was waived, several
   // dialogs earlier. Everything between the two can still bow out (a
@@ -3000,7 +3023,7 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     }
   }
 
-  const lines = [...reagentLines];
+  const lines = [...reagentLines, ...gateLines];
   for (const l of rodLines) lines.push(line(l));
   // THE DRAIN, SETTLED ONCE THE COST IS KNOWN: the PP this casting spent
   // go to the drainer, and the waiting record is spent either way.
@@ -3368,7 +3391,7 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
           // Heighten Spell is named separately because it does not ADD to
           // the DC: it rebuilds the base from a larger PP, so no reading
           // of the spell's printed cost explains the number without it.
-          `Save: <strong>${castDefence}</strong> against DC <strong>${saveDC}</strong>${fixed > 0 ? (isItemCast ? ` (${esc(itemCast.saveDCSource || "the item's own")})` : " (set by the effect that granted this)") : isItemCast ? " (your own — you are the one casting it)" : isInnate ? (innateSaveHere?.printed ? " (as printed)" : " (10 + magical ability + level)") : isSpecialist ? " (Specialist — higher of ability+level or spellcraft)" : ""}${!fixed && !isInnate && savePP !== totalPP ? ` (Heighten Spell — as ${savePP} PP)` : ""}${!fixed && highMagicSaveStep(actor, { printed: innateSaveHere?.printed === true }) ? " (+2 High Magic)" : ""}${!fixed && harmonyHere ? ` (${harmonyHere > 0 ? "+" : ""}${harmonyHere} Harmonize)` : ""}${describeParts(saveDCResult.parts)}.`
+          `Save: <strong>${castDefence}</strong> against DC <strong>${saveDC}</strong>${fixed > 0 ? (isItemCast ? ` (${esc(itemCast.saveDCSource || "the item's own")})` : " (set by the effect that granted this)") : isItemCast ? " (your own — you are the one casting it)" : isInnate ? (innateSaveHere?.printed ? " (as printed)" : " (10 + magical ability + level)") : isSpecialist ? " (Specialist — higher of ability+level or spellcraft)" : ""}${!fixed && !isInnate && savePP !== totalPP ? ` (Heighten Spell — as ${savePP} PP)` : ""}${!fixed && highMagicSaveStep(actor, { printed: innateSaveHere?.printed === true }) ? " (+2 High Magic)" : ""}${!fixed && harmonyHere ? ` (${harmonyHere > 0 ? "+" : ""}${harmonyHere} Harmonize)` : ""}${describeParts(saveDCResult.parts)}${spellDefersItsSave(spellData.effects) ? " — rolled later, not on casting" : ""}.`
         )
       );
     }
@@ -4402,7 +4425,9 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       // one target of an ordinary attack.
       attackResults: isAttack
         ? (Array.isArray(spellAttack?.rays) && spellAttack.rays.length ? spellAttack.rays : (spellAttack ? [spellAttack] : []))
-          .map((r) => ({ target: r?.targetActor ?? null, critical: Boolean(r?.critical) }))
+          // AND HOW HARD (3.672.0, C10): Water Bolt's push "on a serious or
+          // deadly critical". Null when the critical carries no severity.
+          .map((r) => ({ target: r?.targetActor ?? null, critical: Boolean(r?.critical), severity: r?.critical?.severity ?? null }))
           .filter((r) => r.target)
         : [],
       // `pp` is the PP ACTUALLY spent on this cast, warps and overcasting
@@ -5061,6 +5086,28 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     });
   }
 
+  /*
+   * THE CASTING, PAID FOR AND OVER (3.672.0; C5b). `trgPrimeSpellCast` fires
+   * before the cost is known; Inner Tempest's Disrupt Soul needs it — "1d8
+   * per PP spent" (Graham's B8-5: the PP actually spent, a Partial's lower
+   * cost included). Fired HERE, last, whatever the degree — "each time the
+   * target casts a spell" is the attempt — and after the last point a cast
+   * can be refunded (the target picker, review), saying `refunded` so a
+   * refunded cast is not answered as a paid one. `innate` is true for an
+   * innate spell or an item's.
+   */
+  Hooks.callAll("trgPrimeSpellSettled", {
+    actor, spell, spellData, degree,
+    cast: Boolean(outcome.cast),
+    ppSpent,
+    refunded: Boolean(castRefunded),
+    innate: Boolean(isInnate),
+    itemCast: Boolean(isItemCast),
+    level: characterLevel,
+    // WHAT WAS BOUGHT (3.672.0): a module's own warp reads its `unlocks`
+    // (Inner Tempest's Arrows Flight, "+4 PP: projectiles up to a large size").
+    warpMods
+  });
   // `spellSave` rides along so a caller that needs the DEGREE each target
   // rolled — not just who failed — can read it without re-deriving anything.
   // AND THE WARPS IT WAS CAST WITH (3.612.0, R4): Fateful Temptation's bonus

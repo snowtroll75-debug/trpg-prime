@@ -57,7 +57,13 @@
     "module/class-derive.mjs#declaredClassSkills": "Pure rule (3.671.0 C4), called in-file by the class-skill derive; exported so verify-block7-core C4 can drive it (a feat's classSkills by name or key).",
     "module/combat/reactions.mjs#declaredReactionBlock": "Pure rule (3.671.0 C9), called in-file by actorReactionBlock; exported so verify-block7-core C9 can drive it (an effect's noReactions blocks the bearer's reactions).",
     "module/combat/sheathed.mjs#sheathedWeapons": "Module API (3.671.0 C8): reached through helpers.sheathedWeapons, a dynamic import in module-api-workflow.mjs the ratchet cannot see; Inner Tempest's Drawn Verdict asks it. Also called in-file by sheathedGroups. verify-block7-core C8 holds it.",
-    "module/picker-filters.mjs#archetypeGrantContext": "Pure rule (3.671.0 C1), called in-file by the archetype progression gate; exported so verify-block7-core C1 can drive it (the class skill an archetype's own choice gave)."
+    "module/picker-filters.mjs#archetypeGrantContext": "Pure rule (3.671.0 C1), called in-file by the archetype progression gate; exported so verify-block7-core C1 can drive it (the class skill an archetype's own choice gave).",
+    "module/magic/attack-degree-rows.mjs#minimumSeverity": "Pure rule (3.672.0), called in-file by attackRowApplies; exported so verify-block8-core C10 can pin that an unknown severity word is no floor.",
+    "module/magic/spell-check-gates.mjs#normaliseGateAnswer": "Pure rule (3.672.0), called in-file by runSpellCheckGates; exported so verify-block8-core C5 can test what a module's answer is cleaned to without a registry.",
+    "module/magic/strike-riders.mjs#normaliseRiderLadder": "Pure rule (3.672.0), called in-file by normaliseStrikeRider; exported so verify-block8-core C2 can test a malformed ladder on its own.",
+    "module/combat/target-relay-workflow.mjs#relayEndSpell": "Called through the module API (3.672.0): `helpers.endSpellOf` reaches it by a dynamic import's property, which this check does not read as a call. Inner Tempest's Spiritual Distraction and Disrupt Soul end their spell with it.",
+    "module/magic/spell-effects.mjs#defenceDCWarpExtra": "Pure rule (3.672.0), called in-file by the defenceDC row; exported so verify-block8-core C12 can drive the cap (Root's max +4).",
+    "module/magic/spell-effects.mjs#declaredConditionalsWarped": "Pure rule (3.672.0), called in-file by the declare row; exported so verify-block8-core C13 can drive it (Root's balance tick, grown by its +1 PP warp)."
   },
   "orphans": [
     "module/afflictions.mjs#STAGE_DELTA",

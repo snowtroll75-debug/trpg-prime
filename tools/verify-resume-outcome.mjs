@@ -205,7 +205,9 @@ ok("C2 the context is built before the roll, not after it",
   ctxAt > 0 && payloadAt > ctxAt && rollAt > payloadAt,
   `context@${ctxAt} payload@${payloadAt} roll@${rollAt} — the flag is written during the roll`);
 ok("C2b and is handed to the roll rather than assigned afterwards",
-  /await TRGCheck\.roll\(\{\s*\n\s*pendingOutcome,/.test(flow),
+  // 3.672.0: the rest of the roll's configuration is built before the
+  // commitment (Foretell Failure's preview) and spread in beside it.
+  /await TRGCheck\.roll\(\{\s*pendingOutcome,/.test(flow),
   "anything set on the check after roll() returns is already too late");
 ok("C2c nothing assigns it to the check after the fact",
   !/check\.pendingOutcome\s*=/.test(flow),

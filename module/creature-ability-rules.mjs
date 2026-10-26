@@ -37,8 +37,13 @@ export function derivationOf(item) {
  *
  * The same answer the Ooze's type gives, from an ability.
  */
-export function abilitiesPreventFlanking(items = []) {
-  return (items ?? []).some((i) => derivationOf(i)?.cannotBeFlanked === true);
+export function abilitiesPreventFlanking(items = [], effects = []) {
+  if ((items ?? []).some((i) => derivationOf(i)?.cannotBeFlanked === true)) return true;
+  // OR AN APPLIED EFFECT (3.672.0; Inner Tempest's Boundless Vision, C4:
+  // "you cannot be flanked whilst this spell is in effect"). The same
+  // derivation block on an effect, as Pack Attack's was at 3.670.0; a
+  // disabled effect gives nothing.
+  return Array.from(effects ?? []).some((e) => !e?.disabled && derivationOf(e)?.cannotBeFlanked === true);
 }
 
 /**

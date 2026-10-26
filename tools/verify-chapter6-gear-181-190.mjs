@@ -580,7 +580,8 @@ eq("E11 a second flask keeps the stronger recurring damage of its type; another 
     && /warpMods\.reliefBump = \(Number\(warpMods\.reliefBump\) \|\| 0\) \+ reagentBonus\.reliefBump/.test(cw)
     && /reagentDelta: reagentBonus\.castingDC/.test(cw)
     && /if \(used\.use\.effect === "spellcraft"\) situational\.push\(/.test(cw));
-  ok("H15 the card says which were spent", /const lines = \[\.\.\.reagentLines\];/.test(cw));
+  // 3.672.0: a module's spell-check gate's lines join the reagent's.
+  ok("H15 the card says which were spent", /const lines = \[\.\.\.reagentLines(, \.\.\.gateLines)?\];/.test(cw));
 }
 
 /* ================================================================== */

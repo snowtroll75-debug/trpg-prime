@@ -298,3 +298,39 @@ export function refocusCompanionCandidates(companions = [], items = [], chosenId
   if (!wanted.size) return [];
   return (items ?? []).filter((i) => i && i.id !== chosenId && i.spent && wanted.has(String(i.name ?? "").trim().toLowerCase()));
 }
+
+/*
+ * A SECOND ABILITY, CHOSEN WITH THE FIRST (3.672.0; Inner Tempest's Tranquil
+ * Mastery, Block 8's C7).
+ *
+ *   "whenever the target successfully uses Refocus, it may choose a second
+ *    expended Focus ability. On a Critical result, both abilities are
+ *    restored immediately. On a Success, both are restored at the beginning
+ *    of the target's next turn. Partial, Failure, Fumble and Blunder are
+ *    resolved normally and affect only the originally selected ability."
+ *
+ * CHOSEN BEFORE THE ROLL (Graham's B8-7), as the first is, so the result
+ * cannot pick it. Declared on an applied effect or an item:
+ *
+ *   flags.trg-prime.refocusExtra = true
+ *
+ * Unlike Deepened Bond's companion (named abilities, picked after a success),
+ * this one is any other spent Focus ability the Refocus could have aimed at.
+ */
+
+/** Does anything this creature carries let its Refocus reach a second ability? */
+export function refocusExtraDeclared(items = [], effects = []) {
+  const carries = (d) => d?.flags?.["trg-prime"]?.refocusExtra === true;
+  if (Array.from(items ?? []).some(carries)) return true;
+  return Array.from(effects ?? []).some((e) => e && !e.disabled && carries(e));
+}
+
+/** The second ability's candidates: what the Refocus could aim at, less the first. */
+export function refocusSecondCandidates(offered = [], firstId = "") {
+  return Array.from(offered ?? []).filter((item) => item && item.id !== firstId);
+}
+
+/** Does this degree touch the second ability at all? Only a success does. */
+export function refocusSecondApplies(degree) {
+  return refocusSucceeded(degree);
+}

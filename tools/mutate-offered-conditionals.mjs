@@ -27,7 +27,7 @@ const MUTATIONS = [
   { name: "a one-shot is never spent", file: OC, from: "  for (const { sourceId, label } of taken.spent ?? []) {", to: "  for (const { sourceId, label } of []) {", breaks: "B5" },
   { name: "a roll made again is asked again", file: OC, from: "  if (Array.isArray(check.conditionalChoices)) ids = chosenIds(check.conditionalChoices, rows);\n  else if", to: "  if", breaks: "B12" },
   { name: "another player's screen applies the rows unasked", file: OC, from: "ids = chosenIds(await askOfferedConditionals(check, rows), rows);\n  else return;", to: "ids = chosenIds(await askOfferedConditionals(check, rows), rows);\n  else ids = rows.map((row) => row.id);", breaks: "B10" },
-  { name: "the check never asks", file: CK, from: "        await offerConditionalsOnRoll(check, entries, conditionalContext, BIAS);\n", to: "", breaks: "C1" },
+  { name: "the check never asks", file: CK, from: "        if (!check.previewOnly) await offerConditionalsOnRoll(check, entries, conditionalContext, BIAS);\n", to: "", breaks: "C1" },
   { name: "the check forgets Shift", file: CK, from: "    this.offerConditionals = config.offerConditionals !== false;", to: "    this.offerConditionals = true;", breaks: "C2" },
   { name: "the check drops an earlier answer", file: CK, from: "    this.conditionalChoices = Array.isArray(config.conditionalChoices) ? [...config.conditionalChoices] : null;", to: "    this.conditionalChoices = null;", breaks: "C2" },
   { name: "a Shift attack still asks", file: AW, from: "    offerConditionals: !skipDialog(event),\n", to: "", breaks: "C3" },

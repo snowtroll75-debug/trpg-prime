@@ -34,6 +34,10 @@
  */
 
 export const HANDLED_EFFECT_KINDS = Object.freeze([
+  // NEW at 3.672.0 (Inner Tempest Block 8). Two ability scores traded
+  // (Ability Inversion — magic/ability-swap.mjs), and a module's own mark on
+  // a target (Spiritual Distraction, Disrupt Soul — magic/module-mark.mjs).
+  "abilitySwap", "moduleMark",
   "areaRider", "attack", "attitude", "bonus", "condition",
   "conditional", "conditionRelief", "conjureItem", "counteract", "counteractPeril", "counterPerform", "damage",
   // NEW at 3.630.0. A timed effect carrying the flags another rail reads —

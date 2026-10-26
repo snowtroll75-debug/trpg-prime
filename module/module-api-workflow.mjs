@@ -48,6 +48,7 @@ import {
   registerDegreeUpgrades,
   registerSpellWarps,
   registerRunes, registeredRunes, registerLightSources, registerItemAutomation, registerPerilAutomation, registerFeatPickBonus, registerDamageShare,
+  registerSpellCheckGate,
   queueSkillActions,
   queueFeatAutomation,
   queuePassiveAutomation,
@@ -120,6 +121,8 @@ export function buildModuleApi() {
     registerFeatPickBonus: (key, picks, moduleId) => registerFeatPickBonus(key, picks, moduleId),
     // A share of an ally's HP damage taken elsewhere (3.630.0).
     registerDamageShare: (key, share, moduleId) => registerDamageShare(key, share, moduleId),
+    // An answer to a casting before its check is rolled (3.672.0): rows and card lines.
+    registerSpellCheckGate: (key, gate, moduleId) => registerSpellCheckGate(key, gate, moduleId),
     registerSkillActions: (actions, moduleId) => queueSkillActions(actions, moduleId),
     registerFeatAutomation: (name, entry, moduleId) => queueFeatAutomation(name, entry, moduleId),
     registerPassiveAutomation: (name, hint, moduleId) => queuePassiveAutomation(name, hint, moduleId),
@@ -142,6 +145,10 @@ export function buildModuleApi() {
       applyConditionTags,
       // Effects on a creature this client may not own go through the GM relay.
       createEffectsOn,
+      // A CASTER'S SPELL ENDED BY ITS TARGET'S ROLL (3.672.0): Inner Tempest's
+      // Spiritual Distraction and Disrupt Soul, "the spell ends". Through the
+      // GM when this client does not own the caster.
+      endSpellOf: async (caster, castId) => (await import("./combat/target-relay-workflow.mjs")).relayEndSpell(caster, castId),
       get skillActions() { return SKILL_ACTIONS; },
       resolveAction: async (...args) => (await import("./combat/action-workflow.mjs")).resolveAction(...args),
       // HEALING AND A ROLL (3.627.0), for a module Use that heals its owner or
@@ -301,6 +308,13 @@ export function buildModuleApi() {
       // source — for a module's area technique (Inner Tempest's Inner Blast).
       // See magic/area-save-workflow.mjs.
       basicSaveHit: async (...args) => (await import("./magic/area-save-workflow.mjs")).basicSaveHit(...args),
+      // A CRITICAL "AS IF A BASIC SAVE" (3.672.0; Inner Tempest's Disrupt
+      // Soul: "an essence critical with a severity determined as if they were
+      // making a basic saving throw"). `basicSaveSeverity(degree, margin)` is
+      // the core's own reading of a save's failure margin, or null for none;
+      // `rollCriticalInjury` is the injury roll the cast's criticals use.
+      basicSaveSeverity: async (degree, margin) => (await import("./dice/resolution.mjs")).basicSavingThrow(degree, margin).criticalSeverity ?? null,
+      rollCriticalInjury: async (...args) => (await import("./combat/attack-workflow.mjs")).rollCriticalInjury(...args),
       // AN AREA OR A TARGETED SAVE WITH A LADDER (3.669.0; Inner Tempest's
       // Blinding Majesty, Celestial Breath, Valley Chill, Web Snare): the
       // creature abilities' own rail — `spec` in the `creatureAbility.area`

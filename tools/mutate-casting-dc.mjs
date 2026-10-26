@@ -104,8 +104,9 @@ const MUTATIONS = [
   {
     name: "THE SAVE LINE GOES BACK TO ONE HAND-PICKED CLAUSE",
     file: CAST,
-    from: "${describeParts(saveDCResult.parts)}.`",
-    to: "${!fixed && clMods.saveDC ? ` (includes +${clMods.saveDC} caster-level warp)` : \"\"}.`",
+    // Re-anchored at 3.672.0, where a save rolled later says so after the parts.
+    from: "${describeParts(saveDCResult.parts)}${spellDefersItsSave(",
+    to: "${!fixed && clMods.saveDC ? ` (includes +${clMods.saveDC} caster-level warp)` : \"\"}${spellDefersItsSave(",
     breaks: "G7/G7b — four of five contributors silent again"
   },
   {

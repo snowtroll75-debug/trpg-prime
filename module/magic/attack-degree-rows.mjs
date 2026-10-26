@@ -36,23 +36,42 @@ export function isAttackGated(effect) {
  * @param {boolean} critical whether the attack on this target was a critical
  * @returns {boolean}
  */
-function attackRowApplies(effect, critical) {
+function attackRowApplies(effect, critical, severity = null) {
   const outcomes = list(effect?.onAttack).filter((o) => ATTACK_OUTCOMES.includes(o));
   if (!outcomes.length) return true;
-  return outcomes.includes(critical ? "critical" : "hit");
+  if (!outcomes.includes(critical ? "critical" : "hit")) return false;
+  // A FLOOR ON THE CRITICAL (3.672.0; C10). Water Bolt: "on a serious or
+  // deadly critical, the target is pushed 5 feet". Asked of a critical only;
+  // a critical whose severity is unknown does not clear a floor.
+  const floor = minimumSeverity(effect);
+  if (critical && floor) return severityRank(severity) >= severityRank(floor);
+  return true;
+}
+
+/** The critical severities, mildest first (combat/attack.mjs `criticalSeverity`). */
+const SEVERITY_ORDER = Object.freeze(["minor", "serious", "deadly"]);
+
+function severityRank(severity) {
+  return SEVERITY_ORDER.indexOf(String(severity ?? "").trim().toLowerCase());
+}
+
+/** The row's `minCriticalSeverity`, or "" for none (an unknown word is none). */
+export function minimumSeverity(effect) {
+  const s = String(effect?.minCriticalSeverity ?? "").trim().toLowerCase();
+  return SEVERITY_ORDER.includes(s) ? s : "";
 }
 
 /**
  * The struck targets a gated row reaches.
  * @param {object} effect the row
  * @param {Array<object>} recipients the struck targets
- * @param {Array<{target: object, critical: boolean}>} results per-target outcomes
+ * @param {Array<{target: object, critical: boolean, severity?: string|null}>} results per-target outcomes
  * @returns {Array<object>}
  */
 export function attackRowRecipients(effect, recipients, results = []) {
   if (!isAttackGated(effect)) return recipients;
-  const crits = new Set((Array.isArray(results) ? results : [])
-    .filter((r) => r?.critical).map((r) => r.target));
+  const crits = new Map((Array.isArray(results) ? results : [])
+    .filter((r) => r?.critical).map((r) => [r.target, r.severity ?? null]));
   return (Array.isArray(recipients) ? recipients : [])
-    .filter((target) => attackRowApplies(effect, crits.has(target)));
+    .filter((target) => attackRowApplies(effect, crits.has(target), crits.get(target) ?? null));
 }

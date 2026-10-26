@@ -179,6 +179,8 @@ export class TRGCheck {
       ? config.bias
       : BIAS.NORMAL;
     this.flat = Boolean(config.flat);
+    // A PREVIEW (3.672.0): `roll` stops before its first spend. See `preview`.
+    this.previewOnly = config.previewOnly === true;
     // THE ACTION'S HELD-OVER OUTCOME, handed in by the caller BEFORE the
     // roll — because `toMessage` writes the card's flag during the roll,
     // and anything assigned to the check afterwards is already too late.
@@ -946,6 +948,25 @@ export class TRGCheck {
   }
 
   /**
+   * WHAT THIS CHECK WOULD ADD UP TO, WITH NOTHING SPENT (3.672.0; Foretell
+   * Failure asked before an action commits, C8).
+   *
+   * THE SAME THREE READS `roll` MAKES BEFORE ITS DICE — the creature's own
+   * rows, the automatic conditionals and the automatic pending rows, from
+   * the same functions with the same context — and none of `roll`'s spends:
+   * no one-shot deleted, no pending row consumed, no tick-box asked. A
+   * preview is a TRGCheck that is never evaluated or posted.
+   *
+   * ONE BODY, NOT TWO: it is `roll` itself, stopped before its first spend
+   * (`previewOnly`), so the preview cannot read a row the roll would not —
+   * a first draft copied the reads and every harness pinned to them went
+   * blind (found in the 3.672.0 sweep).
+   */
+  static async preview(config = {}) {
+    return TRGCheck.roll({ ...config, previewOnly: true });
+  }
+
+  /**
    * Convenience entry point: roll a check and post it.
    * @param {object} config
    * @returns {Promise<TRGCheck>}
@@ -1036,7 +1057,7 @@ export class TRGCheck {
         // which is precisely the roll Clarity is written for. The
         // dialog already does this; a rule with two call sites and one
         // implementation is the defect shape this project keeps finding.
-        for (const { sourceId, label } of applied.spent ?? []) {
+        for (const { sourceId, label } of check.previewOnly ? [] : (applied.spent ?? [])) {
           const effect = check.actor?.effects?.get?.(sourceId);
           if (effect?.delete) await effect.delete();
           else ui.notifications?.warn?.(
@@ -1049,7 +1070,7 @@ export class TRGCheck {
         // asked in one small prompt before the dice. See
         // dice/offered-conditionals.mjs.
         const { offerConditionalsOnRoll } = await import("./offered-conditionals.mjs");
-        await offerConditionalsOnRoll(check, entries, conditionalContext, BIAS);
+        if (!check.previewOnly) await offerConditionalsOnRoll(check, entries, conditionalContext, BIAS);
       }
     }
 
@@ -1077,8 +1098,28 @@ export class TRGCheck {
         const taken = applyPendingSelections(auto, auto.map((row) => row.id));
         check.modifiers.push(...taken.modifiers);
         if (taken.kinds.length) check.bias = resolveBias(check.bias, taken.kinds, BIAS);
-        if (taken.consume.length) await consumePendingModifiers(check.actor, taken.consume);
+        if (taken.consume.length && !check.previewOnly) await consumePendingModifiers(check.actor, taken.consume);
       }
+    }
+
+    // A PREVIEW STOPS HERE (3.672.0; Foretell Failure, C8): its rows are read
+    // and nothing above has been spent. See `preview`.
+    if (check.previewOnly) return check;
+
+    /*
+     * FORETELL FAILURE, TOLD AT THE ROLL (3.672.0; Inner Tempest, C8):
+     * "whether the action will succeed if you roll a 10 or better". Said once
+     * the check's own rows are in, so the sum is the roll's. HERE IT IS ONLY
+     * TOLD: by this line a Strike has spent its AP and been answered by its
+     * defender's reactions, and a save or a casting's check is not an action
+     * that could be swapped for another. A skill action asks before it spends
+     * anything, through `TRGCheck.preview` (combat/action-workflow.mjs), and
+     * the foretelling is gone by the time its roll gets here. The roll never
+     * returns null for it. See dice/foretell.mjs.
+     */
+    if (check.actor && !check.flat) {
+      const { answerForetell } = await import("./foretell-workflow.mjs");
+      await answerForetell(check, { withdrawable: false });
     }
 
     // LUCK (3.624.0, block 40's R11/R12): rolled before the dice and

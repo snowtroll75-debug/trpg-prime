@@ -130,7 +130,12 @@ export function spellDefersItsSave(effects) {
     // VISAGE OF HORROR'S SAVE IS THE OPPONENT'S TOO (3.609.0): "When any
     // creature makes an aggressive move against the target, it must make a
     // Will save." The creature wearing the visage rolls nothing.
-    || String(e?.kind ?? "") === "horror");
+    || String(e?.kind ?? "") === "horror"
+    // AND ANY ROW THAT SAYS SO (3.672.0; C6). Inner Tempest's Spiritual
+    // Distraction and Disrupt Soul print "Saving Throw Will/Fortitude" and
+    // roll it each time the cursed creature casts; Acidic Touch's Fortitude
+    // is rolled by whoever its touch hits. None is rolled on casting.
+    || e?.saveAtCast === false);
 }
 
 /**

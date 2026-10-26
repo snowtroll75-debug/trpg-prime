@@ -279,6 +279,21 @@ export async function relayEndCast(target, castId, dismissed) {
 }
 
 /**
+ * End a caster's registered spell from wherever the ending happened
+ * (3.672.0). Directly when this client owns the caster, through the GM
+ * otherwise. `{ ok, result }`: result is whether a spell of that id was there.
+ */
+export async function relayEndSpell(caster, castId) {
+  const id = String(castId ?? "");
+  if (!caster || !id) return { ok: false, reason: "no caster or cast" };
+  if (!needsRelay(caster)) {
+    const { endActiveSpell } = await import("../magic/active-spells.mjs");
+    return { ok: true, result: Boolean(await endActiveSpell(caster, id, { dismissed: false })) };
+  }
+  return ask(RELAY_ACTIONS.END_SPELL, caster, { castId: id });
+}
+
+/**
  * A disabling attempt against a peril this client may not write to
  * (3.620.0, R17). Returns what the GM's client made of it.
  */
@@ -411,6 +426,11 @@ async function liveDeps() {
     endCast: async (target, castId, dismissed) => {
       const { removeEffectsByCastId } = await import("./effect-application-workflow.mjs");
       return removeEffectsByCastId(target, castId, { dismissed, direct: true });
+    },
+    // A CASTER'S SPELL, ENDED ON THE GM'S CLIENT (3.672.0) — see END_SPELL.
+    endSpell: async (caster, castId) => {
+      const { endActiveSpell } = await import("../magic/active-spells.mjs");
+      return endActiveSpell(caster, castId, { dismissed: false });
     },
     // AN AFFLICTION, ON THE GM'S CLIENT (3.627.0) — see target-relay.mjs.
     markExposure: async (target, key, now) => {

@@ -32,6 +32,7 @@ import { itemUsesMax, itemUsesRemaining } from "../uses-workflow.mjs";
 import { refocusRestoredUses, refocusRestoresAll } from "../focus-declarations.mjs";
 import { declarationCarriers } from "../declaration-carriers.mjs";
 import { refocusCompanionCandidates, refocusCompanions, refocusSucceeded } from "./refocus.mjs";
+import { refocusExtraDeclared, refocusSecondCandidates, refocusSecondApplies } from "./refocus.mjs";
 import { skipDialog } from "../apps/check-dialog.mjs";
 
 const SYSTEM_ID = "trg-prime";
@@ -183,6 +184,57 @@ export async function chooseRefocusTarget(actor, { event = null } = {}) {
       : await promptFocusSelection(offered, barred);
   if (!chosen) return { item: null, reason: "cancelled", barred };
   return { item: chosen, reason: "", barred };
+}
+
+/**
+ * THE SECOND ABILITY (3.672.0; Tranquil Mastery, C7) — chosen with the
+ * first and before the roll. Optional: "it MAY choose a second", so the
+ * picker offers none. Only asked when something the creature carries
+ * declares `refocusExtra` and another spent ability exists.
+ *
+ * @returns {Promise<object|null>} the second item, or null
+ */
+export async function chooseRefocusSecond(actor, first, { event = null } = {}) {
+  if (!refocusExtraDeclared(Array.from(actor?.items ?? []), Array.from(actor?.appliedEffects ?? actor?.effects ?? []))) return null;
+  const rest = refocusSecondCandidates(refocusCandidates(actor).offered, first?.id ?? "");
+  if (!rest.length) return null;
+  // A SKIPPED DIALOG TAKES THE FIRST OF THEM: choosing costs nothing, and
+  // only a success restores it.
+  if (skipDialog(event)) return rest[0];
+  const options = [`<option value="">None</option>`, ...rest.map((item, i) =>
+    `<option value="${i}" ${i === 0 ? "selected" : ""}>${item.name} (${itemFocusExpended(item) ? "expended" : `${itemUsesRemaining(item)} / ${itemUsesMax(item)}`})</option>`)].join("");
+  const picked = await DialogV2.prompt({
+    window: { title: "Refocus — a second ability?" },
+    classes: ["trg-prime"],
+    content: `<div class="trg-prime trg-check-dialog"><p class="hint">A Critical restores both now, a Success both at the `
+      + `beginning of your next turn; any lower result touches only <strong>${first?.name ?? "the first"}</strong>.</p>`
+      + `<div class="form-group"><label for="trg-focus-second">Second ability</label>`
+      + `<select id="trg-focus-second" name="focusItem">${options}</select></div></div>`,
+    ok: {
+      label: "Choose",
+      callback: (event, button) => {
+        const raw = (button.form ?? button.closest?.("form"))?.elements?.namedItem?.("focusItem")?.value;
+        return raw === "" || raw === undefined ? -1 : selectedFocusIndex(button.form ?? button.closest?.("form"));
+      }
+    },
+    rejectClose: false
+  });
+  // CLOSED IS NONE (review): `Number(null)` is 0, which was the first ability.
+  if (picked === null || picked === undefined || picked === "") return null;
+  const index = Number(picked);
+  return Number.isInteger(index) && index >= 0 ? rest[index] ?? null : null;
+}
+
+/**
+ * The second ability's outcome (3.672.0): on a success only, the same
+ * timing as the first. Returns the card's line, or "".
+ */
+export async function applyRefocusSecond(second, degree, { inCombat = false, worldTime = null } = {}) {
+  if (!second || !refocusSecondApplies(degree)) return "";
+  const outcome = await applyRefocusOutcome(second, degree, { inCombat, worldTime });
+  if (outcome.restored) return `The second ability: restored a use of <strong>${outcome.name}</strong> (${outcome.next} / ${outcome.max}) as well.`;
+  if (outcome.when === "nextTurn") return `The second ability: <strong>${outcome.name}</strong> returns with it at the <strong>beginning of your next turn</strong>.`;
+  return "";
 }
 
 /**

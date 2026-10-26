@@ -80,6 +80,13 @@ export const RELAY_ACTIONS = Object.freeze({
   // GM's creature. A named operation, as HP_ZERO is: the GM's client runs
   // the dying rule's own branch with the two numbers it reads.
   DYING_AT: "target.dyingAt",
+  // A SPELL ENDED BY WHAT IT DOES TO SOMEBODY ELSE (3.672.0; Inner Tempest's
+  // Spiritual Distraction and Disrupt Soul, "the target is unaffected and the
+  // spell ends"). The roll is the TARGET's, on its own client; the spell is
+  // registered on the CASTER, whom that client rarely owns. Named, as
+  // END_CAST is: the GM's client ends the caster's registered cast by its id
+  // and nothing else.
+  END_SPELL: "target.endSpell",
   RESULT: "target.result"
 });
 
@@ -263,6 +270,11 @@ export async function performRelay(request, deps) {
       const removed = await deps.endCast(target, String(payload.castId ?? ""),
         Boolean(payload.dismissed));
       return { ok: true, result: removed };
+    }
+    case RELAY_ACTIONS.END_SPELL: {
+      // The CASTER is the target here: its registered spell, by the cast's id.
+      const ended = await deps.endSpell(target, String(payload.castId ?? ""));
+      return { ok: true, result: Boolean(ended) };
     }
     case RELAY_ACTIONS.SPELL_RUNE: {
       /*

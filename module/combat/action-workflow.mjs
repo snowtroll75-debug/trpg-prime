@@ -5,6 +5,7 @@ import { tracklessStepApplies } from "./passive-feats.mjs";
 import { cannySmugglerEarnIncome, fullSpeedTrackingDC, groupCoercionFreeTargets, schooledInSecretsSkills, surveyWildlifeOutcome, shadowbornAgilityDegree, shadowbornStepNote } from "../skill-feats.mjs";
 import { promptCheckConfiguration, skipDialog } from "../apps/check-dialog.mjs";
 import { ensureActionPoints, actorInCombat, spendActionCost } from "./action-points-workflow.mjs";
+import { foretellEffects } from "../dice/foretell.mjs";
 import {
   PRESS_MANOEUVRE_KEYS,
   PRESS_SUCCESS_DEGREES,
@@ -23,7 +24,7 @@ import { refocusBlunderFormula } from "./refocus.mjs";
 import { actionAbilityRows } from "../focus-declarations.mjs";
 import { declarationCarriers } from "../declaration-carriers.mjs";
 import { DAILY_FIRSTS_FLAG, dailyFirstAdvantage, dailyFirstDegree, dailyFirstExact, dailyFirstExactDegree, dailyFirstSpent, hasDailyFirst } from "../daily-firsts.mjs";
-import { applyRefocusOutcome, chooseRefocusTarget, restoreRefocusCompanion } from "./refocus-workflow.mjs";
+import { applyRefocusOutcome, chooseRefocusTarget, restoreRefocusCompanion, chooseRefocusSecond, applyRefocusSecond } from "./refocus-workflow.mjs";
 import { rallyReduction } from "./rally.mjs";
 import { repairHPRestored } from "./repair.mjs";
 import {
@@ -3258,6 +3259,7 @@ export async function resolveAction(actor, action, {
   // the fumble already showing. Asked before the spend, like Repair's target,
   // so cancelling costs nothing.
   let refocusTarget = null;
+  let refocusSecond = null;
   if (action.key === "refocus") {
     const pick = await chooseRefocusTarget(actor, { event });
     if (!pick.item) {
@@ -3275,6 +3277,9 @@ export async function resolveAction(actor, action, {
       return null;
     }
     refocusTarget = pick.item;
+    // A SECOND ABILITY, CHOSEN WITH THE FIRST (3.672.0; Tranquil Mastery,
+    // C7) — asked only when something declares `refocusExtra`.
+    refocusSecond = await chooseRefocusSecond(actor, refocusTarget, { event });
   }
 
   let situational = null;
@@ -3715,128 +3720,6 @@ export async function resolveAction(actor, action, {
   const RAGE_ACTIONS = new Set(["invokeRage", "revokeRage"]);
   const defersApCost = RAGE_ACTIONS.has(action.key);
 
-  // The same gate the cast path takes (3.311.3): refused by default when
-  // the pool cannot cover it, with an explicit GM override. Placed with
-  // the spend rather than at the top of the function because
-  // `effectiveApCost` is what this action actually costs after its own
-  // modifiers, and because a rage action defers its cost entirely.
-  if (!defersApCost) {
-    if (!(await ensureActionPoints(actor, effectiveApCost, action.name, { traits: action.traits }))) return null;
-    if (preparedPaysFor) await consumePreparedReaction(actor, action.key);
-    else await spendActionCost(actor, effectiveApCost, action.name, { traits: action.traits });
-  }
-
-  // BORN TO RIDE'S allowance is spent HERE, at the point of commitment —
-  // not where the cost was worked out, several dialogs earlier. Everything
-  // between the two can still bow out (a cancelled prompt, too few AP),
-  // and a once-per-round rule burnt by an action that never happened is
-  // the same defect the Attack of Opportunity refund exists to prevent.
-  if (bornToRideSpent) {
-    await actor.setFlag(SYSTEM_ID, "bornToRideUsed", true);
-  }
-
-  // Recorded at the point of commitment — after the situational dialog,
-  // so an action abandoned there has not been "used" for trait purposes.
-  await recordTraitUsage(actor, action);
-
-  // WHERE THIS IS BEING DONE (page 201, R1 and R2). The CHECK path's own
-  // commitment point: said here, just before the roll, so a High Jump at
-  // forty feet carries the page's question with it. Its own card, because
-  // this branch's card is assembled inside `TRGCheck.roll` and has no
-  // line list to add to.
-  {
-    const notes = placeNotes(actor, action);
-    if (notes.length) await postCard(actor, action.name, notes);
-  }
-  {
-    // A REAL BINDING, for the reason given at the doubleSlice commit
-    // point: the AST-walking ratchet counts a declared name, not a
-    // member access on a module namespace.
-    const { biteOffensiveCurses } = await import("../magic/flat-ladder-workflow.mjs");
-    await biteOffensiveCurses(actor, action);
-    // AND A SANCTUARY ON THE ACTOR ENDS — see the doubleSlice site above.
-    const { endSanctuaryOnHostileAction } = await import("./sanctuary-gate.mjs");
-    await endSanctuaryOnHostileAction(actor, action);
-  }
-  // DEAFENED AND GRABBED (3.621.0) — see `conditionCommitGate`.
-  if (!(await conditionCommitGate(actor, action))) return null;
-  // Full Defence's single Move allowance is spent here, at commitment —
-  // an action abandoned in its own dialog has not used it.
-  await noteFullDefenceMove(actor, action);
-
-  if (bashShield) {
-    await loseShieldBonusUntilNextTurn(actor);
-  }
-
-  // Healers Tools (Chapter 6): "using healer's tools or other
-  // appropriate medical equipment" — per Graham directly, spends one
-  // use per Medicine check that requires them. Scoped to the four
-  // actions this project's own data already marks with that exact
-  // requirement, rather than every Medicine check generally.
-  //
-  // FROM THE KIT THE REQUIREMENT ACCEPTED (3.577.0). This used to spend
-  // only from an EQUIPPED kit while the requirement was met by a CARRIED
-  // one, so a kit carried and never equipped never ran down (block 17,
-  // D4). See `toolToSpend` in tools-requirement.mjs.
-  if (TOOL_USE_ACTIONS.includes(action.key)) {
-    await spendToolUse(actor, action.key);
-  }
-
-  const outcomeContext = {
-    /*
-     * WHICH TRADE-OFFS WERE BOUGHT (3.582.0). One of them waives a
-     * condition the outcome applies — Climb's flat-footed — so it has to
-     * reach `applyActionOutcome`, and this object is where that function
-     * reads its state from. The first draft put it beside `rawDegree` on
-     * the call instead, which `applyActionOutcome` does not destructure:
-     * it would have parsed, run, and silently waived nothing.
-     */
-    chosenTradeoffs: chosenTradeoffKeys,
-    invokedSkillKey,
-    actorFeatNames,
-    earnIncomeTaskLevel,
-    createSetup,
-    createReroll,
-    learnSpellSetup,
-    targetActor,
-    pushSourceTokenId,
-    pushTargetTokenId,
-    pushSceneId,
-    treatWoundsExtraDC,
-    treatWoundsExtraTargets,
-    painToleranceExtraDC,
-    bashShield,
-    repairTarget,
-    refocusTarget,
-    dispelSetup,
-    rechargeSetup,
-    gatherHerbsSetup,
-    coverTracksCount,
-    // ONE ROLL AGAINST SEVERAL (3.669.0): Spirit Roar's own immunity replaces the action's.
-    ignoreActionImmunity: Boolean(ignoreActionImmunity),
-    // TRAILING COMMA ON PURPOSE: every entry here is mirrored in
-    // pendingOutcomeContext and restoreOutcomeContext, and whichever one
-    // is last should not have to change shape when the next is added.
-    runeTransferSetup,
-  };
-
-  // BUILT BEFORE THE ROLL, because the card is written DURING it.
-  //
-  // The first version assembled this after `TRGCheck.roll` returned and
-  // assigned `check.pendingOutcome` there — by which time the chat
-  // message, and the flag it carries, had already been created. The card
-  // went out with `pendingOutcome: null` and "Set DC" had nothing to
-  // resume from. The harness could not see it: it asserted that the
-  // workflow sets the field and that check.mjs stores it, and both were
-  // true. What was false was that either happened in time.
-  //
-  // Passed into the roll instead, so the value exists when the flag is
-  // written. Whether it is KEPT is decided in check.mjs at that moment,
-  // by which time the degree is known — a roll that resolved needs no
-  // resume, and storing one would make every action re-runnable.
-  const pendingOutcome = pendingOutcomeContext(actor, action, outcomeContext);
-  if (lateRarityRaise) pendingOutcome.rarityRaise = { value: lateRarityRaise, name: targetActor.name };
-
   // AN ATTACK ACTION MEETS THE TARGET'S CONDITIONS AS A STRIKE DOES (3.621.0;
   // Appendix 2, block 39's R7): advantage against a creature that cannot
   // move, Prone's ±4 by distance, flat-footed to a hidden attacker. Trip,
@@ -3858,8 +3741,9 @@ export async function resolveAction(actor, action, {
   // unread dice's degree above the outcome's.
   const exactDegree = exactFirst ? dailyFirstExactDegree(declarationCarriers(actor), action.key) : null;
 
-  const check = await TRGCheck.roll({
-    pendingOutcome,
+  // THE CHECK THIS ACTION WILL ROLL, built before anything is spent
+  // (3.672.0): Foretell Failure's preview reads it below, and the roll uses it.
+  const rollConfig = {
     actor,
     ...(presetDice ? { presetDice, presetConvictionDie } : {}),
     ...(presetDice && Array.isArray(presetModifiers) ? { presetModifiers } : {}),
@@ -3954,7 +3838,159 @@ export async function resolveAction(actor, action, {
         ? [{ label: `Advantage — ${actionAttackTerms.advantage}`, value: 0, type: "untyped" }] : []),
       ...(learnSpellSetup ? [learnSpellSetupModifier(learnSpellSetup)].filter(Boolean) : [])
     ]
-  });
+  };
+
+  /*
+   * FORETELL FAILURE, ASKED BEFORE ANYTHING IS SPENT (3.672.0; Inner Tempest,
+   * C8): "If the action would not be successful, you can take a different
+   * action." Asked HERE, before the AP, a prepared reaction, a Born to Ride
+   * allowance, a trait's use, a curse's bite, a Sanctuary or a tool's use is
+   * spent, so an action called back has cost nothing at all. The answer comes
+   * from `TRGCheck.preview` — the same check, its automatic rows read and
+   * none of them spent. Not for dice already thrown, a day's first declared
+   * result, or a cost a rage action pays afterwards; those are told at the
+   * roll, where it cannot be called back.
+   */
+  const foretellAsked = !presetDice && !exactFirst && !defersApCost
+    && foretellEffects(actor?.appliedEffects ?? actor?.effects ?? []).length > 0;
+  if (foretellAsked) {
+    const preview = await TRGCheck.preview({ pendingOutcome: null, ...rollConfig });
+    const { answerForetell } = await import("../dice/foretell-workflow.mjs");
+    const answer = await answerForetell(preview, { withdrawable: true });
+    if (answer === "withdraw") {
+      await postCard(actor, action.name, [line(`<em>${actor.name} takes a different action instead — nothing was spent.</em>`)]);
+      return null;
+    }
+    // WHAT IT SAID rides on the roll's own card.
+    if (preview.extraDetailLines?.length) rollConfig.extraDetailLines = [...(rollConfig.extraDetailLines ?? []), ...preview.extraDetailLines];
+  }
+
+  // The same gate the cast path takes (3.311.3): refused by default when
+  // the pool cannot cover it, with an explicit GM override. Placed with
+  // the spend rather than at the top of the function because
+  // `effectiveApCost` is what this action actually costs after its own
+  // modifiers, and because a rage action defers its cost entirely.
+  if (!defersApCost) {
+    if (!(await ensureActionPoints(actor, effectiveApCost, action.name, { traits: action.traits }))) return null;
+    if (preparedPaysFor) await consumePreparedReaction(actor, action.key);
+    else await spendActionCost(actor, effectiveApCost, action.name, { traits: action.traits });
+  }
+
+  // BORN TO RIDE'S allowance is spent HERE, at the point of commitment —
+  // not where the cost was worked out, several dialogs earlier. Everything
+  // between the two can still bow out (a cancelled prompt, too few AP),
+  // and a once-per-round rule burnt by an action that never happened is
+  // the same defect the Attack of Opportunity refund exists to prevent.
+  if (bornToRideSpent) {
+    await actor.setFlag(SYSTEM_ID, "bornToRideUsed", true);
+  }
+
+  // Recorded at the point of commitment — after the situational dialog,
+  // so an action abandoned there has not been "used" for trait purposes.
+  await recordTraitUsage(actor, action);
+
+  // WHERE THIS IS BEING DONE (page 201, R1 and R2). The CHECK path's own
+  // commitment point: said here, just before the roll, so a High Jump at
+  // forty feet carries the page's question with it. Its own card, because
+  // this branch's card is assembled inside `TRGCheck.roll` and has no
+  // line list to add to.
+  {
+    const notes = placeNotes(actor, action);
+    if (notes.length) await postCard(actor, action.name, notes);
+  }
+  {
+    // A REAL BINDING, for the reason given at the doubleSlice commit
+    // point: the AST-walking ratchet counts a declared name, not a
+    // member access on a module namespace.
+    const { biteOffensiveCurses } = await import("../magic/flat-ladder-workflow.mjs");
+    await biteOffensiveCurses(actor, action);
+    // AND A SANCTUARY ON THE ACTOR ENDS — see the doubleSlice site above.
+    const { endSanctuaryOnHostileAction } = await import("./sanctuary-gate.mjs");
+    await endSanctuaryOnHostileAction(actor, action);
+  }
+  // DEAFENED AND GRABBED (3.621.0) — see `conditionCommitGate`.
+  if (!(await conditionCommitGate(actor, action))) return null;
+  // Full Defence's single Move allowance is spent here, at commitment —
+  // an action abandoned in its own dialog has not used it.
+  await noteFullDefenceMove(actor, action);
+
+  if (bashShield) {
+    await loseShieldBonusUntilNextTurn(actor);
+  }
+
+  // Healers Tools (Chapter 6): "using healer's tools or other
+  // appropriate medical equipment" — per Graham directly, spends one
+  // use per Medicine check that requires them. Scoped to the four
+  // actions this project's own data already marks with that exact
+  // requirement, rather than every Medicine check generally.
+  //
+  // FROM THE KIT THE REQUIREMENT ACCEPTED (3.577.0). This used to spend
+  // only from an EQUIPPED kit while the requirement was met by a CARRIED
+  // one, so a kit carried and never equipped never ran down (block 17,
+  // D4). See `toolToSpend` in tools-requirement.mjs.
+  if (TOOL_USE_ACTIONS.includes(action.key)) {
+    await spendToolUse(actor, action.key);
+  }
+
+  const outcomeContext = {
+    /*
+     * WHICH TRADE-OFFS WERE BOUGHT (3.582.0). One of them waives a
+     * condition the outcome applies — Climb's flat-footed — so it has to
+     * reach `applyActionOutcome`, and this object is where that function
+     * reads its state from. The first draft put it beside `rawDegree` on
+     * the call instead, which `applyActionOutcome` does not destructure:
+     * it would have parsed, run, and silently waived nothing.
+     */
+    chosenTradeoffs: chosenTradeoffKeys,
+    invokedSkillKey,
+    actorFeatNames,
+    earnIncomeTaskLevel,
+    createSetup,
+    createReroll,
+    learnSpellSetup,
+    targetActor,
+    pushSourceTokenId,
+    pushTargetTokenId,
+    pushSceneId,
+    treatWoundsExtraDC,
+    treatWoundsExtraTargets,
+    painToleranceExtraDC,
+    bashShield,
+    repairTarget,
+    refocusTarget,
+    refocusSecond,
+    dispelSetup,
+    rechargeSetup,
+    gatherHerbsSetup,
+    coverTracksCount,
+    // ONE ROLL AGAINST SEVERAL (3.669.0): Spirit Roar's own immunity replaces the action's.
+    ignoreActionImmunity: Boolean(ignoreActionImmunity),
+    // TRAILING COMMA ON PURPOSE: every entry here is mirrored in
+    // pendingOutcomeContext and restoreOutcomeContext, and whichever one
+    // is last should not have to change shape when the next is added.
+    runeTransferSetup,
+  };
+
+  // BUILT BEFORE THE ROLL, because the card is written DURING it.
+  //
+  // The first version assembled this after `TRGCheck.roll` returned and
+  // assigned `check.pendingOutcome` there — by which time the chat
+  // message, and the flag it carries, had already been created. The card
+  // went out with `pendingOutcome: null` and "Set DC" had nothing to
+  // resume from. The harness could not see it: it asserted that the
+  // workflow sets the field and that check.mjs stores it, and both were
+  // true. What was false was that either happened in time.
+  //
+  // Passed into the roll instead, so the value exists when the flag is
+  // written. Whether it is KEPT is decided in check.mjs at that moment,
+  // by which time the degree is known — a roll that resolved needs no
+  // resume, and storing one would make every action re-runnable.
+  const pendingOutcome = pendingOutcomeContext(actor, action, outcomeContext);
+  if (lateRarityRaise) pendingOutcome.rarityRaise = { value: lateRarityRaise, name: targetActor.name };
+
+  // THE ROLL ITSELF, from the configuration built before the commitment
+  // (3.672.0) — the same object Foretell Failure's preview read.
+  const check = await TRGCheck.roll({ pendingOutcome, ...rollConfig });
 
   // AND THE LADDER CLIMBS (R1). An attack-trait action counts toward the
   // next attack's penalty, whether it hit or missed — the counter the
@@ -4102,6 +4138,7 @@ async function applyActionOutcome({
     bashShield = null,
     repairTarget = null,
     refocusTarget = null,
+    refocusSecond = null,
     runeTransferSetup = null,
     dispelSetup = null,
     rechargeSetup = null,
@@ -4905,6 +4942,9 @@ async function applyActionOutcome({
         // A COMPANION ABILITY RETURNS WITH IT (3.625.0) — Deepened Bond.
         const companionLine = await restoreRefocusCompanion(actor, refocusTarget, degree, { inCombat: Boolean(actor.inCombat) });
         if (companionLine) lines.push(line(companionLine));
+        // THE SECOND ABILITY (3.672.0): a success only, the first's timing.
+        const secondLine = await applyRefocusSecond(refocusSecond, degree, { inCombat: Boolean(actor.inCombat) });
+        if (secondLine) lines.push(line(secondLine));
         if (outcome.restored) {
           lines.push(
             line(`Restored a use of <strong>${outcome.name}</strong> (${outcome.next} / ${outcome.max}).`)
@@ -5658,7 +5698,8 @@ function pendingOutcomeContext(actor, action, ctx) {
     targetActorId: ctx.targetActor?.id ?? null,
     bashShieldId: ctx.bashShield?.id ?? null,
     repairTargetId: ctx.repairTarget?.id ?? null,
-    refocusTargetId: ctx.refocusTarget?.id ?? null
+    refocusTargetId: ctx.refocusTarget?.id ?? null,
+    refocusSecondId: ctx.refocusSecond?.id ?? null
   };
 }
 
@@ -5713,7 +5754,8 @@ async function restoreOutcomeContext(stored) {
       targetActor: restoredTarget,
       bashShield: item(stored?.bashShieldId),
       repairTarget: item(stored?.repairTargetId),
-      refocusTarget: item(stored?.refocusTargetId)
+      refocusTarget: item(stored?.refocusTargetId),
+      refocusSecond: item(stored?.refocusSecondId)
     }
   };
 }

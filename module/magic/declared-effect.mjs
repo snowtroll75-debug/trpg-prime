@@ -38,8 +38,23 @@ const DECLARABLE_FLAGS = Object.freeze([
   // THE CHECK-DIALOG ROWS (3.667.0; conditionals.mjs) — Reflective Mind's
   // "advantage on the triggering saving throw". An actor's effect, so a
   // `oneShot` row is spent when ticked.
-  "conditionals"
+  "conditionals",
+  // THE GRIMOIRE'S FLAGS (3.672.0; Inner Tempest Block 8), each a rail that
+  // already read applied effects or is new beside its reader:
+  //   ignoresDifficultTerrain  Flowing Step (C9) — combat/passive-feats.mjs;
+  //                            `true`: the blanket reading, every move
+  //   firstMoveNoReactions     Timeless Motion — combat/passive-feats.mjs
+  //   creatureAbility          Boundless Vision's "you cannot be flanked"
+  //                            (C4) — creature-ability-rules.mjs
+  //   foretell                 Foretell Failure (C8) — dice/foretell.mjs
+  //   refocusExtra             Tranquil Mastery (C7) — combat/refocus.mjs
+  "ignoresDifficultTerrain", "firstMoveNoReactions", "creatureAbility", "foretell", "refocusExtra"
 ]);
+
+/** The flags that may only be a plain `true`. */
+const TRUE_ONLY_FLAGS = Object.freeze(["fumbleNoReactions", "ignoresDifficultTerrain", "firstMoveNoReactions", "foretell", "refocusExtra"]);
+/** What a declared `creatureAbility.derives` may say: the two an effect is read for. */
+const DECLARABLE_DERIVES = Object.freeze(["cannotBeFlanked", "packAttack"]);
 
 /** The flag that marks an effect as a declared one, keyed by its label. */
 const DECLARED_KEY_FLAG = "declaredKey";
@@ -64,9 +79,15 @@ export function normaliseDeclaredEffect(row, { spellName = "" } = {}) {
       const spec = normaliseStrikeRider(raw[key]);
       if (!spec) return null;
       flags[key] = spec;
-    } else if (key === "fumbleNoReactions") {
+    } else if (TRUE_ONLY_FLAGS.includes(key)) {
       if (raw[key] !== true) return null;
       flags[key] = true;
+    } else if (key === "creatureAbility") {
+      const derives = raw[key]?.derives;
+      if (!derives || typeof derives !== "object" || Array.isArray(derives)) return null;
+      const names = Object.keys(derives);
+      if (!names.length || names.some((n) => !DECLARABLE_DERIVES.includes(n) || derives[n] !== true)) return null;
+      flags[key] = { derives: Object.fromEntries(names.map((n) => [n, true])) };
     } else if (typeof raw[key] === "object") {
       flags[key] = raw[key];
     } else {
@@ -131,6 +152,12 @@ export function declaredCastLine(spec) {
   if (spec.flags.strikeRider) parts.push(`its next Strike dealing ${(spec.flags.strikeRider.whenDamageTypes ?? []).join(" or ") || spec.flags.strikeRider.damageType} damage adds +${spec.flags.strikeRider.dice}`);
   if (spec.flags.fateDeclare) parts.push("once, before a d20 roll, it may declare a Success without rolling");
   if (spec.flags.fumbleNoReactions) parts.push(`it cannot use Reactions${spec.rounds === 1 ? " until the end of its next turn" : ""}`);
+  if (spec.flags.ignoresDifficultTerrain) parts.push("difficult terrain costs it nothing extra, and formidable terrain counts as difficult");
+  if (spec.flags.firstMoveNoReactions) parts.push("the first move of each of its turns provokes no reactions");
+  if (spec.flags.creatureAbility?.derives?.cannotBeFlanked) parts.push("it cannot be flanked");
+  if (spec.flags.creatureAbility?.derives?.packAttack) parts.push("it has Pack Attack");
+  if (spec.flags.foretell) parts.push("before its next d20 check, it learns whether a 10 on the die would succeed");
+  if (spec.flags.refocusExtra) parts.push("a successful Refocus may restore a second expended Focus ability, chosen with the first");
   if (spec.deathState) parts.push(`Death State ${spec.deathState > 0 ? "+" : ""}${spec.deathState}`);
   return parts.join("; ");
 }

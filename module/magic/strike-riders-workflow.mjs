@@ -10,6 +10,7 @@ import { declaresUnarmedAbilities, unarmedAbilityCarriers } from "../combat/unar
 import { runeStrikeRiderSpecs } from "../rune-declarations.mjs";
 import {
   STRIKE_RIDER_FLAG, normaliseStrikeRider, riderPacketsFor, ridersSpentBy, ridersBurntBy, riderConditionReaches,
+  riderLadderValue, riderLadderText,
   weaponRiderRequirement,
   enchantableWeapons
 } from "./strike-riders.mjs";
@@ -259,6 +260,9 @@ export async function applyRiderConditions(actor, weapon, targetActor, ctx = {})
     }
     // A SAVE AGAINST THE CONDITION (3.630.0) — Tangleweed's Reflex. Success
     // or better resists; the card says so either way.
+    // AND A LADDER (3.672.0; Acidic Touch): the degree picks the value, and a
+    // rung the ladder does not name takes nothing. See `riderLadderValue`.
+    let value = spec.conditionValue;
     if (spec.conditionSave) {
       const { TRGCheck } = await import("../dice/check.mjs");
       const { withCheckModifiers } = await import("../dice/check-modifiers.mjs");
@@ -276,7 +280,12 @@ export async function applyRiderConditions(actor, weapon, targetActor, ctx = {})
         continue;
       }
       if (!key) {
-        lines.push(`<em>${spec.label}: no save result — apply ${spec.condition} ${spec.conditionValue} if it failed.</em>`);
+        lines.push(`<em>${spec.label}: no save result — apply ${riderLadderText(spec) || `${spec.condition} ${spec.conditionValue}`} if it failed.</em>`);
+        continue;
+      }
+      value = riderLadderValue(spec, key);
+      if (!value) {
+        lines.push(`${targetActor.name} is unaffected by ${spec.label} (${save} ${check.outcome.degree.label}).`);
         continue;
       }
     }
@@ -286,7 +295,7 @@ export async function applyRiderConditions(actor, weapon, targetActor, ctx = {})
     const applied = await applyConditionTags(targetActor, [{
       key: spec.condition,
       label: cond.label,
-      value: cond.valued ? spec.conditionValue : null
+      value: cond.valued ? value : null
     }], {
       // "UNTIL THE BEGINNING OF YOUR NEXT TURN" is one round, and only
       // while a combat is running. Outside one there is no round to

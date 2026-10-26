@@ -163,6 +163,7 @@ import { registerAuraTraitEffectHooks } from "../module/aura-trait-effect-workfl
 import { registerExtraplanarHooks } from "../module/extraplanar-workflow.mjs";
 import { registerAllyAuraEffectHooks } from "../module/ally-aura-effects-workflow.mjs";
 import { registerAlignedControlHooks } from "../module/aligned-control-workflow.mjs";
+import { registerForetellQuery } from "../module/dice/foretell-workflow.mjs";
 
 Hooks.once("init", () => {
   console.info("TRG Prime | Initialising Foundry VTT V14 system");
@@ -187,6 +188,10 @@ Hooks.once("init", () => {
 
   registerMigrationSettings();
   registerSystemSettings();
+  // FORETELL FAILURE'S QUESTION TO THE GM (3.672.0): a DC not yet set is
+  // theirs to answer, through Foundry's own user query. See
+  // dice/foretell-workflow.mjs.
+  registerForetellQuery();
   // Chapter 6 + 11: dropping a weapon, armour or shield onto a sheet
   // offers the Quality/Material/Traits/Runes dialog, so an item can be
   // made magical at the point it arrives rather than typed into

@@ -212,7 +212,8 @@ const row = (name, kind, i = 0) => (PLAN[name]?.effects ?? []).filter((e) => e.k
   ok("F4 the slowed ends with the sickened", rows[2].endsWith === "sickened"
     && FX.includes("...(effect.endsWith ? { endsWith: String(effect.endsWith).trim() } : {})"));
   ok("F5 the cast hands the effect engine how each target was struck",
-    CAST.includes(".map((r) => ({ target: r?.targetActor ?? null, critical: Boolean(r?.critical) }))")
+    // 3.672.0 adds the critical's severity to each (Water Bolt's push).
+    CAST.includes(".map((r) => ({ target: r?.targetActor ?? null, critical: Boolean(r?.critical), severity: r?.critical?.severity ?? null }))")
     && FX.includes("recipients = attackRowRecipients(effect, recipients, attackResults);"));
 }
 

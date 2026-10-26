@@ -325,6 +325,27 @@ function foundryDuration(parsed) {
  * @param {{rounds:number|null, seconds:number|null}|null} parsed
  * @returns {{spellEffect:boolean, expiresRound:number|null, spellEffectEnd:number|null, foundryDuration:object|undefined}}
  */
+/**
+ * A declared effect's conditionals, the ones marked `warpBonus: true` grown by
+ * a bonus warp (3.672.0). Every other row is returned as it came.
+ */
+export function declaredConditionalsWarped(rows, warpBonus = 0, warpBonusMax = null) {
+  return (Array.isArray(rows) ? rows : []).map((row) => (row?.warpBonus === true && Number.isFinite(Number(row.value))
+    ? { ...row, value: warpedBonusValue(Number(row.value), warpBonus, warpBonusMax) }
+    : row));
+}
+
+/**
+ * What a bonus warp adds to a DC bonus row, its cap counted (3.672.0). The
+ * row's own value plus this never passes `warpBonusMax`, as
+ * `warpedBonusValue` holds every other bonus row.
+ */
+export function defenceDCWarpExtra(value, warpBonus = 0, warpBonusMax = null) {
+  const extra = Math.max(0, Number(warpBonus) || 0);
+  if (warpBonusMax === null || warpBonusMax === undefined) return extra;
+  return Math.max(0, Math.min(extra, Math.abs(Number(warpBonusMax) || 0) - Math.abs(Number(value) || 0)));
+}
+
 function spellExpiryTiming(parsed) {
   const out = { spellEffect: false, expiresRound: null, spellEffectEnd: null, foundryDuration: foundryDuration(parsed) };
   if (!parsed) return out;
@@ -2854,6 +2875,13 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             const { levelDC } = await import("../dice/resolution.mjs");
             rider.conditionSave.dc = levelDC(Math.max(0, Number(effect.flags.strikeRider.conditionSave.dcLevel) || 0));
           }
+          // A DECLARED TICK THAT GROWS WITH A BONUS WARP (3.672.0; Inner
+          // Tempest's Root: "+1 PP: increase bonus by +1 (max +4)" on its
+          // balance bonus). Only a row that says `warpBonus: true`; its cap
+          // is the warp's own, as every bonus row's is.
+          if (Array.isArray(spec.flags.conditionals) && warpBonus) {
+            spec.flags.conditionals = declaredConditionalsWarped(spec.flags.conditionals, warpBonus, warpBonusMax);
+          }
           // COMMUNAL LITANY'S "+2 PP: use the benefit twice" (3.630.0).
           if (spec.flags.saveConvert && Number(warpMods?.declareUses) > 0) {
             spec.flags.saveConvert = { ...spec.flags.saveConvert, uses: Math.max(1, Number(spec.flags.saveConvert.uses) || 1) + Number(warpMods.declareUses) };
@@ -2891,9 +2919,15 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           // Surge, R12) has no dice of its own for a warp to grow.
           // A CONDITION'S SAVE AT A LEVEL'S DC (3.630.0) — Tangleweed's Reflex
           // at the herb's level DC, stamped now so the Strike need not know it.
+          // AND ONE THAT NAMES NO DC TAKES THE CASTER'S SPELL SAVE DC (3.672.0;
+          // Inner Tempest's Acidic Touch, B8-2: "a successful melee attack
+          // causes the target to make a Fortitude save" — at your spell save
+          // DC). The nominal DC, so a spell rolling no save itself has one.
           const stampedSave = effect.conditionSave && !Number(effect.conditionSave.dc) && effect.conditionSave.dcLevel !== undefined
             ? { ...effect.conditionSave, dc: (await import("../dice/resolution.mjs")).levelDC(Math.max(0, Number(effect.conditionSave.dcLevel) || 0)) }
-            : effect.conditionSave;
+            : effect.conditionSave && !Number(effect.conditionSave.dc) && Number(saveDC ?? rollData?.saveDC ?? 0) > 0
+              ? { ...effect.conditionSave, dc: Number(saveDC ?? rollData?.saveDC) }
+              : effect.conditionSave;
           const spec = normaliseStrikeRider({
             ...effect,
             ...(stampedSave ? { conditionSave: stampedSave } : {}),
@@ -3707,7 +3741,10 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           // and `defence-dc.mjs` would apply it silently. Refused out
           // loud instead, the position every other kind in this file
           // takes for an effect that cannot say what it covers.
-          const built = defenceDCRowFrom(effect, spell.name, warpBonus);
+          // AND ITS CAP (3.672.0; Inner Tempest's Root, "+1 PP: increase
+          // bonus by +1 (max +4)"). The warp's `bonusMax` stopped every other
+          // bonus row at its printed ceiling and this one went past it.
+          const built = defenceDCRowFrom(effect, spell.name, defenceDCWarpExtra(effect.value, warpBonus, warpBonusMax));
           if (built.error) {
             lines.push(line(`<em>${built.error}</em>`));
             break;
@@ -4173,6 +4210,106 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           const { forceMoveAway } = await import("../combat/forced-movement-workflow.mjs");
           const moved = await forceMoveAway(caster, target, feet);
           lines.push(line(`${effect.label ? `<strong>${effect.label}</strong> — ` : ""}${moved.text}`));
+          break;
+        }
+        case "abilitySwap": {
+          /*
+           * THE HIGHEST AND LOWEST ABILITY SCORES SWITCHED (3.672.0; Inner
+           * Tempest's Ability Inversion, C1). The totals trade through the
+           * bonus pool — see magic/ability-swap.mjs. One row per save rung,
+           * each with its own duration.
+           */
+          const {
+            normaliseAbilitySwap, abilitySwapCandidates, abilitySwapChanges, abilitySwapFlag,
+            abilitySwapOn, abilitySwapLine, ABILITY_SWAP_FLAG
+          } = await import("./ability-swap.mjs");
+          const spec = normaliseAbilitySwap(effect);
+          // NOT TWICE: a second inversion would switch the switched scores.
+          if (abilitySwapOn(target.effects, SYSTEM_ID)) {
+            lines.push(line(`<em>${target.name}'s ability scores are already switched — ${spell.name} does not stack.</em>`));
+            break;
+          }
+          const found = abilitySwapCandidates(target.system?.attributes);
+          if (!found) {
+            lines.push(line(`<em>${target.name}'s ability scores are all equal — ${spell.name} has nothing to switch.</em>`));
+            break;
+          }
+          // "CASTERS CHOICE FOR ANY TIES": asked only when there is a tie.
+          const { chooseTiedAbility } = await import("./ability-swap-workflow.mjs");
+          const highKey = await chooseTiedAbility(spell.name, target.name, found.highKeys, "highest", found.high);
+          const lowKey = highKey ? await chooseTiedAbility(spell.name, target.name, found.lowKeys, "lowest", found.low) : "";
+          if (!highKey || !lowKey) {
+            lines.push(line(`<em>No score was chosen for ${spell.name} on ${target.name} — nothing applied.</em>`));
+            break;
+          }
+          const timing = spellExpiryTiming(parsedDuration);
+          const flags = { [SYSTEM_ID]: { [ABILITY_SWAP_FLAG]: abilitySwapFlag(highKey, lowKey, found.high, found.low) } };
+          if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
+          if (timing.spellEffectEnd != null) flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
+          if (timing.expiresRound != null) flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+          if (castId) flags[SYSTEM_ID].castId = castId;
+          if (castId && registersCast) flags[SYSTEM_ID].endsWithCast = true;
+          const data = {
+            name: spec?.label ?? spell.name,
+            img: spell.img || DEFAULT_SPELL_IMG,
+            origin: spell.uuid,
+            changes: abilitySwapChanges(highKey, lowKey, found.high, found.low, CHANGE_TYPE.CUSTOM),
+            flags
+          };
+          if (timing.foundryDuration) {
+            data.duration = { ...timing.foundryDuration, startTime: Number(game.time?.worldTime ?? 0) };
+          }
+          await createEffectsOn(target, [data]);
+          if (castId && target.uuid) affected.add(target.uuid);
+          lines.push(line(`${abilitySwapLine(target.name, highKey, lowKey, found.high, found.low)}${durationText}.`));
+          break;
+        }
+        case "moduleMark": {
+          /*
+           * A MODULE'S MARK (3.672.0; C6) — Inner Tempest's Spiritual
+           * Distraction and Disrupt Soul. The module's data, stamped with the
+           * caster and this cast's DC, timed and ended as the spell is. See
+           * magic/module-mark.mjs.
+           */
+          const { normaliseModuleMark, moduleMarkRecord, moduleMarkOn, moduleMarkLine } = await import("./module-mark.mjs");
+          const spec = normaliseModuleMark(effect, { spellName: spell.name });
+          if (!spec) {
+            lines.push(line(`<em>${spell.name} declares a malformed module mark — nothing applied.</em>`));
+            break;
+          }
+          if (moduleMarkOn(target.effects, spec)) {
+            lines.push(line(`<em>${target.name} already carries <strong>${spec.label}</strong> — it does not stack.</em>`));
+            break;
+          }
+          const record = moduleMarkRecord({
+            caster, spell, castId,
+            level: rollData?.level ?? null,
+            casterLevel: rollData?.casterLevel ?? null,
+            // THE CAST'S OWN DC, rolled against later (B8-4). The nominal one,
+            // because a spell whose save waits rolls none on casting.
+            dc: Number(saveDC ?? rollData?.saveDC ?? 0) || null
+          });
+          const timing = spellExpiryTiming(parsedDuration);
+          const flags = { [spec.module]: { [spec.key]: record }, [SYSTEM_ID]: { moduleMark: `${spec.module}.${spec.key}` } };
+          if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
+          if (timing.spellEffectEnd != null) flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
+          if (timing.expiresRound != null) flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+          if (castId) flags[SYSTEM_ID].castId = castId;
+          // ENDS WITH THE SPELL: a sustained curse stops when it is dropped.
+          if (castId && registersCast) flags[SYSTEM_ID].endsWithCast = true;
+          const data = {
+            name: spec.label,
+            img: spell.img || DEFAULT_SPELL_IMG,
+            origin: spell.uuid,
+            changes: [],
+            flags
+          };
+          if (timing.foundryDuration) {
+            data.duration = { ...timing.foundryDuration, startTime: Number(game.time?.worldTime ?? 0) };
+          }
+          await createEffectsOn(target, [data]);
+          if (castId && target.uuid) affected.add(target.uuid);
+          lines.push(line(`${moduleMarkLine(target.name, spec, record)}${durationText}.`));
           break;
         }
         case "marker": {

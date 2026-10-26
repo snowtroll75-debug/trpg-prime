@@ -115,8 +115,9 @@ const MUTATIONS = [
     name: "THE LIVE DEFECT: the held-over outcome is assembled after the roll",
     // RE-ANCHORED AT 3.621.0: an attack action's condition terms are worked
     // out between the two (block 39's R7), so the roll's argument is anchored alone.
-    from: "    pendingOutcome,",
-    to: "",
+    // AND AT 3.672.0, where the roll takes `{ pendingOutcome, ...rollConfig }`.
+    from: "TRGCheck.roll({ pendingOutcome, ...rollConfig })",
+    to: "TRGCheck.roll({ ...rollConfig })",
     breaks: "C2/C2b — the card goes out with pendingOutcome:null and Set DC has nothing to run"
   },
   {

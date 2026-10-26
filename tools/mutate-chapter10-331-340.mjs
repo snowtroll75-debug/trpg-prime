@@ -152,7 +152,8 @@ const MUTATIONS = [
   { file: WARDS, name: "A: a roll buys no immunity at all",
     from: "    next[String(attackerId)] = Number(round) + 1;", to: "    next[String(attackerId)] = Number(round) - 1;", breaks: "A2" },
   { file: SANCT, name: "A: the warded creature rolls Will against its own horror",
-    from: "    || String(e?.kind ?? \"\") === \"horror\");", to: ");", breaks: "A3" },
+    // Re-anchored at 3.672.0, where a row's own `saveAtCast: false` follows.
+    from: "    || String(e?.kind ?? \"\") === \"horror\"\n", to: "\n", breaks: "A3" },
   { file: GATE, name: "A: THE SHIPPED STATE — the rebuke never bites",
     from: "  if (!horror.blocked) await rebukeCheck(attacker, targetActor, sourceName);\n", to: "", breaks: "A5" },
   { file: WARDS, name: "A: a rebuke bites whoever is attacked",

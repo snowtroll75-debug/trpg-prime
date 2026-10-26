@@ -147,7 +147,7 @@ const MUTATIONS = [
         \`\${label || "A one-shot bonus"} was used but could not be cleared — remove it by hand.\`);`,
     to: `      else { /* nothing */ }`, breaks: "F7" },
   { file: CHECK, name: "F: the dialog-less path stops spending one-shots",
-    from: `        for (const { sourceId, label } of applied.spent ?? []) {`,
+    from: `        for (const { sourceId, label } of check.previewOnly ? [] : (applied.spent ?? [])) {`,
     to: `        for (const { sourceId, label } of []) {`, breaks: "F9" },
   { file: CHECK, name: "F: the dialog-less path applies EVERY pending entry, not only the auto ones",
     from: `      const auto = pendingModifierRows(check.actor).filter((row) => row.auto\n`,

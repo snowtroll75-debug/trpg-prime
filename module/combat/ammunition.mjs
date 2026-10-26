@@ -206,9 +206,11 @@ export function ammunitionAttackModifier(ammoSystem, ammoName = "Ammunition") {
  *
  * @param {object} weaponSystem
  * @param {object|null} ammoSystem
+ * @param {{multiplier?: number}} [options] a projectile's own multiple — see
+ *   `rangeIncrementMultiplierOf` (3.672.0)
  * @returns {number}
  */
-export function effectiveRangeIncrement(weaponSystem, ammoSystem) {
+export function effectiveRangeIncrement(weaponSystem, ammoSystem, { multiplier = 1 } = {}) {
   // The numeric rangeIncrement field is the source of truth when set, but many
   // weapons carry the distance only in a trait — "Range 100" on a bow, "Thrown
   // 30 ft" on a javelin. Fall back to parsing that trait so a weapon with a
@@ -220,7 +222,44 @@ export function effectiveRangeIncrement(weaponSystem, ammoSystem) {
     base = extractTraitValue(traits, "range") ?? extractTraitValue(traits, "thrown") ?? 0;
   }
   const bonus = Number(ammoSystem?.rangeIncrementBonus ?? 0) || 0;
-  return Math.max(0, base + bonus);
+  // DOUBLED, NOT ADDED TO (3.672.0): Inner Tempest's Arrows Flight, "the
+  // affected projectiles have their range increments doubled". After the
+  // round's own feet, before the caller's Archer and Far Shot.
+  const times = Number(multiplier) > 0 ? Number(multiplier) : 1;
+  return Math.max(0, (base + bonus) * times);
+}
+
+/** The flag a projectile carries when something multiplies its range increment. */
+const RANGE_MULTIPLIER_FLAG = "rangeIncrementMultiplier";
+
+/**
+ * THE PROJECTILE'S OWN MULTIPLE (3.672.0; Block 8's C3).
+ *
+ * The projectile is the round when one is loaded, otherwise the weapon
+ * itself — a thrown dart or shuriken. Either may carry
+ *
+ *   flags.trg-prime.rangeIncrementMultiplier = 2
+ *   … or { value: 2, expiresAt: <world seconds>, label: "Arrows Flight" }
+ *
+ * A TIMED MULTIPLE ENDS BY ITSELF: past `expiresAt` it reads as 1, so a
+ * spell's ten minutes cannot outlive it by somebody forgetting to clear a
+ * flag. A bow is never asked while it has a round loaded: the arrows were
+ * enchanted, not the bow.
+ *
+ * @param {object|null} weaponItem
+ * @param {object|null} ammoItem
+ * @param {number} [worldTime]
+ * @returns {number} 1 when nothing multiplies
+ */
+export function rangeIncrementMultiplierOf(weaponItem, ammoItem, worldTime = 0) {
+  const projectile = ammoItem ?? weaponItem;
+  const raw = projectile?.flags?.["trg-prime"]?.[RANGE_MULTIPLIER_FLAG];
+  if (raw === undefined || raw === null) return 1;
+  const value = typeof raw === "object" ? Number(raw.value) : Number(raw);
+  if (!Number.isFinite(value) || value <= 0) return 1;
+  const ends = typeof raw === "object" ? Number(raw.expiresAt) : NaN;
+  if (Number.isFinite(ends) && ends > 0 && Number(worldTime) >= ends) return 1;
+  return value;
 }
 
 /* ─────────────────────────────────────────────────────────────────────
