@@ -13,6 +13,7 @@ const AS = m("magic", "ability-swap.mjs"), SE = m("magic", "spell-effects.mjs"),
   GT = m("magic", "spell-check-gates.mjs"), CW = m("magic", "cast-workflow.mjs"), MM = m("magic", "module-mark.mjs"), SA = m("magic", "sanctuary.mjs"),
   RF = m("combat", "refocus.mjs"), ACW = m("combat", "action-workflow.mjs"), FT = m("dice", "foretell.mjs"), FW = m("dice", "foretell-workflow.mjs"),
   CK = m("dice", "check.mjs"), DE = m("magic", "declared-effect.mjs"), AD = m("magic", "attack-degree-rows.mjs"),
+  DD = m("combat", "defence-dc.mjs"),
   SJ = path.join(SYSTEM_ROOT, "system.json");
 const MUTATIONS = [
   // C1
@@ -103,8 +104,12 @@ const MUTATIONS = [
   { name: "THE GAP: a declared tick never grows", file: SE, from: "            spec.flags.conditionals = declaredConditionalsWarped(spec.flags.conditionals, warpBonus, warpBonusMax);", to: "", breaks: "C13" },
   { name: "every declared row grows", file: SE, from: "(row?.warpBonus === true && Number.isFinite(Number(row.value))", to: "(Number.isFinite(Number(row?.value))", breaks: "C13" },
   { name: "the cap is ignored", file: SE, from: "    ? { ...row, value: warpedBonusValue(Number(row.value), warpBonus, warpBonusMax) }", to: "    ? { ...row, value: warpedBonusValue(Number(row.value), warpBonus, null) }", breaks: "C13" },
+  // F1 (3.672.1)
+  { name: "LIVE TEST BROKEN AGAIN: a save DC prints its key", file: DD, from: "  fortitudeDC: \"Fortitude DC\", reflexDC: \"Reflex DC\", willDC: \"Will DC\",", to: "  reflexDC: \"Reflex DC\", willDC: \"Will DC\",", breaks: "F1" },
+  { name: "a skill DC keeps its prefix", file: DD, from: "SKILL_DC.test(key) ? key.slice(\"skillDC:\".length) : key", to: "key", breaks: "F1" },
+  { name: "the card goes back to the raw key", file: SE, from: "            + `${defenceDCKeyText(dcKey)} anyone rolls against to `", to: "            + `${dcKey.replace(/^skillDC:/, \"\")} DC anyone rolls against to `", breaks: "F1" },
   // version
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.672.0\"", to: "\"version\": \"3.671.1\"", breaks: "Z0" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.672.1\"", to: "\"version\": \"3.671.1\"", breaks: "Z0" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-block8-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

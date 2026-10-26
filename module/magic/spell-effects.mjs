@@ -35,7 +35,7 @@ import { lightTraitDefaultRow, morphStrikeIsMagical } from "../trait-rules.mjs";
 import { SKILLS } from "../config.mjs";
 import { speedBase } from "../combat/speed-pool.mjs";
 import { createEffectsOn } from "../combat/target-relay-workflow.mjs";
-import { defenceDCRowFrom } from "../combat/defence-dc.mjs";
+import { defenceDCKeyText, defenceDCRowFrom } from "../combat/defence-dc.mjs";
 import { applyConditionTags, formatAppliedTags } from "../combat/effect-application-workflow.mjs";
 import { CONDITIONS } from "../conditions/registry.mjs";
 import { grantedSenseBlock, actorSenses, senseLine } from "../senses.mjs";
@@ -3773,7 +3773,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           const dcShown = `${dcValue >= 0 ? "+" : ""}${dcValue}`;
           lines.push(line(
             `${target.name}: <strong>${dcShown} ${effect.bonusType ?? "status"}</strong> to the `
-            + `${dcKey.replace(/^skillDC:/, "")} DC anyone rolls against to `
+            + `${defenceDCKeyText(dcKey)} anyone rolls against to `
             + `${effect.scope || dcRow.when.actions.join(", ")}${durationText}.`));
           break;
         }

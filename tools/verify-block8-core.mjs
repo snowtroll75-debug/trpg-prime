@@ -347,13 +347,24 @@ const markCase = caseOf("moduleMark", "marker");
     && se.indexOf("spec.flags.conditionals = declaredConditionalsWarped(") < se.indexOf("const data = declaredEffectData(spec, SYSTEM_ID, CHANGE_TYPE.ADD);"));
 }
 
+// 3.672.1: A DEFENCE ROW'S DC IN WORDS on a spell's card (found in Inner
+// Tempest 0.9.0's live test: Root's card read "to the fortitudeDC DC").
+{
+  const dd = await imp("combat/defence-dc.mjs");
+  equal("F1 a defence row's DC reads as words: the saves, Attack, Defence, and a skill as it always did",
+    ["fortitudeDC", "reflexDC", "willDC", "attackDC", "defence", "skillDC:deception", "skillDC:acrobatics"].map((k) => dd.defenceDCKeyText(k)),
+    ["Fortitude DC", "Reflex DC", "Will DC", "Attack DC", "Defence (DB)", "deception DC", "acrobatics DC"]);
+  ok("F1 the spell card's defenceDC line names it so",
+    /\+ `\$\{defenceDCKeyText\(dcKey\)\} anyone rolls against to `/.test(se) && !/dcKey\.replace\(\/\^skillDC:\/, ""\)/.test(se));
+}
+
 // 3.672.0 OR LATER: a later release keeps these seams.
 {
   const [ma, mi] = String(JSON.parse(read("system.json")).version).split(".").map(Number);
   ok("Z0 the system is 3.672.0 or later", ma > 3 || (ma === 3 && mi >= 672));
 }
 
-const EXPECTED = 63;
+const EXPECTED = 65;
 equal("Z the suite ran every check it is meant to", checks + 1, EXPECTED);
 if (failures.length) { console.log(`verify-block8-core: ${checks} checks — ${failures.length} FAILED\n`); for (const x of failures) console.log(`  ✗ ${x}`); process.exitCode = 1; }
 else console.log(`verify-block8-core: ${checks} checks — all green.`);

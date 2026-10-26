@@ -70,6 +70,25 @@ export function isDefendableDC(dc) {
   return DEFENCE_DC_KEYS.includes(key) || SKILL_DC.test(key);
 }
 
+/*
+ * THE DC AS A CARD NAMES IT (3.672.1; found in Inner Tempest 0.9.0's live
+ * test). A spell's defenceDC line read "to the fortitudeDC DC anyone rolls
+ * against": the line stripped `skillDC:` and nothing else, so a save DC
+ * printed its key. Root was the first spell to raise one. A skill keeps the
+ * spelling it always had ("deception DC").
+ */
+const DC_WORDS = Object.freeze({
+  fortitudeDC: "Fortitude DC", reflexDC: "Reflex DC", willDC: "Will DC",
+  attackDC: "Attack DC", defence: "Defence (DB)"
+});
+
+/** "Fortitude DC", "deception DC", "Defence (DB)": a defence row's DC in words. */
+export function defenceDCKeyText(dc) {
+  const key = String(dc ?? "").trim();
+  if (Object.hasOwn(DC_WORDS, key)) return DC_WORDS[key];
+  return `${SKILL_DC.test(key) ? key.slice("skillDC:".length) : key} DC`;
+}
+
 /**
  * A spell's `defenceDC` effect row, turned into an entry this file
  * accepts — or the sentence the card should print instead.

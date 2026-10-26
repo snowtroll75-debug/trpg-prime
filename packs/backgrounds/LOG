@@ -1,10 +1,10 @@
-2026/10/26-13:12:40.568525 7f9cebfff6c0 Recovering log #284391
-2026/10/26-13:12:40.568616 7f9cebfff6c0 Level-0 table #284393: started
-2026/10/26-13:12:40.569390 7f9cebfff6c0 Level-0 table #284393: 1027 bytes OK
-2026/10/26-13:12:40.570821 7f9cebfff6c0 Delete type=0 #284391
-2026/10/26-13:12:40.570850 7f9cebfff6c0 Delete type=3 #284390
-2026/10/26-13:12:40.571207 7f9ceb7fe6c0 Expanding@0 2+1 (2054+24689 bytes) to 4+1 (4178+24689 bytes)
-2026/10/26-13:12:40.571220 7f9ceb7fe6c0 Compacting 4@0 + 1@1 files
-2026/10/26-13:12:40.572867 7f9ceb7fe6c0 Generated table #284395@0: 42 keys, 24689 bytes
-2026/10/26-13:12:40.572879 7f9ceb7fe6c0 Compacted 4@0 + 1@1 files => 24689 bytes
-2026/10/26-13:12:40.573249 7f9ceb7fe6c0 compacted to: files[ 0 5 1 0 0 0 0 ]
+2026/10/26-16:38:43.732345 7f2fcb7fe6c0 Recovering log #285260
+2026/10/26-16:38:43.732430 7f2fcb7fe6c0 Level-0 table #285262: started
+2026/10/26-16:38:43.733425 7f2fcb7fe6c0 Level-0 table #285262: 1027 bytes OK
+2026/10/26-16:38:43.735101 7f2fcb7fe6c0 Delete type=0 #285260
+2026/10/26-16:38:43.735129 7f2fcb7fe6c0 Delete type=3 #285259
+2026/10/26-16:38:43.735584 7f2fca7fc6c0 Expanding@0 2+1 (2054+24689 bytes) to 4+1 (4178+24689 bytes)
+2026/10/26-16:38:43.735600 7f2fca7fc6c0 Compacting 4@0 + 1@1 files
+2026/10/26-16:38:43.737223 7f2fca7fc6c0 Generated table #285264@0: 42 keys, 24689 bytes
+2026/10/26-16:38:43.737244 7f2fca7fc6c0 Compacted 4@0 + 1@1 files => 24689 bytes
+2026/10/26-16:38:43.738102 7f2fca7fc6c0 compacted to: files[ 0 5 1 0 0 0 0 ]
