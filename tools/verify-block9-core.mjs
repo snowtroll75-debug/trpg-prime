@@ -413,13 +413,28 @@ const discipleClass = { type: "class", name: "Disciple" };
   ok("Z2 the system is 3.673.2 or later", ma > 3 || (ma === 3 && (mi > 673 || (mi === 673 && pa >= 2))));
 }
 
+// 3.673.3 — F3 OF THE 3.673.2 LIVE TEST. The damage card said "Includes
+// critical bonus dice (minor)" under "9 Slashing damage (1d6 + 3)" after
+// Guarded had kept the die off the blow. Graham, 27 October: "Put the fix in
+// first and then push". Printed only when the dice are in the roll: not when
+// Guarded or Soul Drain took them, nor against precision immunity.
+{
+  const at = aw.indexOf("Includes critical bonus dice (${critical}), precision type.");
+  const guardAt = aw.indexOf("if (await offerCriticalGuard(targetActor, actor, weapon)) guardDice = critDiceKept;");
+  ok("L3 \"Includes critical bonus dice\" only when they are in the roll: not taken by Guarded or Soul Drain, nor lost to precision immunity",
+    /if \(critical && critDiceKept && !drainDice && !guardDice\) \{\n\s*lines\.push\(line\(`Includes critical bonus dice \(\$\{critical\}\), precision type\.`\)\);/.test(aw)
+    && guardAt > 0 && at > guardAt && aw.split("Includes critical bonus dice (").length === 2);
+  const [ma, mi, pa] = String(JSON.parse(read("system.json")).version).split(".").map(Number);
+  ok("Z3 the system is 3.673.3 or later", ma > 3 || (ma === 3 && (mi > 673 || (mi === 673 && pa >= 3))));
+}
+
 // 3.673.0 OR LATER.
 {
   const [ma, mi] = String(JSON.parse(read("system.json")).version).split(".").map(Number);
   ok("Z0 the system is 3.673.0 or later", ma > 3 || (ma === 3 && mi >= 673));
 }
 
-const EXPECTED = 71;
+const EXPECTED = 73;
 equal("Z the suite ran every check it is meant to", checks + 1, EXPECTED);
 if (failures.length) { console.log(`verify-block9-core: ${checks} checks — ${failures.length} FAILED\n`); for (const x of failures) console.log(`  ✗ ${x}`); process.exitCode = 1; }
 else console.log(`verify-block9-core: ${checks} checks — all green.`);

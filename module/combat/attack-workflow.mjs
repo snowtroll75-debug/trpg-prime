@@ -5639,7 +5639,12 @@ async function resolveWeaponDamage(
   ];
   if (displayBonusDice) lines.push(line(`Includes +${displayBonusDice} base dice from BAB.`));
   if (versus.line) lines.push(line(versus.line));
-  if (critical) {
+  // ONLY WHEN THEY ARE IN THE ROLL (3.673.3, F3 of the 3.673.2 live test).
+  // Guarded (3.673.0) and a Reaver Blade's Soul Drain (3.659.0) keep the
+  // critical's dice off the blow, and a creature immune to precision takes
+  // none: the card said "Includes critical bonus dice" under a formula
+  // without them. Each of those says what became of the dice in its own line.
+  if (critical && critDiceKept && !drainDice && !guardDice) {
     lines.push(line(`Includes critical bonus dice (${critical}), precision type.`));
   }
   for (const said of Array.isArray(declaredBonusLines) ? declaredBonusLines : []) lines.push(line(said));
