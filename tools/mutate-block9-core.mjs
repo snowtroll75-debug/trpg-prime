@@ -42,7 +42,7 @@ const MUTATIONS = [
   { name: "THE GAP: the critical's dice still land", file: AW, from: "    criticalDice: (drainDice || guardDice) ? 0 : critDiceKept,", to: "    criticalDice: drainDice ? 0 : critDiceKept,", breaks: "C4" },
   { name: "Guarded heals all of it", file: RD, from: "  return Math.ceil(Math.max(0, Number(negated) || 0) / 2);", to: "  return Math.max(0, Number(negated) || 0);", breaks: "C4" },
   { name: "Guarded is every time, not once a day", file: RD, from: "    if (!runeFrequencyAllows(runeMarkersOf(e.item), e.key, frequency, now)) continue;\n    return { key: e.key, label: `${e.item?.name ?? \"\"} (${e.label})`, runeLabel", to: "    return { key: e.key, label: `${e.item?.name ?? \"\"} (${e.label})`, runeLabel", breaks: "C4" },
-  { name: "the guard's heal never reaches the target", file: AW, from: "      if (heal > 0) await relayHeal(targetActor, heal, {}, () => healActor(targetActor, heal));", to: "", breaks: "C4" },
+  { name: "the guard's heal never reaches the target", file: AW, from: "        const healed = await relayHeal(targetActor, heal, {}, () => healActor(targetActor, heal));", to: "        const healed = 0;", breaks: "C4" },
   { name: "the guard's player is never asked", file: CGW, from: "  const yes = await askOwner(target, {", to: "  const yes = await Promise.resolve(true) && ({", breaks: "C4" },
   { name: "the day is never marked", file: CGW, from: "    const updates = runeUseUpdates(runeMarkersOf(item), key, frequency, worldNow());", to: "    const updates = {};", breaks: "C4" },
   // C5
@@ -118,7 +118,13 @@ const MUTATIONS = [
   { name: "a refused rune keeps its button", file: RA, from: "    if (kind === \"weapon\" && registeredRune(chosen.key) && !runeUsageAllows(chosen.key, weaponUsage(item?.system)).ok) continue;\n", to: "", breaks: "R6" },
   { name: "THE REVIEW'S 7: no timer is ended by hand", file: APIW, from: "      return stopRuneTimer(actor, item, key);", to: "      return false;", breaks: "R7" },
   // version
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.673.0\"", to: "\"version\": \"3.672.1\"", breaks: "Z0" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.673.1\"", to: "\"version\": \"3.672.1\"", breaks: "Z0" },
+  // 3.673.1 (F2, the live test)
+  { name: "THE DEFECT: the weapon card's Now X HP is read before Guarded's heal", file: AW, from: "          damageResult.newHP = Number(damageResult.newHP) + Number(healed);\n", to: "", breaks: "L1" },
+  { name: "the card's figure is mended but the Strike's result is not", file: AW, from: "          finalHP = damageResult.newHP;\n", to: "", breaks: "L1" },
+  { name: "the heal is counted before it is dealt", file: AW, from: "        if (damageResult && Number.isFinite(Number(damageResult.newHP)) && Number(healed) > 0) {", to: "        if (damageResult && Number.isFinite(Number(damageResult.newHP)) && Number(heal) > 0) {", breaks: "L1" },
+  { name: "the spell's card no longer counts its heal", file: CAST, from: "      if (newHP !== null && Number.isFinite(Number(newHP))) newHP = Number(newHP) + (Number(healed) || 0);", to: "", breaks: "L1" },
+  { name: "the patch version is not raised", file: SJ, from: "\"version\": \"3.673.1\"", to: "\"version\": \"3.673.0\"", breaks: "Z1" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-block9-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

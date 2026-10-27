@@ -6010,7 +6010,18 @@ async function resolveWeaponDamage(
       const heal = criticalGuardHeal(negatedRoll.total);
       const { relayHeal } = await import("./target-relay-workflow.mjs");
       const { healActor } = await import("../magic/spell-effects.mjs");
-      if (heal > 0) await relayHeal(targetActor, heal, {}, () => healActor(targetActor, heal));
+      if (heal > 0) {
+        const healed = await relayHeal(targetActor, heal, {}, () => healActor(targetActor, heal));
+        // THE CARD'S "NOW X HP" COUNTS THE HEAL (3.673.1). Found live: a
+        // goblin's critical on a Guarded archer printed "Now 25 / 32" while
+        // the archer stood at 30, because the HP was read before the heal.
+        // The spell path already added what `relayHeal` answers; this is
+        // its second call site.
+        if (damageResult && Number.isFinite(Number(damageResult.newHP)) && Number(healed) > 0) {
+          damageResult.newHP = Number(damageResult.newHP) + Number(healed);
+          finalHP = damageResult.newHP;
+        }
+      }
       lines.push(line(`<strong>Guarded:</strong> ${targetActor.name} negates the critical's ${guardDice} bonus ${guardDice === 1 ? "die" : "dice"} `
         + `(${guardDice}d${die} = ${negatedRoll.total}) and heals <strong>${heal}</strong>.`));
     }

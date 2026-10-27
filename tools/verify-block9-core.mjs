@@ -170,7 +170,7 @@ const discipleClass = { type: "class", name: "Disciple" };
   ok("C4 …rolled after the blow to say what was negated, and half healed through the relay",
     /const negatedRoll = await new Roll\(`\$\{guardDice\}d\$\{die\}`\)\.evaluate\(\);/.test(aw)
     && /const heal = criticalGuardHeal\(negatedRoll\.total\);/.test(aw)
-    && /if \(heal > 0\) await relayHeal\(targetActor, heal, \{\}, \(\) => healActor\(targetActor, heal\)\);/.test(aw));
+    && /if \(heal > 0\) \{\n\s*const healed = await relayHeal\(targetActor, heal, \{\}, \(\) => healActor\(targetActor, heal\)\);/.test(aw));
   ok("C4 asked of the wearer's player, refused without a reaction; their client spends it and marks the day",
     /if \(reactionRefusal\(target\)\) return null;/.test(cgw) && /const yes = await askOwner\(target, \{/.test(cgw)
     && /then: GUARD_STEP,/.test(cgw) && /const updates = runeUseUpdates\(runeMarkersOf\(item\), key, frequency, worldNow\(\)\);/.test(cgw)
@@ -366,13 +366,28 @@ const discipleClass = { type: "class", name: "Disciple" };
   ok("R7 an item timer can be ended by hand, saying its manual ending", /stopItemTimer: async \(actor, item, key\) => \{\n\s*const \{ stopRuneTimer \} = await import\("\.\/rune-timers-workflow\.mjs"\);\n\s*return stopRuneTimer\(actor, item, key\);/.test(apiw));
 }
 
+// 3.673.1 — FOUND IN THE LIVE TEST OF 3.673.0 (F2). A goblin's critical on
+// a Guarded archer printed "Now 25 / 32" while the archer stood at 30: the
+// weapon path read the HP before the heal. The spell path already counted it.
+{
+  const cast = read("module", "magic", "cast-workflow.mjs");
+  const guardAt = aw.indexOf("const healed = await relayHeal(targetActor, heal, {}, () => healActor(targetActor, heal));");
+  const nowAt = aw.indexOf("taken. Now ${damageResult.newHP} / ${Number(targetActor.system?.resources?.hp?.max ?? 0)} HP.");
+  ok("L1 a weapon's card counts Guarded's heal in its \"Now X HP\", as the spell's card does",
+    /if \(damageResult && Number\.isFinite\(Number\(damageResult\.newHP\)\) && Number\(healed\) > 0\) \{\n\s*damageResult\.newHP = Number\(damageResult\.newHP\) \+ Number\(healed\);\n\s*finalHP = damageResult\.newHP;/.test(aw)
+    && guardAt > 0 && nowAt > guardAt
+    && /const healed = await relayHeal\(targetActor, heal, \{\}, \(\) => healActor\(targetActor, heal\)\);\n\s*\/\/ The card's "Now X HP" counts the heal[^\n]*\n\s*if \(newHP !== null && Number\.isFinite\(Number\(newHP\)\)\) newHP = Number\(newHP\) \+ \(Number\(healed\) \|\| 0\);/.test(cast));
+  const [ma, mi, pa] = String(JSON.parse(read("system.json")).version).split(".").map(Number);
+  ok("Z1 the system is 3.673.1 or later", ma > 3 || (ma === 3 && (mi > 673 || (mi === 673 && pa >= 1))));
+}
+
 // 3.673.0 OR LATER.
 {
   const [ma, mi] = String(JSON.parse(read("system.json")).version).split(".").map(Number);
   ok("Z0 the system is 3.673.0 or later", ma > 3 || (ma === 3 && mi >= 673));
 }
 
-const EXPECTED = 66;
+const EXPECTED = 68;
 equal("Z the suite ran every check it is meant to", checks + 1, EXPECTED);
 if (failures.length) { console.log(`verify-block9-core: ${checks} checks — ${failures.length} FAILED\n`); for (const x of failures) console.log(`  ✗ ${x}`); process.exitCode = 1; }
 else console.log(`verify-block9-core: ${checks} checks — all green.`);
