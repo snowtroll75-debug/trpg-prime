@@ -66,7 +66,7 @@ const MUTATIONS = [
   { name: "the refusal is read without the reaction's traits", file: DOW, from: "reactionRefusal(defender, String(item.system?.traits ?? \"\"))", to: "reactionRefusal(defender, \"\")", breaks: "D2" },
   { name: "the refusal is never handed on", file: DOW, from: "has: Boolean(item), requiresReason, reactionReason, alreadyUp:", to: "has: Boolean(item), requiresReason, alreadyUp:", breaks: "D2" },
   // E
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.672.1\"", to: "\"version\": \"3.669.1\"", breaks: "E" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.673.0\"", to: "\"version\": \"3.669.1\"", breaks: "E" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-fixes-3669-2.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

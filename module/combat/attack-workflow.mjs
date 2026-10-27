@@ -3810,12 +3810,22 @@ export async function rollCriticalInjury(
   // WHICH TABLE WAS READ, by name, for the recurring type (3.609.0). See
   // typeRecurringTags in critical-riders.mjs.
   const tableKey = CRITICAL_TABLES[damageType] ? damageType : "slashing";
-  const bias =
+  let bias =
     severity === "deadly"
       ? "advantage"
       : severity === "minor"
         ? "disadvantage"
         : "normal";
+  // HARMONY EDGE (3.673.0, C5): the wielder's once-a-day reaction, asked
+  // before the injury roll — "You gain advantage on the attack critical
+  // roll" (B9-3: a minor critical's disadvantage and it cancel). Not for a
+  // forced result: Ambush and Sniping re-read a roll already made.
+  let edgeLine = "";
+  if (weapon && (forcedResult === null || forcedResult === undefined)) {
+    const { offerCriticalAdvantage } = await import("./critical-guard-workflow.mjs");
+    const edge = await offerCriticalAdvantage(actor, weapon, bias);
+    if (edge) { bias = edge.bias; edgeLine = edge.line; }
+  }
 
   const rolls = [];
   const draw = async (faces) => {
@@ -3861,6 +3871,7 @@ export async function rollCriticalInjury(
   const targetArmoured = targetArmour.armoured;
 
   const lines = [];
+  if (edgeLine) lines.push(line(edgeLine));
   // SAID WHEN IT MATTERED: only a bypassed piece that covers the struck
   // location changed what the table reads.
   if (targetActor && armourBypass?.length) {
@@ -5291,12 +5302,21 @@ async function resolveWeaponDamage(
   // Soul Drain — kept off the blow, rolled after it lands.
   const { criticalDiceAsDrain, damageDieOf, ignoresResistanceInMelee } = await import("./reaver-strikes.mjs");
   const drainDice = criticalDiceAsDrain(weapon, critical, critDiceKept);
+  // GUARDED (3.673.0, C4): the creature struck may negate the critical's extra
+  // damage — its bonus dice — and heal half of it. Asked of its own player
+  // before the damage is rolled; the dice are kept off the blow and rolled
+  // after it lands, to say how much was negated (Reaver Blade's shape).
+  let guardDice = 0;
+  if (critDiceKept && !drainDice && targetActor && actor) {
+    const { offerCriticalGuard } = await import("./critical-guard-workflow.mjs");
+    if (await offerCriticalGuard(targetActor, actor, weapon)) guardDice = critDiceKept;
+  }
   // UNSTOPPABLE FORCE (3.659.0; block 28 R8), read where the packets resolve below.
   const unstoppable = (weaponData.attackMode ?? "melee") !== "missile" && ignoresResistanceInMelee(Array.from(actor?.items ?? []));
   let formula = buildWeaponDamageFormula(handAndAHalfDamage ?? damageOverride ?? weaponData.damage, {
     bab: Number(system.combat?.bab?.total ?? 0),
     critical,
-    criticalDice: drainDice ? 0 : critDiceKept,
+    criticalDice: (drainDice || guardDice) ? 0 : critDiceKept,
     // QUICK DAMAGE (page 204, optional; R12).
     quickDamage: setting("quickDamage", false),
     quality: weaponData.quality || "standard",
@@ -5983,6 +6003,17 @@ async function resolveWeaponDamage(
     finalCase = damageResult?.case ?? null;
     finalHP = Number.isFinite(damageResult?.newHP) ? damageResult.newHP : null;
     // …AND THE CRITICAL'S DICE AS SOUL DRAIN (3.659.0; Reaver Blade).
+    if (guardDice) {
+      const die = damageDieOf(weaponData.damage);
+      const negatedRoll = await new Roll(`${guardDice}d${die}`).evaluate();
+      const { criticalGuardHeal } = await import("./critical-guard-workflow.mjs");
+      const heal = criticalGuardHeal(negatedRoll.total);
+      const { relayHeal } = await import("./target-relay-workflow.mjs");
+      const { healActor } = await import("../magic/spell-effects.mjs");
+      if (heal > 0) await relayHeal(targetActor, heal, {}, () => healActor(targetActor, heal));
+      lines.push(line(`<strong>Guarded:</strong> ${targetActor.name} negates the critical's ${guardDice} bonus ${guardDice === 1 ? "die" : "dice"} `
+        + `(${guardDice}d${die} = ${negatedRoll.total}) and heals <strong>${heal}</strong>.`));
+    }
     if (drainDice) {
       const drainRoll = await new Roll(`${drainDice}d${damageDieOf(weaponData.damage)}`).evaluate();
       if (drainRoll.total > 0) {
@@ -6128,7 +6159,12 @@ async function resolveWeaponDamage(
       // Grave-Cold Touch rides an essence strike only.
       damageType: String(effectiveDamageType ?? "").trim().toLowerCase(),
       targetHp: Number(targetActor?.system?.resources?.hp?.value ?? NaN),
-      targetMax: Number(targetActor?.system?.resources?.hp?.max ?? 0)
+      targetMax: Number(targetActor?.system?.resources?.hp?.max ?? 0),
+      // HOW FAR, AND PRECISION (3.673.0, C7): Tranquil Quiver's "more than 30
+      // feet away … 1d6 precision damage".
+      distanceFeet: await strikeDistanceFeet(actor, targetTokenHere),
+      precisionImmune,
+      precisionResisted
     };
     for (const rune of [
       // BANE IS IN THE STRIKE ITSELF (above); everything else is a packet.
@@ -6385,6 +6421,28 @@ async function resolveWeaponDamage(
     compactSummary: damageCompactSummary()
   });
   return { total, taken: finalTaken, damageCase: finalCase, newHP: finalHP, targetActor, damageType: effectiveDamageType, drStoppedCritical };
+}
+
+/**
+ * How far the struck creature is, in feet, or NaN when either token is not on
+ * the canvas (3.673.0, C7). A rider gated on distance reads NaN as unmet.
+ */
+async function strikeDistanceFeet(actor, targetToken) {
+  try {
+    if (!targetToken) return NaN;
+    const { activeToken, distanceBetween } = await import("./geometry.mjs");
+    const mine = activeToken(actor);
+    if (!mine) return NaN;
+    // AN UNMEASURED DISTANCE IS UNKNOWN, NOT 0 FEET (found in review):
+    // `distanceBetween` answers null when it cannot measure, and Number(null)
+    // is 0 — a target "0 feet away" withheld Tranquil Quiver's rider.
+    const raw = distanceBetween(mine, targetToken);
+    if (raw === null || raw === undefined || raw === "") return NaN;
+    const feet = Number(raw);
+    return Number.isFinite(feet) ? feet : NaN;
+  } catch (_e) {
+    return NaN;
+  }
 }
 
 export async function rollWeaponDamage(actor, weapon, { preset = null } = {}) {

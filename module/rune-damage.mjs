@@ -61,6 +61,7 @@ import { fieldToRunes } from "./rune-catalogue.mjs";
 import { roman } from "./runes.mjs";
 import { baneMatches, runeUsageAllows, weaponUsage } from "./weapon-rune-usage.mjs";
 import { alignedDamageAffects } from "./creature-traits.mjs";
+import { registeredEnergyRune } from "./rune-declarations.mjs";
 
 /** The elemental runes and the energy each one deals. */
 export const ENERGY_RUNES = Object.freeze({
@@ -158,12 +159,15 @@ export function runeDamageFor(item, { target = null } = {}) {
   const usage = weaponUsage(item?.system, { ammunition: isAmmunition });
   const out = [];
   for (const chosen of fieldToRunes("weapon", item?.system?.runes ?? "")) {
-    const rune = DAMAGE_RUNES[chosen.key];
+    // A MODULE'S ENERGY RUNE (3.673.0, C6): Inner Tempest's Soulful Strike,
+    // declared in the five's shape and switched on the same way.
+    const registered = DAMAGE_RUNES[chosen.key] ? null : registeredEnergyRune(chosen.key);
+    const rune = DAMAGE_RUNES[chosen.key] ?? registered;
     if (!rune) continue;
     // SUPPRESSED on a weapon it cannot be inscribed on (B10).
     if (!runeUsageAllows(chosen.key, usage).ok) continue;
-    // SWITCHED ON, for the five energy runes (R9).
-    if (ENERGY_RUNES[chosen.key] && !energyRuneActive(item, chosen.key)) continue;
+    // SWITCHED ON, for the five energy runes (R9) and a module's.
+    if ((ENERGY_RUNES[chosen.key] || registered) && !energyRuneActive(item, chosen.key)) continue;
     const tier = Math.max(1, Math.floor(Number(chosen.tier) || 1));
     // A tier above what the rune prints takes the highest it does print,
     // rather than reaching past the end of the ladder for `undefined`.

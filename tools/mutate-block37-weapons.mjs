@@ -35,7 +35,7 @@ const MUTATIONS = [
   { file: RUNES, name: "R8 — potency adds no weapon HP", from: "    hp: kind === \"weapon\" ? WEAPON_POTENCY_HP_PER_TIER * weaponTier : Number(potency?.hp) || 0,", to: "    hp: kind === \"weapon\" ? 0 : Number(potency?.hp) || 0,", breaks: "A2" },
   { file: QUALITY, name: "an untracked weapon is given potency HP and can now break", from: "    ? (weaponHP > 0 ? weaponHP + potencyHP : 0)", to: "    ? weaponHP + potencyHP", breaks: "A5" },
   { file: ATTACK, name: "the roll leaves potency's damage out", from: "  if (weaponPotencyDamage) formula += ` + ${weaponPotencyDamage}`;", to: "", breaks: "A7" },
-  { file: DAMAGE, name: "THE OLD DEFECT: the energy runes are always on", from: "    if (ENERGY_RUNES[chosen.key] && !energyRuneActive(item, chosen.key)) continue;", to: "", breaks: "B1" },
+  { file: DAMAGE, name: "THE OLD DEFECT: the energy runes are always on", from: "    if ((ENERGY_RUNES[chosen.key] || registered) && !energyRuneActive(item, chosen.key)) continue;", to: "", breaks: "B1" },
   { file: DAMAGE, name: "Flametooth's flames go out", from: "  if ((flags.specificItem?.alwaysActive ?? []).includes(key)) return true;", to: "", breaks: "B3" },
   { file: ACTIONS_WF, name: "switching an energy rune on is free", from: "    if (!await payRuneActivation(actor, action.apCost ?? 1, `${item.name} — ${action.label}`)) return null;\n  }\n  await setState(item, action.state, !on);", to: "  }\n  await setState(item, action.state, !on);", breaks: "B7" },
   { file: DAMAGE, name: "THE OLD DEFECT: a secondary critical on every hit", from: "  if (!strikeSeverity) return null;", to: "  if (!strikeSeverity) return { severity: \"minor\", modifier: Number(entry.secondaryCritical) || 0 };", breaks: "C1" },

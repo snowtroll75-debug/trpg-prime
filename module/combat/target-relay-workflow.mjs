@@ -17,6 +17,7 @@ import {
   RELAY_ACTIONS,
   RELAY_SOCKET,
   RELAY_TIMEOUT_MS,
+  RELAY_WORKING_TIMEOUT_MS,
   buildRelayRequest,
   handleRelayMessage,
   needsRelay
@@ -24,6 +25,8 @@ import {
 
 /** Requests this client is waiting on, by id. */
 const pending = new Map();
+/** The longer wait a request is given once the GM's client has it (3.673.0). */
+const working = new Map();
 
 let counter = 0;
 function nextRequestId() {
@@ -48,15 +51,23 @@ function ask(action, target, payload) {
   });
 
   return new Promise((resolve) => {
-    const timer = setTimeout(() => {
+    const giveUp = (reason) => () => {
       pending.delete(requestId);
-      resolve({ ok: false, reason: "no GM answered — is one connected?" });
-    }, RELAY_TIMEOUT_MS);
+      working.delete(requestId);
+      resolve({ ok: false, reason });
+    };
+    let timer = setTimeout(giveUp("no GM answered — is one connected?"), RELAY_TIMEOUT_MS);
 
     pending.set(requestId, (reply) => {
       clearTimeout(timer);
       pending.delete(requestId);
+      working.delete(requestId);
       resolve(reply);
+    });
+    // THE GM HAS IT (3.673.0): wait for its answer, up to the longer clock.
+    working.set(requestId, () => {
+      clearTimeout(timer);
+      timer = setTimeout(giveUp("the GM's client took too long to answer"), RELAY_WORKING_TIMEOUT_MS);
     });
 
     game.socket.emit(RELAY_SOCKET, request);
@@ -481,7 +492,8 @@ async function liveDeps() {
     },
     itemOf: (target, itemId) => target.items?.get(itemId) ?? null,
     updateItem: (item, data) => item.update(data),
-    reply: (message) => game.socket.emit(RELAY_SOCKET, message)
+    reply: (message) => game.socket.emit(RELAY_SOCKET, message),
+    acknowledge: (message) => game.socket.emit(RELAY_SOCKET, message)
   };
 }
 
@@ -492,6 +504,11 @@ export function registerTargetRelay() {
     if (data?.action === RELAY_ACTIONS.RESULT) {
       const resolve = pending.get(data.requestId);
       if (resolve) resolve(data);
+      return;
+    }
+    // …and the GM's word that it has taken it (3.673.0).
+    if (data?.action === RELAY_ACTIONS.WORKING) {
+      if (data.userId === game.user?.id) working.get(data.requestId)?.();
       return;
     }
     if (!String(data?.action ?? "").startsWith("target.")) return;

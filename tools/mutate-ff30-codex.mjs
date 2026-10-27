@@ -63,7 +63,7 @@ const MUTATIONS = [
   { name: "the breath is forgotten", file: ACT, from: "    await recordBreath(actor, item, use, results);\n", to: "", breaks: "B13" },
   { name: "Regeneration is offered again", file: TURN, from: "    if (a.kind === \"regeneration\" && autoRegen) {", to: "    if (false) {", breaks: "B15" },
   { name: "inheritance never runs", file: ITEM, from: "    applyCodexInheritance(this);\n", to: "", breaks: "B16" },
-  { name: "death guards read effects only", file: DGW, from: "  const effects = declarationCarriers(actor);", to: "  const effects = Array.from(actor?.appliedEffects ?? actor?.effects ?? []);", breaks: "B17" },
+  { name: "death guards read effects only", file: DGW, from: "  const effects = [...declarationCarriers(actor), ...runeDeathGuardCarriers(Array.from(actor?.items ?? []))];", to: "  const effects = [...Array.from(actor?.appliedEffects ?? actor?.effects ?? []), ...runeDeathGuardCarriers(Array.from(actor?.items ?? []))];", breaks: "B17" },
   { name: "Life Drain never heals", file: DASW, from: "    if (spec.selfHeal > 0) {", to: "    if (false) {", breaks: "B18" },
   { name: "Elemental Strikes ride nothing", file: RIDERS, from: ", ...elementalStrikeRiders(actor, weapon)]", to: "]", breaks: "B19" },
   { name: "Pack Attack adds no die", file: ATTACK, from: "  const packDice = packAttackDice(actor, targetToken, { attackerToken });", to: "  const packDice = 0;", breaks: "B20" },

@@ -394,6 +394,12 @@ export function aurasOf(items = [], level = 0) {
     // a Free Action turn the aura on or off" — untick the ability's Active.
     if (item?.type === "ability" && item?.system?.active === false) continue;
     declared.forEach((raw, index) => {
+      // WHILE THE ITEM'S STATE RUNS (3.673.0, C9): Inner Tempest's Mystic
+      // Incense Burner, "When the Mystic Incense Burner is lit … The incense
+      // will burn for 1 hour". An aura declaring `whileState` is emitted only
+      // while the item's `runeState` holds it — the state a timed item use
+      // switches on and its timer's end switches off (rune-timers-workflow).
+      if (raw?.whileState && !item?.flags?.[SYSTEM_ID]?.runeState?.[String(raw.whileState)]) return;
       // The level travels all the way in, because a scaled radius that
       // defaults to zero is an aura that silently catches nobody.
       const aura = normaliseAura(raw, { id: item.id, name: item.name }, index, level);

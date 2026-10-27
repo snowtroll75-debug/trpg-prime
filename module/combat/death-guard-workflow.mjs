@@ -9,9 +9,10 @@
  */
 import {
   DECLARED_USED_TODAY_FLAG, DEATH_GUARD_ACTION, declaredDeathGuards, declaredDeathGuardSources, deathGuardDC,
-  deathGuardExcepted, deathGuardHealTo, deathGuardHolds, deathGuardTypeUnknown
+  deathGuardExcepted, deathGuardGrantEffect, deathGuardHealTo, deathGuardHolds, deathGuardTypeUnknown
 } from "./death-guard.mjs";
 import { declarationCarriers } from "../declaration-carriers.mjs";
+import { runeDeathGuardCarriers } from "../rune-declarations.mjs";
 
 const SYSTEM_ID = "trg-prime";
 const line = (html) => `<p style="margin:2px 0">${html}</p>`;
@@ -33,7 +34,9 @@ async function postGuardCard(actor, title, lines) {
  * @returns {Promise<object|null>}
  */
 export async function tryDeathGuards(actor, { damageTypes = [], sourceLevel = null, sourceName = "", massive = false, noDeathState = false } = {}) {
-  const effects = declarationCarriers(actor);
+  // AND A WORN RUNE'S GUARD (3.673.0, C1): Karmic Resilience, read off the
+  // armour while it counts. See rune-declarations.mjs `runeDeathGuardCarriers`.
+  const effects = [...declarationCarriers(actor), ...runeDeathGuardCarriers(Array.from(actor?.items ?? []))];
   if (!declaredDeathGuards(effects).length) return null;
   const sources = declaredDeathGuardSources(effects);
   const { actorDefences } = await import("../creature-traits.mjs");
@@ -51,15 +54,22 @@ export async function tryDeathGuards(actor, { damageTypes = [], sourceLevel = nu
     }
 
     if (spec.offer) {
-      const { DialogV2 } = foundry.applications.api;
-      const yes = await DialogV2.confirm({
-        window: { title: spec.label },
-        content: `<p><strong>${actor.name}</strong> would be reduced to 0 HP${sourceName ? ` by ${sourceName}` : ""}. `
-          + `Use <strong>${spec.label}</strong>${spec.frequency === "daily" ? " (once per day)" : ""}`
-          + `${spec.spell ? ` — become as if affected by ${spec.spell}` : ""} and stay at 1 HP?</p>`,
-        rejectClose: false
-      });
+      const { reactionRefusal, spendReaction } = await import("./action-points-workflow.mjs");
+      const refused = spec.reaction ? reactionRefusal(actor) : "";
+      if (refused) { lines.push(line(`<em>${spec.label} cannot answer — ${refused}</em>`)); continue; }
+      const content = `<p><strong>${actor.name}</strong> would be reduced to 0 HP${sourceName ? ` by ${sourceName}` : ""}. `
+        + `Use <strong>${spec.label}</strong>${spec.frequency === "daily" ? " (once per day)" : ""}${spec.reaction ? " (a reaction)" : ""}`
+        + `${spec.spell ? ` — become as if affected by ${spec.spell}` : ""} and stay at 1 HP?</p>`;
+      let yes;
+      if (spec.askOwner) {
+        const { askOwner } = await import("../owner-query-workflow.mjs");
+        yes = await askOwner(actor, { title: spec.label, content, yes: `Use ${spec.label}`, no: "Not now" });
+      } else {
+        const { DialogV2 } = foundry.applications.api;
+        yes = await DialogV2.confirm({ window: { title: spec.label }, content, rejectClose: false });
+      }
       if (!yes) { lines.push(line(`<em>${spec.label} not used.</em>`)); continue; }
+      if (spec.reaction && !await spendReaction(actor, spec.label)) { lines.push(line(`<em>${spec.label} not used — no reaction to spend.</em>`)); continue; }
       lines.push(line(`<strong>${spec.label}</strong> is used.`));
     } else if (spec.auto) {
       // Second Heart (3.630.0): no save, no question — it holds.
@@ -91,6 +101,7 @@ export async function tryDeathGuards(actor, { damageTypes = [], sourceLevel = nu
     }
     await actor.update({ "system.resources.hp.value": 1 });
     if (spec.spell) lines.push(...await applyGuardSpell(actor, spec));
+    if (spec.grants) lines.push(...await applyGuardGrants(actor, spec));
     if (spec.once) lines.push(...await spendGuard(actor, effect, spec));
     await postGuardCard(actor, spec.label, lines);
     return { case: "death-guard", guard: spec.label, newHP: 1 };
@@ -98,6 +109,18 @@ export async function tryDeathGuards(actor, { damageTypes = [], sourceLevel = nu
 
   if (lines.length) await postGuardCard(actor, "Death guards", lines);
   return null;
+}
+
+/** What a held guard leaves behind (3.673.0, C1): Karmic Resilience's minute of help with dying checks. */
+async function applyGuardGrants(actor, spec) {
+  const data = deathGuardGrantEffect(spec.grants, {
+    worldTime: Number(game.time?.worldTime ?? 0),
+    round: game.combat?.started ? Number(game.combat.round ?? 0) : null
+  });
+  if (!data) return [];
+  await actor.createEmbeddedDocuments("ActiveEffect", [data]);
+  const minutes = Math.round(spec.grants.seconds / 60);
+  return [line(`${actor.name} gains <strong>${spec.grants.label}</strong> for ${minutes >= 1 ? `${minutes} minute${minutes === 1 ? "" : "s"}` : `${spec.grants.seconds} seconds`}.`)];
 }
 
 /** A one-use guard goes once it has answered (3.630.0). */

@@ -87,7 +87,15 @@ export const RELAY_ACTIONS = Object.freeze({
   // END_CAST is: the GM's client ends the caster's registered cast by its id
   // and nothing else.
   END_SPELL: "target.endSpell",
-  RESULT: "target.result"
+  RESULT: "target.result",
+  // "I HAVE IT, AND IT MAY TAKE A WHILE" (3.673.0). Sent by the GM's client
+  // the moment it takes a request, before carrying it out. A request that
+  // reaches a death guard asked of its wearer's player (Inner Tempest's
+  // Karmic Resilience, owner-query-workflow) waits up to a minute for the
+  // answer; the asker, told the GM has it, waits for that answer instead of
+  // reporting "no GM answered" after eight seconds while the GM's client
+  // goes on to apply the blow.
+  WORKING: "target.working"
 });
 
 /** The records an INJURY_RECORD request may write, and nothing else. */
@@ -99,6 +107,13 @@ const INJURY_RECORD_KINDS = Object.freeze(["persistence", "fatal", "location", "
 
 /** How long a client waits for the GM's answer before giving up. */
 export const RELAY_TIMEOUT_MS = 8000;
+
+/**
+ * How long it waits once the GM's client has said it has the request
+ * (3.673.0): longer than a player's answer to an owner query (a minute,
+ * owner-query-workflow), so a guard asked of its wearer is never outwaited.
+ */
+export const RELAY_WORKING_TIMEOUT_MS = 90000;
 
 /**
  * Should THIS client carry out a relayed request?
@@ -463,8 +478,11 @@ export async function performRelay(request, deps) {
 export async function handleRelayMessage(data, { user, activeGM, deps }) {
   const action = data?.action ?? "";
   if (!action.startsWith("target.")) return { handled: false, reason: "not a target relay message" };
-  if (action === RELAY_ACTIONS.RESULT) return { handled: false, reason: "a reply, not a request" };
+  if (action === RELAY_ACTIONS.RESULT || action === RELAY_ACTIONS.WORKING) return { handled: false, reason: "a reply, not a request" };
   if (!shouldHandleAsGM(user, activeGM)) return { handled: false, reason: "another GM is handling it" };
+  // TAKEN (3.673.0): the asker now waits for the answer, however long the
+  // request takes, rather than its first eight seconds.
+  deps.acknowledge?.({ action: RELAY_ACTIONS.WORKING, requestId: data.requestId, userId: data.userId });
 
   // A THROW MUST STILL ANSWER. If the write fails on the GM's client —
   // a missing global, a schema refusal, anything — returning without a

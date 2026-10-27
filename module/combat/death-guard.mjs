@@ -87,6 +87,18 @@ function normaliseDeathGuard(raw) {
   // normal Dying rules".
   if (raw.notOutright === true) out.notOutright = true;
   if (raw.needsDeathState === true) out.needsDeathState = true;
+  // AND WHAT IT LEAVES BEHIND (3.673.0, C1). Karmic Resilience: "Furthermore,
+  // you gain a +2 circumstance bonus to all dying checks for 1 minute." An
+  // effect on the creature, laid once the guard holds, carrying conditionals
+  // for `seconds`. See `deathGuardGrantEffect`.
+  // A REACTION, ASKED OF ITS OWN PLAYER (3.673.0, C1): Karmic Resilience is
+  // "Activate Reaction", and its wearer chooses, wherever the blow is
+  // resolved. `reaction` needs and spends one; `askOwner` puts the question
+  // to the creature's player (owner-query-workflow.mjs).
+  if (raw.reaction === true) out.reaction = true;
+  if (raw.askOwner === true) out.askOwner = true;
+  const grants = normaliseGuardGrants(raw.grants, out.label);
+  if (grants) out.grants = grants;
   return out;
 }
 
@@ -168,4 +180,32 @@ export function deathGuardHolds(degreeKey) {
 export function deathGuardTypeUnknown(spec, damageTypes = []) {
   return Boolean(spec && (spec.exceptDamageTypes.length || spec.exceptWeakness)
     && !(Array.isArray(damageTypes) && damageTypes.some((t) => lower(t))));
+}
+
+/** A guard's `grants`, normalised; null when it grants nothing usable. */
+function normaliseGuardGrants(raw, label) {
+  if (!raw || typeof raw !== "object") return null;
+  const conditionals = (Array.isArray(raw.conditionals) ? raw.conditionals : []).filter((c) => c && typeof c === "object");
+  const seconds = Math.max(0, Math.trunc(Number(raw.seconds) || 0));
+  if (!conditionals.length || !seconds) return null;
+  return { label: String(raw.label ?? "").trim() || label, seconds, conditionals };
+}
+
+/**
+ * The effect a held guard's `grants` lays (3.673.0, C1): its conditionals,
+ * timed to end `seconds` later by the world clock, and by the round in a
+ * combat (six seconds a round, at least one).
+ *
+ * @param {object} grants normalised
+ * @param {{worldTime?: number, round?: number|null}} now
+ */
+export function deathGuardGrantEffect(grants, { worldTime = 0, round = null } = {}) {
+  if (!grants) return null;
+  const flags = {
+    conditionals: grants.conditionals,
+    spellEffect: true,
+    spellEffectEnd: Number(worldTime) + grants.seconds
+  };
+  if (Number.isFinite(Number(round)) && round !== null) flags.conditionExpiresRound = Number(round) + Math.max(1, Math.ceil(grants.seconds / 6));
+  return { name: grants.label, img: "icons/svg/aura.svg", changes: [], flags: { [SYSTEM_ID]: flags } };
 }

@@ -23,6 +23,7 @@
  * extends `Actor` at module scope). So they live here.
  */
 
+import { ageShiftOf, withoutAge } from "./age-modifiers.mjs";
 import { classItemOf, resolveClassProgression, skillPointsPerLevel } from "./class-progression.mjs";
 import { CLASS_SKILL_GRANTS, classSkillBonuses, classSkillSources } from "./class-skills.mjs";
 import { aspectsOf } from "./divine-aspect.mjs";
@@ -122,7 +123,8 @@ export function prepareSkillPointBudget(system, actor) {
   // which is why this read `intelligence` directly until 3.232.0; the
   // Animal class (and so an animal companion) prints Wisdom instead.
   const abilityKey = system.progression.skillPointAbility || "intelligence";
-  const ability = system.attributes?.[abilityKey]?.total ?? 0;
+  // AGE ADDS NO SKILL POINTS (3.673.0, C10; B9-11). See age-modifiers.mjs.
+  const ability = withoutAge(system.attributes?.[abilityKey]?.total ?? 0, ageShiftOf(actor?.appliedEffects ?? actor?.effects ?? []), abilityKey);
   const resolved = skillPointsPerLevel(system.progression.skillPoints, ability, bonus);
   // What the bonus ACTUALLY contributed, not what it nominally is.
   //

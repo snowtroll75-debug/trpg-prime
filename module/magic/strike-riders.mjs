@@ -303,6 +303,16 @@ export function normaliseStrikeRider(raw) {
   if (flat) out.flat = true;
   if (condition && conditionRounds !== 1) out.conditionRounds = conditionRounds;
   if (conditionSave) out.conditionSave = conditionSave;
+  // A DISTANCE THE DAMAGE NEEDS (3.673.0, C7). Inner Tempest's Tranquil
+  // Quiver: "if the target is more than 30 feet away, the ammunition deals
+  // 1d6 precision damage". A damage gate only: the rider is still spent by
+  // the Strike it rode, near or far, because its +2 was.
+  const beyondFeet = Math.max(0, Math.trunc(Number(raw.beyondFeet) || 0));
+  if (beyondFeet) out.beyondFeet = beyondFeet;
+  // PRECISION DAMAGE (3.673.0, C7): the weapon's own type, which a creature
+  // immune to precision does not take and one resisting it takes half the
+  // dice of (page 203, R4), as the critical's bonus dice.
+  if (raw.precision === true) out.precision = true;
   return out;
 }
 
@@ -508,11 +518,12 @@ function riderPacket(spec, weapon = {}) {
   if (!spec || spec.conditionOnly) return null;
   const own = spec.weaponDie ? weaponOwnDie(weapon) : null;
   if (spec.weaponDie && !own) return null;
+  const weaponType = String(weapon?.damageType ?? "").split(/[,/]| or /i)[0].trim().toLowerCase();
   return {
     key: `rider:${spec.label}`,
     label: spec.label,
     dice: own ? own.dice : spec.dice,
-    type: own ? own.type : spec.damageType,
+    type: own ? own.type : (spec.precision ? (weaponType || spec.damageType) : spec.damageType),
     secondaryCritical: null,
     conditional: spec.conditional,
     against: spec.against,
@@ -574,6 +585,34 @@ export function riderPacketsFor(specs, weapon = {}, ctx = {}) {
         packet.conditional = !holds;
         packet.against = packet.against || riderGateText(spec);
         packet.why = holds ? "" : "its condition did not hold on this strike";
+      }
+      // BEYOND A DISTANCE, AND PRECISION (3.673.0, C7).
+      if (spec.beyondFeet) {
+        const feet = Number(ctx?.distanceFeet);
+        const far = Number.isFinite(feet) && feet > spec.beyondFeet;
+        packet.resolved = true;
+        if (!far) {
+          // Conditional and resolved, unmet: the strike's loop prints why and
+          // rolls nothing (attack-workflow's packet loop).
+          packet.applies = false;
+          packet.conditional = true;
+          packet.why = Number.isFinite(feet)
+            ? `the target is ${feet} feet away, not more than ${spec.beyondFeet}`
+            : `the distance to the target is unknown (it needs more than ${spec.beyondFeet} feet)`;
+        }
+      }
+      if (spec.precision && packet.applies) {
+        if (ctx?.precisionImmune) {
+          packet.resolved = true;
+          packet.applies = false;
+          packet.conditional = true;
+          packet.why = "the target is immune to precision damage";
+        } else if (ctx?.precisionResisted) {
+          const m = /^(\d+)d(\d+)$/i.exec(String(packet.dice ?? ""));
+          const kept = m ? Math.floor(Number(m[1]) / 2) : 0;
+          if (!kept) { packet.resolved = true; packet.applies = false; packet.conditional = true; packet.why = "the target resists precision damage, which halves this die to nothing"; }
+          else packet.dice = `${kept}d${m[2]}`;
+        }
       }
       return packet;
     })

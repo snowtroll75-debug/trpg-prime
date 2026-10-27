@@ -223,8 +223,15 @@ export function runeActionsFor(item) {
     // "Activate Engage (1 AP) … For 1 minute, you emanate a 10-foot
     // spiritual sanctuary … The rune then becomes expended and may be
     // restored using Refocus." Declared as data; see runeDeclaredAction.
+    // A REGISTERED RUNE ITS WEAPON CANNOT TAKE IS SUPPRESSED TOO (3.673.0;
+    // Tranquil Quiver's "any ranged weapon"): no button.
+    if (kind === "weapon" && registeredRune(chosen.key) && !runeUsageAllows(chosen.key, weaponUsage(item?.system)).ok) continue;
     const declared = declaredRuneAction(chosen, kind);
     if (declared) { out.push(declared); continue; }
+    // A MODULE'S ENERGY RUNE'S COMMAND (3.673.0, C6): Soulful Strike's
+    // "Activate Command (1 AP). When active …", the five's switch.
+    const energy = declaredEnergyAction(chosen, kind, item);
+    if (energy) { out.push(energy); continue; }
     const action = RUNE_ACTIONS[chosen.key];
     if (!action) continue;
     // An Animated rune on a breastplate is a data error worth ignoring
@@ -258,6 +265,38 @@ export function runeActionsFor(item) {
     });
   }
   return out;
+}
+
+/**
+ * The Command switch of a registered energy rune (3.673.0, C6), in the shape
+ * `runeActionsFor` returns, or null. The five's own handler presses it.
+ */
+function declaredEnergyAction(chosen, kind, item) {
+  if (kind !== "weapon") return null;
+  const rune = registeredRune(chosen?.key);
+  const energy = rune?.declares?.energy;
+  if (!rune || !energy || typeof energy !== "object" || !rune.on.includes("weapon")) return null;
+  if (!runeUsageAllows(chosen.key, weaponUsage(item?.system)).ok) return null;
+  if ((item?.flags?.[SYSTEM_ID]?.specificItem?.alwaysActive ?? []).includes(chosen.key)) return null;
+  const tier = Math.max(1, Math.floor(Number(chosen.tier) || 1));
+  const type = String(energy.type ?? "").trim().toLowerCase();
+  return {
+    key: rune.key,
+    label: `${rune.name}${Array.isArray(rune.tiers) && rune.tiers.length > 1 ? ` ${roman(tier)}` : ""}`,
+    verb: "Command",
+    tier,
+    state: energyRuneState(rune.key),
+    usesPerDay: Infinity,
+    sizeSteps: null,
+    range: "",
+    description: String(rune.effect ?? ""),
+    effects: {},
+    apCost: Math.max(0, Math.trunc(Number(energy.apCost ?? 1)) || 0),
+    durationSeconds: 0,
+    cooldownSeconds: 0,
+    energy: type,
+    declaredEnergy: true
+  };
 }
 
 /**
@@ -387,3 +426,38 @@ export function shiftableForms(candidates = [], { fromSize = "medium", steps = 0
     return Math.abs(index - origin) <= Math.max(0, Math.floor(Number(steps) || 0));
   });
 }
+
+/**
+ * The effect a declared action with no duration lays (3.673.0, C7): its
+ * conditionals, and its strike rider, spent by the next Strike its scope
+ * reaches. Pure, so the harness can run it.
+ *
+ * "BEFORE THE BEGINNING OF YOUR NEXT TURN" (3.673.0, C7b; Inner Tempest's
+ * Mindful: "Add your Wisdom ability score to your next attack roll with the
+ * weapon, which must be made before the beginning of your next turn"). An
+ * action whose effect declares `untilTurnStart: true` is handed the round it
+ * ends in (`extra.expiresRound`, the current round + 1 in a running combat),
+ * and the effect carries it as `conditionExpiresRound`: the start-of-turn
+ * sweep (effect-application-workflow `expireTimedConditions`) lifts it at the
+ * wielder's next turn. Out of combat no round is given, and the offer waits
+ * for the next attack as the other next-Strike effects do.
+ */
+export function nextStrikeEffect(item, action, extra = {}) {
+  const rider = action.effect?.strikeRider && typeof action.effect.strikeRider === "object"
+    ? { ...action.effect.strikeRider, label: action.effect.strikeRider.label ?? action.label, once: true }
+    : null;
+  const ends = action.effect?.untilTurnStart === true && Number.isFinite(Number(extra.expiresRound)) && extra.expiresRound !== null
+    ? Math.trunc(Number(extra.expiresRound)) : null;
+  return {
+    name: `${item.name} — ${action.label}`,
+    img: item.img || "icons/svg/target.svg",
+    origin: item.uuid,
+    changes: [],
+    flags: { [SYSTEM_ID]: {
+      ...(extra.conditionals?.length ? { conditionals: extra.conditionals } : {}),
+      ...(rider ? { strikeRider: rider } : {}),
+      ...(ends !== null ? { conditionExpiresRound: ends } : {})
+    } }
+  };
+}
+

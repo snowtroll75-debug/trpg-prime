@@ -1911,13 +1911,18 @@ export class TRGCombat extends Combat {
       }
     }
 
+    // A WORN RUNE'S HELP WITH BLEEDING (3.673.0, C2): Inner Tempest's
+    // Staunching. See rune-declarations.mjs `runeBleedEasing`.
+    const { runeBleedEasing, bleedReduceReaches } = await import("../rune-declarations.mjs");
+    const runeBleed = runeBleedEasing(Array.from(actor.items ?? []));
     if (rawBleedTotal && bleedingSeverity(rawBleedTotal)?.selfRemovable) {
       // Sharuk-Dur (Chapter 2): "the flat check to remove bleeding is 2
       // less". A LOWER DC is easier on a flat check, so the reduction is
       // subtracted; floored at 1, since a DC 0 flat check is not a check.
       const easier = Array.from(actor.appliedEffects ?? actor.effects ?? [])
         .filter((e) => !e.disabled)
-        .reduce((total, e) => total + Math.max(0, Number(e.getFlag?.(SYSTEM_ID, "bleedFlatCheckReduction") ?? 0)), 0);
+        .reduce((total, e) => total + Math.max(0, Number(e.getFlag?.(SYSTEM_ID, "bleedFlatCheckReduction") ?? 0)), 0)
+        + runeBleed.reduction;
       const bleedDC = Math.max(1, BLEEDING_FLAT_CHECK_DC - easier);
       const check = await TRGCheck.roll({
         actor,
@@ -1934,6 +1939,31 @@ export class TRGCombat extends Combat {
       if (check.outcome?.degree?.success) {
         for (const entry of bleeds) await entry.effect.delete();
         lines.push(TRGCombat.#chatLine("The bleeding <strong>stops</strong>."));
+      }
+    } else if (rawBleedTotal && bleedReduceReaches(runeBleed.reduceCheck, bleedingSeverity(rawBleedTotal)?.key)) {
+      // STAUNCHING II AND III (3.673.0, C2): "you may also attempt a DC 16
+      // flat check to reduce Moderate Bleeding by 1" (II), "any Bleeding"
+      // (III). One check at the end of the turn, where the Light band's own
+      // is rolled; a success takes 1 from the largest bleed.
+      const check = await TRGCheck.roll({
+        actor,
+        label: "Bleeding — Flat Check to Reduce",
+        subtitle: `${END_PHASE_LABEL} · DC ${runeBleed.reduceCheck.dc} (${runeBleed.labels.join(", ")})`,
+        type: "flat",
+        flat: true,
+        dc: runeBleed.reduceCheck.dc
+      });
+      if (check.outcome?.degree?.success) {
+        const largest = [...bleeds].sort((a, b) => b.value - a.value)[0];
+        if (largest) {
+          const next = largest.value - 1;
+          if (next <= 0) await largest.effect.delete();
+          else {
+            const { conditionEffectData } = await import("../conditions/manager.mjs");
+            await largest.effect.update({ name: conditionEffectData("bleeding", next).name, [`flags.${SYSTEM_ID}.value`]: next });
+          }
+          lines.push(TRGCombat.#chatLine(`The bleeding <strong>eases by 1</strong> (now ${Math.max(0, rawBleedTotal - 1)}).`));
+        }
       }
     } else if (rawBleedTotal) {
       lines.push(

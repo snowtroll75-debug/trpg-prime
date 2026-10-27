@@ -1936,8 +1936,22 @@ export async function resolveAction(actor, action, {
   let createBatchDC = 0;
   // A herb made without Alchemical Crafting: Very Hard, DC +5 (R5).
   let createHerbDC = 0;
+  // A MODULE'S ROAD TO CREATE (3.673.0, C8): Inner Tempest's Monastic Items,
+  // Meditation at DC +2 for a character with Inner Discipline.
+  let createRouteDC = 0;
   if (action.key === "create") {
     const skillKey = invokedSkillKey ?? action.skills?.[0] ?? null;
+    const { createRouteFor, createSkillIsNative } = await import("../create-crafting.mjs");
+    const { registeredCreateRoutes } = await import("../module-api.mjs");
+    const route = createSkillIsNative(skillKey)
+      ? null
+      : createRouteFor(registeredCreateRoutes(), skillKey, Array.from(actor.items ?? []).map((i) => i.name));
+    if (!createSkillIsNative(skillKey) && !route) {
+      const label = actor.system?.skills?.[skillKey]?.label ?? skillKey ?? "that skill";
+      const needs = registeredCreateRoutes().filter((r) => r.skill === skillKey).map((r) => r.requires.join(" or ")).join("; ");
+      ui.notifications.warn(`Create through ${label}${needs ? ` needs ${needs}` : " is not open to this character"}.`);
+      return null;
+    }
     const existing = createProjectStatus(actor);
     const active = activeCreateProject(actor);
     if (existing && !active) {
@@ -1954,6 +1968,7 @@ export async function resolveAction(actor, action, {
         return null;
       }
       createReroll = true;
+      createRouteDC = Math.max(0, Math.trunc(Number(active.routeDC) || 0));
       createItemTypeKey = String(active.itemTypeKey ?? "");
       createInventFormula = Boolean(active.inventingFormula);
       createBatchDC = active.isConsumable ? consumableDCModifier(active.batchQty) : 0;
@@ -1978,9 +1993,11 @@ export async function resolveAction(actor, action, {
           .filter((i) => i.type === "feat").map((i) => i.name),
         specialties: specialtyChoices(actor, "crafting"),
         items: Array.from(actor.items ?? []),
-        onlyTypes: createFeatOnlyTypes
+        onlyTypes: createFeatOnlyTypes,
+        route
       });
       if (!createSetup) return null;
+      createRouteDC = route?.dcStep ?? 0;
       const ranks = skillRanks(actor, skillKey);
       if (!meetsRankRequirement(ranks, createSetup.itemLevel)) {
         const label = actor.system?.skills?.[skillKey]?.label ?? skillKey;
@@ -3536,6 +3553,12 @@ export async function resolveAction(actor, action, {
   // ruling's own words, so it lands beside the other two.
   if (action.key === "create" && createHerbDC && finalDC !== null) {
     finalDC += createHerbDC;
+  }
+
+  // Create — another skill's road (3.673.0, C8): Monastic Items' "the DC is
+  // considered Hard (+2)".
+  if (action.key === "create" && createRouteDC && finalDC !== null) {
+    finalDC += createRouteDC;
   }
 
   // Shield Bash (Chapter 4): needs an equipped shield actually

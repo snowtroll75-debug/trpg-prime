@@ -63,7 +63,8 @@
     "module/magic/strike-riders.mjs#normaliseRiderLadder": "Pure rule (3.672.0), called in-file by normaliseStrikeRider; exported so verify-block8-core C2 can test a malformed ladder on its own.",
     "module/combat/target-relay-workflow.mjs#relayEndSpell": "Called through the module API (3.672.0): `helpers.endSpellOf` reaches it by a dynamic import's property, which this check does not read as a call. Inner Tempest's Spiritual Distraction and Disrupt Soul end their spell with it.",
     "module/magic/spell-effects.mjs#defenceDCWarpExtra": "Pure rule (3.672.0), called in-file by the defenceDC row; exported so verify-block8-core C12 can drive the cap (Root's max +4).",
-    "module/magic/spell-effects.mjs#declaredConditionalsWarped": "Pure rule (3.672.0), called in-file by the declare row; exported so verify-block8-core C13 can drive it (Root's balance tick, grown by its +1 PP warp)."
+    "module/magic/spell-effects.mjs#declaredConditionalsWarped": "Pure rule (3.672.0), called in-file by the declare row; exported so verify-block8-core C13 can drive it (Root's balance tick, grown by its +1 PP warp).",
+    "module/rune-declarations.mjs#tierValued": "Pure rule (3.673.0, C12), called in-file by runeDeclaredBonuses; exported so verify-block9-core C12 can drive it (Centred I-III's +1/+2/+3)."
   },
   "orphans": [
     "module/afflictions.mjs#STAGE_DELTA",

@@ -24,7 +24,7 @@ const MUTATIONS = [
   { name: "Unstoppable Force read from anything", file: RS, from: "i?.type === \"ability\" && i?.flags?.[SYSTEM_ID]?.creatureAbility?.derives?.meleeIgnoresResistance === true", to: "i?.flags?.[SYSTEM_ID]?.creatureAbility?.derives?.meleeIgnoresResistance === true", breaks: "B6" },
   { name: "every critical drains", file: RS, from: "  if (!critical || weapon?.flags?.[SYSTEM_ID]?.creatureAttack?.criticalDiceAsSoulDrain !== true) return 0;", to: "  if (!critical) return 0;", breaks: "B6" },
   { name: "the resistances still meet the blow", file: AW, from: "      resistances: unstoppable ? new Set() : targetDefences.resistances,", to: "      resistances: targetDefences.resistances,", breaks: "S4" },
-  { name: "the drain dice stay on the blow too", file: AW, from: "    criticalDice: drainDice ? 0 : critDiceKept,", to: "    criticalDice: critDiceKept,", breaks: "S4" },
+  { name: "the drain dice stay on the blow too", file: AW, from: "    criticalDice: (drainDice || guardDice) ? 0 : critDiceKept,", to: "    criticalDice: guardDice ? 0 : critDiceKept,", breaks: "S4" },
   { name: "frightened raised by every power in reach", file: FP, from: "  return { ...tag, value: value + 1,", to: "  return { ...tag, value: value + powerNames.length,", breaks: "B7" },
   { name: "status bonuses stack", file: FP, from: "  return Math.max(0, Math.trunc(Number(bonus) || 0) - Math.max(0, Math.trunc(Number(existingStatus) || 0)));", to: "  return Math.max(0, Math.trunc(Number(bonus) || 0));", breaks: "B8" },
   { name: "frightened is never raised", file: EFF, from: "    if (powers.length) tags = tags.map((t) => boostedFrightenedTag(t, powers));", to: "    if (false) tags = tags.map((t) => boostedFrightenedTag(t, powers));", breaks: "S5" },

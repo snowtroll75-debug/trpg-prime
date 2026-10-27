@@ -69,12 +69,15 @@ export function itemTypesForSkill(skillKey) {
  *
  * @param {string} skillKey The skill Create was invoked through.
  */
-export async function promptCreateSetup(skillKey, { featNames = [], specialties = [], items = [], onlyTypes = null } = {}) {
+export async function promptCreateSetup(skillKey, { featNames = [], specialties = [], items = [], onlyTypes = null, route = null } = {}) {
   const { DialogV2 } = foundry.applications.api;
   // ONLY THE FEAT'S TYPES, for a character let in by a feat rather than a
   // specialty (3.577.1; see `featGovernedCreateTypes`). An alchemist with
   // no Crafting specialty may make elixirs through Crafting, not horseshoes.
-  const types = itemTypesForSkill(skillKey)
+  // A MODULE'S ROAD (3.673.0, C8) opens its own types through its skill.
+  const types = (route
+    ? Object.entries(ITEM_TYPES).filter(([key]) => route.itemTypes.includes(key)).map(([key, cfg]) => ({ key, ...cfg }))
+    : itemTypesForSkill(skillKey))
     .filter((t) => !Array.isArray(onlyTypes) || onlyTypes.includes(t.key));
   if (!types.length) return null;
 
@@ -139,6 +142,7 @@ export async function promptCreateSetup(skillKey, { featNames = [], specialties 
         <span data-req-tools>${req("reqTools", "I have the tools (and a workshop, if the item needs one)")}</span>
         <span data-req-feat>${req("reqFeat", "I have the specialty or feat this item type requires")}</span>
         ${req("reqMaterials", "I've supplied raw materials worth at least half the Price<span data-materials></span>")}
+        ${route ? `<p class="hint" style="margin:6px 0 2px"><strong>${esc(route.label)}</strong>${route.dcStep ? ` — DC +${route.dcStep}` : ""}:</p>${route.ticks.map((t, i) => req(`reqRoute${i}`, esc(t))).join("")}` : ""}
       </div>
     </div>`,
     buttons: [
@@ -157,7 +161,12 @@ export async function promptCreateSetup(skillKey, { featNames = [], specialties 
             itemValue: Math.max(0, Math.trunc(Number(val("itemValue")) || 0)),
             batchQty: Math.max(1, Math.trunc(Number(val("batchQty")) || 1)),
             specialty: root?.querySelector?.('[name="specialty"]')?.value || "",
-            inventingFormula: Boolean(root?.querySelector?.('[name="inventingFormula"]')?.checked)
+            inventingFormula: Boolean(root?.querySelector?.('[name="inventingFormula"]')?.checked),
+            // THE ROAD TAKEN (3.673.0, C8), kept on the project for the
+            // following days' checks.
+            routeKey: route?.key ?? "",
+            routeLabel: route?.label ?? "",
+            routeDC: route?.dcStep ?? 0
           };
         }
       },
@@ -313,6 +322,7 @@ export async function startCreateProject(actor, { setup, skillKey, ranks, degree
     batchQty: setup.batchQty,
     inventingFormula: setup.inventingFormula,
     specialty: setup.specialty || "",
+    ...(setup.routeKey ? { routeKey: setup.routeKey, routeLabel: setup.routeLabel, routeDC: Math.max(0, Math.trunc(Number(setup.routeDC) || 0)) } : {}),
     progress: 0,
     daysWorked: 0,
     status: "progressing"

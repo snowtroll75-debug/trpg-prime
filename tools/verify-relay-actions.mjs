@@ -71,7 +71,9 @@ if (relayFile) {
 // must NOT have a handler case — `handleRelayMessage` turns it away
 // before the switch. Declared here so its absence is deliberate rather
 // than the first thing this check would otherwise flag.
-const NOT_A_REQUEST = new Set(["RESULT"]);
+// WORKING (3.673.0) is the other: the GM's "I have it", sent before the
+// request is carried out, so the asker waits for an owner's answer.
+const NOT_A_REQUEST = new Set(["RESULT", "WORKING"]);
 
 for (const name of Object.keys(RELAY_ACTIONS)) {
   if (NOT_A_REQUEST.has(name)) {

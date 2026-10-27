@@ -78,7 +78,7 @@ ok("S3 the divine mark rides the typed-damage path and both spell paths",
 ok("S4 Unstoppable Force empties the blow's resistances and bypasses its other packets'; a Reaver Blade critical's dice leave the blow and land as Soul Drain",
   /resistances: unstoppable \? new Set\(\) : targetDefences\.resistances,/.test(src.aw) && /resistanceCategories: unstoppable \? \[\] : targetDefences\.resistanceCategories,/.test(src.aw)
   && /if \(unstoppable\) bypassFor\(\[String\(rune\.type \?\? ""\)\.toLowerCase\(\)\], 5\);/.test(src.aw)
-  && /criticalDice: drainDice \? 0 : critDiceKept,/.test(src.aw) && /const tags = \[\{ key: "soulDrain", value: drainRoll\.total, label: conditionLabel\("soulDrain"\) \}\];/.test(src.aw));
+  && /criticalDice: \(drainDice \|\| guardDice\) \? 0 : critDiceKept,/.test(src.aw) && /const tags = \[\{ key: "soulDrain", value: drainRoll\.total, label: conditionLabel\("soulDrain"\) \}\];/.test(src.aw));
 ok("S5 Fearful Power: frightened in reach raised as it is applied; the Tenebrax's attacks and DB read the highest frightened around it",
   /if \(powers\.length\) tags = tags\.map\(\(t\) => boostedFrightenedTag\(t, powers\)\);/.test(src.eff)
   && /const fearful = fearfulPowerBonus\(actor\);/.test(src.caw) && /when: \{ checkTypes: \["attack"\] \}, sourceName: "Fearful Power" \}\]/.test(src.caw)

@@ -376,7 +376,8 @@ eq("C12b a type with no named kit keeps its tick",
   const act = code("module", "combat", "action-workflow.mjs");
   ok("C13 the dialog checks the character's own items", /createKitShortfall\(\{ itemTypeKey: t\.key, items \}\)/.test(wf)
     && /createTypeGateView\(gates\[typeSel\?\.value\], kits\[typeSel\?\.value\]\)/.test(wf));
-  ok("C13b and is handed them", /items: Array\.from\(actor\.items \?\? \[\]\),\s*onlyTypes: createFeatOnlyTypes\s*\}\);/.test(act));
+  // 3.673.0: a module's Create route rides beside them.
+  ok("C13b and is handed them", /items: Array\.from\(actor\.items \?\? \[\]\),\s*onlyTypes: createFeatOnlyTypes,?\s*(route\s*)?\}\);/.test(act));
   ok("C13c a day's work needs the kit as much as the first", /const kitShort = createKitShortfall\(\{ itemTypeKey: active\.itemTypeKey/.test(act));
 }
 // The lab: +4 circumstance on Crafting (alchemy) — R6: crafting an alchemical item.

@@ -49,6 +49,7 @@ import {
   registerSpellWarps,
   registerRunes, registeredRunes, registerLightSources, registerItemAutomation, registerPerilAutomation, registerFeatPickBonus, registerDamageShare,
   registerSpellCheckGate,
+  registerCreateRoute,
   queueSkillActions,
   queueFeatAutomation,
   queuePassiveAutomation,
@@ -64,7 +65,7 @@ import {
 import { KNOWN_SOURCEBOOKS, knownExtenderPacks, sourcebookTitle } from "./sourcebooks.mjs";
 import { SYSTEM_ID, contentPack, contentPacksFor, isFederated } from "./content-packs.mjs";
 import { addLanguage } from "./languages.mjs";
-import { addSkillActions } from "./data/skill-actions.mjs";
+import { addSkillActions, addSkillToAction } from "./data/skill-actions.mjs";
 import { FEAT_AUTOMATION, MODULE_HELPERS } from "./feats-workflow.mjs";
 import { addPendingModifier } from "./pending-modifiers.mjs";
 import { itemUsesMax, itemUsesRemaining } from "./uses-workflow.mjs";
@@ -111,6 +112,21 @@ export function buildModuleApi() {
     // A warping option a feat grants to the spells it names (3.625.0).
     registerSpellWarps: (featName, entries, moduleId) => registerSpellWarps(featName, entries, moduleId),
     registerRunes: (runes, moduleId) => registerRunes(runes, moduleId),
+    // AN ITEM'S TIMED STATE (3.673.0, C9): the Incense Burner's lit hour. The
+    // rune timer's own rail — a state on the item, an effect on the bearer
+    // that ends it — so an aura declaring `whileState` runs exactly as long.
+    startItemTimer: async (actor, item, { key, state, label, durationSeconds, ending = null }) => {
+      const { startRuneTimer } = await import("./rune-timers-workflow.mjs");
+      return startRuneTimer(actor, item, { key, state, label, durationSeconds, ending });
+    },
+    // …AND ENDED BY HAND (3.673.0; found in review): the timer's `manual`
+    // ending is said, not its lapse. Resolves whether one was running.
+    stopItemTimer: async (actor, item, key) => {
+      const { stopRuneTimer } = await import("./rune-timers-workflow.mjs");
+      return stopRuneTimer(actor, item, key);
+    },
+    // ANOTHER SKILL'S ROAD TO CREATE (3.673.0): Inner Tempest's Monastic Items.
+    registerCreateRoute: (route, moduleId) => registerCreateRoute(route, moduleId, { addSkill: addSkillToAction }),
     registeredRunes: (kind) => registeredRunes(kind),
     // A light a module's content sheds, in the LIGHT_SOURCES shape (3.669.0).
     registerLightSources: (entries, moduleId) => registerLightSources(entries, moduleId, Object.keys(LIGHT_SOURCES)),
@@ -258,6 +274,22 @@ export function buildModuleApi() {
        * interval damage, as Antitoxin's immediate save. Resolves what the
        * save did ({ended} or {stage}), or null when it is still incubating.
        */
+      /**
+       * AN ITEM'S SPELL AT THE ITEM'S OWN PP (3.673.0, C11; Inner Tempest's
+       * Restorative Mat: "you may once per day gain the benefit of either a
+       * Cure or Restoration spell (8 PP) by meditating on the mat"). The
+       * release potions, scrolls and wands already take
+       * (consumable-use-workflow `releaseItemSpell`): the spell by name — the
+       * actor's own copy, a uuid, or the spells pack — cast as an item cast at
+       * `pp`, none of the user's own PP, its activation already paid when
+       * `apPaid`. Resolves {cast, missing}; the caller keeps the once-a-day.
+       */
+      releaseItemSpell: async (actor, item, { name = "", uuid = "", pp = 0 } = {}, { apPaid = false, fixedDC = null } = {}) => {
+        const { releaseItemSpell } = await import("./consumable-use-workflow.mjs");
+        const ref = { name: String(name ?? ""), uuid: String(uuid ?? ""), pp: Math.max(0, Math.trunc(Number(pp) || 0)), warp: null };
+        const out = await releaseItemSpell(actor, item, ref, { apPaid: Boolean(apPaid), fixedDC });
+        return { cast: Boolean(out?.cast), missing: Boolean(out?.missing) };
+      },
       rollAfflictionSave: async (actor, affliction) => (await import("./combat/affliction-workflow.mjs")).rollAfflictionStageSave(actor, affliction, { withDamage: false }),
       temporaryImmunityRefusal: async (target, key) => {
         const t = await import("./temporary-immunity.mjs");

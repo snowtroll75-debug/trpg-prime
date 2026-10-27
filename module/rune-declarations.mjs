@@ -40,6 +40,9 @@ import { fieldToRunes } from "./rune-catalogue.mjs";
 import { registeredRune } from "./module-api.mjs";
 import { runeKindOf, runesCountFor } from "./rune-bearing.mjs";
 import { roman } from "./runes.mjs";
+import { runeUsageAllows, weaponUsage } from "./weapon-rune-usage.mjs";
+
+const SYSTEM_ID = "trg-prime";
 
 /**
  * The registered runes inscribed on one item, with their tier and the
@@ -53,6 +56,8 @@ function declaredRunesOn(item) {
   for (const chosen of fieldToRunes(kind, item?.system?.runes ?? "")) {
     const rune = registeredRune(chosen.key);
     if (!rune) continue;
+    // ON A WEAPON ITS USAGE LINE REFUSES, IT DECLARES NOTHING (3.673.0).
+    if (kind === "weapon" && !runeUsageAllows(chosen.key, weaponUsage(item?.system)).ok) continue;
     const tier = Math.max(1, Math.floor(Number(chosen.tier) || 1));
     const row = Array.isArray(rune.tiers) ? (rune.tiers[tier - 1] ?? rune.tiers[rune.tiers.length - 1] ?? null) : null;
     out.push({
@@ -129,17 +134,37 @@ export function runeCriticalLines(weapon) {
     .map((e) => `${e.label}: ${e.declares.onCritical.text.trim()}`);
 }
 
+/**
+ * A DECLARED ROW'S VALUE BY THE RUNE'S TIER (3.673.0, C12; Inner Tempest's
+ * Centred I–III: "You gain an item bonus to Refocus (Mental Focus) checks
+ * based upon the level of the rune … The bonus is +1 / +2 / +3"). A bonus or
+ * conditional declaring `value: [1, 2, 3]` takes the inscribed tier's number,
+ * the last one for a tier beyond the list. Any other row is returned as it
+ * came. Pure.
+ */
+export function tierValued(row, tier = 1) {
+  if (!row || typeof row !== "object" || !Array.isArray(row.value)) return row;
+  if (!row.value.length) return { ...row, value: 0 };
+  const at = Math.min(Math.max(1, Math.floor(Number(tier) || 1)), row.value.length) - 1;
+  return { ...row, value: row.value[at] };
+}
+
 /** The typed bonuses and scoped conditionals an active rune-bearer's runes declare. */
 export function runeDeclaredBonuses(item, items = []) {
   const bonuses = [];
   const conditionals = [];
+  // THE WEARER'S CLASS (3.673.0, C3): "+2 … increases to +3 if you are a
+  // Disciple or Mystic". See `classValued`.
+  const classes = classNamesOf(items);
   for (const entry of activeDeclaredRunesOn(item, items)) {
     const source = `${item?.name ?? "item"} (${entry.label})`;
-    for (const b of Array.isArray(entry.declares?.bonuses) ? entry.declares.bonuses : []) {
+    for (const raw of Array.isArray(entry.declares?.bonuses) ? entry.declares.bonuses : []) {
+      const b = classValued(tierValued(raw, entry.tier), classes);
       if (!b?.target) continue;
       bonuses.push({ target: String(b.target), entry: { type: String(b.type ?? "item"), value: Number(b.value) || 0, source, label: source } });
     }
-    for (const c of Array.isArray(entry.declares?.conditionals) ? entry.declares.conditionals : []) {
+    for (const raw of Array.isArray(entry.declares?.conditionals) ? entry.declares.conditionals : []) {
+      const c = classValued(tierValued(raw, entry.tier), classes);
       if (!c || typeof c !== "object") continue;
       conditionals.push({ ...c, label: c.label ? `${source} — ${c.label}` : source });
     }
@@ -349,4 +374,193 @@ export function declaredRuneAuras(item) {
     }
   }
   return out;
+}
+
+/* ─────────────── Inner Tempest's Chapter 9 runes (3.673.0) ─────────────── */
+
+/** The classes a creature holds, lower-cased, read off its class items. */
+export function classNamesOf(items = []) {
+  return Array.from(items ?? [])
+    .filter((i) => i?.type === "class")
+    .map((i) => String(i?.name ?? "").trim().toLowerCase())
+    .filter(Boolean);
+}
+
+/**
+ * A VALUE BY CLASS (3.673.0, C3). Inner Tempest's Harmony: "+2 dodge bonus to
+ * DB and a +2 resistance bonus to saving throws … This bonus increases to +3
+ * if you are a Disciple or Mystic"; Karmic Resilience's +2, +4 for the same
+ * two. A declared bonus, conditional or change may carry
+ * `classValue: { classes: ["disciple", "mystic"], value: 3 }`: the row's
+ * `value` becomes that for a creature holding one of those classes. The key
+ * is removed either way, so nothing downstream sees it. A change's value
+ * stays a string, as Foundry stores it.
+ *
+ * @param {object} row
+ * @param {string[]} classNames lower-cased, from `classNamesOf`
+ */
+export function classValued(row, classNames = []) {
+  if (!row || typeof row !== "object" || !row.classValue || typeof row.classValue !== "object") return row;
+  const { classValue, ...rest } = row;
+  const want = (Array.isArray(classValue.classes) ? classValue.classes : []).map((c) => String(c ?? "").trim().toLowerCase());
+  const held = (classNames ?? []).map((c) => String(c ?? "").trim().toLowerCase());
+  if (!want.some((c) => held.includes(c)) || !Number.isFinite(Number(classValue.value))) return rest;
+  return { ...rest, value: typeof row.value === "string" ? String(Number(classValue.value)) : Number(classValue.value) };
+}
+
+/**
+ * A RUNE THAT KEEPS ITS WEARER FROM DYING (3.673.0, C1). Karmic Resilience:
+ * "Reaction; Trigger the wielder gains the dying condition; Frequency 1/day.
+ * You are immediately restored to 1 HP, do not gain the dying condition and
+ * do not take a critical for being reduced to 0 HP. Furthermore, you gain a
+ * +2 circumstance bonus to all dying checks for 1 minute."
+ *
+ * A rune declares `deathGuard` in the death guard's own shape
+ * (combat/death-guard.mjs) — `offer`, `frequency`, `notOutright` and
+ * `grants` — and it is handed to the guard as a carrier of its own, so the
+ * 0-HP moment asks it beside every effect's guard. Its `grants` conditionals
+ * are read by class here (C3).
+ *
+ * @returns {Array<{id, name, disabled: false, flags}>}
+ */
+export function runeDeathGuardCarriers(items = []) {
+  const classes = classNamesOf(items);
+  return activeDeclaredRunes(items)
+    .filter((e) => e.declares?.deathGuard && typeof e.declares.deathGuard === "object")
+    .map((e) => {
+      const raw = e.declares.deathGuard;
+      const grants = raw.grants && typeof raw.grants === "object"
+        ? { ...raw.grants, conditionals: (Array.isArray(raw.grants.conditionals) ? raw.grants.conditionals : []).map((c) => classValued(c, classes)) }
+        : null;
+      return {
+        id: `rune-${e.key}-${e.item?.id ?? ""}`,
+        name: `${e.item?.name ?? ""} (${e.label})`,
+        disabled: false,
+        flags: { [SYSTEM_ID]: { deathGuard: { ...raw, label: String(raw.label ?? e.label), ...(grants ? { grants } : {}) } } }
+      };
+    });
+}
+
+/**
+ * WHAT A WORN RUNE DOES TO BLEEDING (3.673.0, C2). Inner Tempest's
+ * Staunching: "The flat check to remove Light Bleeding is reduced by 2 to 14"
+ * (I; 3 at II, 4 at III); "Furthermore, you may also attempt a DC 16 flat
+ * check to reduce Moderate Bleeding by 1" (II), "any Bleeding" (III).
+ *
+ * A rune declares `bleedFlatCheckReduction` (a number, or an array, one per
+ * tier) and `bleedReduceCheck: { dc, bands }` (`bands` "moderate" or "any";
+ * an array per tier the same way, `null` for a tier without one). The greatest
+ * reduction counts, as two suits cannot both be worn; the widest check does.
+ *
+ * @returns {{reduction: number, reduceCheck: {dc: number, bands: string}|null, labels: string[]}}
+ */
+export function runeBleedEasing(items = []) {
+  let reduction = 0;
+  let reduceCheck = null;
+  const labels = [];
+  const widen = (a, b) => (!a ? b : (a.bands === "any" ? a : b));
+  for (const e of activeDeclaredRunes(items)) {
+    // ONE VALUE, OR ONE PER TIER (an array; the registered tier rows keep only
+    // level, price and dice).
+    const fromTier = (key) => {
+      const v = e.declares?.[key];
+      return Array.isArray(v) ? v[Math.min(e.tier, v.length) - 1] : v;
+    };
+    const r = Math.max(0, Math.trunc(Number(fromTier("bleedFlatCheckReduction")) || 0));
+    const check = fromTier("bleedReduceCheck");
+    const usable = check && typeof check === "object" && ["moderate", "any"].includes(String(check.bands ?? "").toLowerCase())
+      ? { dc: Math.max(1, Math.trunc(Number(check.dc) || 16)), bands: String(check.bands).toLowerCase() }
+      : null;
+    if (!r && !usable) continue;
+    labels.push(`${e.item?.name ?? ""} (${e.label})`);
+    reduction = Math.max(reduction, r);
+    if (usable) reduceCheck = widen(reduceCheck, usable);
+  }
+  return { reduction, reduceCheck, labels };
+}
+
+/** May a reduce check touch bleeding of this band? Light is the ordinary check's. */
+export function bleedReduceReaches(reduceCheck, bandKey) {
+  if (!reduceCheck) return false;
+  const band = String(bandKey ?? "").toLowerCase();
+  if (band === "light" || !band) return false;
+  return reduceCheck.bands === "any" || (reduceCheck.bands === "moderate" && band === "moderate");
+}
+
+/**
+ * A RUNE THAT ANSWERS A CRITICAL HIT ON ITS WEARER (3.673.0, C4). Inner
+ * Tempest's Guarded: "Reaction; Trigger the wielder takes a critical hit;
+ * Frequency 1/day. You negate the additional HP damage inflicted by the
+ * critical hit and are immediately healed an amount of HP equal to half of
+ * this amount (round up)." Declared `criticalGuard: { frequency }`; the
+ * first such rune that may fire now, with its item.
+ */
+export function runeCriticalGuard(items = [], now = 0) {
+  for (const e of activeDeclaredRunes(items)) {
+    const spec = e.declares?.criticalGuard;
+    if (!spec || typeof spec !== "object") continue;
+    const frequency = String(spec.frequency ?? "daily");
+    if (!runeFrequencyAllows(runeMarkersOf(e.item), e.key, frequency, now)) continue;
+    return { key: e.key, label: `${e.item?.name ?? ""} (${e.label})`, runeLabel: e.label, item: e.item, frequency };
+  }
+  return null;
+}
+
+/** Half the negated damage, rounded up: Guarded's heal. */
+export function criticalGuardHeal(negated) {
+  return Math.ceil(Math.max(0, Number(negated) || 0) / 2);
+}
+
+/**
+ * A WEAPON RUNE THAT RAISES THE CRITICAL INJURY ROLL (3.673.0, C5). Inner
+ * Tempest's Harmony Edge: "Reaction; Trigger you inflict a critical hit;
+ * Frequency 1/day … You gain advantage on the attack critical roll."
+ * Declared `criticalAdvantage: { frequency }` on a weapon rune. Equipped or
+ * not, the weapon that scored the critical is the one asked.
+ */
+export function runeCriticalAdvantage(weapon, now = 0) {
+  for (const e of declaredRunesOn(weapon)) {
+    const spec = e.declares?.criticalAdvantage;
+    if (!spec || typeof spec !== "object") continue;
+    const frequency = String(spec.frequency ?? "daily");
+    if (!runeFrequencyAllows(runeMarkersOf(weapon), e.key, frequency, now)) continue;
+    return { key: e.key, label: `${weapon?.name ?? ""} (${e.label})`, frequency };
+  }
+  return null;
+}
+
+/**
+ * The injury roll's bias with an advantage added (B9-3): a minor critical's
+ * disadvantage and the advantage cancel; serious becomes advantage; deadly
+ * already has it.
+ */
+export function biasWithAdvantage(bias) {
+  return bias === "disadvantage" ? "normal" : "advantage";
+}
+
+/**
+ * A REGISTERED RUNE COMMANDED ON AND OFF LIKE AN ENERGY RUNE (3.673.0, C6).
+ * Inner Tempest's Soulful Strike: "Activate Command (1 AP). When active, the
+ * weapon inflicts secondary force damage based upon its level": 1d6, then 2d6
+ * with a secondary critical, then 3d6 with a better one. Declared
+ * `energy: { type, tiers: [{ dice, secondaryCritical }] }`; read in the five
+ * energy runes' shape so the same button, state, damage and secondary
+ * critical serve it.
+ *
+ * @returns {{label: string, type: string, tiers: Array<{dice: string, secondaryCritical: number|null}>}|null}
+ */
+export function registeredEnergyRune(key) {
+  const rune = registeredRune(key);
+  const energy = rune?.declares?.energy;
+  if (!rune || !energy || typeof energy !== "object" || !rune.on.includes("weapon")) return null;
+  const type = String(energy.type ?? "").trim().toLowerCase();
+  const tiers = (Array.isArray(energy.tiers) ? energy.tiers : [])
+    .map((t) => ({
+      dice: String(t?.dice ?? "").trim(),
+      secondaryCritical: t?.secondaryCritical === null || t?.secondaryCritical === undefined || !Number.isFinite(Number(t.secondaryCritical))
+        ? null : Math.trunc(Number(t.secondaryCritical))
+    }))
+    .filter((t) => /^\d+d\d+$/i.test(t.dice));
+  if (!type || !tiers.length) return null;
+  return { label: rune.name, type, tiers: Object.freeze(tiers) };
 }

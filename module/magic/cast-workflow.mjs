@@ -5573,12 +5573,22 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
    * instances is not halving their sum. One blow, resolved once.
    */
   let critBonus = 0;
+  // GUARDED ON A SPELL'S CRITICAL TOO (3.673.0, C4; found in review): "the
+  // wielder takes a critical hit" is any critical hit, and a spell attack's
+  // critical adds its own dice here. Asked before they are rolled; on a yes
+  // they are rolled, not dealt, and half is healed once the blow has landed.
+  let guardedNegated = null;
   const critFormula = criticalBonusDamage(spell.system, outcome.critical?.severity ?? null);
   if (critFormula) {
+    const { offerCriticalGuard } = await import("../combat/critical-guard-workflow.mjs");
+    const guarded = await offerCriticalGuard(targetActor, actor, spell);
     const critRoll = await new Roll(critFormula).evaluate();
     rolls.push(critRoll);
-    critBonus = critRoll.total;
-    dealt += critBonus;
+    if (guarded) guardedNegated = { formula: critFormula, total: critRoll.total };
+    else {
+      critBonus = critRoll.total;
+      dealt += critBonus;
+    }
   }
   /*
    * SPLASH IS PART OF THE SAME BLOW (3.482.0).
@@ -5628,6 +5638,18 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
       damageTypes: [String(damageType ?? "").toLowerCase(), ...divineDamageMark(spellDamageSource(spell).sourceTraits)].filter(Boolean), sourceLevel: Number(actor?.system?.identity?.level ?? 0), sourceName: actor?.name ?? "", sourceUuid: actor?.uuid ?? "", context: { kind: "spell", spellName: spell?.name ?? "" }
     });
     newHP = applied?.newHP;
+  }
+  if (guardedNegated) {
+    const { criticalGuardHeal } = await import("../combat/critical-guard-workflow.mjs");
+    const heal = criticalGuardHeal(guardedNegated.total);
+    const { relayHeal } = await import("../combat/target-relay-workflow.mjs");
+    const { healActor } = await import("./spell-effects.mjs");
+    if (heal > 0) {
+      const healed = await relayHeal(targetActor, heal, {}, () => healActor(targetActor, heal));
+      // The card's "Now X HP" counts the heal (relayHeal answers how much it healed).
+      if (newHP !== null && Number.isFinite(Number(newHP))) newHP = Number(newHP) + (Number(healed) || 0);
+    }
+    lines.push(line(`<strong>Guarded:</strong> ${targetActor.name} negates the critical's extra damage (${guardedNegated.formula} = ${guardedNegated.total}) and heals <strong>${heal}</strong>.`));
   }
   const critLabel = outcome.critical
     ? ` <strong>Critical Hit (${outcome.critical.severity})</strong>`

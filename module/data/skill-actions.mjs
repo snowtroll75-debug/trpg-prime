@@ -2313,3 +2313,20 @@ export function addSkillActions(actions) {
   }
   return { added, skipped };
 }
+
+/**
+ * ONE MORE SKILL FOR AN EXISTING ACTION (3.673.0). Inner Tempest's Monastic
+ * Items let a character with Inner Discipline make Create checks with
+ * Meditation; the route is the module's (create-crafting.mjs), the skill on
+ * Create's own list is this. The frozen entry is replaced by a frozen copy
+ * with the skill added — the array, not the entry, is what may change.
+ *
+ * @returns {boolean} whether the skill was added
+ */
+export function addSkillToAction(key, skill) {
+  const i = SKILL_ACTIONS.findIndex((a) => a.key === key);
+  const want = String(skill ?? "").trim();
+  if (i < 0 || !want || (SKILL_ACTIONS[i].skills ?? []).includes(want)) return false;
+  SKILL_ACTIONS[i] = Object.freeze({ ...SKILL_ACTIONS[i], skills: [...(SKILL_ACTIONS[i].skills ?? []), want] });
+  return true;
+}

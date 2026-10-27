@@ -223,3 +223,52 @@ export function actionCheckTraits(action, itemTypeKey = "") {
   const alchemical = alchemicalCheckTraits(action?.key, itemTypeKey);
   return [...new Set([...own, ...(alchemical ? [alchemical] : [])])].join(", ");
 }
+
+/*
+ * ANOTHER ROAD TO A MAGIC ITEM (3.673.0, C8). Inner Tempest's Monastic Items:
+ * "A character with Inner Discipline may use Meditation to make Create checks
+ * when crafting a magic item whose effects are based on a technique or innate
+ * spell they know. Creating a magic item in this way is more difficult and
+ * the DC is considered Hard (+2). The creator must have a number of ranks in
+ * Meditation equal to or greater than the level of the item … A character
+ * using this method cannot create charged items." They "otherwise follow the
+ * normal magic item creation rules" (B9-5: the feat is still needed).
+ *
+ * A module registers the route (module-api `registerCreateRoute`):
+ *   { key, label, skill, itemTypes: ["magical"], requires: [item names],
+ *     dcStep: 2, ticks: ["…"] }
+ * The skill joins Create's list; the route opens its item types through it
+ * to a creature holding one of `requires`; the ticks join the setup dialog's
+ * requirements; `dcStep` is added to the DC. Ranks are the invoked skill's,
+ * as for every Create.
+ */
+
+/** A route, normalised; null when it cannot be used. */
+export function normaliseCreateRoute(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const key = String(raw.key ?? "").trim();
+  const skill = String(raw.skill ?? "").trim();
+  const itemTypes = (Array.isArray(raw.itemTypes) ? raw.itemTypes : []).map((t) => String(t).trim()).filter((t) => ITEM_TYPES[t]);
+  const requires = (Array.isArray(raw.requires) ? raw.requires : []).map((n) => String(n).trim().toLowerCase()).filter(Boolean);
+  if (!key || !skill || !itemTypes.length || !requires.length) return null;
+  return {
+    key,
+    label: String(raw.label ?? key).trim() || key,
+    skill,
+    itemTypes,
+    requires,
+    dcStep: Math.max(0, Math.trunc(Number(raw.dcStep) || 0)),
+    ticks: (Array.isArray(raw.ticks) ? raw.ticks : []).map((t) => String(t).trim()).filter(Boolean)
+  };
+}
+
+/** The route a creature may take through this skill, or null. */
+export function createRouteFor(routes = [], skillKey, itemNames = []) {
+  const held = (itemNames ?? []).map((n) => String(n ?? "").trim().toLowerCase());
+  return (routes ?? []).find((r) => r && r.skill === skillKey && r.requires.some((n) => held.includes(n))) ?? null;
+}
+
+/** May Create be made through this skill without a route? (the Core Table's own skills) */
+export function createSkillIsNative(skillKey) {
+  return Object.values(ITEM_TYPES).some((cfg) => cfg.skills.includes(skillKey));
+}

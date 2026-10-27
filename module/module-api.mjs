@@ -41,6 +41,8 @@
  * silently ignored, so a clash is visible in the console at startup.
  */
 
+import { normaliseCreateRoute as createRouteNormaliser } from "./create-crafting.mjs";
+
 /** Lowercase-and-trim, the key normalisation every table here shares. */
 function registryKey(name) {
   return String(name ?? "").trim().toLowerCase();
@@ -117,6 +119,8 @@ function emptyRegistry() {
     lightSources: new Map(),
     /** Automation key → { hint, use } for a wondrous item's `use` ability (3.626.0). */
     itemAutomation: new Map(),
+    /** Route key → another skill's road to Create (3.673.0): Inner Tempest's Monastic Items. See create-crafting.mjs. */
+    createRoutes: new Map(),
     /**
      * Automation key → { trigger?, use? } (3.629.0): a peril whose Effect, or
      * a routine action whose effect, is more than a save — Pillars of Faith's
@@ -658,6 +662,14 @@ const RUNE_KINDS = Object.freeze(["armour", "shield", "weapon"]);
  *   level?: number, price?: number, armourPrice?: number, shieldPrice?: number,
  *   activate?: string, effect?: string, note?: string, declares?: object}>} runes
  */
+/** A registered rune's usage rule, keeping only what the usage check reads. */
+function registeredRuneUsage(raw) {
+  const out = { text: String(raw.text ?? "").trim() || "a suitable weapon" };
+  for (const k of ["melee", "ranged", "thrown", "keen"]) if (raw[k] === true) out[k] = true;
+  if (Array.isArray(raw.damage)) out.damage = raw.damage.map((d) => String(d).trim().toLowerCase()).filter(Boolean);
+  return Object.freeze(out);
+}
+
 export function registerRunes(runes, moduleId = null) {
   let count = 0;
   for (const raw of Array.isArray(runes) ? runes : [runes]) {
@@ -686,6 +698,11 @@ export function registerRunes(runes, moduleId = null) {
       effect: String(raw.effect ?? "").trim(),
       note: String(raw.note ?? "").trim(),
       declares: raw.declares && typeof raw.declares === "object" ? raw.declares : {},
+      // WHAT IT MAY BE INSCRIBED ON (3.673.0; found in review): a weapon
+      // rune's printed Usage line, in weapon-rune-usage.mjs's shape
+      // ({ melee, ranged, thrown, damage, keen, text }). Inner Tempest's
+      // Tranquil Quiver: "any ranged weapon".
+      ...(raw.usage && typeof raw.usage === "object" ? { usage: registeredRuneUsage(raw.usage) } : {}),
       moduleId: moduleId ? String(moduleId) : ""
     });
     count += 1;
@@ -754,6 +771,27 @@ export function registerLightSources(entries, moduleId = null, coreKeys = []) {
 /** A module's light source by key, or null. */
 export function registeredLightSource(key) {
   return registry.lightSources.get(String(key ?? "")) ?? null;
+}
+
+/**
+ * A ROAD TO CREATE THROUGH ANOTHER SKILL (3.673.0, C8). Inner Tempest's
+ * Monastic Items: Meditation for a magic item, by a character with Inner
+ * Discipline, at DC +2. The skill joins the Create action's list
+ * (`addSkillToAction`); see create-crafting.mjs `normaliseCreateRoute`.
+ * @returns {boolean}
+ */
+export function registerCreateRoute(raw, moduleId = null, { addSkill = null } = {}) {
+  const route = createRouteNormaliser(raw);
+  if (!route) { problem(`registerCreateRoute: "${raw?.key ?? "?"}" needs a key, a skill, item types Create knows and what it requires`); return false; }
+  registry.createRoutes.set(route.key, { ...route, moduleId: moduleId ? String(moduleId) : "" });
+  if (typeof addSkill === "function") addSkill("create", route.skill);
+  noteContributor(moduleId);
+  return true;
+}
+
+/** Every registered Create route. */
+export function registeredCreateRoutes() {
+  return Array.from(registry.createRoutes.values());
 }
 
 /** Every registered rune, or those that go on one kind of item. */

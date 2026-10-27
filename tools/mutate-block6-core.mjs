@@ -75,7 +75,7 @@ const MUTATIONS = [
   { name: "Economic Spell is offered on a marked innate spell", file: CW, from: "  }).filter((o) => !(innateMetamagic && o.kind === \"economic\"));", to: "  });", breaks: "C12" },
   { name: "a cantrip takes metamagic", file: CW, from: "const innateMetamagic = isInnate && !isItemCast && !isCantrip && !innateCantripOf", to: "const innateMetamagic = isInnate && !isItemCast && !innateCantripOf", breaks: "C12" },
   // version
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.672.1\"", to: "\"version\": \"3.669.2\"", breaks: "Z0" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.673.0\"", to: "\"version\": \"3.669.2\"", breaks: "Z0" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-block6-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

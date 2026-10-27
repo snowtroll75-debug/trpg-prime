@@ -39,7 +39,10 @@ export function runeTimerFlags(spec, now) {
       itemId: String(spec?.itemId ?? ""),
       key: String(spec?.key ?? ""),
       state: String(spec?.state ?? ""),
-      cooldownSeconds: Math.max(0, Math.floor(Number(spec?.cooldownSeconds) || 0))
+      cooldownSeconds: Math.max(0, Math.floor(Number(spec?.cooldownSeconds) || 0)),
+      // ITS OWN WORDS AT THE END (3.673.0, C9): an item's timed use (the
+      // Incense Burner's hour) says what ended, not "the rune's minute".
+      ...(spec?.ending && typeof spec.ending === "object" ? { ending: { lapsed: String(spec.ending.lapsed ?? ""), manual: String(spec.ending.manual ?? "") } } : {})
     },
     spellEffect: true,
     spellEffectEnd: Number(now?.worldTime ?? 0) + seconds,

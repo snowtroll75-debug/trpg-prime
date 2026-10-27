@@ -561,6 +561,8 @@ export async function useRuneAction(actor, item, key) {
   if (key === "reflecting") return useReflecting(actor, item, { key, label: "Reflecting" });
   const action = runeActionsFor(item).find((entry) => entry.key === key);
   if (!action) return null;
+  // A MODULE'S ENERGY RUNE (3.673.0, C6) is switched as the five are.
+  if (action.declaredEnergy) return useEnergyRune(actor, item, action);
   if (action.declared) return useDeclaredRune(actor, item, action);
   const handler = HANDLERS[key];
   if (!handler) return null;
@@ -589,14 +591,32 @@ async function useDeclaredRune(actor, item, action) {
   if (!await payRuneActivation(actor, action.apCost, `${item.name} — ${action.label}`)) return null;
   if (!action.focus && !await spendUse(item, action)) return null;
   if (action.focus) await item.update({ [`flags.${SYSTEM_ID}.runeState.focusExpended.${action.key}`]: true });
+  // BY CLASS (3.673.0, C3): Harmony's "+3 if you are a Disciple or Mystic".
+  const { classNamesOf, classValued } = await import("./rune-declarations.mjs");
+  const classes = classNamesOf(Array.from(actor?.items ?? []));
+  const byClass = (rows) => rows.map((row) => classValued(row, classes));
   const extra = {};
-  for (const k of ["auras", "conditionals", "bonuses"]) if (Array.isArray(action.effect?.[k])) extra[k] = action.effect[k];
+  for (const k of ["auras", "conditionals", "bonuses"]) if (Array.isArray(action.effect?.[k])) extra[k] = byClass(action.effect[k]);
+  const changes = Array.isArray(action.effect?.changes) ? byClass(action.effect.changes) : [];
   if (action.durationSeconds > 0) {
     await startRuneTimer(actor, item, {
       key: action.key, state: action.state, label: action.label,
       durationSeconds: action.durationSeconds, cooldownSeconds: action.cooldownSeconds,
-      extraFlags: extra, changes: Array.isArray(action.effect?.changes) ? action.effect.changes : []
+      extraFlags: extra, changes
     });
+  } else if (action.effect?.strikeRider || extra.conditionals?.length) {
+    // UNTIL THE NEXT STRIKE (3.673.0, C7): Tranquil Quiver's "The next ranged
+    // attack made with the weapon gains a +2 status bonus … 1d6 precision
+    // damage". No clock: an effect on the wielder carrying the offer and a
+    // once-rider, both scoped to the next ranged Strike and spent by it, hit
+    // or miss. Not bound to the weapon by id, because the offer has no
+    // weapon axis: the two must be spent by the same Strike.
+    const { nextStrikeEffect } = await import("./rune-actions.mjs");
+    // UNTIL THE WIELDER'S NEXT TURN (C7b, Mindful): the round it ends in.
+    const combat = game.combat;
+    const fighting = Boolean(combat?.started && Array.from(combat.combatants ?? []).some((c) => c.actor?.id === actor.id));
+    const expiresRound = fighting ? Number(combat.round ?? 0) + 1 : null;
+    await actor.createEmbeddedDocuments("ActiveEffect", [nextStrikeEffect(item, action, { ...extra, expiresRound })]);
   }
   return postCard(actor, `${item.name} — ${action.label}`, [
     line(action.description || "Activated."),

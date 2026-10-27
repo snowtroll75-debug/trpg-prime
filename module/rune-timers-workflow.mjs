@@ -51,7 +51,7 @@ export async function payRuneActivation(actor, apCost, label) {
  * Switch a timed rune on: its state on the item, and the minute on the
  * wearer.
  */
-export async function startRuneTimer(actor, item, { key, state, label, durationSeconds, cooldownSeconds = 0, extraFlags = {}, changes = [] }) {
+export async function startRuneTimer(actor, item, { key, state, label, durationSeconds, cooldownSeconds = 0, extraFlags = {}, changes = [], ending = null }) {
   await item.update({ [`flags.${SYSTEM_ID}.runeState.${state}`]: true });
   const existing = runeTimerOn(actor, item, key);
   if (existing) await existing.delete({ [MANUAL_OPTION]: "replace" });
@@ -62,7 +62,7 @@ export async function startRuneTimer(actor, item, { key, state, label, durationS
     img: item.img || "icons/svg/shield.svg",
     origin: item.uuid,
     changes: Array.isArray(changes) ? changes : [],
-    flags: { [SYSTEM_ID]: { ...(extraFlags ?? {}), ...runeTimerFlags({ itemId: item.id, key, state, durationSeconds, cooldownSeconds }, now()) } }
+    flags: { [SYSTEM_ID]: { ...(extraFlags ?? {}), ...runeTimerFlags({ itemId: item.id, key, state, durationSeconds, cooldownSeconds, ending }, now()) } }
   }]);
 }
 
@@ -104,7 +104,9 @@ export function registerRuneTimers() {
       const actor = effect.parent;
       const item = actor?.items?.get?.(timer.itemId);
       if (!item) return;
-      const ending = ENDINGS[timer.key] ?? { lapsed: "The rune's minute is up.", manual: "The rune is switched off.", dropsOnLapse: false };
+      const ending = timer.ending?.lapsed
+        ? { lapsed: timer.ending.lapsed, manual: timer.ending.manual || timer.ending.lapsed, dropsOnLapse: false }
+        : ENDINGS[timer.key] ?? { lapsed: "The rune's minute is up.", manual: "The rune is switched off.", dropsOnLapse: false };
       const lapsed = how !== "manual";
       const updates = { [`flags.${SYSTEM_ID}.runeState.${timer.state}`]: false };
       if (timer.cooldownSeconds) {

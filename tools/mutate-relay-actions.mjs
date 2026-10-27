@@ -116,7 +116,7 @@ const MUTATIONS = [
   {
     name: "a reply is treated as a request",
     file: SRC,
-    from: '  if (action === RELAY_ACTIONS.RESULT) return { handled: false, reason: "a reply, not a request" };',
+    from: '  if (action === RELAY_ACTIONS.RESULT || action === RELAY_ACTIONS.WORKING) return { handled: false, reason: "a reply, not a request" };',
     to: "  if (false) return { handled: false };",
     breaks: "C5 — every answer bounces back around the socket"
   },

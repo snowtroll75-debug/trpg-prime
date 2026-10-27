@@ -26,6 +26,7 @@
 
 import { traitList } from "./traits.mjs";
 import { creatureTraits } from "./creature-traits.mjs";
+import { registeredRune } from "./module-api.mjs";
 
 /** The seven printed usage lines, as rules. */
 export const RUNE_USAGE = Object.freeze({
@@ -81,11 +82,15 @@ export function weaponUsage(system, { ammunition = false } = {}) {
  * @returns {{ok: boolean, reason: string}}
  */
 export function runeUsageAllows(key, usage) {
-  const rule = RUNE_USAGE[key];
+  // A MODULE'S RUNE PRINTS ITS OWN (3.673.0): `usage` on registerRunes.
+  const rule = RUNE_USAGE[key] ?? registeredRune(key)?.usage ?? null;
   if (!rule) return { ok: true, reason: "" };
   const no = (why) => ({ ok: false, reason: `needs ${rule.text}${why ? ` — ${why}` : ""}` });
   if (usage?.ammunition) return no("ammunition takes only what a missile weapon does");
   if (rule.melee && !usage?.melee) return no("this is not a melee weapon");
+  // "ANY RANGED WEAPON" (Tranquil Quiver): a missile weapon. A thrown melee
+  // weapon is still a melee weapon (see `weaponUsage`).
+  if (rule.ranged && usage?.melee) return no("this is not a ranged weapon");
   if (rule.thrown && !usage?.thrown) return no("this is not a thrown weapon");
   if (rule.damage && !rule.damage.some((type) => (usage?.damageTypes ?? []).includes(type))) {
     return no(`this deals ${(usage?.damageTypes ?? []).join(" or ") || "no listed damage type"}`);

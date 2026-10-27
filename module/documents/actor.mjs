@@ -1,4 +1,5 @@
 import { DUAL_MINDS_AP, DUAL_MINDS_REACTIONS, hasDualMinds } from "../dual-minds.mjs";
+import { ageShiftOf, withoutAge } from "../age-modifiers.mjs";
 import { statSizeOf } from "../change-shape.mjs";
 import { relayableStatusOptions, statusRelayNeeded } from "../combat/target-relay.mjs";
 import { restrictedHeld, restrictedSummary } from "../combat/restricted-ap.mjs";
@@ -987,9 +988,12 @@ function prepareResources(system, actor) {
   // pin every character to 0 HP per level AND hide the manual field they
   // would need to fix it with.
   const classHP = system.progression?.hitPoints;
+  // AGE TAKES NO HIT POINTS (3.673.0, C10; Graham's B9-11): an age effect's
+  // Constitution is taken back out here. See age-modifiers.mjs.
+  const ageShift = ageShiftOf(actor?.appliedEffects ?? actor?.effects ?? []);
   hp.max = hitPointMax({
     size: statSizeOf(actor?.effects, system.identity?.size),
-    conTotal: system.attributes?.constitution?.total ?? 0,
+    conTotal: withoutAge(system.attributes?.constitution?.total ?? 0, ageShift, "constitution"),
     level: system.identity?.level ?? 1,
     hpPerLevel: classHP || hp.hpPerLevel || 0,
     other: hp.other ?? 0

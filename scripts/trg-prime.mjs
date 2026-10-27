@@ -164,6 +164,8 @@ import { registerExtraplanarHooks } from "../module/extraplanar-workflow.mjs";
 import { registerAllyAuraEffectHooks } from "../module/ally-aura-effects-workflow.mjs";
 import { registerAlignedControlHooks } from "../module/aligned-control-workflow.mjs";
 import { registerForetellQuery } from "../module/dice/foretell-workflow.mjs";
+import { registerOwnerQuery } from "../module/owner-query-workflow.mjs";
+import { registerCriticalGuardStep } from "../module/combat/critical-guard-workflow.mjs";
 
 Hooks.once("init", () => {
   console.info("TRG Prime | Initialising Foundry VTT V14 system");
@@ -192,6 +194,9 @@ Hooks.once("init", () => {
   // theirs to answer, through Foundry's own user query. See
   // dice/foretell-workflow.mjs.
   registerForetellQuery();
+  // A CREATURE'S OWN PLAYER ASKED (3.673.0): Guarded, Karmic Resilience.
+  registerOwnerQuery();
+  registerCriticalGuardStep();
   // Chapter 6 + 11: dropping a weapon, armour or shield onto a sheet
   // offers the Quality/Material/Traits/Runes dialog, so an item can be
   // made magical at the point it arrives rather than typed into
