@@ -381,13 +381,45 @@ const discipleClass = { type: "class", name: "Disciple" };
   ok("Z1 the system is 3.673.1 or later", ma > 3 || (ma === 3 && (mi > 673 || (mi === 673 && pa >= 1))));
 }
 
+// 3.673.2 — FOUND IN THE LIVE TEST OF 3.673.0. A rune's timed effect
+// (Harmony's minute) posted two cards when it lapsed: its own ending ("The
+// rune's minute is up.") from the timer's deletion hook, and the clock's
+// "<name> expires." Graham, 27 October: "Fix timed rune message". The clocks
+// still end the timer; only their line is left out, on both clocks.
+{
+  const fx = await imp("combat/effect-application-workflow.mjs");
+  const expiry = await imp("combat/effect-expiry.mjs");
+  const stand = () => {
+    let list = [];
+    const mk = (id, name, extra) => ({
+      id, name, statuses: undefined, flags: { "trg-prime": { spellEffect: true, conditionExpiresRound: 4, spellEffectEnd: 100, ...extra } },
+      getFlag(_s, k) { return this.flags["trg-prime"][k]; },
+      async delete() { list = list.filter((e) => e.id !== id); }
+    });
+    list = [mk("t", "Robe — Harmony", { runeTimer: { itemId: "i", key: "harmony", state: "harmony" } }), mk("s", "Bless", {})];
+    const actor = { name: "Stand-in", items: [], get effects() { const l = list; l.get = (id) => l.find((e) => e.id === id); return l; },
+      async deleteEmbeddedDocuments() { return []; } };
+    return { actor, left: () => list.map((e) => e.id) };
+  };
+  const round = stand(); const roundSaid = await fx.expireTimedConditions(round.actor, 4);
+  const world = stand(); const worldSaid = await fx.expireSpellEffects(world.actor, 100);
+  equal("L2 a rune's timer ends on either clock without the clock's \"expires\" line; an ordinary effect still has it",
+    [roundSaid, round.left(), worldSaid, world.left()], [["Bless"], [], ["Bless"], []]);
+  const rtw = read("module", "rune-timers-workflow.mjs");
+  ok("L2 …and the timer's own ending is what speaks, on a lapse by either clock",
+    expiry.speaksAtItsOwnEnd({ flags: { "trg-prime": { runeTimer: { key: "x" } } } }) === true && expiry.speaksAtItsOwnEnd({ flags: { "trg-prime": {} } }) === false
+    && /const lapsed = how !== "manual";/.test(rtw) && /const lines = \[lapsed \? ending\.lapsed : ending\.manual\];/.test(rtw));
+  const [ma, mi, pa] = String(JSON.parse(read("system.json")).version).split(".").map(Number);
+  ok("Z2 the system is 3.673.2 or later", ma > 3 || (ma === 3 && (mi > 673 || (mi === 673 && pa >= 2))));
+}
+
 // 3.673.0 OR LATER.
 {
   const [ma, mi] = String(JSON.parse(read("system.json")).version).split(".").map(Number);
   ok("Z0 the system is 3.673.0 or later", ma > 3 || (ma === 3 && mi >= 673));
 }
 
-const EXPECTED = 68;
+const EXPECTED = 71;
 equal("Z the suite ran every check it is meant to", checks + 1, EXPECTED);
 if (failures.length) { console.log(`verify-block9-core: ${checks} checks — ${failures.length} FAILED\n`); for (const x of failures) console.log(`  ✗ ${x}`); process.exitCode = 1; }
 else console.log(`verify-block9-core: ${checks} checks — all green.`);

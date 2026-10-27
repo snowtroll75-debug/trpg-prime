@@ -28,6 +28,24 @@
  * release, and a fix is not an excuse to reword something that worked.
  */
 
+import { RUNE_TIMER_FLAG } from "../rune-timers.mjs";
+
+/**
+ * Whether an effect says its own goodbye, so a clock that ends it prints
+ * nothing (3.673.1, found in the live test of 3.673.0). A rune's timer —
+ * Harmony's minute, the Incense Burner's hour — is answered by its deletion
+ * hook (rune-timers-workflow.mjs) with the rune's own ending ("The rune's
+ * minute is up.", "The incense burns out."), so the sweep's "<name> expires."
+ * was a second card for the same end. The sweep still ends it; only its
+ * line is left out.
+ *
+ * @param {object} effect an ActiveEffect, or its data
+ * @returns {boolean}
+ */
+export function speaksAtItsOwnEnd(effect) {
+  return Boolean(effect?.flags?.["trg-prime"]?.[RUNE_TIMER_FLAG]);
+}
+
 /**
  * The line a clock prints when an effect's time is up.
  *

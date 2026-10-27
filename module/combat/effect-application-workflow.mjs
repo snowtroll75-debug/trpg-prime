@@ -16,6 +16,7 @@ import { CONDITIONS } from "../conditions/registry.mjs";
 import { RAGE_EFFECT_NAME } from "./rage.mjs";
 import { expiryToWrite } from "./condition-timing.mjs";
 import { frozenByStasis, stasisEffectOf } from "../magic/stasis.mjs";
+import { speaksAtItsOwnEnd } from "./effect-expiry.mjs";
 import {
   RESPITE_FLAG, normaliseDelayedRespite, respiteReleasedLine
 } from "../magic/delayed-respite.mjs";
@@ -686,7 +687,8 @@ export async function expireTimedConditions(actor, currentRound) {
     try {
       const statusId = effect.statuses?.values?.().next?.()?.value ?? null;
       const label = statusId ? (CONDITIONS[statusId]?.label ?? effect.name) : effect.name;
-      expired.push(label);
+      // A RUNE'S TIMER SAYS ITS OWN ENDING (3.673.1) — see speaksAtItsOwnEnd.
+      if (!speaksAtItsOwnEnd(effect)) expired.push(label);
       // THE CAST IS READ BEFORE THE EFFECT IS DELETED, because afterwards
       // there is nothing left to ask which cast it belonged to. Same order
       // as `expireSpellEffects`, for the same reason.
@@ -732,7 +734,8 @@ export async function expireSpellEffects(actor, worldTime) {
     if (!claim) continue;
     try {
       const statusId = effect.statuses?.values?.().next?.()?.value ?? null;
-      expired.push(statusId ? (CONDITIONS[statusId]?.label ?? effect.name) : effect.name);
+      // A RUNE'S TIMER SAYS ITS OWN ENDING (3.673.1) — see speaksAtItsOwnEnd.
+      if (!speaksAtItsOwnEnd(effect)) expired.push(statusId ? (CONDITIONS[statusId]?.label ?? effect.name) : effect.name);
       // THE CAST IS READ BEFORE THE EFFECT IS DELETED, because afterwards
       // there is nothing left to ask which cast it belonged to.
       const castId = effect.getFlag?.(SYSTEM_ID, CAST_ID_FLAG) ?? null;
