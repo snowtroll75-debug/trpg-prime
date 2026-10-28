@@ -510,6 +510,8 @@ export class TRGItem extends Item {
     const grown = companionCurrentSize({
       startingSize: companion?.startingSize,
       maximumSize: companion?.maximumSize,
+      // A KIND THAT GROWS WITH LEVEL (3.674.0, C3): its natural attacks grow too.
+      grownSize: companion?.grownSize,
       featNames: Array.from(actor.items ?? [])
         .filter((i) => i.type === "feat")
         .map((i) => i._source?.name ?? i.name)

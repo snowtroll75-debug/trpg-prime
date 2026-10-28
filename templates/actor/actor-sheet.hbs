@@ -14,7 +14,7 @@
     <div class="identity">
       <div class="title-row">
         <div class="name-field">
-          <span class="eyebrow">{{#if isNPC}}NPC{{else if isCompanion}}Animal Companion{{else if isFamiliar}}Familiar{{else}}Adventurer{{/if}}</span>
+          <span class="eyebrow">{{#if isNPC}}NPC{{else if isCompanion}}{{companionSummary.kindLabel}}{{else if isFamiliar}}Familiar{{else}}Adventurer{{/if}}</span>
           <input
             class="actor-name"
             type="text"
@@ -203,7 +203,7 @@
           <div class="fatigue-warning">
             <i class="fa-solid fa-triangle-exclamation"></i>
             <strong>Out of step with your master</strong> —
-            {{companionSummary.masterName}} is level {{companionSummary.masterLevel}}, you are level {{companionSummary.companionLevel}}.
+            {{#if companionSummary.isAnimalKind}}{{companionSummary.masterName}} is level {{companionSummary.masterLevel}}, you are level {{companionSummary.companionLevel}}.{{else}}You should be level {{companionSummary.expectedLevel}} ({{companionSummary.masterName}} is level {{companionSummary.masterLevel}}), and you are level {{companionSummary.companionLevel}}.{{/if}}
             Every number below is being derived from {{companionSummary.companionLevel}}.
             Press Daily Preparation on their sheet to catch up.
           </div>
@@ -534,7 +534,7 @@
           {{/unless}}
 
           <div class="attribute-details">
-            {{#unless isVehicle}}
+            {{#unless isVehicle}}{{#unless hideAbilityPoints}}
             <div class="ability-point-banner">
               <span><strong>Point Pool:</strong> {{abilityPoints.pool}}</span>
               <span><strong>Spent:</strong> {{abilityPoints.spentDisplay}}</span>
@@ -544,7 +544,7 @@
                 Includes the +1 ability point gained at level 3 and every 3 levels thereafter.
               </span>
             </div>
-            {{/unless}}
+            {{/unless}}{{/unless}}
 
             <div class="hp-formula-banner">
               <span><strong>Max HP formula:</strong> Size + (Con &times; level) + (HP/Level &times; level) + Other</span>
@@ -664,7 +664,7 @@
                     companion has that a character does not. --}}
               <label>
                 <span>Effective Level</span>
-                <output data-tooltip="The Animal Companion table's own EL column — what your companion counts as for anything that cares about a creature's level rather than its own progression.">{{#if companionEffectiveLevel}}{{companionEffectiveLevel}}{{else}}—{{/if}}</output>
+                <output data-tooltip="The {{companionSummary.kindLabel}} table's own EL column — what your companion counts as for anything that cares about a creature's level rather than its own progression.">{{#if companionEffectiveLevel}}{{companionEffectiveLevel}}{{else}}—{{/if}}</output>
               </label>
               <label>
                 <span>Starting Size</span>
@@ -1788,7 +1788,7 @@
           <span class="hint">Two at 1st level and one more at 4th and every 4 levels after. Empathic Link is free and costs none of them. A familiar gains no feats of its own.</span>
         {{else if isCompanion}}
           <span><strong>Companion Feats:</strong> {{featPicks.single.spent}} / {{featPicks.single.available}}</span>
-          <span class="hint">Spent / Available, from the Animal Companion table's own Feats column — one pool, not the character split. Feats your class granted (Evasion, Improved Evasion) cost nothing.</span>
+          <span class="hint">Spent / Available, from the {{companionSummary.kindLabel}} table's own Feats column — one pool, not the character split. Feats granted to it cost nothing.</span>
         {{else}}
           <span><strong>Racial:</strong> {{featPicks.racial.spent}} / {{featPicks.racial.available}}</span>
           <span><strong>Class:</strong> {{featPicks.class.spent}} / {{featPicks.class.available}}</span>

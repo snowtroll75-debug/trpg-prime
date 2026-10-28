@@ -50,6 +50,7 @@ import {
   registerRunes, registeredRunes, registerLightSources, registerItemAutomation, registerPerilAutomation, registerFeatPickBonus, registerDamageShare,
   registerSpellCheckGate,
   registerCreateRoute,
+  registerCompanionKind,
   queueSkillActions,
   queueFeatAutomation,
   queuePassiveAutomation,
@@ -127,6 +128,22 @@ export function buildModuleApi() {
     },
     // ANOTHER SKILL'S ROAD TO CREATE (3.673.0): Inner Tempest's Monastic Items.
     registerCreateRoute: (route, moduleId) => registerCreateRoute(route, moduleId, { addSkill: addSkillToAction }),
+    // A KIND OF COMPANION BESIDE THE ANIMAL COMPANION (3.674.0, C1): Inner
+    // Tempest's Dragon Companion. See companion.mjs `companionKindSpec`.
+    registerCompanionKind: (kind, moduleId) => registerCompanionKind(kind, moduleId),
+    // …AND MAKING ONE (3.674.0): the Animal Companion feat's own path, for a
+    // kind. `options`: { kind, only, title, intro, flags }. See companion-workflow.mjs.
+    createCompanionFor: async (master, featItem, options = {}) => {
+      const { createCompanionFor } = await import("./companion-workflow.mjs");
+      return createCompanionFor(master, featItem, options);
+    },
+    // SOUL DRAIN HELD BY A SOURCE (3.674.0, C8): Inner Tempest's lost dragon.
+    holdSoulDrain: async (actor, source, amount) => (await import("./combat/dying-workflow.mjs")).holdSoulDrain(actor, source, amount),
+    releaseSoulDrain: async (actor, source, options = {}) => (await import("./combat/dying-workflow.mjs")).releaseSoulDrain(actor, source, options),
+    companionsOf: async (master, kind = null) => {
+      const { companionsOf } = await import("./companion-workflow.mjs");
+      return companionsOf(master, kind);
+    },
     registeredRunes: (kind) => registeredRunes(kind),
     // A light a module's content sheds, in the LIGHT_SOURCES shape (3.669.0).
     registerLightSources: (entries, moduleId) => registerLightSources(entries, moduleId, Object.keys(LIGHT_SOURCES)),
@@ -166,6 +183,11 @@ export function buildModuleApi() {
       // GM when this client does not own the caster.
       endSpellOf: async (caster, castId) => (await import("./combat/target-relay-workflow.mjs")).relayEndSpell(caster, castId),
       get skillActions() { return SKILL_ACTIONS; },
+      // THE ONE DEATH QUESTION (3.674.0, C12; Inner Tempest's dragon bond:
+      // "if your dragon companion is killed", and "restored to life"). Dying
+      // past the Death State, an instant death, or Constitution −5, as the
+      // system itself asks it (combat/death-state.mjs).
+      isDead: async (actor) => (await import("./combat/death-state.mjs")).isDead(actor),
       resolveAction: async (...args) => (await import("./combat/action-workflow.mjs")).resolveAction(...args),
       // HEALING AND A ROLL (3.627.0), for a module Use that heals its owner or
       // makes others save — Pillars of Faith's Carrion Feast and the lich's

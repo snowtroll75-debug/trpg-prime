@@ -109,11 +109,26 @@ equal("C4 a negative score subtracts; Guiding Stone's Strength is unchanged",
   [sda.withDamageAbility("1d6", { addAbility: "casting" }, { attributes: { charisma: { total: -1 } } }, "charisma").formula,
     sda.withDamageAbility("2d6", { addAbility: "strength" }, caster, "wisdom").formula], ["1d6 - 1", "2d6 + 1"]);
 ok("C5 the spell attack hands the cast's key to the damage formula",
-  /dmg, actor\.system \?\? \{\}, castingAbilityKey\)\.formula;/.test(castSrc)
+  /dmg, actor\.system \?\? \{\}, castingAbilityKey,\n/.test(castSrc)
   && /extraAttackRows = \[\],\s*\/\/[^\n]*\n\s*castingAbilityKey = ""\s*\} = \{\}\) \{/.test(castSrc)
   && /castingAbilityKey: castAbilityKey\s*\}\);/.test(castSrc));
 ok("C6 …and that key is the innate spell's own, else the Spellcraft swap, else the sheet's",
   /const castAbilityKey = String\(\(isInnate \? innateAbilityAttr : \(swapAbility \?\? system\.magic\?\.castingAbility\)\) \?\? ""\);/.test(castSrc));
+// 3.674.0 (Graham, 28 Oct 2026: "The spell Hurling should add the casters
+// magical ability score to total damage inflicted, this is not currently
+// working"): a copy the 3.666.1 repair never reached — a Fiends & Fables
+// creature's, a compendium caster's — reads its printed sentence.
+const hurlingText = "<p>You hurl a loose, unattended object … If the spell attack is successful, it inflicts 1d6 + magical ability score bludgeoning damage.</p>";
+const stoneText = "Upon impact, the stone inflicts bludgeoning damage equal to 2d6 plus your melee damage modifier.";
+const oldRow = { formula: "1d6", type: "bludgeoning", persistent: "", persistentOn: "" };
+equal("C11 A COPY WITH NO ROW: Hurling's printed \"1d6 + magical ability score\" and Guiding Stone's \"plus your melee damage modifier\" are read; Spiritual Weapon's \"modified by\" and a plain row are not",
+  [sda.withDamageAbility("1d6", oldRow, caster, "wisdom", hurlingText), sda.withDamageAbility("2d6", { formula: "2d6" }, caster, "", stoneText).formula,
+    sda.damageAbility({ formula: "" }, "Each hit inflicts force damage equal to the weapon’s normal damage modified by your magical ability score."), sda.withDamageAbility("1d6", oldRow, caster, "wisdom", "It inflicts 1d6 bludgeoning damage.").formula],
+  [{ formula: "1d6 + 2", added: 2, ability: "wisdom" }, "2d6 + 1", "", "1d6"]);
+equal("C12 a row that declares its ability is followed as it says, a GM's blank included, whatever the text",
+  [sda.withDamageAbility("1d6", { ...oldRow, addAbility: "" }, caster, "wisdom", hurlingText).formula, sda.withDamageAbility("1d6", { ...oldRow, addAbility: "strength" }, caster, "wisdom", hurlingText).formula],
+  ["1d6", "1d6 + 1"]);
+ok("C13 the spell attack hands the spell's printed text to the damage formula", /dmg, actor\.system \?\? \{\}, castingAbilityKey,\n[^\n]*\n\s*String\(spellData\.description \?\? ""\)\)\.formula;/.test(castSrc));
 const { PACK_REPAIRS } = await mod("data", "pack-repairs.mjs");
 const hurl = PACK_REPAIRS.filter((r) => r.name === "Hurling");
 equal("C7 owned copies are repaired: the damage row and the retired note, since 3.666.1",
@@ -211,7 +226,7 @@ const api = read("module", "module-api-workflow.mjs");
 ok("D16 the listener is registered at boot, and modules can register their own reactions",
   /\n  registerDefenceOffers\(\);\n/.test(boot) && /registerDefenceOffer: \(name, spec, moduleId\) => registerDefenceOffer\(name, spec, moduleId\),/.test(api));
 
-const EXPECTED = 44;
+const EXPECTED = 47;
 equal("Z the suite ran every check it is meant to", checks + 1, EXPECTED);
 if (failures.length) { console.log(`verify-session-fixes-1022: ${checks} checks — ${failures.length} FAILED\n`); for (const x of failures) console.log(`  ✗ ${x}`); process.exitCode = 1; }
 else console.log(`verify-session-fixes-1022: ${checks} checks — all green.`);

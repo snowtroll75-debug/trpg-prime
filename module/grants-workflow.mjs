@@ -1090,7 +1090,7 @@ async function applyAllGrantsExclusive(actor, sourceItem, { quietIfNothingNew = 
   // player was never told where their spells now come from.
   if (String(sourceItem.system?.casterStyle ?? "").trim().toLowerCase() === "instinctive") {
     const { repertoirePickCount, repertoireSchedule } = await import("./magic/repertoire.mjs");
-    const allowed = repertoirePickCount(Number(actor.system?.identity?.level ?? 0), repertoireSchedule(sourceItem));
+    const allowed = repertoirePickCount(Number(actor.system?.identity?.level ?? 0), repertoireSchedule(sourceItem, actor));
     anyRequested = true;
     lines.push(line(
       `<strong>Spell repertoire:</strong> an instinctive caster — ${allowed} pick${allowed === 1 ? "" : "s"} at your level, chosen on the Magic tab's Repertoire card.`

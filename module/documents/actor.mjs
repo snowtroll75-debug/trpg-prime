@@ -47,7 +47,8 @@ import { crystalTotal } from "../magic/power-crystal.mjs";
 import { classSkillTooltip } from "../class-skills.mjs";
 import { applyClassSkillBonuses, prepareClassProgression, prepareSkillBudget, prepareSkillPointBudget } from "../class-derive.mjs";
 import { creatureBonusEntries } from "../creature-bonuses.mjs";
-import { isCompanion } from "../companion.mjs";
+import { companionKindOf, companionKindSpec, isCompanion } from "../companion.mjs";
+import { heldSoulDrain, soulDrainWithHold } from "../conditions/soul-drain.mjs";
 import { companionCurrentSize, companionFeatEntries } from "../companion-feats.mjs";
 import { isFamiliar } from "../familiar.mjs";
 import {
@@ -856,7 +857,12 @@ function prepareAttributes(system, actor) {
   // not change (3.651.0, block 18 R11 — Huanling Shifting: "large in size
   // which does not alter the creature's ability scores"). See change-shape.mjs.
   const sizeEntry = SIZE_TABLE[statSizeOf(actor?.effects, system.identity?.size)] ?? null;
-  if (sizeEntry) {
+  // A COMPANION KIND WHOSE OWN TABLE CARRIES ITS GROWTH (3.674.0, C6;
+  // Graham's B10-2): the Dragon Companion Table's Str and Dex columns are the
+  // dragon's growth, so a size step adds no Str/Dex of its own, and the
+  // printed base blocks are final at their base size.
+  const sizeCountsForAbilities = !(isCompanion(actor) && companionKindSpec(companionKindOf(actor))?.sizeAbilityMods === false);
+  if (sizeEntry && sizeCountsForAbilities) {
     if (sizeEntry.strMod) {
       actor.addBonus("system.attributes.strength", {
         label: `Size (${sizeEntry.label})`,
@@ -2768,6 +2774,23 @@ export class TRGActor extends Actor {
 
     const existing = this.#findConditionEffect(statusId);
 
+    // SOUL DRAIN HELD BY A SOURCE (3.674.0, C8; Inner Tempest's lost dragon).
+    // Here, beside Bravery, for Bravery's reason: every route that changes a
+    // valued condition — rest, a spell, the HUD, `setSoulDrain` — arrives at
+    // this line. What is held stays until its holder releases it
+    // (`releaseSoulDrain`, which lowers the hold first). `options.force` (a
+    // GM's hand) is not held back.
+    if (statusId === "soulDrain" && options.force !== true) {
+      const held = heldSoulDrain(this);
+      if (held > 0) {
+        const requested = options.active === false ? 0 : options.value;
+        if (requested !== undefined && Number(requested) < held) {
+          ui.notifications?.info?.(`${this.name}: ${held} Soul Drain is held and cannot be healed by other means.`);
+          return this.#applyValuedCondition(statusId, soulDrainWithHold(requested, held), existing, null);
+        }
+      }
+    }
+
     // Automation path: a value was supplied, no dialog.
     if (options.value !== undefined) {
       // BRAVERY (Chapter 5): "you reduce the severity of the frightened
@@ -2827,6 +2850,13 @@ export class TRGActor extends Actor {
       reduction: currentReduction
     });
     if (!result) return undefined;
+
+    // A PLAYER CANNOT TYPE HELD SOUL DRAIN AWAY (3.674.0, C8); the GM's hand can.
+    const heldFloor = statusId === "soulDrain" && !game.user?.isGM ? heldSoulDrain(this) : 0;
+    if (heldFloor > 0 && (result.action === "remove" || Number(result.value) < heldFloor)) {
+      ui.notifications?.info?.(`${this.name}: ${heldFloor} Soul Drain is held and cannot be healed by other means.`);
+      return this.#applyValuedCondition(statusId, heldFloor, existing, null);
+    }
 
     if (result.action === "remove") {
       if (existing) await existing.delete();
@@ -2960,7 +2990,9 @@ export class TRGActor extends Actor {
       const grown = companionCurrentSize({
         startingSize: system.companion?.startingSize,
         maximumSize: system.companion?.maximumSize,
-        featNames: featNamesOf(this)
+        featNames: featNamesOf(this),
+        // A KIND THAT GROWS WITH LEVEL (3.674.0, C3).
+        grownSize: system.companion?.grownSize
       });
       // Null when the starting size is unrecognised — a hand-built
       // companion with no species recorded. Leave whatever the sheet or

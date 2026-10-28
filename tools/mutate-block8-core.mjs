@@ -109,7 +109,7 @@ const MUTATIONS = [
   { name: "a skill DC keeps its prefix", file: DD, from: "SKILL_DC.test(key) ? key.slice(\"skillDC:\".length) : key", to: "key", breaks: "F1" },
   { name: "the card goes back to the raw key", file: SE, from: "            + `${defenceDCKeyText(dcKey)} anyone rolls against to `", to: "            + `${dcKey.replace(/^skillDC:/, \"\")} DC anyone rolls against to `", breaks: "F1" },
   // version
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.673.3\"", to: "\"version\": \"3.671.1\"", breaks: "Z0" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.674.0\"", to: "\"version\": \"3.671.1\"", breaks: "Z0" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-block8-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

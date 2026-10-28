@@ -82,6 +82,17 @@ const TIER_NAMES = ["martial", "expert", "adept"];
  * against it, and because "which feats are companion feats" is a
  * question worth having ONE answer to.
  */
+/**
+ * The companion kind a feat belongs to (3.674.0, C4): its declared
+ * `flags.trg-prime.companionKind`, else "animal" for a Companion-trait feat
+ * (the Animal Companion's own), else "" (not a companion feat).
+ */
+export function companionFeatKind(entry) {
+  const declared = String(entry?.flags?.["trg-prime"]?.companionKind ?? "").trim().toLowerCase();
+  if (declared) return declared;
+  return hasCompanionTrait(entry) ? "animal" : "";
+}
+
 export function hasCompanionTrait(entry) {
   return String(entry?.system?.traits ?? "")
     .split(/,\s*/)
@@ -164,7 +175,10 @@ export const PICKER_SLOTS = Object.freeze({
     // every repeatable feat looks non-repeatable, and the fix silently
     // does nothing at all. "system.repeatLimit" (3.359.0) joins it for
     // exactly the same reason — an unrequested cap is no cap.
-    fields: ["system.category", "system.prerequisites", "system.traits", "system.repeatable", "system.repeatLimit"],
+    // "flags.trg-prime.companionKind" (3.674.0, C4): the kind a companion
+    // feat belongs to, read by the gate below — unrequested it would read
+    // undefined and every dragon feat would be offered to every wolf.
+    fields: ["system.category", "system.prerequisites", "system.traits", "system.repeatable", "system.repeatLimit", "flags.trg-prime.companionKind"],
     excludeOwned: true
   },
   // ONE table holds racial and Creature Codex abilities (Graham,
@@ -816,6 +830,8 @@ export function buildPickerFilter(slotKey, context = {}) {
     // "companion" is a document type in this system and nothing else
     // needs interpreting.
     isCompanion = false,
+    // …and which kind (3.674.0, C4): "animal", "dragon", …
+    companionKind = "animal",
     // What specialistSpellAccess needs (aspect-workflow's
     // specialistAccessFor), for the spell slot only. Absent, no
     // specialist spell is hidden — the behaviour before 3.623.0.
@@ -998,7 +1014,11 @@ export function buildPickerFilter(slotKey, context = {}) {
       return (entry) => {
         if (entry.system?.category !== "General") return false;
         if (!meetsClassPrerequisite(entry, ownClass)) return false;
-        if (!isCompanion && hasCompanionTrait(entry)) return false;
+        // A COMPANION FEAT GOES TO ITS OWN KIND (3.674.0, C4; Graham's
+        // B10-12): the Animal Companion's to an animal companion, the
+        // Dragon Companion's four to a dragon, neither to anyone else.
+        const featKind = companionFeatKind(entry);
+        if (featKind) return isCompanion && (String(companionKind || "animal").toLowerCase() === featKind);
         return true;
       };
     case "racialAbility":

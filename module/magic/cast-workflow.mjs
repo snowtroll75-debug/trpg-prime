@@ -5303,7 +5303,9 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
   const { withDamageAbility } = await import("./spell-damage-ability.mjs");
   const damageFormula = withDamageAbility(
     addDice(addDice(warpedRowExtra(dmg.formula, warpMods), clMods?.damageDice), warpMods?.damageDice),
-    dmg, actor.system ?? {}, castingAbilityKey).formula;
+    dmg, actor.system ?? {}, castingAbilityKey,
+    // A COPY OLDER THAN ITS ROW (3.674.0): the printed sentence stands in.
+    String(spellData.description ?? "")).formula;
   const warpPersistent = Number(warpMods?.persistent ?? 0);
   const targetActor = targetOverride ?? Array.from(game.user?.targets ?? [])[0]?.actor ?? null;
   if (!targetActor) {

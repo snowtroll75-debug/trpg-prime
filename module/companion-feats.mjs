@@ -161,8 +161,17 @@ export function remainingSizeSteps(currentSize, maximumSize) {
  * leave whatever the effect set alone rather than coercing a companion
  * to Medium (lesson 18).
  */
-export function companionCurrentSize({ startingSize, maximumSize, featNames = [] } = {}) {
-  return sizeAfterPicks(startingSize, maximumSize, increaseSizePicks(featNames));
+export function companionCurrentSize({ startingSize, maximumSize, featNames = [], grownSize = "" } = {}) {
+  const picked = sizeAfterPicks(startingSize, maximumSize, increaseSizePicks(featNames));
+  // A KIND THAT GROWS WITH LEVEL (3.674.0, C3; the Dragon Companion Table's
+  // Size column, Graham's B10-1). Its module records the size it has grown
+  // to in `system.companion.grownSize`; the larger of that and the picks
+  // governs. An unknown size is ignored rather than coerced.
+  const grown = String(grownSize ?? "").trim().toLowerCase();
+  const grownIndex = SIZE_STEPS.indexOf(grown);
+  if (grownIndex < 0) return picked;
+  if (!picked) return grown;
+  return SIZE_STEPS.indexOf(picked) >= grownIndex ? picked : grown;
 }
 
 /** Support (Companion): "+1 circumstance bonus when attacking them". */

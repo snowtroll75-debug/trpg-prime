@@ -59,14 +59,31 @@ const DEFAULT_REPERTOIRE_SCHEDULE = Object.freeze({
   pickStep: 2, pickFrom: 3, swapStep: 2, swapFrom: 5
 });
 
-/** The schedule a class item declares, or the default. Pure. */
-export function repertoireSchedule(classItem) {
-  const raw = classItem?.flags?.[SYSTEM_ID]?.repertoire;
+/**
+ * The schedule a class item declares, or the default. Pure.
+ *
+ * …OR ITS OWNER (3.674.0, C10; Inner Tempest's Dragon Companions, Graham's
+ * B10-6). One class, four base dragons that each start with their own count
+ * ("4 x Cantrip, 2 additional spells" for the Cold dragon at 4th, 5 for the
+ * Fire dragon at 6th) and gain one a level after. The actor may declare the
+ * schedule itself in `flags.trg-prime.repertoire`, read over the class's,
+ * with two more fields: `firstPicks` (how many the schedule opens with) and
+ * `firstPickExact: false` (those are capped by what it can cast, not fixed
+ * at PP 2 — "max PP 2"). Absent, everything reads exactly as before.
+ */
+export function repertoireSchedule(classItem, actor = null) {
+  const raw = { ...(classItem?.flags?.[SYSTEM_ID]?.repertoire ?? {}), ...(actor?.flags?.[SYSTEM_ID]?.repertoire ?? {}) };
   const pick = (key) => {
     const n = Math.floor(Number(raw?.[key]));
     return Number.isFinite(n) && n >= 1 ? n : DEFAULT_REPERTOIRE_SCHEDULE[key];
   };
-  return { pickStep: pick("pickStep"), pickFrom: pick("pickFrom"), swapStep: pick("swapStep"), swapFrom: pick("swapFrom") };
+  const out = { pickStep: pick("pickStep"), pickFrom: pick("pickFrom"), swapStep: pick("swapStep"), swapFrom: pick("swapFrom") };
+  // The two new fields (C10) appear only when declared, so every schedule
+  // that declares neither reads exactly as it did.
+  const first = Math.floor(Number(raw?.firstPicks));
+  if (Number.isFinite(first) && first >= 0) out.firstPicks = first;
+  if (raw?.firstPickExact === false) out.firstPickExact = false;
+  return out;
 }
 
 /** How many grants a "from L, every N levels" clause has made by a level. */
@@ -89,7 +106,8 @@ function nextStep(level, from, step) {
 export function repertoirePickCount(level, schedule = DEFAULT_REPERTOIRE_SCHEDULE) {
   const value = Math.floor(Number(level) || 0);
   if (value < 1) return 0;
-  return REPERTOIRE_FIRST_PICKS + stepsGranted(value, schedule.pickFrom, schedule.pickStep);
+  const first = Number.isFinite(Number(schedule?.firstPicks)) ? Number(schedule.firstPicks) : REPERTOIRE_FIRST_PICKS;
+  return first + stepsGranted(value, schedule.pickFrom, schedule.pickStep);
 }
 
 /**
@@ -274,7 +292,9 @@ export function repertoireState({ level = 0, picked = 0, swapsUsed = 0, bonus = 
     remaining: Math.max(0, allowed - made),
     // The two PP 2 slots fill FIRST; every pick after them uses the
     // castable cap instead.
-    firstPicksOutstanding: made < Math.min(REPERTOIRE_FIRST_PICKS, allowed),
+    // An owner's schedule may open without the fixed PP 2 picks (C10).
+    firstPicksOutstanding: schedule?.firstPickExact === false ? false
+      : made < Math.min(Number.isFinite(Number(schedule?.firstPicks)) ? Number(schedule.firstPicks) : REPERTOIRE_FIRST_PICKS, allowed),
     swapsAllowed,
     swapsUsed: spent,
     swapsLeft: Math.max(0, swapsAllowed - spent),

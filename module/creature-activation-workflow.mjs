@@ -51,7 +51,8 @@ export async function useCreatureAbility(actor, item) {
   if (!area && !lines.length) return false;
   if (area && typeof area === "object") {
     const { declaredAreaUse } = await import("./creature-area.mjs");
-    const use = declaredAreaUse(item, { worldTime: Number(game.time?.worldTime ?? 0) });
+    // The user's level, for dice that follow it (3.674.0, C5; a dragon's breath).
+    const use = declaredAreaUse(item, { worldTime: Number(game.time?.worldTime ?? 0), level: Number(actor?.system?.identity?.level ?? 0) });
     if (use.refusal) { ui.notifications?.warn(`${item.name}: ${use.refusal}`); return false; }
     // A TYPE CHOSEN ON USE (3.634.0, F&F 3.0 block 4 R7): Radiant Eyes.
     const { areaDamageChoices, withChosenDamageType } = await import("./creature-area.mjs");
@@ -91,7 +92,10 @@ export async function useCreatureAbility(actor, item) {
     const { runDeclaredAreaEffect } = await import("./peril-workflow.mjs");
     const { resolveAreaDamageSource } = await import("./creature-area.mjs");
     const spec = perilEffectSpec(resolveAreaDamageSource(use.spec, Array.from(actor.items ?? []), {
-      bab: Number(actor.system?.combat?.bab?.total ?? 0), strength: Number(actor.system?.attributes?.strength?.total ?? 0)
+      bab: Number(actor.system?.combat?.bab?.total ?? 0), strength: Number(actor.system?.attributes?.strength?.total ?? 0),
+      level: Number(actor.system?.identity?.level ?? 0),
+      // For a rung's fallback weapon (3.674.0, C11).
+      size: String(actor.system?.identity?.size ?? "")
     }), "");
     // An area effect, for a Swarm's Weakness to area effects (3.632.0) — a
     // cone, line, burst or emanation; a swarm's own attack is its space.

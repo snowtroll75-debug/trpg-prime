@@ -61,7 +61,7 @@ export function repertoireContext(actor) {
     picked: repertoireSpells(actor).length,
     swapsUsed: Number(classItem.flags?.[SYSTEM_ID]?.repertoireSwapsUsed ?? 0),
     bonus,
-    schedule: repertoireSchedule(classItem)
+    schedule: repertoireSchedule(classItem, actor)
   });
   return {
     ...state,
@@ -249,7 +249,7 @@ export async function openRepertoireSwap(actor) {
   await classItem.setFlag(SYSTEM_ID, "repertoireSwapsUsed", spent);
   const swapsLeft = Math.max(
     0,
-    repertoireSwapCount(Number(actor.system?.identity?.level ?? 0), repertoireSchedule(classItem)) - spent
+    repertoireSwapCount(Number(actor.system?.identity?.level ?? 0), repertoireSchedule(classItem, actor)) - spent
   );
   await postCard(actor, "Spell Repertoire", [
     line(`<strong>${outgoingName}</strong> swapped out for <strong>${created.name}</strong>.`),

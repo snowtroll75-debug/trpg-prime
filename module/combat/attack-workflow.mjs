@@ -366,15 +366,18 @@ function companionPairBonusFor({ actor, attackerOrigin, allies = [], squares = [
   if (!sideFlags(attackerOrigin, squares)) return null;
 
   const attackerIsCompanion = isCompanion(actor);
+  // AN ADJACENT ONE (3.674.0): a master may now keep a companion of each
+  // kind (C1), so the partner is the bound one that is beside the target —
+  // the first found, if it stood off, used to hide one that did not.
   const partner = allies.find((ally) => {
     const allyActor = canvas?.tokens?.get(ally.id)?.actor ?? null;
     if (!allyActor) return false;
-    return attackerIsCompanion
+    const bound = attackerIsCompanion
       ? allyActor.id === masterIdOf(actor)
       : isBoundTo(allyActor, actor.id);
+    return bound && Boolean(sideFlags(ally, squares));
   }) ?? null;
   if (!partner) return null;
-  if (!sideFlags(partner, squares)) return null;
 
   // Whichever of the two is the companion is the one whose feats decide.
   const companionActor = attackerIsCompanion

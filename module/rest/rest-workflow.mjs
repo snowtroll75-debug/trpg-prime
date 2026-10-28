@@ -278,8 +278,9 @@ export async function performRestForActor(actor, {
       // Written through `setSoulDrain`, not by toggling the condition
       // here: it is the one place that keeps the condition, the max-HP
       // consequence and the card in step.
-      await setSoulDrain(actor, after);
-      soulDrainHealed = soulDrainBefore - after;
+      // What it actually came to: held Soul Drain (3.674.0, C8) stays.
+      const set = await setSoulDrain(actor, after);
+      soulDrainHealed = Math.max(0, soulDrainBefore - Number(set?.soulDrain ?? after));
     }
   }
 

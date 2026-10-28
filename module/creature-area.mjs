@@ -23,8 +23,24 @@
  * from another of its abilities. Pure.
  */
 import { bonusDamageDice } from "./combat/attack.mjs";
+import { resizedNaturalDamage } from "./companion.mjs";
 
 const SYSTEM_ID = "trg-prime";
+
+/**
+ * DICE BY LEVEL (3.674.0, C5; Inner Tempest's dragon breath, IT-C5: "1 die
+ * per level, the die from the base block"). `damage: { perLevel: "d8", type }`
+ * is that many of that die as the user's level: "6d8" at level 6. A fixed
+ * `formula` is returned unchanged; an unusable level or die gives no formula.
+ */
+export function perLevelDamage(damage, level) {
+  if (!damage || typeof damage !== "object" || damage.formula || !damage.perLevel) return damage;
+  const die = /^d(\d+)$/i.exec(String(damage.perLevel).trim());
+  const n = Math.floor(Number(level));
+  const { perLevel: _p, ...rest } = damage;
+  if (!die || !(n >= 1)) return rest;
+  return { ...rest, formula: `${n}d${die[1]}` };
+}
 
 /** The area declaration on an item, or null — its own, else a module breath read as one (3.632.0). */
 function areaOf(item) {
@@ -149,8 +165,12 @@ export function moduleBreathArea(item) {
  * @param {{worldTime?: number}} ctx
  * @returns {{spec: object|null, refusal: string, cooldownSeconds: number, breath: boolean}}
  */
-export function declaredAreaUse(item, { worldTime = 0 } = {}) {
-  const area = areaOf(item);
+export function declaredAreaUse(item, { worldTime = 0, level = null } = {}) {
+  const declared = areaOf(item);
+  // DICE BY LEVEL (3.674.0, C5), resolved here so everything after the Use
+  // — the roll, the breath riders' "half the breath weapon's dice" — reads a
+  // plain formula.
+  const area = declared?.damage?.perLevel ? { ...declared, damage: perLevelDamage(declared.damage, level) } : declared;
   if (!area) return { spec: null, refusal: "declares no area effect", cooldownSeconds: 0, breath: false };
   const cooldownSeconds = Math.max(0, Number(area.cooldownSeconds) || 0);
   const last = Number(item?.flags?.[SYSTEM_ID]?.lastUsedAt);
@@ -167,7 +187,7 @@ export function declaredAreaUse(item, { worldTime = 0 } = {}) {
  * declared area abilities whose name matches. Resolved at use time, so the
  * entry need not know which breath its dragon has.
  */
-export function resolveAreaDamageSource(spec, items = [], { bab = 0, strength = 0 } = {}) {
+export function resolveAreaDamageSource(spec, items = [], { bab = 0, strength = 0, level = null, size = "" } = {}) {
   const out = { ...spec };
   // "DAMAGE EQUAL TO THE DRAGON'S WING ATTACK DAMAGE" (Wing Buffet, Trample's
   // slam): a rung's damage borrowed from one of the creature's own weapons,
@@ -178,7 +198,12 @@ export function resolveAreaDamageSource(spec, items = [], { bab = 0, strength = 
       if (typeof row === "string") { resolved[rung] = row; continue; }
       if (!row || typeof row !== "object") continue;
       const re = row.weapon instanceof RegExp ? row.weapon : new RegExp(String(row.weapon ?? "$^"), "i");
-      const weapon = Array.from(items ?? []).find((i) => i?.type === "weapon" && re.test(String(i.name ?? "")));
+      // A FALLBACK WEAPON (3.674.0, C11; Inner Tempest's B10-5): "damage
+      // equal to the dragon's wing attack damage", for a dragon whose Wings
+      // attack has not arrived yet. `fallback: { damage: "1d6", size: "small" }`
+      // — the core Wings as authored — is resized to the creature and used.
+      const weapon = Array.from(items ?? []).find((i) => i?.type === "weapon" && re.test(String(i.name ?? "")))
+        ?? fallbackWeapon(row.fallback, size);
       if (!weapon) continue;
       const formula = weaponDamageFormula(weapon, { bab, strength, extraDice: Number(row.extraDice) || 0 });
       resolved[rung] = Number(row.times) > 1 ? `${Number(row.times)}*(${formula})` : formula;
@@ -189,10 +214,20 @@ export function resolveAreaDamageSource(spec, items = [], { bab = 0, strength = 
   const from = out?.damage?.fromItem;
   if (!from) return out;
   const re = from instanceof RegExp ? from : new RegExp(String(from), "i");
-  const source = Array.from(items ?? []).find((i) => re.test(String(i?.name ?? "")) && areaOf(i)?.damage?.formula);
-  if (source) out.damage = { formula: areaOf(source).damage.formula, type: areaOf(source).damage.type ?? "" };
+  // A breath whose dice follow the level (C5) is read at the user's level.
+  const dmgOf = (i) => perLevelDamage(areaOf(i)?.damage, level);
+  const source = Array.from(items ?? []).find((i) => re.test(String(i?.name ?? "")) && dmgOf(i)?.formula);
+  if (source) out.damage = { formula: dmgOf(source).formula, type: dmgOf(source).type ?? "" };
   else delete out.damage;
   return out;
+}
+
+/** A stand-in weapon from a rung's `fallback`, at the creature's size, or null. */
+function fallbackWeapon(fallback, size) {
+  if (!fallback || typeof fallback !== "object" || !fallback.damage) return null;
+  const at = String(size ?? "").trim().toLowerCase();
+  const resized = at && fallback.size ? resizedNaturalDamage(String(fallback.damage), String(fallback.size), at) : null;
+  return { type: "weapon", name: String(fallback.name ?? "Fallback"), system: { damage: resized ?? String(fallback.damage), damageType: String(fallback.damageType ?? "bludgeoning") } };
 }
 
 /** A weapon's damage as the creature rolls it: base dice (+ BAB dice) + Strength. */

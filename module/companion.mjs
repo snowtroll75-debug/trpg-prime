@@ -46,6 +46,7 @@
 
 import { progressionRow } from "./class-progression.mjs";
 import { CODEX_DAMAGE_LADDER, steppedCreatureDamage } from "./creature-attacks.mjs";
+import { registeredCompanionKind } from "./module-api.mjs";
 
 /** The class item every animal companion carries. */
 export const COMPANION_CLASS_NAME = "Animal Companion";
@@ -106,6 +107,59 @@ export const SIZE_STEPS = Object.freeze([
 
 export function isCompanion(actor) {
   return actor?.type === "companion";
+}
+
+/*
+ * KINDS OF COMPANION (3.674.0, C1; Inner Tempest's Dragon Companions,
+ * Graham's B10-12). The Animal Companion is the system's own kind, "animal",
+ * and every companion made before 3.674.0 is one (its `kind` is blank). A
+ * module adds others through `registerCompanionKind` (module-api.mjs); a
+ * master may keep one companion of each kind.
+ */
+export const ANIMAL_KIND = "animal";
+
+const ANIMAL_KIND_SPEC = Object.freeze({
+  key: ANIMAL_KIND,
+  label: COMPANION_CLASS_NAME,
+  className: COMPANION_CLASS_NAME,
+  creatureType: "Animal",
+  pack: "",
+  levelFrom: null,
+  sizeAbilityMods: true,
+  abilityPoints: true,
+  command: "Command it with the Command an Animal (Handle Animal) action — no check needed, it automatically succeeds. "
+    + "It rolls its own initiative, and moves onto yours the first time you command it in a combat."
+});
+
+/** The kind key a companion actor was made as ("animal" when blank). */
+export function companionKindOf(actor) {
+  return String(actor?.system?.companion?.kind ?? "").trim().toLowerCase() || ANIMAL_KIND;
+}
+
+/**
+ * A kind's spec: the built-in Animal Companion, or a module's registered
+ * kind. An unknown key (a module since disabled) reads as null, so the
+ * caller can say so rather than treat a dragon as a wolf.
+ */
+export function companionKindSpec(key = ANIMAL_KIND) {
+  const want = String(key ?? "").trim().toLowerCase() || ANIMAL_KIND;
+  if (want === ANIMAL_KIND) return ANIMAL_KIND_SPEC;
+  return registeredCompanionKind(want);
+}
+
+/**
+ * The level this companion should be (C2): its kind's `levelFrom`, or its
+ * master's level. A `levelFrom` that throws or answers nothing usable falls
+ * back to the master's level, floored at 1, so a broken module cannot leave a
+ * companion at level 0.
+ */
+export function expectedCompanionLevel(master, companion) {
+  const masterLevel = Math.max(1, Math.floor(Number(master?.system?.identity?.level ?? 1)));
+  const spec = companionKindSpec(companionKindOf(companion));
+  if (typeof spec?.levelFrom !== "function") return masterLevel;
+  let level = NaN;
+  try { level = Math.floor(Number(spec.levelFrom(master, companion))); } catch { level = NaN; }
+  return Number.isFinite(level) && level >= 1 ? level : masterLevel;
 }
 
 /** The stored id of this companion's master, or "" if unbound. */
@@ -298,13 +352,19 @@ export function companionEffectiveLevel(classItem, level) {
  * something is. A companion with no master is not "out of date" — it is
  * unbound, which is a different state and gets a different message.
  */
-export function companionSyncState({ masterLevel, companionLevel, hasMaster }) {
+export function companionSyncState({ masterLevel, companionLevel, hasMaster, expectedLevel = null }) {
   if (!hasMaster) {
     return { bound: false, inSync: true, masterLevel: null, companionLevel: Number(companionLevel) || 0 };
   }
   const master = Math.max(0, Math.floor(Number(masterLevel) || 0));
   const own = Math.max(0, Math.floor(Number(companionLevel) || 0));
-  return { bound: true, inSync: master === own, masterLevel: master, companionLevel: own };
+  // A KIND WITH ITS OWN LEVEL RULE (3.674.0, C2): a dragon is its base level
+  // plus the master's levels gained, so "in step" is that, not the master's.
+  if (expectedLevel === null || expectedLevel === undefined) {
+    return { bound: true, inSync: master === own, masterLevel: master, companionLevel: own };
+  }
+  const expected = Math.max(0, Math.floor(Number(expectedLevel) || 0));
+  return { bound: true, inSync: expected === own, masterLevel: master, companionLevel: own, expectedLevel: expected };
 }
 
 /**
@@ -409,7 +469,7 @@ export function companionActorName(masterName, creatureName) {
  * rather than reading as drifted the moment it is made.
  */
 export function companionActorData({
-  masterId, masterName, creatureName, startingSize, maximumSize, level, ownership, img
+  masterId, masterName, creatureName, startingSize, maximumSize, level, ownership, img, kind = ANIMAL_KIND
 } = {}) {
   const resolvedLevel = Math.max(1, Math.floor(Number(level) || 1));
   return {
@@ -426,7 +486,10 @@ export function companionActorData({
         baseCreature: String(creatureName ?? ""),
         startingSize: String(startingSize ?? ""),
         maximumSize: String(maximumSize ?? ""),
-        syncedAtLevel: resolvedLevel
+        syncedAtLevel: resolvedLevel,
+        // THE KIND (3.674.0, C1): blank is the Animal Companion, as before.
+        kind: String(kind ?? "").trim().toLowerCase() === ANIMAL_KIND ? "" : String(kind ?? "").trim().toLowerCase(),
+        grownSize: ""
       }
     }
   };

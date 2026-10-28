@@ -22,7 +22,7 @@ const MUTATIONS = [
   { name: "a waived price is not named as waived", file: DT, from: "  const cost = dc === 0 && option.dc > 0 ? \" (waived)\" : ` (+${dc} DC)`;", to: "  const cost = ` (+${dc} DC)`;", breaks: "C1" },
   { name: "the paid figure is ignored", file: DT, from: "  const dc = paidDC === null || paidDC === undefined ? option.dc * count : Math.max(0, Number(paidDC) || 0);", to: "  const dc = option.dc * count;", breaks: "C2" },
   // version
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.673.3\"", to: "\"version\": \"3.670.0\"", breaks: "Z0" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.674.0\"", to: "\"version\": \"3.670.0\"", breaks: "Z0" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-fixes-3670-1.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

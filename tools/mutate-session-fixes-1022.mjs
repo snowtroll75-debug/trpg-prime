@@ -31,7 +31,12 @@ const MUTATIONS = [
   { name: "a request with no number drops the creature to zero", file: TR, from: "      if (!Number.isFinite(finalHP)) return { ok: false, reason: \"no hit points named\" };\n", to: "", breaks: "B5" },
   { name: "Soul Destruction's mark is refused", file: TR, from: "\"ppDrain\", \"apWatch\", \"soulDestroyed\"]", to: "\"ppDrain\", \"apWatch\"]", breaks: "B6" },
   // C
-  { name: "THE HURLING COMPLAINT: the cast's key never reaches the damage", file: CW, from: "dmg, actor.system ?? {}, castingAbilityKey).formula;", to: "dmg, actor.system ?? {}).formula;", breaks: "C5" },
+  { name: "THE HURLING COMPLAINT: the cast's key never reaches the damage", file: CW, from: "dmg, actor.system ?? {}, castingAbilityKey,\n", to: "dmg, actor.system ?? {}, \"\",\n", breaks: "C5" },
+  { name: "THE 28 OCTOBER COMPLAINT: a copy with no row ignores its printed sentence", file: CW, from: "    String(spellData.description ?? \"\")).formula;", to: "    \"\").formula;", breaks: "C13" },
+  { name: "the printed text is never read", file: SDA, from: "  return printedDamageAbility(printedText);", to: "  return \"\";", breaks: "C11" },
+  { name: "the printed text overrides a declared row", file: SDA, from: "  if (damageRow && Object.hasOwn(damageRow, \"addAbility\")) {", to: "  if (damageRow?.addAbility) {", breaks: "C12" },
+  { name: "any \"magical ability score\" in the text adds it", file: SDA, from: "  { re: /\\binflicts\\s+\\d*d\\d+\\s*\\+\\s*(?:your\\s+)?magical ability score\\b/i, ability: CASTING },", to: "  { re: /magical ability score/i, ability: CASTING },", breaks: "C11" },
+  { name: "Guiding Stone's sentence is not read", file: SDA, from: "  { re: /\\bequal to\\s+\\d*d\\d+\\s+plus your melee damage modifier\\b/i, ability: \"strength\" }\n", to: "", breaks: "C11" },
   { name: "\"casting\" is not a word a row may say", file: SDA, from: "  return ABILITIES.includes(a) || a === CASTING ? a : \"\";", to: "  return ABILITIES.includes(a) ? a : \"\";", breaks: "C1" },
   { name: "the sheet's ability wins over the cast's", file: SDA, from: "    ? [castingAbilityKey, casterSystem?.magic?.castingAbility]", to: "    ? [casterSystem?.magic?.castingAbility, castingAbilityKey]", breaks: "C2" },
   { name: "the Spellcraft swap is ignored", file: CW, from: "(isInnate ? innateAbilityAttr : (swapAbility ?? system.magic?.castingAbility))", to: "(isInnate ? innateAbilityAttr : system.magic?.castingAbility)", breaks: "C6" },

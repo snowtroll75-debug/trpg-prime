@@ -37,9 +37,14 @@ function companionTypes(actor) {
     // Imported lazily: companion-workflow reaches into `game.actors`, and
     // this module is loaded by the spell engine long before a world exists
     // in the harness.
+    // BY THE STORED MASTER ID (3.674.0, C9; found reading the companion code
+    // for Inner Tempest's dragons). This looked for a `companionMaster` flag
+    // and `system.details.masterId`, neither of which companion creation has
+    // ever written — it writes `system.companion.masterId` — so no companion
+    // was ever found and Animal Soul never knew its own companion's type.
     const bound = Array.from(game?.actors ?? []).filter(
-      (a) => a?.getFlag?.("trg-prime", "companionMaster") === actor?.id
-        || a?.system?.details?.masterId === actor?.id
+      (a) => a?.type === "companion" && actor?.id
+        && String(a?.system?.companion?.masterId ?? "").trim() === actor.id
     );
     for (const companion of bound) types.push(...creatureTypesOf(companion.system));
   } catch { /* no world, no companions */ }

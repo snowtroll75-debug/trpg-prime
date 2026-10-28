@@ -76,8 +76,8 @@ equal("A12 past the table the markers are null", [stateEnd.nextPickLevel, stateE
 equal("A13 at 19th under the core schedule the last pick has been granted", rep.repertoireState({ level: 19 }).nextPickLevel, null);
 equal("A14 at 18th the core schedule still points at 19", rep.repertoireState({ level: 18 }).nextPickLevel, 19);
 ok("A15 the schedule reaches the workflow and the class card",
-  /schedule: repertoireSchedule\(classItem\)/.test(read("module/magic/repertoire-workflow.mjs")) && /repertoireSchedule\(sourceItem\)/.test(read("module/grants-workflow.mjs")));
-ok("A16 the swap path reads the schedule too", /repertoireSwapCount\(Number\(actor\.system\?\.identity\?\.level \?\? 0\), repertoireSchedule\(classItem\)\)/.test(read("module/magic/repertoire-workflow.mjs")));
+  /schedule: repertoireSchedule\(classItem, actor\)/.test(read("module/magic/repertoire-workflow.mjs")) && /repertoireSchedule\(sourceItem, actor\)/.test(read("module/grants-workflow.mjs")));
+ok("A16 the swap path reads the schedule too", /repertoireSwapCount\(Number\(actor\.system\?\.identity\?\.level \?\? 0\), repertoireSchedule\(classItem, actor\)\)/.test(read("module/magic/repertoire-workflow.mjs")));
 
 /* ------------------------------------------------------------------ *
  * B. The declared ability chooser

@@ -104,7 +104,7 @@ const MUTATIONS = [
   { name: "the dialog is not told what a Refocus restores (review)", file: ACW, from: "      restores: refocusTarget ? [refocusTarget.system?.category, refocusTarget.name].map((v) => String(v ?? \"\").trim()).filter(Boolean) : [],\n", to: "", breaks: "R" },
   { name: "the dialog drops the restores and sheathed axes (review)", file: m("apps", "check-dialog.mjs"), from: "            sheathedGroups: sheathedGroups || sheathedGroupsOf(actor?.items ?? []), restores\n", to: "\n", breaks: "R" },
   // version
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.673.3\"", to: "\"version\": \"3.670.1\"", breaks: "Z0" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.674.0\"", to: "\"version\": \"3.670.1\"", breaks: "Z0" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-block7-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

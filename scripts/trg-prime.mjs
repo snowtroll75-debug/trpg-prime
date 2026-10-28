@@ -679,6 +679,11 @@ Hooks.once("init", () => {
   // GM to be online for a player's own level-up to take effect.
   Hooks.on("updateActor", async (actor, changed, options, userId) => {
     if (userId !== game.user?.id) return;
+    // A COMPANION THAT GREW (3.674.0, C3): its tokens follow its new size.
+    if (actor?.type === "companion" && foundry.utils.hasProperty(changed ?? {}, "system.companion.grownSize")) {
+      const { resizeCompanionTokens } = await import("../module/companion-workflow.mjs");
+      await resizeCompanionTokens(actor);
+    }
     if (actor?.type === "companion" || actor?.type === "familiar") return;
 
     // A FAMILIAR mirrors far more than a level — its saves, hit points,

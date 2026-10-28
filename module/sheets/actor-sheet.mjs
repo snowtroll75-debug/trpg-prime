@@ -84,7 +84,7 @@ import { spellListFilterOptions, wireSpellListFilters } from "./list-filters.mjs
 import { rollFrightenedRecovery, rollSickenedRetch } from "../combat/conditions-workflow.mjs";
 import { chargedItemSheetWarnings } from "../charged-items-workflow.mjs";
 import { SKILL_POINT_BONUSES, companionFeatBudget, featBudget, registeredFeatPicks, featDisplayName, freeGrantSources, effectiveRaces, effectiveClasses, effectiveArchetypes, effectiveTiers, declaredClassFeatAccess, substituteSkillActions } from "../feats.mjs";
-import { companionEffectiveLevel, companionSyncState, isCompanion, masterIdOf } from "../companion.mjs";
+import { companionEffectiveLevel, companionKindOf, companionKindSpec, companionSyncState, expectedCompanionLevel, isCompanion, masterIdOf } from "../companion.mjs";
 import {
   familiarAbilityBudget, familiarActionPoints, familiarEffectiveLevel,
   familiarMasterId, familiarMirrorFrom, familiarSyncState, isFamiliar
@@ -578,10 +578,17 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       const state = companionSyncState({
         masterLevel: master?.system?.identity?.level ?? null,
         companionLevel: system.identity?.level ?? 0,
-        hasMaster: Boolean(master)
+        hasMaster: Boolean(master),
+        // ITS KIND'S LEVEL (3.674.0, C2): a dragon's is not its master's.
+        expectedLevel: master ? expectedCompanionLevel(master, actor) : null
       });
+      // ITS KIND (3.674.0, C1): the eyebrow, the banner and the warnings say
+      // "Dragon Companion" for a dragon.
+      const kindSpec = companionKindSpec(companionKindOf(actor));
       context.companionSummary = {
         ...state,
+        kindLabel: kindSpec?.label ?? "Companion",
+        isAnimalKind: companionKindOf(actor) === "animal",
         // The STORED name when the master is gone, so a companion whose
         // master was deleted still says whose it was rather than going
         // blank and looking like a bug.
@@ -797,6 +804,9 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     );
 
     const abilityPoints = system.identity?.abilityPoints;
+    // A COMPANION KIND WITH NO PC ABILITY POOL (3.674.0, C7): "they do not
+    // receive the increase gained by a PC" — a dragon's scores are its table's.
+    context.hideAbilityPoints = isCompanion(actor) && companionKindSpec(companionKindOf(actor))?.abilityPoints === false;
     if (abilityPoints) {
       const sign = (value) => (value >= 0 ? `+${value}` : String(value));
       context.abilityPoints = {
@@ -2781,6 +2791,8 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       // and nowhere else (Graham, 3.249.2). Read off the document type,
       // because a companion IS a type in this system.
       isCompanion: this.actor.type === "companion",
+      // …and its kind (3.674.0, C4): a dragon is offered the dragon's feats.
+      companionKind: companionKindOf(this.actor),
       // R8 (3.623.0): which specialist spells this character may learn.
       specialistAccess: slotKey === "spell"
         ? await (await import("../aspect-workflow.mjs")).specialistAccessFor(this.actor)

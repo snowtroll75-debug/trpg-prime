@@ -28,8 +28,8 @@ const MUTATIONS = [
   {
     name: "the schedule flag is read but never used for picks",
     file: REP,
-    from: "  return REPERTOIRE_FIRST_PICKS + stepsGranted(value, schedule.pickFrom, schedule.pickStep);",
-    to: "  return REPERTOIRE_FIRST_PICKS + stepsGranted(value, 3, 2);",
+    from: "  return first + stepsGranted(value, schedule.pickFrom, schedule.pickStep);",
+    to: "  return first + stepsGranted(value, 3, 2);",
     breaks: "A5 — a Grimward would get the Bard's picks"
   },
   {
@@ -56,7 +56,7 @@ const MUTATIONS = [
   {
     name: "the workflow stops reading the class's schedule",
     file: REPW,
-    from: "    schedule: repertoireSchedule(classItem)",
+    from: "    schedule: repertoireSchedule(classItem, actor)",
     to: "    schedule: undefined",
     breaks: "A15 — the flag would be data nothing reads"
   },

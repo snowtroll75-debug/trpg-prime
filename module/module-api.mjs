@@ -122,6 +122,12 @@ function emptyRegistry() {
     /** Route key → another skill's road to Create (3.673.0): Inner Tempest's Monastic Items. See create-crafting.mjs. */
     createRoutes: new Map(),
     /**
+     * Kind key → a companion a module brings beside the Animal Companion
+     * (3.674.0): Inner Tempest's Dragon Companion. See companion.mjs
+     * `companionKindSpec`.
+     */
+    companionKinds: new Map(),
+    /**
      * Automation key → { trigger?, use? } (3.629.0): a peril whose Effect, or
      * a routine action whose effect, is more than a save — Pillars of Faith's
      * Hungry Reliquary. See peril-workflow.mjs `triggerPeril`/`usePerilRoutine`.
@@ -787,6 +793,53 @@ export function registerCreateRoute(raw, moduleId = null, { addSkill = null } = 
   if (typeof addSkill === "function") addSkill("create", route.skill);
   noteContributor(moduleId);
   return true;
+}
+
+/**
+ * A KIND OF COMPANION (3.674.0, C1; Inner Tempest's Dragon Companions,
+ * Graham's B10-12). The Animal Companion is the system's own kind; a module
+ * may add another, with its own class, creature type, base creatures (its
+ * pack), level rule and labels. A master may keep one companion of each kind.
+ *
+ *   key             "dragon" — stored on the companion as `system.companion.kind`
+ *   label           "Dragon Companion" — the sheet's eyebrow and the cards' title
+ *   className       the class item in the pack every such companion carries
+ *   creatureType    the creature-type item it carries ("Wyrm")
+ *   pack            the compendium id its class and base creatures live in
+ *   levelFrom       (master, companion) => level; absent, the master's level
+ *   sizeAbilityMods false: growing a size step changes no Str or Dex (C6)
+ *   abilityPoints   false: no PC ability-point pool on its sheet (C7)
+ *   command         the card's line on commanding it
+ */
+export function normaliseCompanionKind(raw) {
+  const key = String(raw?.key ?? "").trim().toLowerCase();
+  const className = String(raw?.className ?? "").trim();
+  const pack = String(raw?.pack ?? "").trim();
+  if (!key || key === "animal" || !className || !pack) return null;
+  return {
+    key,
+    label: String(raw?.label ?? "").trim() || className,
+    className,
+    creatureType: String(raw?.creatureType ?? "").trim(),
+    pack,
+    levelFrom: typeof raw?.levelFrom === "function" ? raw.levelFrom : null,
+    sizeAbilityMods: raw?.sizeAbilityMods !== false,
+    abilityPoints: raw?.abilityPoints !== false,
+    command: String(raw?.command ?? "").trim()
+  };
+}
+
+export function registerCompanionKind(raw, moduleId = null) {
+  const kind = normaliseCompanionKind(raw);
+  if (!kind) { problem(`registerCompanionKind: "${raw?.key ?? "?"}" needs a key (not "animal"), a class name and a pack`); return false; }
+  registry.companionKinds.set(kind.key, { ...kind, moduleId: moduleId ? String(moduleId) : "" });
+  noteContributor(moduleId);
+  return true;
+}
+
+/** One registered companion kind, or null. */
+export function registeredCompanionKind(key) {
+  return registry.companionKinds.get(String(key ?? "").trim().toLowerCase()) ?? null;
 }
 
 /** Every registered Create route. */

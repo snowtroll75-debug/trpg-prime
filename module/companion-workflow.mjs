@@ -24,9 +24,12 @@
 const { DialogV2 } = foundry.applications.api;
 
 import {
-  COMPANION_CLASS_NAME,
+  ANIMAL_KIND,
   COMPANION_PACK,
   companionActorData,
+  companionKindOf,
+  companionKindSpec,
+  expectedCompanionLevel,
   isBoundTo,
   masterIdOf
 } from "./companion.mjs";
@@ -34,18 +37,19 @@ import { contentPack } from "./content-packs.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
-/** The creature type every animal companion carries. */
-const COMPANION_CREATURE_TYPE = "Animal";
-
 function normalise(name) {
   return String(name ?? "").trim().toLowerCase();
 }
 
-/** Every companion actor in the world bound to this master. */
-export function companionsOf(masterActor) {
+/**
+ * Every companion actor in the world bound to this master, or only those of
+ * one kind (3.674.0, C1: "animal", "dragon", …).
+ */
+export function companionsOf(masterActor, kind = null) {
   const id = masterActor?.id;
   if (!id) return [];
-  return Array.from(game.actors ?? []).filter((a) => isBoundTo(a, id));
+  const want = kind === null || kind === undefined ? null : (String(kind).trim().toLowerCase() || ANIMAL_KIND);
+  return Array.from(game.actors ?? []).filter((a) => isBoundTo(a, id) && (want === null || companionKindOf(a) === want));
 }
 
 /** The master actor a companion is bound to, or null. */
@@ -93,8 +97,10 @@ export function masterOf(companionActor) {
  */
 export async function syncCompanionLevels(masterActor, { announce = false } = {}) {
   const lines = [];
-  const level = Math.max(1, Math.floor(Number(masterActor?.system?.identity?.level ?? 1)));
   for (const companion of companionsOf(masterActor)) {
+    // ITS KIND'S LEVEL (3.674.0, C2): a dragon is its base level plus the
+    // master's levels gained since hatching; an animal companion the master's.
+    const level = expectedCompanionLevel(masterActor, companion);
     const own = Number(companion.system?.identity?.level ?? 0);
     if (own === level) continue;
     if (!companion.isOwner) {
@@ -116,7 +122,7 @@ export async function syncCompanionLevels(masterActor, { announce = false } = {}
   if (announce && lines.length) {
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: masterActor }),
-      content: `<div class="trg-prime"><h3>Animal Companion</h3>` +
+      content: `<div class="trg-prime"><h3>${companionsOf(masterActor).length > 1 ? "Companions" : (companionKindSpec(companionKindOf(companionsOf(masterActor)[0]))?.label ?? "Companion")}</h3>` +
         lines.map((text) => `<p>${text}</p>`).join("") +
         `</div>`
     });
@@ -139,9 +145,15 @@ export async function syncCompanionLevels(masterActor, { announce = false } = {}
  */
 export const MOUNT_CREATURES = Object.freeze(["Horse", "Pony"]);
 
-/** The base creatures available to pick, from the companions pack. */
-async function baseCreatureChoices(only = null) {
-  const pack = contentPack(COMPANION_PACK);
+/** The pack a kind's class and base creatures live in. */
+function kindPack(spec) {
+  if (!spec || spec.key === ANIMAL_KIND) return contentPack(COMPANION_PACK);
+  return game.packs?.get(spec.pack) ?? null;
+}
+
+/** The base creatures available to pick, from the kind's pack (its own only). */
+async function baseCreatureChoices(only = null, spec = companionKindSpec(ANIMAL_KIND)) {
+  const pack = kindPack(spec);
   if (!pack) return [];
   const docs = await pack.getDocuments();
   const wanted = Array.isArray(only)
@@ -164,43 +176,60 @@ async function baseCreatureChoices(only = null) {
  * are four wolves in the sidebar.
  */
 export async function createCompanionFor(masterActor, featItem, {
+  kind = ANIMAL_KIND,
   only = null,
-  title = "Animal Companion",
-  intro = ""
+  title = null,
+  intro = "",
+  flags = null
 } = {}) {
-  const existing = companionsOf(masterActor);
+  // ONE OF EACH KIND (3.674.0, C1; Graham's B10-12). A Ranger who becomes a
+  // Dragon Tamer keeps the wolf; a second wolf, or a second dragon, is refused.
+  const spec = companionKindSpec(kind);
+  if (!spec) {
+    ui.notifications.warn(`No companion kind "${kind}" is registered — is its module active?`);
+    return null;
+  }
+  const heading = title ?? spec.label;
+  const existing = companionsOf(masterActor, spec.key);
   if (existing.length) {
     ui.notifications.warn(
-      `${masterActor.name} already has a companion (${existing.map((c) => c.name).join(", ")}). ` +
-      "Replacing one is a week of downtime and a Nature check — delete the old actor first if that has happened."
+      `${masterActor.name} already has a ${spec.label.toLowerCase()} (${existing.map((c) => c.name).join(", ")}). ` +
+      (spec.key === ANIMAL_KIND
+        ? "Replacing one is a week of downtime and a Nature check — delete the old actor first if that has happened."
+        : "Delete the old actor first if it is gone.")
     );
     return null;
   }
 
-  const creatures = await baseCreatureChoices(only);
+  const creatures = await baseCreatureChoices(only, spec);
   if (!creatures.length) {
-    ui.notifications.warn(`${title}: no base creatures found in the companions compendium.`);
+    ui.notifications.warn(`${heading}: no base creatures found in its compendium.`);
     return null;
   }
 
-  const chosenName = await chooseCreature(creatures, { title, intro });
+  const chosenName = creatures.length === 1 && Array.isArray(only)
+    ? creatures[0].name
+    : await chooseCreature(creatures, { title: heading, intro, label: spec.label });
   if (!chosenName) return null;
   const creature = creatures.find((c) => c.name === chosenName);
   if (!creature) return null;
 
-  const pack = contentPack(COMPANION_PACK);
+  const pack = kindPack(spec);
   const classDoc = (await pack.getDocuments())
-    .find((d) => d.type === "class" && normalise(d.name) === normalise(COMPANION_CLASS_NAME));
+    .find((d) => d.type === "class" && normalise(d.name) === normalise(spec.className));
   const typePack = contentPack("creature-types");
-  const typeDoc = typePack
-    ? (await typePack.getDocuments()).find((d) => normalise(d.name) === normalise(COMPANION_CREATURE_TYPE))
+  const typeDoc = typePack && spec.creatureType
+    ? (await typePack.getDocuments()).find((d) => normalise(d.name) === normalise(spec.creatureType))
     : null;
   if (!classDoc) {
-    ui.notifications.warn(`Animal Companion: the "${COMPANION_CLASS_NAME}" class is missing from the compendium.`);
+    ui.notifications.warn(`${spec.label}: the "${spec.className}" class is missing from the compendium.`);
     return null;
   }
 
-  const level = Math.max(1, Math.floor(Number(masterActor.system?.identity?.level ?? 1)));
+  // THE KIND'S LEVEL (C2), asked of a stand-in carrying the flags the
+  // companion will have, so a dragon starts at its base level.
+  const preview = { system: { companion: { kind: spec.key === ANIMAL_KIND ? "" : spec.key, baseCreature: creature.name } }, flags: flags ?? {}, getFlag(scope, key) { return this.flags?.[scope]?.[key]; } };
+  const level = expectedCompanionLevel(masterActor, preview);
   const data = companionActorData({
     masterId: masterActor.id,
     masterName: masterActor.name,
@@ -209,8 +238,10 @@ export async function createCompanionFor(masterActor, featItem, {
     maximumSize: String(creature.system?.maximumSize ?? ""),
     level,
     ownership: masterActor.ownership,
-    img: creature.img
+    img: creature.img,
+    kind: spec.key
   });
+  if (flags && typeof flags === "object") data.flags = foundry.utils.mergeObject(data.flags ?? {}, flags, { inplace: false });
   const companion = await Actor.create(data);
   if (!companion) return null;
 
@@ -237,10 +268,10 @@ export async function createCompanionFor(masterActor, featItem, {
   // Provenance, so the feat's removal can find what it created and the
   // companion knows which feat made it.
   await companion.setFlag(SYSTEM_ID, "grantedBy", {
-    sourceId: featItem?.id ?? "", sourceName: featItem?.name ?? "Animal Companion", actorId: masterActor.id
+    sourceId: featItem?.id ?? "", sourceName: featItem?.name ?? spec.label, actorId: masterActor.id
   });
 
-  await postCreationCard(masterActor, companion, creature, level);
+  await postCreationCard(masterActor, companion, creature, level, spec);
   return companion;
 }
 
@@ -251,20 +282,19 @@ export async function createCompanionFor(masterActor, featItem, {
  * who has never seen the rules should not have to open three sheets to
  * find out what they just gained.
  */
-async function postCreationCard(masterActor, companion, creature, level) {
+async function postCreationCard(masterActor, companion, creature, level, spec = companionKindSpec(ANIMAL_KIND)) {
   const s = companion.system;
   const attacks = companion.items.filter((i) => i.type === "weapon").map((i) => i.name);
   const lines = [
-    `<p><strong>${companion.name}</strong> — a ${creature.name} companion, level ${level}.</p>`,
+    `<p><strong>${companion.name}</strong> — a ${creature.name} ${spec.key === ANIMAL_KIND ? "companion" : spec.label.toLowerCase()}, level ${level}.</p>`,
     `<p>DB ${s.combat?.defence?.total ?? "?"}, DR ${s.combat?.naturalArmour?.dr ?? 0}, HP ${s.resources?.hp?.max ?? "?"}; ` +
     `Fort +${s.combat?.saves?.fortitude?.total ?? 0}, Ref +${s.combat?.saves?.reflex?.total ?? 0}, Will +${s.combat?.saves?.will?.total ?? 0}.</p>`,
     attacks.length ? `<p>Attacks: ${attacks.join(", ")}.</p>` : "",
-    `<p><em>Command it with the Command an Animal (Handle Animal) action — no check needed, it automatically succeeds. ` +
-    `It rolls its own initiative, and moves onto yours the first time you command it in a combat.</em></p>`
+    spec.command ? `<p><em>${spec.command}</em></p>` : ""
   ].filter(Boolean);
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor: masterActor }),
-    content: `<div class="trg-prime"><h3>Animal Companion</h3>${lines.join("")}</div>`
+    content: `<div class="trg-prime"><h3>${spec.label}</h3>${lines.join("")}</div>`
   });
 }
 
@@ -277,7 +307,7 @@ function sizeFromCreature(creature) {
   return "";
 }
 
-async function chooseCreature(creatures, { title = "Animal Companion", intro = "" } = {}) {
+async function chooseCreature(creatures, { title = "Animal Companion", intro = "", label = "Animal Companion" } = {}) {
   const options = creatures
     .map((c) => `<option value="${c.name}">${c.name}</option>`)
     .join("");
@@ -288,7 +318,7 @@ async function chooseCreature(creatures, { title = "Animal Companion", intro = "
     content: `<div class="trg-prime trg-check-dialog">
       <p>${intro || `Choose your companion's base creature. Its size, ability scores, speeds, senses,
       natural attacks and specials all come from the species; everything else comes from
-      the Animal Companion table and your own level.`}</p>
+      the ${label} table and your own level.`}</p>
       <div class="form-group"><label>Base creature</label>
       <select name="choice">${options}</select></div></div>`,
     buttons: [
@@ -305,4 +335,26 @@ async function chooseCreature(creatures, { title = "Animal Companion", intro = "
   });
   if (!result || result === "cancel") return null;
   return result.choice;
+}
+
+/**
+ * A COMPANION THAT GREW (3.674.0, C3): every token of it on the canvas to
+ * its derived size's side (Large 2 squares, Huge 3, …), not as a move. Small
+ * and smaller keep one square.
+ */
+export async function resizeCompanionTokens(companion) {
+  const { SIZE_TABLE } = await import("./config.mjs");
+  const size = String(companion?.system?.identity?.size ?? "").toLowerCase();
+  const space = Number(SIZE_TABLE[size]?.space);
+  if (!(space > 0)) return;
+  const side = Math.max(1, Math.round(space / 5));
+  const { resizeTokenInPlace } = await import("./combat/movement-workflow.mjs");
+  for (const doc of companion.getActiveTokens?.(false, true) ?? []) {
+    if (doc?.update && (Number(doc.width) !== side || Number(doc.height) !== side)) await resizeTokenInPlace(doc, side);
+  }
+  // …and the next one dragged out.
+  const proto = companion.prototypeToken;
+  if (proto && companion.isOwner && (Number(proto.width) !== side || Number(proto.height) !== side)) {
+    await companion.update({ "prototypeToken.width": side, "prototypeToken.height": side });
+  }
 }

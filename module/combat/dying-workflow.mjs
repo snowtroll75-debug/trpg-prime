@@ -858,7 +858,10 @@ export async function promptSetDoomed(actor) {
  * the new one.
  */
 export async function setSoulDrain(actor, value) {
-  const newDrain = Math.max(0, Math.floor(Number(value) || 0));
+  // WHAT IS HELD STAYS (3.674.0, C8): the value is raised to the hold here, as
+  // the condition itself will raise it, so the card says what is true.
+  const { heldSoulDrain, soulDrainWithHold } = await import("../conditions/soul-drain.mjs");
+  const newDrain = soulDrainWithHold(value, heldSoulDrain(actor));
   const currentDrain = Number(actor.getConditionValue?.("soulDrain") ?? 0);
   const baseMaxHP = Number(actor.system?.resources?.hp?.max ?? 0) + currentDrain;
 
@@ -887,6 +890,46 @@ export async function setSoulDrain(actor, value) {
 
   await postCard(actor, "Soul Drain", lines);
   return { soulDrain: newDrain, died: false };
+}
+
+/**
+ * SOUL DRAIN HELD BY A SOURCE (3.674.0, C8; Inner Tempest's lost dragon,
+ * Graham's B10-13). Lay `amount` of Soul Drain and hold it for `source`:
+ * nothing else can heal it below what is held (actor.mjs's toggleStatusEffect).
+ * The hold is written first, so the condition's own update meets it.
+ * @returns {Promise<{soulDrain: number, died: boolean}>}
+ */
+export async function holdSoulDrain(actor, source, amount) {
+  const { SOUL_DRAIN_HOLD_FLAG, soulDrainSourceKey } = await import("../conditions/soul-drain.mjs");
+  const n = Math.max(0, Math.floor(Number(amount) || 0));
+  const key = soulDrainSourceKey(source);
+  const current = Number(actor?.getConditionValue?.("soulDrain") ?? 0);
+  if (!n) return { soulDrain: current, died: false };
+  const had = Math.max(0, Math.floor(Number(actor.flags?.["trg-prime"]?.[SOUL_DRAIN_HOLD_FLAG]?.[key]) || 0));
+  await actor.update({ [`flags.trg-prime.${SOUL_DRAIN_HOLD_FLAG}.${key}`]: had + n });
+  return setSoulDrain(actor, current + n);
+}
+
+/**
+ * Release what `source` holds: all of it, or `amount`. With `heal`, that much
+ * Soul Drain is also healed (a dragon's death: "you recover 1 point … each
+ * week"); without, it stays and heals normally from now on (a reunion).
+ * @returns {Promise<number>} how much was released
+ */
+export async function releaseSoulDrain(actor, source, { amount = null, heal = false } = {}) {
+  const { SOUL_DRAIN_HOLD_FLAG, soulDrainSourceKey, soulDrainRelease } = await import("../conditions/soul-drain.mjs");
+  const key = soulDrainSourceKey(source);
+  const had = Math.max(0, Math.floor(Number(actor?.flags?.["trg-prime"]?.[SOUL_DRAIN_HOLD_FLAG]?.[key]) || 0));
+  if (!had) return 0;
+  const current = Number(actor.getConditionValue?.("soulDrain") ?? 0);
+  const { n, left, target } = soulDrainRelease({ had, amount, current, heal });
+  if (!n) return 0;
+  // The hold is lowered first, so the condition's own update meets the new floor.
+  await actor.update(left > 0
+    ? { [`flags.trg-prime.${SOUL_DRAIN_HOLD_FLAG}.${key}`]: left }
+    : { [`flags.trg-prime.${SOUL_DRAIN_HOLD_FLAG}.-=${key}`]: null });
+  if (heal && target !== current) await setSoulDrain(actor, target);
+  return n;
 }
 
 /** Sheet entry point: prompts for the new Soul Drain value, then applies it. */
