@@ -254,14 +254,17 @@ ok("C12 the module helpers ask the system's own isDead", /isDead: async \(actor\
   ok("L6 …on every cast", /effEffects = withAmendedAddByHandNotes\(effEffects, spellData\.damage, String\(spellData\.description \?\? ""\)\);/.test(read("module", "magic", "cast-workflow.mjs")));
 }
 
-// 3.674.1 OR LATER.
+// 3.674.2 OR LATER.
 {
   const [ma, mi, pa] = String(JSON.parse(read("system.json")).version).split(".").map(Number);
   ok("Z0 the system is 3.674.0 or later", ma > 3 || (ma === 3 && mi >= 674));
   ok("Z1 …and 3.674.1 or later", ma > 3 || (ma === 3 && (mi > 674 || (mi === 674 && pa >= 1))));
+  // 3.674.2 republishes 3.674.1 with the creation-card fix (beforeCard), so an
+  // installed 3.674.1 that lacks it is offered the update.
+  ok("Z2 …and 3.674.2 or later", ma > 3 || (ma === 3 && (mi > 674 || (mi === 674 && pa >= 2))));
 }
 
-const EXPECTED = 49;
+const EXPECTED = 50;
 equal("Z the suite ran every check it is meant to", checks + 1, EXPECTED);
 if (failures.length) { console.log(`verify-block10-core: ${checks} checks — ${failures.length} FAILED\n`); for (const x of failures) console.log(`  ✗ ${x}`); process.exitCode = 1; }
 else console.log(`verify-block10-core: ${checks} checks — all green.`);

@@ -91,9 +91,10 @@ const MUTATIONS = [
   { name: "the old note is dropped, not amended", file: m("magic", "spell-damage-ability.mjs"), from: "    ? { ...e, text: String(e.text).replace(RE, ADDED_FOR_YOU) }", to: "    ? null", breaks: "L6" },
   { name: "the old note is amended even when nothing is added", file: m("magic", "spell-damage-ability.mjs"), from: "  if (!Array.isArray(effects) || !damageAbility(damageRow, printedText)) return effects;\n  const RE", to: "  if (!Array.isArray(effects)) return effects;\n  const RE", breaks: "L6" },
   { name: "the cast does not amend the note", file: m("magic", "cast-workflow.mjs"), from: "    effEffects = withAmendedAddByHandNotes(effEffects, spellData.damage, String(spellData.description ?? \"\"));", to: "    void withAmendedAddByHandNotes;", breaks: "L6" },
-  { name: "the patch version is not raised", file: SJ, from: "\"version\": \"3.674.1\"", to: "\"version\": \"3.674.0\"", breaks: "Z1" },
+  { name: "the patch version is not raised", file: SJ, from: "\"version\": \"3.674.2\"", to: "\"version\": \"3.674.0\"", breaks: "Z1" },
+  { name: "the republished version is not raised", file: SJ, from: "\"version\": \"3.674.2\"", to: "\"version\": \"3.674.1\"", breaks: "Z2" },
   { name: "the kind's setting-up is never awaited", file: CW, from: "  if (typeof beforeCard === \"function\") await beforeCard(companion);\n", to: "", breaks: "L4" },
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.674.1\"", to: "\"version\": \"3.673.3\"", breaks: "Z0" },
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.674.2\"", to: "\"version\": \"3.673.3\"", breaks: "Z0" },
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-block10-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);
