@@ -918,6 +918,13 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // where they are really cast from; cast in answer to a save, that card was
   // telling the table it had "no save to answer" beside the save it answered.
   if (reaction && Array.isArray(effEffects)) effEffects = effEffects.filter((e) => !(e?.kind === "note" && e.sheetCastOnly === true));
+  // …AND THE RETIRED "ADDED BY HAND" NOTE ON A COPY OLDER THAN ITS ROW SAYS
+  // WHAT IS TRUE NOW (3.674.0 found live; amended at 3.674.1): the damage
+  // adds the ability. See magic/spell-damage-ability.mjs.
+  {
+    const { withAmendedAddByHandNotes } = await import("./spell-damage-ability.mjs");
+    effEffects = withAmendedAddByHandNotes(effEffects, spellData.damage, String(spellData.description ?? ""));
+  }
   // A QUICKENED INNATE (3.651.0; block 18 R12, the Frostsnarl's Cold Bolt):
   // 1 AP less, as Quicken Spell, printed into the spell-like.
   const { quickenedInnateAP } = await import("./innate-frequency.mjs");

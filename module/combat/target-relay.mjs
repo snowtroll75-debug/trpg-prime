@@ -87,6 +87,12 @@ export const RELAY_ACTIONS = Object.freeze({
   // END_CAST is: the GM's client ends the caster's registered cast by its id
   // and nothing else.
   END_SPELL: "target.endSpell",
+  // A COMPANION FOR A PLAYER WHO MAY NOT CREATE ACTORS (3.674.1; found live
+  // on 28 October 2026: "User Test PC 1 lacks permission to create Actor" on
+  // Dragon Tamer's hatching, and the Animal Companion feat the same). The
+  // master is the target; the GM's client creates the companion actor bound
+  // to it, and the asker, who owns it, goes on to fill it.
+  COMPANION: "target.companion",
   RESULT: "target.result",
   // "I HAVE IT, AND IT MAY TAKE A WHILE" (3.673.0). Sent by the GM's client
   // the moment it takes a request, before carrying it out. A request that
@@ -454,6 +460,16 @@ export async function performRelay(request, deps) {
       const result = await deps.enterDyingAt(target, finalHP, { isCritical: payload.isCritical === true });
       return { ok: true, result: result ?? null };
     }
+    case RELAY_ACTIONS.COMPANION: {
+      // A COMPANION ACTOR, NOTHING ELSE, BOUND TO THE TARGET, FOR ITS OWNER.
+      // The type and the binding are checked here, and the asker must own
+      // the master, so a forged request can make only what the feat would:
+      // a companion of a character the asker already plays.
+      const check = companionRelayRefusal(payload.data, target, deps.userOwns?.(target, String(request?.userId ?? "")) === true);
+      if (check) return { ok: false, reason: check };
+      const created = await deps.createCompanion(payload.data);
+      return created ? { ok: true, result: { id: created.id } } : { ok: false, reason: "the companion could not be created" };
+    }
     case RELAY_ACTIONS.ONE_ATTACK: {
       const event = {
         kind: String(payload.event?.kind ?? ""),
@@ -503,3 +519,24 @@ export async function handleRelayMessage(data, { user, activeGM, deps }) {
   });
   return { handled: true, outcome };
 }
+
+/**
+ * Why a relayed companion is refused, or "" (3.674.1). Pure.
+ *
+ * @param {object} data the actor data the asker built
+ * @param {{id: string}} master the target the GM resolved
+ * @param {boolean} askerOwnsMaster
+ */
+export function companionRelayRefusal(data, master, askerOwnsMaster) {
+  if (!data || typeof data !== "object" || data.type !== "companion") return "not a companion";
+  if (!master?.id || String(data.system?.companion?.masterId ?? "") !== master.id) return "not bound to that character";
+  if (!askerOwnsMaster) return "the asker does not own that character";
+  return "";
+}
+
+/** Must this user ask the GM to create an actor (3.674.1)? */
+export function actorCreateNeedsRelay(user) {
+  if (!user || user.isGM) return false;
+  return typeof user.can === "function" ? !user.can("ACTOR_CREATE") : true;
+}
+

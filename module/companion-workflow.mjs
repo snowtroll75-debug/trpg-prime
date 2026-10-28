@@ -180,7 +180,11 @@ export async function createCompanionFor(masterActor, featItem, {
   only = null,
   title = null,
   intro = "",
-  flags = null
+  flags = null,
+  // WHAT THE KIND ADDS BEFORE THE CARD IS WRITTEN (3.674.1; found live, the
+  // dragon's card said Will +12 before its printed Iron Will arrived): a
+  // module's own setting-up, awaited before the HP and the creation card.
+  beforeCard = null
 } = {}) {
   // ONE OF EACH KIND (3.674.0, C1; Graham's B10-12). A Ranger who becomes a
   // Dragon Tamer keeps the wolf; a second wolf, or a second dragon, is refused.
@@ -242,11 +246,17 @@ export async function createCompanionFor(masterActor, featItem, {
     kind: spec.key
   });
   if (flags && typeof flags === "object") data.flags = foundry.utils.mergeObject(data.flags ?? {}, flags, { inplace: false });
-  const companion = await Actor.create(data);
+  // THROUGH THE GM WHEN THE PLAYER MAY NOT CREATE ACTORS (3.674.1; found
+  // live: "User Test PC 1 lacks permission to create Actor"). The player owns
+  // the companion it makes, so everything after this is theirs to write.
+  const { relayCreateCompanion } = await import("./combat/target-relay-workflow.mjs");
+  const companion = await relayCreateCompanion(masterActor, data, () => Actor.create(data));
   if (!companion) return null;
 
-  const items = [classDoc.toObject(), creature.toObject()];
-  if (typeDoc) items.push(typeDoc.toObject());
+  // WHERE EACH CAME FROM (3.674.1; found live). Kept on the copy, so a grant
+  // the base creature names (a dragon's "High Magic") prefers its own book's
+  // entry when another book has one of the same name.
+  const items = [classDoc, creature, typeDoc].filter(Boolean).map(companionItemData);
   await companion.createEmbeddedDocuments("Item", items);
 
   // The base creature's natural attacks, senses and specials, and the
@@ -264,6 +274,15 @@ export async function createCompanionFor(masterActor, featItem, {
   // returns.
   const { queueGrantPass } = await import("./grant-autorun.mjs");
   await queueGrantPass(companion);
+
+  if (typeof beforeCard === "function") await beforeCard(companion);
+
+  // IT ARRIVES WHOLE (3.674.1; found live): at its maximum hit points, not
+  // the template's, now that its class, base creature and grants are on it.
+  const hpMax = Number(companion.system?.resources?.hp?.max ?? 0);
+  if (hpMax > 0 && Number(companion.system?.resources?.hp?.value ?? 0) !== hpMax) {
+    await companion.update({ "system.resources.hp.value": hpMax });
+  }
 
   // Provenance, so the feat's removal can find what it created and the
   // companion knows which feat made it.
@@ -358,3 +377,16 @@ export async function resizeCompanionTokens(companion) {
     await companion.update({ "prototypeToken.width": side, "prototypeToken.height": side });
   }
 }
+
+/**
+ * A compendium document as item data for a new companion, its compendium
+ * source kept (3.674.1). `toObject()` alone loses it, and the grant pass reads
+ * it to prefer the base creature's own book (sourcebooks.mjs).
+ */
+function companionItemData(doc) {
+  const data = typeof doc?.toObject === "function" ? doc.toObject() : { ...(doc ?? {}) };
+  const uuid = String(doc?.uuid ?? "");
+  if (uuid.startsWith("Compendium.")) data._stats = { ...(data._stats ?? {}), compendiumSource: uuid };
+  return data;
+}
+

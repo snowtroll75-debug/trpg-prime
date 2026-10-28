@@ -216,13 +216,52 @@ const aw = read("module", "combat", "attack-workflow.mjs");
 /* C12 — the one death question, for a module */
 ok("C12 the module helpers ask the system's own isDead", /isDead: async \(actor\) => \(await import\("\.\/combat\/death-state\.mjs"\)\)\.isDead\(actor\),/.test(apiw));
 
-// 3.674.0 OR LATER.
+/* 3.674.1 — found in the live test of 28 October 2026 (Graham: "Build fixes 1-5 and amend text on point 6") */
 {
-  const [ma, mi] = String(JSON.parse(read("system.json")).version).split(".").map(Number);
-  ok("Z0 the system is 3.674.0 or later", ma > 3 || (ma === 3 && mi >= 674));
+  const relay = await imp("combat/target-relay.mjs");
+  const relayW = read("module", "combat", "target-relay-workflow.mjs");
+  const master = { id: "m1" };
+  const good = { type: "companion", system: { companion: { masterId: "m1" } } };
+  equal("L1 A PLAYER'S COMPANION THROUGH THE GM: a companion bound to a character the asker owns is made; anything else is refused",
+    [relay.companionRelayRefusal(good, master, true), relay.companionRelayRefusal({ ...good, type: "npc" }, master, true), relay.companionRelayRefusal({ type: "companion", system: { companion: { masterId: "x" } } }, master, true), relay.companionRelayRefusal(good, master, false)],
+    ["", "not a companion", "not bound to that character", "the asker does not own that character"]);
+  equal("L1 …asked only by a player who may not create actors",
+    [relay.actorCreateNeedsRelay({ isGM: false, can: () => false }), relay.actorCreateNeedsRelay({ isGM: false, can: () => true }), relay.actorCreateNeedsRelay({ isGM: true, can: () => false })], [true, false, false]);
+  const made = [];
+  const deps = { fromUuid: async () => master, userOwns: (t, u) => u === "p1", createCompanion: async (d) => { made.push(d.type); return { id: "c9" }; } };
+  equal("L1 the GM's client carries it out: the companion created for its owner, and only for its owner",
+    [await relay.performRelay({ action: relay.RELAY_ACTIONS.COMPANION, uuid: "Actor.m1", userId: "p1", payload: { data: good } }, deps),
+      await relay.performRelay({ action: relay.RELAY_ACTIONS.COMPANION, uuid: "Actor.m1", userId: "p2", payload: { data: good } }, deps), made],
+    [{ ok: true, result: { id: "c9" } }, { ok: false, reason: "the asker does not own that character" }, ["companion"]]);
+  ok("L1 creation asks through the relay, which the GM's client answers with its own Actor.create and the asker's ownership",
+    /const companion = await relayCreateCompanion\(masterActor, data, \(\) => Actor\.create\(data\)\);/.test(cw)
+    && /if \(!actorCreateNeedsRelay\(game\.user\)\) return applyDirect\(\);\n\s*const reply = await ask\(RELAY_ACTIONS\.COMPANION, master, \{ data \}\);/.test(relayW)
+    && /createCompanion: \(data\) => Actor\.create\(data\),/.test(relayW) && /return Boolean\(user && target\?\.testUserPermission\?\.\(user, "OWNER"\)\);/.test(relayW));
+  ok("L2 A NEW COMPANION ARRIVES WHOLE: its HP set to its maximum after the grant pass",
+    /await queueGrantPass\(companion\);\n[\s\S]{0,260}const hpMax = Number\(companion\.system\?\.resources\?\.hp\?\.max \?\? 0\);\n\s*if \(hpMax > 0 && Number\(companion\.system\?\.resources\?\.hp\?\.value \?\? 0\) !== hpMax\) \{\n\s*await companion\.update\(\{ "system\.resources\.hp\.value": hpMax \}\);/.test(cw));
+  ok("L4 A KIND'S OWN SETTING-UP IS AWAITED BEFORE THE HP AND THE CARD (the dragon's card said Will +12 before its Iron Will arrived)",
+    /beforeCard = null\n\} = \{\}\) \{/.test(cw)
+    && /if \(typeof beforeCard === "function"\) await beforeCard\(companion\);\n\n\s*\/\/ IT ARRIVES WHOLE[\s\S]{0,900}await postCreationCard\(/.test(cw));
+  ok("L3 ITS CLASS, BASE CREATURE AND TYPE KEEP THEIR COMPENDIUM SOURCE, so a grant prefers the base creature's own book",
+    /const items = \[classDoc, creature, typeDoc\]\.filter\(Boolean\)\.map\(companionItemData\);/.test(cw)
+    && /if \(uuid\.startsWith\("Compendium\."\)\) data\._stats = \{ \.\.\.\(data\._stats \?\? \{\}\), compendiumSource: uuid \};/.test(cw));
+  const sda = await imp("magic/spell-damage-ability.mjs");
+  const note = { kind: "note", text: "Damage is 1d6 + your magical ability score modifier (the flat ability bonus is added by hand)." };
+  equal("L6 HURLING'S OLD NOTE IS AMENDED, not dropped, when the damage adds the ability; left alone when it does not",
+    [sda.withAmendedAddByHandNotes([note, { kind: "note", text: "Other." }], { formula: "1d6" }, "it inflicts 1d6 + magical ability score bludgeoning damage.").map((e) => e.text),
+      sda.withAmendedAddByHandNotes([note], { formula: "1d6", addAbility: "" }, "it inflicts 1d6 + magical ability score bludgeoning damage.")[0].text],
+    [["Damage is 1d6 + your magical ability score modifier (added to the damage roll for you).", "Other."], note.text]);
+  ok("L6 …on every cast", /effEffects = withAmendedAddByHandNotes\(effEffects, spellData\.damage, String\(spellData\.description \?\? ""\)\);/.test(read("module", "magic", "cast-workflow.mjs")));
 }
 
-const EXPECTED = 39;
+// 3.674.1 OR LATER.
+{
+  const [ma, mi, pa] = String(JSON.parse(read("system.json")).version).split(".").map(Number);
+  ok("Z0 the system is 3.674.0 or later", ma > 3 || (ma === 3 && mi >= 674));
+  ok("Z1 …and 3.674.1 or later", ma > 3 || (ma === 3 && (mi > 674 || (mi === 674 && pa >= 1))));
+}
+
+const EXPECTED = 49;
 equal("Z the suite ran every check it is meant to", checks + 1, EXPECTED);
 if (failures.length) { console.log(`verify-block10-core: ${checks} checks — ${failures.length} FAILED\n`); for (const x of failures) console.log(`  ✗ ${x}`); process.exitCode = 1; }
 else console.log(`verify-block10-core: ${checks} checks — all green.`);

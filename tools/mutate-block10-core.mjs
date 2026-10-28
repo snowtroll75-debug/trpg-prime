@@ -80,7 +80,20 @@ const MUTATIONS = [
   { name: "a fallback with no damage is still used", file: AREA, from: "if (!fallback || typeof fallback !== \"object\" || !fallback.damage) return null;", to: "if (!fallback || typeof fallback !== \"object\") return null;", breaks: "C11" },
   { name: "the Use does not pass the size", file: CAW, from: "      size: String(actor.system?.identity?.size ?? \"\")\n", to: "", breaks: "C11" },
   { name: "the module helpers have no death question", file: APIW, from: "      isDead: async (actor) => (await import(\"./combat/death-state.mjs\")).isDead(actor),\n", to: "", breaks: "C12" },
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.674.0\"", to: "\"version\": \"3.673.3\"", breaks: "Z0" },
+  { name: "THE LIVE FAULT: a player's companion is created directly", file: CW, from: "  const companion = await relayCreateCompanion(masterActor, data, () => Actor.create(data));", to: "  const companion = await Actor.create(data);", breaks: "L1" },
+  { name: "a companion bound to another character is made", file: m("combat", "target-relay.mjs"), from: "  if (!master?.id || String(data.system?.companion?.masterId ?? \"\") !== master.id) return \"not bound to that character\";\n", to: "", breaks: "L1" },
+  { name: "any actor may be made through the relay", file: m("combat", "target-relay.mjs"), from: "  if (!data || typeof data !== \"object\" || data.type !== \"companion\") return \"not a companion\";", to: "  if (!data || typeof data !== \"object\") return \"not a companion\";", breaks: "L1" },
+  { name: "a player who does not own the master may ask", file: m("combat", "target-relay.mjs"), from: "  if (!askerOwnsMaster) return \"the asker does not own that character\";\n", to: "", breaks: "L1" },
+  { name: "every player asks the GM, even one who may create", file: m("combat", "target-relay.mjs"), from: "  return typeof user.can === \"function\" ? !user.can(\"ACTOR_CREATE\") : true;", to: "  return true;", breaks: "L1" },
+  { name: "the GM's client answers no companion", file: m("combat", "target-relay.mjs"), from: "      const created = await deps.createCompanion(payload.data);", to: "      const created = null;", breaks: "L1" },
+  { name: "THE LIVE FAULT: the companion keeps the template's HP", file: CW, from: "    await companion.update({ \"system.resources.hp.value\": hpMax });\n", to: "", breaks: "L2" },
+  { name: "THE LIVE FAULT: the compendium source is dropped", file: CW, from: "  if (uuid.startsWith(\"Compendium.\")) data._stats = { ...(data._stats ?? {}), compendiumSource: uuid };\n", to: "", breaks: "L3" },
+  { name: "the old note is dropped, not amended", file: m("magic", "spell-damage-ability.mjs"), from: "    ? { ...e, text: String(e.text).replace(RE, ADDED_FOR_YOU) }", to: "    ? null", breaks: "L6" },
+  { name: "the old note is amended even when nothing is added", file: m("magic", "spell-damage-ability.mjs"), from: "  if (!Array.isArray(effects) || !damageAbility(damageRow, printedText)) return effects;\n  const RE", to: "  if (!Array.isArray(effects)) return effects;\n  const RE", breaks: "L6" },
+  { name: "the cast does not amend the note", file: m("magic", "cast-workflow.mjs"), from: "    effEffects = withAmendedAddByHandNotes(effEffects, spellData.damage, String(spellData.description ?? \"\"));", to: "    void withAmendedAddByHandNotes;", breaks: "L6" },
+  { name: "the patch version is not raised", file: SJ, from: "\"version\": \"3.674.1\"", to: "\"version\": \"3.674.0\"", breaks: "Z1" },
+  { name: "the kind's setting-up is never awaited", file: CW, from: "  if (typeof beforeCard === \"function\") await beforeCard(companion);\n", to: "", breaks: "L4" },
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.674.1\"", to: "\"version\": \"3.673.3\"", breaks: "Z0" },
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-block10-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

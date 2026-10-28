@@ -282,6 +282,9 @@ const CLEARED = new Set([
   // Base actors by design: a familiar's or companion's master is a world
   // actor bound by id, and the compendium's own documents are not tokens.
   "module/companion-workflow.mjs",
+  // …and the companion the GM's client creates for a player (3.674.1) is a
+  // new world actor, fetched by the id the GM's reply names.
+  "module/combat/target-relay-workflow.mjs",
   "module/familiar-workflow.mjs",
   "module/sheets/actor-sheet.mjs",
   "module/foundry-integration-check.mjs",

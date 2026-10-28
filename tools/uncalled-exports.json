@@ -69,7 +69,8 @@
     "module/combat/dying-workflow.mjs#releaseSoulDrain": "Called by modules through the API (module-api-workflow.mjs), which the scanner does not follow; the lost dragon's weekly recovery and reunion (3.674.0, C8). Harnessed in verify-block10-core.",
     "module/creature-area.mjs#perLevelDamage": "Called in its own file (declaredAreaUse, resolveAreaDamageSource) and exported for the harness (3.674.0, C5).",
     "module/module-api.mjs#normaliseCompanionKind": "Called in its own file by registerCompanionKind and exported for the harness (3.674.0, C1).",
-    "module/picker-filters.mjs#companionFeatKind": "Called in its own file by the General feat filter and exported for the harness (3.674.0, C4)."
+    "module/picker-filters.mjs#companionFeatKind": "Called in its own file by the General feat filter and exported for the harness (3.674.0, C4).",
+    "module/combat/target-relay.mjs#companionRelayRefusal": "Called by performRelay in its own file (the COMPANION case); exported so verify-block10-core drives the refusals without a socket (3.674.1, found live 28 Oct 2026)."
   },
   "orphans": [
     "module/afflictions.mjs#STAGE_DELTA",

@@ -14,6 +14,7 @@
  * silent one, which is the whole lesson of the defect this fixes.
  */
 import {
+  actorCreateNeedsRelay,
   RELAY_ACTIONS,
   RELAY_SOCKET,
   RELAY_TIMEOUT_MS,
@@ -384,6 +385,24 @@ export async function relayDyingAt(target, finalHP, options, applyDirect) {
   return { case: "relay-failed", newHP: Number(target?.system?.resources?.hp?.value ?? 0), relayError: reply.reason };
 }
 
+/**
+ * A COMPANION ACTOR, CREATED BY THE GM FOR A PLAYER WHO MAY NOT (3.674.1).
+ * Resolves the created actor, or null with a notice. The actor arrives on
+ * this client by Foundry's own broadcast; it is waited for briefly, since the
+ * GM's reply and the creation travel separately.
+ */
+export async function relayCreateCompanion(master, data, applyDirect) {
+  if (!actorCreateNeedsRelay(game.user)) return applyDirect();
+  const reply = await ask(RELAY_ACTIONS.COMPANION, master, { data });
+  if (!reply.ok) {
+    ui.notifications?.warn?.(`The companion could not be created through the GM: ${reply.reason ?? "no answer"}.`);
+    return null;
+  }
+  const id = String(reply.result?.id ?? "");
+  for (let i = 0; i < 40 && !game.actors?.get(id); i += 1) await new Promise((r) => setTimeout(r, 50));
+  return game.actors?.get(id) ?? null;
+}
+
 export async function relayItemHp(target, itemId, value, applyDirect) {
   if (!needsRelay(target)) return applyDirect();
   const reply = await ask(RELAY_ACTIONS.ITEM_HP, target, { itemId, value });
@@ -491,6 +510,12 @@ async function liveDeps() {
       return applyPerilAttempt(target, degree, { direct: true, ...how });
     },
     itemOf: (target, itemId) => target.items?.get(itemId) ?? null,
+    // A COMPANION FOR A PLAYER (3.674.1): does the asker own the master, and the creation.
+    userOwns: (target, userId) => {
+      const user = game.users?.get(userId);
+      return Boolean(user && target?.testUserPermission?.(user, "OWNER"));
+    },
+    createCompanion: (data) => Actor.create(data),
     updateItem: (item, data) => item.update(data),
     reply: (message) => game.socket.emit(RELAY_SOCKET, message),
     acknowledge: (message) => game.socket.emit(RELAY_SOCKET, message)

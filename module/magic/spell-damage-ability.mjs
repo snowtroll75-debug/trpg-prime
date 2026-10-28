@@ -95,3 +95,27 @@ export function withDamageAbility(formula, damageRow, casterSystem, castingAbili
   if (!added) return { formula, added: 0, ability };
   return { formula: `${formula} ${added < 0 ? "-" : "+"} ${Math.abs(added)}`, added, ability };
 }
+
+/**
+ * THE OLD "ADD IT BY HAND" NOTE (3.674.0, found live on 28 October 2026;
+ * amended at 3.674.1, Graham: "amend text"). The copies the 3.666.1 repair
+ * never reached carry the note it retired: "Damage is 1d6 + your magical
+ * ability score modifier (the flat ability bonus is added by hand)". Now
+ * that the damage adds the ability, the note says so instead, whenever the
+ * spell's damage adds an ability, and only then.
+ */
+const ADDED_FOR_YOU = "(added to the damage roll for you)";
+
+/**
+ * @param {object[]} effects the spell's effect rows
+ * @param {object} damageRow its damage row
+ * @param {string} [printedText] its description
+ * @returns {object[]}
+ */
+export function withAmendedAddByHandNotes(effects, damageRow, printedText = "") {
+  if (!Array.isArray(effects) || !damageAbility(damageRow, printedText)) return effects;
+  const RE = /\(\s*the flat ability (?:bonus|score) is added by hand\s*\)/i;
+  return effects.map((e) => (e?.kind === "note" && RE.test(String(e?.text ?? ""))
+    ? { ...e, text: String(e.text).replace(RE, ADDED_FOR_YOU) }
+    : e));
+}
