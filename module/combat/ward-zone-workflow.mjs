@@ -15,6 +15,7 @@
  * add the same effect.
  */
 
+import { gmConnectionReady, gmConnectionSettled } from "../gm-connection.mjs";
 import { WARD_FLAG, WARD_EFFECT_FLAG, normaliseWardZone, wardEffectData, wardDelta } from "./ward-zone.mjs";
 import { isActingGM } from "../acting-gm.mjs";
 import { serialiseByKey, tokenCentre } from "../creature-aura-workflow.mjs";
@@ -127,5 +128,9 @@ export function registerWardZones() {
   Hooks.on("createRegion", (region) => { if (isWard(region)) sync(region.parent); });
   Hooks.on("updateRegion", (region) => { if (isWard(region)) sync(region.parent); });
   Hooks.on("deleteRegion", (region) => { if (isWard(region)) sync(region.parent); });
-  Hooks.on("canvasReady", () => sync(canvas.scene));
+  // After the GM-connection election settles (3.686.2), so the first scene is not skipped.
+  Hooks.on("canvasReady", () => {
+    if (gmConnectionSettled()) sync(canvas?.scene);
+    else gmConnectionReady().then(() => sync(canvas?.scene));
+  });
 }

@@ -72,8 +72,8 @@ const MUTATIONS = [
     // it which action is being taken, so the scope never matches.
     file: MOVEMENT,
     name: "the armed key never reaches the terrain relief",
-    from: "    const easedBy = terrainReliefName(actor, armedKey);",
-    to: "    const easedBy = terrainReliefName(actor);",
+    from: "    const easedBy = terrainReliefName(actor, armedKey, {",
+    to: "    const easedBy = terrainReliefName(actor, null, {",
     breaks: "K16 — every scoped carrier is inert and the feat does nothing"
   },
   {

@@ -265,9 +265,15 @@ async function abyssalHealing(actor, item, spec) {
     const key = choice.mode === "bleed" ? "bleeding" : "injured";
     const amount = choice.mode === "bleed" ? pp : Math.min(5, Math.floor(pp / 2));
     const before = Number(actor.getConditionValue?.(key) ?? 0);
-    const after = Math.max(0, before - amount);
-    await actor.toggleStatusEffect(key, { active: after > 0, value: after });
-    lines.push(line(`${cap(key)} ${before} → <strong>${after}</strong> (−${amount}).`));
+    // HELD BY A CURSE (3.686.0, H17): nothing but Remove Curse lowers it.
+    const { actorConditionHeld } = await import("./conditions/held-conditions.mjs");
+    if (actorConditionHeld(actor, key)) {
+      lines.push(line(`<em>${cap(key)} ${before} is held by a curse — only Remove Curse can end it.</em>`));
+    } else {
+      const after = Math.max(0, before - amount);
+      await actor.toggleStatusEffect(key, { active: after > 0, value: after });
+      lines.push(line(`${cap(key)} ${before} → <strong>${after}</strong> (−${amount}).`));
+    }
   }
   await card(actor, item.name, lines);
   return true;

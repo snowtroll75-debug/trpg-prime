@@ -122,6 +122,35 @@ export async function teleportationArrives(caster, spell, movedActors = []) {
   return said;
 }
 
+/**
+ * WHETHER A TELEPORT OF THIS CREATURE NOW WOULD FAIL (3.685.1): a second
+ * teleportation in the same combat turn "automatically fails". Out of combat,
+ * never. For a module whose teleport comes later than its cast.
+ */
+export function teleportationFails(actor) {
+  const combat = runningCombat();
+  if (!combat || !actor) return false;
+  return teleportArrival(actor.getFlag?.(SYSTEM_ID, TELEPORTED_FLAG) ?? null, combat).fails === true;
+}
+
+/**
+ * IS THIS SPELL'S TELEPORT LATER THAN ITS CAST (3.685.1; Eldritch Arts
+ * 0.10.0's live test, finding 1). Asked of every `registerDeferredTeleport`
+ * test; one that throws is not a deferral. With none registered, false: every
+ * Teleportation spell is carded at its cast, as before.
+ */
+export async function teleportDeferred(ctx = {}) {
+  const { registeredDeferredTeleports } = await import("./module-api.mjs");
+  for (const defers of registeredDeferredTeleports()) {
+    try {
+      if ((await defers(ctx)) === true) return true;
+    } catch (err) {
+      console.warn("TRG Prime | a deferred-teleport test threw", err);
+    }
+  }
+  return false;
+}
+
 /* ------------------------------------------------------------------ */
 /* Rod                                                                  */
 /* ------------------------------------------------------------------ */

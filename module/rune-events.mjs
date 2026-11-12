@@ -38,6 +38,7 @@ import { runeKindOf } from "./rune-bearing.mjs";
 import { fieldToRunes } from "./rune-catalogue.mjs";
 import { roman } from "./runes.mjs";
 import { CODEX_ARMOUR_RUNES, CODEX_WEAPON_RUNES } from "./codex-rune-data.mjs";
+import { runeFieldOf } from "./infused-runes.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -172,7 +173,7 @@ export function eventRunesFor(item) {
   if (!kind) return [];
   const catalogueKind = kind === "shield" ? "shield" : kind;
   const out = [];
-  for (const chosen of fieldToRunes(catalogueKind, item?.system?.runes ?? "")) {
+  for (const chosen of fieldToRunes(catalogueKind, runeFieldOf(item))) {
     const rune = EVENT_RUNES[chosen.key];
     if (!rune || !rune.on.includes(kind)) continue;
     const tier = Math.max(1, Math.floor(Number(chosen.tier) || 1));

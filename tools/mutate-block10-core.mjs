@@ -45,7 +45,7 @@ const MUTATIONS = [
   { name: "THE GAP: a dragon's feat is offered to every companion", file: PF, from: "if (featKind) return isCompanion && (String(companionKind || \"animal\").toLowerCase() === featKind);", to: "if (featKind) return isCompanion;", breaks: "C4" },
   { name: "companion feats are offered to characters", file: PF, from: "if (featKind) return isCompanion && (String(companionKind || \"animal\").toLowerCase() === featKind);", to: "if (featKind) return true;", breaks: "C4" },
   { name: "a Companion-trait feat names no kind", file: PF, from: "  return hasCompanionTrait(entry) ? \"animal\" : \"\";", to: "  return \"\";", breaks: "C4" },
-  { name: "the kind is not asked of the pack", file: PF, from: ", \"flags.trg-prime.companionKind\"],", to: "],", breaks: "C4" },
+  { name: "the kind is not asked of the pack", file: PF, from: ", \"flags.trg-prime.companionKind\", \"flags.trg-prime.compoundSkillPrerequisites\"],", to: ", \"flags.trg-prime.compoundSkillPrerequisites\"],", breaks: "C4" },
   { name: "the sheet does not say its kind", file: SHEET, from: "      companionKind: companionKindOf(this.actor),\n", to: "", breaks: "C4" },
   { name: "THE GAP: dice by level are never resolved", file: AREA, from: "  const area = declared?.damage?.perLevel ? { ...declared, damage: perLevelDamage(declared.damage, level) } : declared;", to: "  const area = declared;", breaks: "C5" },
   { name: "one die whatever the level", file: AREA, from: "return { ...rest, formula: `${n}d${die[1]}` };", to: "return { ...rest, formula: `1d${die[1]}` };", breaks: "C5" },
@@ -91,10 +91,10 @@ const MUTATIONS = [
   { name: "the old note is dropped, not amended", file: m("magic", "spell-damage-ability.mjs"), from: "    ? { ...e, text: String(e.text).replace(RE, ADDED_FOR_YOU) }", to: "    ? null", breaks: "L6" },
   { name: "the old note is amended even when nothing is added", file: m("magic", "spell-damage-ability.mjs"), from: "  if (!Array.isArray(effects) || !damageAbility(damageRow, printedText)) return effects;\n  const RE", to: "  if (!Array.isArray(effects)) return effects;\n  const RE", breaks: "L6" },
   { name: "the cast does not amend the note", file: m("magic", "cast-workflow.mjs"), from: "    effEffects = withAmendedAddByHandNotes(effEffects, spellData.damage, String(spellData.description ?? \"\"));", to: "    void withAmendedAddByHandNotes;", breaks: "L6" },
-  { name: "the patch version is not raised", file: SJ, from: "\"version\": \"3.674.2\"", to: "\"version\": \"3.674.0\"", breaks: "Z1" },
-  { name: "the republished version is not raised", file: SJ, from: "\"version\": \"3.674.2\"", to: "\"version\": \"3.674.1\"", breaks: "Z2" },
+  { name: "the patch version is not raised", file: SJ, from: "\"version\": \"3.686.2\"", to: "\"version\": \"3.674.0\"", breaks: "Z1" },
+  { name: "the republished version is not raised", file: SJ, from: "\"version\": \"3.686.2\"", to: "\"version\": \"3.674.1\"", breaks: "Z2" },
   { name: "the kind's setting-up is never awaited", file: CW, from: "  if (typeof beforeCard === \"function\") await beforeCard(companion);\n", to: "", breaks: "L4" },
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.674.2\"", to: "\"version\": \"3.673.3\"", breaks: "Z0" },
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.686.2\"", to: "\"version\": \"3.673.3\"", breaks: "Z0" },
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-block10-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

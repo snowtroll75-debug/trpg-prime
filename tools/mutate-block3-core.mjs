@@ -57,7 +57,7 @@ const MUTATIONS = [
   { name: "no conviction needed", file: AR, from: "  if (!conviction?.ok) return { offer: false, reason: String(conviction?.reason ?? \"no conviction to spend\") };\n", to: "", breaks: "D2" },
   { name: "the spell reroll loses its modifiers", file: AR, from: "  return Number(total ?? 0) - Number(oldDice ?? 0) + Number(newDice ?? 0);", to: "  return Number(newDice ?? 0);", breaks: "D3" },
   { name: "a Strike is never offered", file: AW, from: "    const asked = await offerAttackReroll({ attacker: actor, defender: targetActor, check, what: weapon.name, db });", to: "    const asked = { rerolled: false };", breaks: "D4" },
-  { name: "the rerolled Strike may spend conviction again", file: AW, from: "      check = await TRGCheck.roll({ ...attackCheckConfig, allowConviction: false, conditionalChoices: check.conditionalChoices ?? [] });", to: "      check = await TRGCheck.roll({ ...attackCheckConfig, conditionalChoices: check.conditionalChoices ?? [] });", breaks: "D4" },
+  { name: "the rerolled Strike may spend conviction again", file: AW, from: "      check = await TRGCheck.roll({ ...attackCheckConfig, allowConviction: false, conditionalChoices: check.conditionalChoices ?? [], checkReactionsBeforeAsked: true, reactionAdvantages: check.reactionAdvantages ?? [], reactionModifiers: check.reactionModifiers ?? [] });", to: "      check = await TRGCheck.roll({ ...attackCheckConfig, conditionalChoices: check.conditionalChoices ?? [] });", breaks: "D4" },
   { name: "only the first ray is offered", file: CW, from: "  if (!check?.rerolledFrom) {\n    const { offerAttackReroll, rerolledSpellCheck, postRerollCard }", to: "  if (!quiet && !check?.rerolledFrom) {\n    const { offerAttackReroll, rerolledSpellCheck, postRerollCard }", breaks: "D5" },
   { name: "the point is spent without re-checking", file: ARW, from: "  if (!getConvictionState(defender).ok) return false;\n  await markConvictionSpent(defender);", to: "  await markConvictionSpent(defender);", breaks: "D6" },
   { name: "the listener is never registered", file: BOOT, from: "  registerAttackRerollOffers();\n", to: "", breaks: "D7" },
@@ -69,7 +69,7 @@ const MUTATIONS = [
   { name: "nothing is announced", file: DW, from: "    Hooks.callAll(\"trgPrimeDamageApplied\", {", to: "    Hooks.callAll(\"trgPrimeDamageNoted\", {", breaks: "F1" },
   { name: "zero damage is announced", file: DW, from: "  if (actor && taken > 0) {", to: "  if (actor) {", breaks: "F1" },
   { name: "a Strike's context is dropped", file: AW, from: "      context: { kind: \"strike\", melee: isMelee, damageType: String(effectiveDamageType ?? \"\"), weaponName: weapon?.name ?? \"\" }", to: "      context: null", breaks: "F2" },
-  { name: "one spell call forgets its context", file: CW, from: "            sourceUuid: actor?.uuid ?? \"\", context: { kind: \"spell\", spellName: spell?.name ?? \"\" }\n", to: "            sourceUuid: actor?.uuid ?? \"\"\n", breaks: "F3" },
+  { name: "one spell call forgets its context", file: CW, from: "            isCritical: Boolean(outcome.severity),\n            sourceUuid: actor?.uuid ?? \"\", context: { kind: \"spell\", spellName: spell?.name ?? \"\" }\n", to: "            isCritical: Boolean(outcome.severity),\n            sourceUuid: actor?.uuid ?? \"\"\n", breaks: "F3" }, // re-anchored at 3.684.0: G23 gave the alt packet the same line
   // G
   { name: "a declared effect may not carry stat rows", file: DE, from: "  \"statBonuses\",\n", to: "", breaks: "G1" },
   { name: "a declared effect may not carry conditionals", file: DE, from: "  \"conditionals\",\n  // THE GRIMOIRE'S FLAGS", to: "  // THE GRIMOIRE'S FLAGS", breaks: "G2" },
@@ -77,9 +77,13 @@ const MUTATIONS = [
   { name: "a given point is owed again", file: FD, from: "  return n > 0 && !item?.flags?.[FLAG_SCOPE]?.convictionGiven;", to: "  return n > 0;", breaks: "H1" },
   { name: "the grant pass skips the owed point again", file: GA, from: "        && !owesConvictionPoint(item)) continue;", to: "        ) continue;", breaks: "H2" },
   { name: "the create watcher skips it again", file: GA, from: "        && !owesConvictionPoint(item)) return;", to: "        ) return;", breaks: "H2" },
-  { name: "a spent use is refilled by the top-up", file: FD, from: "    if (extra > 0) out.push({ _id: item.id, \"system.usesValue\": Math.max(0, Math.floor(Number(item.system?.usesValue) || 0)) + extra });", to: "    if (extra > 0) out.push({ _id: item.id, \"system.usesValue\": 1 + extra });", breaks: "H3" },
+  { name: "a spent use is refilled by the top-up", file: FD, from: "      const update = { _id: item.id, \"system.usesValue\": Math.max(0, Math.floor(Number(item.system?.usesValue) || 0)) + extra };", to: "      const update = { _id: item.id, \"system.usesValue\": 1 + extra };" /* RE-ANCHORED 3.686.2 */, breaks: "H3" },
   { name: "the item arrives with its base use only", file: ITEM, from: "      const full = focusUses + extra;", to: "      const full = focusUses;", breaks: "H5" },
-  { name: "every client tops up", file: FEW, from: "    if (userId !== game.user?.id) return;\n", to: "", breaks: "H6" },
+  // RE-ANCHORED 3.686.2: Graham's 3.686.1 guard is the actor's acting client.
+  { name: "every client tops up", file: FEW, from: "    if (!isActingClientFor(actor)) return;\n", to: "", breaks: "H6" },
+  { name: "the creating user tops up again, not the acting client (3.686.0's guard)", file: FEW, from: "    if (!isActingClientFor(actor)) return;\n", to: "    if (userId !== game.user?.id) return;\n", breaks: "H6" },
+  { name: "the top-up is not idempotent (finding 9)", file: FD, from: "    if (carrier?.id && item.flags?.[FLAG_SCOPE]?.focusExtraGiven?.[carrier.id]) continue;\n", to: "", breaks: "H3b" },
+  { name: "the top-up does not record its carrier", file: FD, from: "      if (carrier?.id) update[`flags.${FLAG_SCOPE}.focusExtraGiven.${carrier.id}`] = extra;\n", to: "", breaks: "H3/H3b" },
   { name: "the top-up is never registered", file: BOOT, from: "  registerFocusExtraTopUps();\n", to: "", breaks: "H6" },
   { name: "the series helper is gone", file: API, from: "      runStrikeSeries: async (...args) => (await import(\"./combat/strike-series.mjs\")).runStrikeSeries(...args),\n", to: "", breaks: "G3" }
 ];

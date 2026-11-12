@@ -68,14 +68,17 @@ equal("B5 a would-die guard restores 1 HP, or half the maximum (at least 1)", [D
 const DGW = read("module", "combat", "death-guard-workflow.mjs");
 ok("B6 an unconditional guard holds without a roll or a question", /\} else if \(spec\.auto\) \{/.test(DGW));
 ok("B7 a one-use guard is spent when it fires, at 0 HP and at death", (DGW.match(/if \(spec\.once\) lines\.push\(\.\.\.await spendGuard\(actor, effect, spec\)\);/g) ?? []).length === 2 && /await effect\.delete\(\)/.test(DGW));
-ok("B8 a would-die guard drops Dying through the ordinary recovery and heals", /await actor\.update\(\{ "system\.resources\.hp\.value": hp \}\);\s*await actor\.toggleStatusEffect\("dying", \{ value: 1 \}\);\s*const state = await applyDyingRecovery\(actor\);/.test(DGW));
+ok("B8 a would-die guard drops Dying through the ordinary recovery and heals", /await actor\.update\(\{ "system\.resources\.hp\.value": hp \}\);\s*await actor\.toggleStatusEffect\("dying", \{ value: 1 \}\);\s*const state = await applyDyingRecovery\(actor(?:, \{[^}]*\})?\);/.test(DGW));
 const DS = read("module", "combat", "death-state.mjs");
 ok("B9 the reaper asks the would-die guards before the skull, never for an instant death", (() => {
   const i = DS.indexOf("const spared = await trySparingGuards(actor);");
   return i > 0 && i < DS.indexOf('await actor.toggleStatusEffect("dead", { active: true, overlay: true });') && /if \(!instantDeathOf\(actor\)\) \{\s*const body = actor\?\.system;\s*if \(!constitutionIsFatal\(body\)\) \{/.test(DS);
 })());
 const DW = read("module", "combat", "dying-workflow.mjs");
-ok("B10 the 0-HP guard is told whether the blow is massive and whether the creature has a Death State", /massive: massiveDamageInstantDeath\(amount, hpBefore, maxHP\),\s*noDeathState: hasNoDeathState\(creatureTypeSystem\)/.test(DW));
+// RE-PINNED AT 3.684.0: G7's 0 HP offer (`tryUnconsciousOffers`) is told the
+// same two facts, so the bare pattern also matched there; pinned on the
+// guard's own call.
+ok("B10 the 0-HP guard is told whether the blow is massive and whether the creature has a Death State", /tryDeathGuards\(actor, \{[^}]{0,200}massive: massiveDamageInstantDeath\(amount, hpBefore, maxHP\),\s*noDeathState: hasNoDeathState\(creatureTypeSystem\)/.test(DW));
 equal("B11 every death in the damage path reports a spared creature", (DW.match(/if \(reaped\.spared\) return \{ case: "spared"/g) ?? []).length, 4);
 ok("B12 the dying check says when a guard answers", (read("module", "documents", "combat.mjs").match(/if \(reaped\.spared\) lines\.push/g) ?? []).length === 2);
 const D = await imp("combat/death-state.mjs");
@@ -113,7 +116,7 @@ equal("D6 an older relief row normalises exactly as it did", Object.keys(CR.norm
 const resin = CR.normaliseConditionRelief({ kind: "conditionRelief", condition: "bleeding", amount: "1d4", targetItems: ["Unliving Zombie"] });
 equal("D7 Embalmer's Black Resin reaches only the creatures it names", [CR.reliefReaches(resin, ["Unliving Zombie"]), CR.reliefReaches(resin, ["Unliving Vampire"]), CR.reliefReaches(soul, [])], [true, false, true]);
 const SE = read("module", "magic", "spell-effects.mjs");
-ok("D8 Dying relieved to 0 is a recovery; the dead are not relieved", /else if \(relief\.condition === "dying"\) \{[\s\S]{0,400}applyDyingRecovery\(target\)/.test(SE) && /if \(isDead\(target\)\) \{\s*lines\.push\(line\(`<em>\$\{target\.name\} is dead/.test(SE));
+ok("D8 Dying relieved to 0 is a recovery; the dead are not relieved", /else if \(relief\.condition === "dying"\) \{[\s\S]{0,400}applyDyingRecovery\(target[,)]/.test(SE) && /if \(isDead\(target\)\) \{\s*lines\.push\(line\(`<em>\$\{target\.name\} is dead/.test(SE));
 ok("D9 a restore of HP goes through healActor", /const healed = await healActor\(target, give, \{ magical: true \}\);/.test(SE));
 ok("D10 a re-save may answer either of two afflictions, once", /const either = String\(scaled\.resave\)\.includes\("\|"\);/.test(read("module", "consumable-use-workflow.mjs")) && /if \(either\) break;/.test(read("module", "consumable-use-workflow.mjs")));
 
@@ -266,7 +269,7 @@ equal("H5 bars: this turn, for a minute, for the spell", [EC.entryBarred({ r: EC
   EC.entryBarred({ r: EC.entryBarFor({ bar: 60 }, { now: 100 }) }, "r", { now: 150 }), EC.entryBarred({ r: EC.entryBarFor({ bar: 60 }, { now: 100 }) }, "r", { now: 161 }), EC.entryBarred({ r: EC.entryBarFor({ bar: "spell" }) }, "r", {})], [true, false, true, false, true]);
 const ECW = read("module", "magic", "entry-check-workflow.mjs");
 ok("H6 a threshold asks only a creature crossing in from outside", /if \(spec\.crossingOnly\) \{\s*if \(startedInside \|\| !enteredInside\) continue;/.test(ECW));
-ok("H7 a stopped creature is put back outside", /if \(outcome\.pushBack\) \{\s*const moved = await pushBackOutside\(/.test(ECW));
+ok("H7 a stopped creature is put back outside", /if \(outcome\.pushBack && !atTurnStart\) \{\s*const moved = await pushBackOutside\(/.test(ECW));
 
 /* I — facts, choices, counts */
 const RF = await imp("magic/reveal-fact.mjs");

@@ -8,7 +8,7 @@
 
 import {
   THORNS_FLAG, normaliseThorns, thornsTriggered, thornsIntensified, thornsFormula,
-  thornsSaveNote, thornsSaveMultiplier,
+  thornsSaveNote, thornsSaveMultiplier, thornsLadderRows,
   intensifiesThorns
 } from "./thorns.mjs";
 
@@ -53,7 +53,7 @@ export async function applyThorns(attacker, defender, blow = {}) {
       currentRound: round
     });
     const formula = thornsFormula(spec, intensified);
-    if (!formula) continue;
+    if (!formula && !spec.ladder) continue;
 
     // A REACTION (3.640.0): spent from the defender's pool; with none left
     // in combat, nothing happens.
@@ -62,6 +62,13 @@ export async function applyThorns(attacker, defender, blow = {}) {
       if (left <= 0) { lines.push(`<em>${spec.label}: ${defender.name} has no reaction left this round.</em>`); continue; }
       const { spendReaction } = await import("../combat/action-points-workflow.mjs");
       await spendReaction(defender, spec.label);
+    }
+    // A CONDITION LADDER IN PLACE OF DAMAGE (3.685.0, H1; Prismatic Guard):
+    // the attacker rolls the save, and its rung's rows land on it through the
+    // spell engine — "as soon as the attack has been resolved".
+    if (spec.ladder && !spec.damage) {
+      lines.push(...await applyThornsLadder(attacker, defender, spec));
+      continue;
     }
     let roll = await new Roll(formula).evaluate();
     // A ROLLED SAVE (3.640.0): the attacker saves; basic, so a success
@@ -74,7 +81,7 @@ export async function applyThorns(attacker, defender, blow = {}) {
       const { TRGCheck } = await import("../dice/check.mjs");
       const { withCheckModifiers } = await import("../dice/check-modifiers.mjs");
       const { basicSavingThrow, levelDC } = await import("../dice/resolution.mjs");
-      const dc = spec.saveRoll.dc || levelDC(Math.max(0, Math.floor(Number(defender.system?.identity?.level ?? 0) || 0)));
+      const dc = thornsSaveDC(spec, defender, levelDC);
       const key = spec.saveRoll.key;
       const check = await TRGCheck.roll(withCheckModifiers({ actor: attacker, label: `${attacker.name} — ${key.charAt(0).toUpperCase()}${key.slice(1)} Save`, subtitle: `${spec.label} — DC ${dc}`, type: "save", save: key, dc }));
       const degree = check?.outcome?.degree?.key ?? "failure";
@@ -95,6 +102,11 @@ export async function applyThorns(attacker, defender, blow = {}) {
     // AGAINST THE ATTACKER'S OWN DEFENCES. A creature immune to piercing
     // walks through a briar patch unharmed, and a packet that skipped
     // this would be the one place in the system where it did not.
+    // A DAMAGE REACTION, BEFORE THE DEFENCES (3.681.0; found in review).
+    {
+      const { spellDamageReactionsFor } = await import("../reactions/reactions-workflow.mjs");
+      lines.push(...await spellDamageReactionsFor(attacker, spec.damageType, { spellName: spec?.label ?? "", source: defender }));
+    }
     const packet = resolveAgainstDefences(attacker.system ?? {}, {
       amount: roll.total,
       type: spec.damageType,
@@ -119,6 +131,42 @@ export async function applyThorns(attacker, defender, blow = {}) {
     // not, and passes an empty string that adds no line.
     const saveNote = thornsSaveNote(spec);
     if (saveNote) lines.push(`<em>${saveNote}</em>`);
+  }
+  return lines;
+}
+
+/**
+ * THE DC A THORNS SAVE IS ROLLED AGAINST (3.685.0, H1): the row's own, which
+ * for a spell's `dc: "spell"` is the cast's Save DC stamped on the effect;
+ * else the defender's Level DC, as a creature ability's has always read.
+ */
+function thornsSaveDC(spec, defender, levelDC) {
+  return Number(spec?.saveRoll?.dc) > 0
+    ? Number(spec.saveRoll.dc)
+    : levelDC(Math.max(0, Math.floor(Number(defender?.system?.identity?.level ?? 0) || 0)));
+}
+
+/** The ladder's half of `applyThorns` (3.685.0, H1). */
+async function applyThornsLadder(attacker, defender, spec) {
+  const lines = [];
+  const { TRGCheck } = await import("../dice/check.mjs");
+  const { withCheckModifiers } = await import("../dice/check-modifiers.mjs");
+  const { levelDC } = await import("../dice/resolution.mjs");
+  const dc = thornsSaveDC(spec, defender, levelDC);
+  const key = spec.saveRoll.key;
+  const word = `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+  const check = await TRGCheck.roll(withCheckModifiers({ actor: attacker, label: `${attacker.name} — ${word} Save`, subtitle: `${spec.label} — DC ${dc}`, type: "save", save: key, dc }));
+  const degree = check?.outcome?.degree?.key ?? "failure";
+  const { at, rows } = thornsLadderRows(spec, degree);
+  const read = at && at !== degree ? ` (read as ${at})` : "";
+  lines.push(`<strong>${spec.label}</strong> — ${attacker.name}'s ${word} save: ${check?.outcome?.degree?.label ?? degree}${read}${rows.length ? "" : " — unaffected"}.`);
+  if (rows.length) {
+    const { applySpellEffects } = await import("./spell-effects.mjs");
+    const applied = [];
+    await applySpellEffects(defender, { name: spec.spellName || spec.label, img: "", uuid: null, system: { duration: "", effects: rows } }, {
+      targets: [attacker], effects: rows, lines: applied, saveDC: dc
+    });
+    lines.push(...applied);
   }
   return lines;
 }

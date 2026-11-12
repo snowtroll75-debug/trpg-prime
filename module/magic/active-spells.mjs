@@ -75,6 +75,13 @@ export function ppLockCondition(duration) {
   // DURATION RELEASED PP THAT THE SHORTER ONE HELD. A duration that
   // never ends cannot free the points sooner than one that does.
   if (/unlimited|permanent/.test(t)) return "unlimited";
+  // "UNTIL DISMISSED" IS UNLIMITED TOO (3.686.0; Graham's Q170, 8 November
+  // 2026: "'Until dismissed' and 'Permanent' are both 'unlimited': the PP
+  // stays locked until the spell ends"). Eldritch Arts' eight Bindings print
+  // "Until dismissed" or "Until dismissed or broken". No core spell prints it
+  // (measured on the 3.685.3 pack: none outside a "(D)"), so no core spell
+  // changes; a "(D)" stays merely dismissible.
+  if (/until dismissed/.test(t)) return "unlimited";
   return null;
 }
 
@@ -332,9 +339,48 @@ export function lockedPP(entries = []) {
   return entries.reduce((sum, e) => sum + (e?.lock ? Number(e.pp) || 0 : 0), 0);
 }
 
+/*
+ * A SPELL SUSTAINED BY ANOTHER CREATURE (3.684.0; Eldritch Arts Block 6, G24).
+ *
+ *   SYMBIOTIC WITCH: "your familiar can sustain any one spell you cast
+ *   without needing you to concentrate".
+ *
+ * Graham's Q137 (as proposed): one spell; damage to the FAMILIAR (not to the
+ * Witch) asks the Spell Concentration check; the Witch may recover PP while
+ * only the familiar sustains; the familiar's death ends it. An entry may carry
+ * `sustainedBy: { uuid, label }` (set with `setSpellSustainer`):
+ *
+ *   - it is held each round without a Sustain (`sustainedLapses` false), and
+ *     ends at the caster's turn start once the sustainer is gone or dead
+ *     (`sustainerLapses`);
+ *   - it does not stop the caster recovering PP (`hasSustained`);
+ *   - the sustain-interruption hook watches the sustainer's hit points, not
+ *     the caster's (sustain-workflow.mjs).
+ *
+ * Per-round PP dues, where a spell has them, are still the caster's.
+ */
+export function sustainerOf(entry) {
+  const uuid = String(entry?.sustainedBy?.uuid ?? "").trim();
+  return uuid ? { uuid, label: String(entry.sustainedBy.label ?? "").trim() } : null;
+}
+
 /** Whether the caster is sustaining any spell (blocks PP recovery). */
 export function hasSustained(entries = []) {
-  return entries.some((e) => e?.sustained);
+  // ONE SUSTAINED BY ANOTHER (3.684.0, G24) leaves the caster free to recover.
+  return entries.some((e) => e?.sustained && !sustainerOf(e));
+}
+
+/**
+ * Does a spell another creature sustains end now (3.684.0, G24)? When that
+ * creature cannot be found, or is at 0 HP or dead. Pure: the caller resolves
+ * the sustainer (null when it is gone).
+ */
+export function sustainerLapses(entry, sustainer) {
+  if (!sustainerOf(entry)) return false;
+  if (!sustainer) return true;
+  const hp = Number(sustainer?.system?.resources?.hp?.value);
+  if (Number.isFinite(hp) && hp <= 0) return true;
+  return Boolean(sustainer?.statuses?.has?.("dead"));
 }
 
 /**
@@ -349,6 +395,8 @@ export function hasSustained(entries = []) {
  */
 export function sustainedLapses(entry, currentRound) {
   if (!entry?.sustained || entry.sustainType !== "duration") return false;
+  // HELD BY ANOTHER (3.684.0, G24): no Sustain is owed; `sustainerLapses` ends it.
+  if (sustainerOf(entry)) return false;
   const last = Number(entry.sustainRound ?? entry.castRound ?? 0);
   return Number(currentRound) - last >= 2;
 }
@@ -574,12 +622,41 @@ export async function recordSustainDues(actor, id, { charged = null, exhausted =
 }
 
 /**
+ * WHO SUSTAINS IT (3.684.0; Eldritch Arts Block 6, G24): another creature
+ * (`{ uuid, label }`), or null for the caster again. Only a sustained entry
+ * takes one, and ONE AT A TIME per sustainer: "any one spell you cast", so a
+ * second entry handed to the same creature takes it from the first.
+ *
+ * @returns {Promise<object|null>} the updated entry, or null when there is none to give
+ */
+export async function setSpellSustainer(actor, id, sustainer = null) {
+  const entries = getActiveSpells(actor);
+  const entry = entries.find((e) => e.id === id);
+  if (!entry?.sustained) return null;
+  const uuid = String(sustainer?.uuid ?? "").trim();
+  if (uuid) {
+    for (const other of entries) if (other !== entry && sustainerOf(other)?.uuid === uuid) delete other.sustainedBy;
+    entry.sustainedBy = { uuid, label: String(sustainer?.label ?? "").trim() };
+  } else {
+    delete entry.sustainedBy;
+    // BACK IN THE CASTER'S HANDS, IT IS SUSTAINED FROM THIS ROUND.
+    const round = Number(globalThis.game?.combat?.round ?? 0);
+    if (round) entry.sustainRound = round;
+  }
+  await setActiveSpells(actor, entries);
+  return entry;
+}
+
+/**
  * Turn-start sweep: end sustained "Sustained"-word spells that weren't sustained
  * in time. Returns the names of what lapsed. "(S)" spells are left untouched.
  */
 export async function sweepSustainedLapses(actor, currentRound) {
   const entries = getActiveSpells(actor);
-  const lapsed = entries.filter((e) => sustainedLapses(e, currentRound));
+  // AND A SPELL WHOSE OTHER SUSTAINER IS GONE (3.684.0, G24).
+  const resolve = (uuid) => { try { return globalThis.fromUuidSync?.(uuid) ?? null; } catch { return null; } };
+  const lapsed = entries.filter((e) => sustainedLapses(e, currentRound)
+    || (e?.sustained && sustainerOf(e) && sustainerLapses(e, resolve(sustainerOf(e).uuid))));
   for (const entry of lapsed) await endActiveSpell(actor, entry.id);
   return lapsed.map((e) => e.name);
 }

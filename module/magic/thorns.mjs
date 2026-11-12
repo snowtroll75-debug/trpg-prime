@@ -76,6 +76,8 @@
  * thorns where under the old word they would not have.
  */
 
+import { DEGREE_ORDER, ladderDegree } from "./save-ladder.mjs";
+
 /** The system flag carrying one creature's thorns. */
 export const THORNS_FLAG = "thorns";
 
@@ -95,6 +97,26 @@ const INTENSIFY_TRAIT = "essence";
 // "3d8+10" (3.640.0, the Balor's flames) as well as "1d6" and "1".
 const DICE_OR_FLAT = /^(?:[1-9]\d*d[1-9]\d*(?:[+-]\d+)?|[1-9]\d*)$/i;
 const text = (value) => String(value ?? "").trim();
+const SAVE_KEYS = Object.freeze(["fortitude", "reflex", "will"]);
+
+/*
+ * A CONDITION LADDER IN PLACE OF DAMAGE (3.685.0, H1; Eldritch Arts' Prismatic
+ * Guard: "any creature that successfully damages one of the protected targets
+ * with a melee strike must make a Fortitude saving throw: Critical unaffected;
+ * Success Dazzled until the end of their turn; … Fumble permanently Blinded").
+ * Degree key → effect rows, applied to the attacker by the spell engine. A
+ * missing rung reads as the core's ladders read one (`ladderDegree`, m42).
+ */
+function normaliseThornsLadder(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const out = {};
+  for (const key of DEGREE_ORDER) {
+    if (!Object.prototype.hasOwnProperty.call(raw, key)) continue;
+    const rows = raw[key];
+    out[key] = Array.isArray(rows) ? rows.filter((r) => r && typeof r === "object") : [];
+  }
+  return Object.keys(out).length ? out : null;
+}
 
 /**
  * A thorns row after the warps this cast bought (3.613.0).
@@ -142,11 +164,25 @@ export function normaliseThorns(raw) {
   if (!raw || typeof raw !== "object") return null;
   const damage = text(raw.damage);
   const intensified = text(raw.intensified);
-  if (!DICE_OR_FLAT.test(damage)) return null;
+  // A LADDER MAY STAND IN FOR THE DAMAGE (3.685.0, H1), and then needs a
+  // rolled save to read it by.
+  const ladder = normaliseThornsLadder(raw.ladder);
+  // IDEMPOTENT FOR A ROLLED SAVE TOO (3.685.0): a spell's thorns are stored
+  // normalised (`save: ""`, `saveRoll: {…}`) and read back through here, so
+  // the normalised field is accepted where the authored one is absent.
+  const saveSource = raw.save && typeof raw.save === "object" ? raw.save
+    : raw.saveRoll && typeof raw.saveRoll === "object" ? raw.saveRoll : null;
+  const rolledSave = Boolean(saveSource) && SAVE_KEYS.includes(text(saveSource.key).toLowerCase());
+  if (ladder && !rolledSave) return null;
+  if (!(ladder && !damage) && !DICE_OR_FLAT.test(damage)) return null;
   if (intensified && !DICE_OR_FLAT.test(intensified)) return null;
   const damageType = text(raw.damageType).toLowerCase();
-  if (!damageType) return null;
-  return {
+  if (!damageType && !(ladder && !damage)) return null;
+  // "+ 1 DAMAGE PER CASTER LEVEL (MAXIMUM +15)" (3.685.0, H1; Glyph of
+  // Retribution). Stamped into `damage` at the cast by `spellThorns`; kept on
+  // the row so a stamped row reads the same twice.
+  const levelMax = Math.trunc(Number(raw.casterLevelBonus?.max ?? raw.casterLevelBonus ?? 0) || 0);
+  const out = {
     label: text(raw.label) || "Thorns",
     damage,
     intensified,
@@ -178,8 +214,18 @@ export function normaliseThorns(raw) {
      *
      *   save: { key: "reflex", dc: 21, basic: true, avoidsCriticalOnly: false }
      */
-    saveRoll: raw.save && typeof raw.save === "object" && ["fortitude", "reflex", "will"].includes(text(raw.save.key).toLowerCase())
-      ? { key: text(raw.save.key).toLowerCase(), dc: Math.max(0, Math.trunc(Number(raw.save.dc) || 0)), basic: raw.save.basic !== false, avoidsCriticalOnly: raw.save.avoidsCriticalOnly === true }
+    saveRoll: rolledSave
+      ? {
+        key: text(saveSource.key).toLowerCase(),
+        dc: Math.max(0, Math.trunc(Number(saveSource.dc) || 0)),
+        // AT THE CASTER'S SAVE DC (3.685.0, H1): `dc: "spell"` is stamped by
+        // the cast (`spellThorns`); until then it is 0, which the workflow
+        // never rolls against the defender's Level DC.
+        ...(text(saveSource.dc).toLowerCase() === "spell" || saveSource.dcFrom === "spell" ? { dcFrom: "spell" } : {}),
+        // A LADDER'S SAVE IS NOT BASIC: its rung is the whole result.
+        basic: ladder ? false : saveSource.basic !== false,
+        avoidsCriticalOnly: saveSource.avoidsCriticalOnly === true
+      }
       : null,
     // "R: Trigger …" — a REACTION: spent from the creature's pool, and
     // refused in combat when none is left.
@@ -188,6 +234,53 @@ export function normaliseThorns(raw) {
     // hit in melee" — only a critical blow sets it off.
     criticalOnly: raw.criticalOnly === true
   };
+  if (ladder) out.ladder = ladder;
+  if (levelMax > 0) out.casterLevelBonus = { max: levelMax };
+  if (raw.casterLevelStamped === true) out.casterLevelStamped = true;
+  if (text(raw.spellName)) out.spellName = text(raw.spellName);
+  return out;
+}
+
+/**
+ * A SPELL'S THORNS, AS CAST (3.685.0, H1). The cast's Save DC on a
+ * `dc: "spell"` save, and "+ caster level, max N" folded into the damage —
+ * once (`casterLevelStamped`), so a row read again is not grown again.
+ *
+ * @param {object} spec a normalised row
+ * @param {{saveDC?: number, casterLevel?: number, spellName?: string}} cast
+ * @returns {object} a row `normaliseThorns` accepts
+ */
+export function spellThorns(spec, { saveDC = 0, casterLevel = 0, spellName = "" } = {}) {
+  if (!spec) return spec;
+  const out = { ...spec, ...(spec.saveRoll ? { saveRoll: { ...spec.saveRoll } } : {}) };
+  if (out.saveRoll?.dcFrom === "spell" && Number(saveDC) > 0) out.saveRoll.dc = Math.trunc(Number(saveDC));
+  if (out.casterLevelBonus && !out.casterLevelStamped && out.damage) {
+    const add = Math.min(Math.max(0, Math.trunc(Number(casterLevel) || 0)), out.casterLevelBonus.max);
+    // ONTO A FLAT TERM ALREADY THERE (3.685.0, review): "1d6+1" at CL 10 is
+    // "1d6+11", not the bonus dropped.
+    if (add > 0) {
+      const flat = /^(.*?)([+-])(\d+)$/.exec(out.damage);
+      if (/^\d+$/.test(out.damage)) out.damage = String(Number(out.damage) + add);
+      else if (flat) {
+        const sum = (flat[2] === "-" ? -Number(flat[3]) : Number(flat[3])) + add;
+        out.damage = sum === 0 ? flat[1] : `${flat[1]}${sum > 0 ? "+" : "-"}${Math.abs(sum)}`;
+      } else out.damage = `${out.damage}+${add}`;
+    }
+    out.casterLevelStamped = true;
+  }
+  if (spellName && !out.spellName) out.spellName = String(spellName);
+  // BACK INTO THE AUTHORED SHAPE, so `normaliseThorns` reads it again.
+  return {
+    ...out,
+    save: out.saveRoll ? { ...out.saveRoll } : out.save
+  };
+}
+
+/** The rows a rolled degree reads on a thorns ladder (m42 for missing rungs). */
+export function thornsLadderRows(spec, degree) {
+  if (!spec?.ladder) return { at: null, rows: [] };
+  const at = ladderDegree(spec.ladder, degree);
+  return { at, rows: at ? spec.ladder[at] ?? [] : [] };
 }
 
 /**
@@ -263,7 +356,12 @@ export function thornsSaveNote(spec) {
 
 export function thornsCastLine(spec) {
   if (!spec) return "";
-  const base = `<strong>${spec.damage} ${spec.damageType}</strong> to anyone who lands a melee blow on you from within ${spec.reachFeet} feet`;
+  // A SAVE AT THE CAST'S DC, OR A LADDER (3.685.0, H1), said on the card.
+  const saveWord = spec.saveRoll ? `${spec.saveRoll.basic ? "basic " : ""}${spec.saveRoll.key.charAt(0).toUpperCase()}${spec.saveRoll.key.slice(1)}${spec.saveRoll.dc ? ` DC ${spec.saveRoll.dc}` : ""}` : "";
+  if (spec.ladder && !spec.damage) {
+    return `anyone who lands a melee blow on you from within ${spec.reachFeet} feet rolls <strong>${saveWord}</strong>, and its result applies`;
+  }
+  const base = `<strong>${spec.damage} ${spec.damageType}</strong> to anyone who lands a melee blow on you from within ${spec.reachFeet} feet${saveWord ? ` (${saveWord})` : ""}`;
   if (!spec.intensified) return base;
   return `${base}, rising to <strong>${spec.intensified}</strong> until the beginning of your next turn whenever you cast an ${INTENSIFY_TRAIT} spell`;
 }

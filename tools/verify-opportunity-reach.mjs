@@ -77,7 +77,8 @@ ok("A4 the reach block still runs — only the distance is withheld",
   /const measuresReach = positional && !isRanged;\s*if \(measuresReach\) \{[\s\S]{0,400}const normalReach/.test(attack),
   "the enclosing condition must not be gated on the flag, or `reach` is left null");
 ok("A4b the flag decides the DISTANCE passed to reachPenalty",
-  /reachAlreadyEstablished \? null : distanceToTarget/.test(attack),
+  // RE-ANCHORED AT 3.682.0: a spell's reach (Shooting Star) joins the flag.
+  /\(?reachAlreadyEstablished( \|\| withinReachOverride\(distanceToTarget, reachOverrideFeet\)\))? \? null : distanceToTarget/.test(attack),
   "null is reachPenalty's own 'nothing to measure' case");
 // THE ASSERTION THAT WOULD HAVE CAUGHT IT. `reach` is dereferenced later;
 // it must therefore be assigned on every path the dereference can be

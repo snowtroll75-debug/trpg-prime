@@ -413,6 +413,13 @@ export function registerConditionEventHooks() {
         await wakeOnHpChange(actor, options);
         // Damage is the plainest hostile act there is.
         const before = Number(options?.trgHpBefore);
+        // "UNTIL HEALED" (3.685.0, H11; Primal Snap, Q160: "until it regains
+        // any HP"): an effect flagged `endsOnHeal` goes when the HP rise.
+        {
+          const { effectsEndedByHealing } = await import("../magic/heal-ends.mjs");
+          const ended = effectsEndedByHealing(actor.effects ?? [], before, next);
+          if (ended.length) await actor.deleteEmbeddedDocuments("ActiveEffect", ended).catch(() => {});
+        }
         if (Number.isFinite(before) && Number(next) < before && !options?.[REST_OPTION]) {
           await endFixationOnHostileAct([actor]);
         }

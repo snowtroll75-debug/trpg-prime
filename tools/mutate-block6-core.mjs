@@ -63,7 +63,7 @@ const MUTATIONS = [
   { name: "the picker ignores the declared trait classes", file: m("picker-filters.mjs"), from: "        const myClasses = [className, traitClasses].join(\", \")", to: "        const myClasses = [className].join(\", \")", breaks: "C11" },
   { name: "an ability opens a class too", file: FT, from: "    if (item?.type !== \"feat\") continue;\n    const raw = item.flags?.[\"trg-prime\"]?.classFeatAccess;", to: "    const raw = item?.flags?.[\"trg-prime\"]?.classFeatAccess;", breaks: "C11" },
   // C12
-  { name: "THE GAP: an innate spell never takes metamagic", file: CW, from: "  const mmOptions = (isCantrip || (isInnate && !innateMetamagic)) ? [] : buildMetamagicOptions({", to: "  const mmOptions = (isCantrip || isInnate) ? [] : buildMetamagicOptions({", breaks: "C12" },
+  { name: "THE GAP: an innate spell never takes metamagic", file: CW, from: "  const mmOptions = (isCantrip || (isInnate && !innateMetamagic)) ? [] : buildMetamagicOptions(mmBuildArgs)", to: "  const mmOptions = (isCantrip || isInnate) ? [] : buildMetamagicOptions(mmBuildArgs)", breaks: "C12" },
   { name: "the Metamagic box is outside the budget", file: SW, from: "(countRaw ? 0 : (Number(warp?.rawPP) || 0))", to: "(Number(warp?.rawPP) || 0)", breaks: "C12" },
   { name: "the Metamagic box is charged to the pool", file: CW, from: "      warpPP = innateMetamagic ? 0 : warp.rawPP;", to: "      warpPP = warp.rawPP;", breaks: "C12" },
   { name: "THE REVIEW'S CHARGE: the feats ticked go to the pool", file: CW, from: "    (innateMetamagic ? 0 : mm.ppSpent);", to: "    mm.ppSpent;", breaks: "C12" },
@@ -72,10 +72,10 @@ const MUTATIONS = [
   { name: "an innate cantrip takes metamagic (the review's)", file: CW, from: " && !innateCantripOf(spellData) && spell", to: " && spell", breaks: "C12" },
   { name: "a cantrip is told from its PP alone", file: SW, from: "=== 0 && /\\bcantrip\\b/i.test(String(spellData?.traits ?? \"\"));", to: "=== 0;", breaks: "C12" },
   { name: "the feats are priced on 0", file: CW, from: "    basePP: innateMetamagic ? Math.max(0, Number(spellData.ppCost ?? 0)) : basePP,", to: "    basePP,", breaks: "C12" },
-  { name: "Economic Spell is offered on a marked innate spell", file: CW, from: "  }).filter((o) => !(innateMetamagic && o.kind === \"economic\"));", to: "  });", breaks: "C12" },
+  { name: "Economic Spell is offered on a marked innate spell", file: CW, from: "\n    .filter((o) => !(innateMetamagic && o.kind === \"economic\"));", to: ";", breaks: "C12" },
   { name: "a cantrip takes metamagic", file: CW, from: "const innateMetamagic = isInnate && !isItemCast && !isCantrip && !innateCantripOf", to: "const innateMetamagic = isInnate && !isItemCast && !innateCantripOf", breaks: "C12" },
   // version
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.674.2\"", to: "\"version\": \"3.669.2\"", breaks: "Z0" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.686.2\"", to: "\"version\": \"3.669.2\"", breaks: "Z0" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-block6-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

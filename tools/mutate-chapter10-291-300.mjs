@@ -150,7 +150,8 @@ const MUTATIONS = [
     from: `  return spec.onlyCreatureTypes.some((t) => theirs.has(t));`, to: `  return false;`,
     breaks: "D2d" },
   { file: CAST, name: "D THE SECOND SAVE: the second pool ignores the degree that was rolled",
-    from: `          amount: Math.floor(secondaryBase * bs.damageMultiplier),`,
+    // RE-ANCHORED AT 3.684.0: G1's Echo scales each target's share.
+    from: `          amount: Math.floor(secondaryBase * bs.damageMultiplier * (damageFactorOf.get(target) ?? 1)),`,
     to: `          amount: secondaryBase,`, breaks: "D5" },
   { file: CAST, name: "D: the second pool is folded into the first, and the resistances blur",
     from: `          type: secondary.type,

@@ -1,4 +1,5 @@
 import { classBonusForLevel, ETHICS, levelForXP, xpForLevel } from "./config.mjs";
+import { isActingGM } from "./acting-gm.mjs";
 import { PACK_REPAIRS, EFFECT_REPAIRS, effectRepairUpdate } from "./data/pack-repairs.mjs";
 import { classifyRepairs, repairUpdate, repairsForName } from "./pack-repair.mjs";
 import { deletionValue } from "./deletion.mjs";
@@ -99,6 +100,8 @@ export async function checkWorldMigration() {
 
   const activeGM = game.users?.activeGM;
   if (activeGM && activeGM.id !== game.user.id) return;
+  // ...and one connection of it (3.686.2): two tabs, one migration.
+  if (!isActingGM()) return;
 
   const currentVersion = String(
     game.settings.get(SYSTEM_ID, WORLD_SCHEMA_SETTING) ?? ""

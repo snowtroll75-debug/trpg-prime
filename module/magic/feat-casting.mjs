@@ -45,7 +45,8 @@
 
 import { TRADITIONS } from "../config.mjs";
 import { maxPPPerCast } from "./casting.mjs";
-import { CASTER_TIER_FEATS, casterTierSlots, tierSlots } from "./caster-tier-feats.mjs";
+import { CASTER_TIER_FEATS, casterTierSlots, classTradition, tierSlots } from "./caster-tier-feats.mjs";
+import { archetypeBookMark } from "./arcanist-book.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -296,6 +297,35 @@ export function featSpellSlots({ items = [], level = 0, casterLevel = 0, ownTrad
 }
 
 /**
+ * The slots one actor has right now, from its own sheet — the single
+ * reading of "which slots exist" that the cast gate, the sheet's table
+ * and the card all share (3.676.0). Taking an actor-shaped object rather
+ * than an actor keeps it free of Foundry: anything with `items` and
+ * `system` will do.
+ */
+export function actorFeatSpellSlots(actor) {
+  return featSpellSlots({
+    items: Array.from(actor?.items ?? []),
+    level: Number(actor?.system?.identity?.level ?? 0),
+    casterLevel: Number(actor?.system?.magic?.casterLevelValue ?? 0),
+    // DIFFERENT FROM THE CLASS'S TRADITION (Graham, 20 Aug 2026) — read
+    // from the class, not the resolved sheet value; see featSlotsFor.
+    ownTradition: classTradition(actor?.system?.progression)
+  });
+}
+
+/**
+ * Those slots as a Map of id to PP ceiling, for the book's derived
+ * castability. A Map rather than a Set since 3.676.1, because "the slot
+ * exists" was not enough — the spell also has to fit in it (see
+ * `liveSlotHolds` in arcanist-book.mjs). `has(id)` reads the same either
+ * way, so a caller that only asks whether a slot exists is unaffected.
+ */
+export function liveFeatSlotIds(actor) {
+  return new Map(actorFeatSpellSlots(actor).map((s) => [s.id, s.maxPP]));
+}
+
+/**
  * Caster-tier feats that granted NOTHING because they name the
  * character's own class tradition.
  *
@@ -344,15 +374,27 @@ export function featSlotState(slots, items) {
     if (item?.type !== "spell") continue;
     const mark = featSlotMark(item);
     if (!mark) continue;
-    if (!slots.some((s) => s.id === mark.slotId)) {
-      orphaned.push(item);
+    // A BOOK SPELL IS NEVER ORPHANED (3.676.0). An Arcanist's memorised
+    // spell is the book entry itself; when its slot goes, it is simply a
+    // book entry again — not castable, not stranded, and nothing to warn
+    // about. Its castability is derived from the slot existing, so no
+    // write is needed for that to be true (arcanist-book.mjs).
+    const inBook = Boolean(archetypeBookMark(item));
+    const slot = slots.find((s) => s.id === mark.slotId);
+    if (!slot) {
+      if (!inBook) orphaned.push(item);
       continue;
     }
+    // A BOOK SPELL ITS SLOT HAS OUTGROWN (3.676.1) — above the slot's
+    // ceiling, because the caster level that sets it has fallen. It does
+    // not fill the slot; it is a book entry again, as `liveSlotHolds`
+    // already says at the cast gate.
+    if (inBook && Number(item?.system?.ppCost ?? 0) > Math.max(0, Number(slot.maxPP) || 0)) continue;
     // Two spells claiming one slot cannot both be right. The first wins
     // and the second is orphaned, so the count on the card can never
     // exceed the allowance the feats actually grant.
     if (byId.has(mark.slotId)) {
-      orphaned.push(item);
+      if (!inBook) orphaned.push(item);
       continue;
     }
     byId.set(mark.slotId, item);

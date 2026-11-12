@@ -1,3 +1,4 @@
+import { effectSuppressedByModule } from "../magic/cast-hooks.mjs";
 import { parseBonusKey } from "../bonuses/registry.mjs";
 import { itemStatus } from "../items.mjs";
 
@@ -51,6 +52,11 @@ export class TRGActiveEffect extends ActiveEffect {
    */
   get isSuppressed() {
     if (super.isSuppressed) return true;
+    // A MODULE MAY SWITCH AN EFFECT OFF (3.678.0; Eldritch Arts Block 2,
+    // D14): an antimagic zone's "Magic items lose all properties … Effects
+    // resume once they leave the zone". Asked, never written, so the effect
+    // is back the moment the answer changes.
+    if (effectSuppressedByModule(this)) return true;
     const item = this.parent;
     if (item?.documentName !== "Item") return false;
     const hp = item.system?.hp;

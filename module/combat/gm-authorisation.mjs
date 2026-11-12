@@ -14,22 +14,29 @@
  * carried to the acting GM's client and waits for the answer; with no GM
  * connected, or no answer within two minutes, it is refused and says why.
  */
-import { isActingGM } from "../acting-gm.mjs";
+import { isActiveGMAccount } from "../acting-gm.mjs";
 
 const SOCKET = "system.trg-prime";
 const ASK = "gm.authorise";
 const ANSWER = "gm.authorised";
 const WAIT_MS = 120000;
 const waiting = new Map();
+/**
+ * The dialogs this tab has open, by request (3.686.2, the third review).
+ * Every tab of the active GM shows the question; when another tab's answer
+ * goes by, this tab's dialog is closed and says nothing more.
+ */
+const openAsks = new Map();
 
 function esc(text) {
   return String(text ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]));
 }
 
-async function askHere({ who, what, userName }) {
+async function askHere({ who, what, userName, requestId = null }) {
   const DialogV2 = foundry.applications?.api?.DialogV2;
   if (!DialogV2) return false;
   const answer = await DialogV2.confirm({
+    render: (_event, dialog) => { if (requestId) openAsks.set(requestId, { dialog, closedByOther: false }); },
     window: { title: "Off-Turn Strike — GM Authorisation" },
     content: `<p><strong>${esc(who)}</strong> wants to make ${esc(what)} outside their turn${userName ? ` (asked by ${esc(userName)})` : ""}.</p>`
       + "<p>It costs no AP. Allow it?</p>",
@@ -73,6 +80,9 @@ export async function requestGMAuthorisation(actor, what) {
 export function registerGMAuthorisation() {
   game.socket?.on(SOCKET, async (data) => {
     if (data?.action === ANSWER) {
+      // ANOTHER TAB OF THE GM ANSWERED: this tab's dialog for it closes.
+      const open = openAsks.get(data.requestId);
+      if (open) { open.closedByOther = true; try { open.dialog?.close?.(); } catch (_err) { /* already closed */ } }
       if (data.userId !== game.user?.id) return;
       const resolve = waiting.get(data.requestId);
       if (!resolve) return;
@@ -80,13 +90,19 @@ export function registerGMAuthorisation() {
       resolve(data.allowed === true);
       return;
     }
-    if (data?.action !== ASK || !isActingGM()) return;
+    // ANY TAB OF THE ACTIVE GM ANSWERS (3.686.2): a question, not a write.
+    // The asker takes the first answer; the elected tab may be out of sight.
+    if (data?.action !== ASK || !isActiveGMAccount()) return;
     let allowed = false;
     try {
-      allowed = await askHere({ who: data.who, what: data.what, userName: data.userName });
+      allowed = await askHere({ who: data.who, what: data.what, userName: data.userName, requestId: data.requestId });
     } catch (error) {
       console.error("TRG Prime | GM authorisation", error);
     }
+    const open = openAsks.get(data.requestId);
+    openAsks.delete(data.requestId);
+    // Closed because another tab answered: that answer stands; say nothing.
+    if (open?.closedByOther) return;
     game.socket.emit(SOCKET, { action: ANSWER, requestId: data.requestId, userId: data.userId, allowed });
   });
 }

@@ -293,11 +293,17 @@ export function powerPointMax(base, progression, abilityScore) {
  *   total — the tradition's own, unless the class or a feat replaced it.
  * @returns {number}
  */
-export function powerPointAbilityBonus({ tradition = "", abilityTotal = 0 } = {}) {
+export function powerPointAbilityBonus({ tradition = "", abilityTotal = 0, highMagicClass = false } = {}) {
   // NO TRADITION, NO BONUS. Every character who has picked one gets it;
   // a monster, an NPC or a half-built sheet that has not picked one adds
   // nothing, rather than silently adding the schema's default ability.
-  if (!String(tradition ?? "").trim()) return 0;
+  //
+  // …UNLESS THE CLASS'S MAGIC IS EVERY TRADITION'S (3.680.0; Eldritch Arts
+  // D4). The Wild birthright's "These spells may be selected from any
+  // tradition" leaves a Sorcerer no single tradition to name, and the class
+  // still prints "You add your magical ability score … as a static bonus to
+  // your PP".
+  if (!String(tradition ?? "").trim() && !highMagicClass) return 0;
   return Number(abilityTotal) || 0;
 }
 

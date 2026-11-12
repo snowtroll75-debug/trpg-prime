@@ -153,8 +153,20 @@ async function recomputeAndUpdate(message, raw, { extraRoll = null } = {}) {
   if (!raw.convictionRefunded && !raw.scoundrelRefunded &&
     raw.modifiers.some((m) => m.label === "Conviction: Advantage")) {
     const owner = await cardActor(raw);
-    const { convictionRefundRow, convictionRefundLine } = await import("../conviction-refund.mjs");
-    const refund = owner ? convictionRefundRow(owner.items, { checkType: raw.type, subject: raw.subject ?? "", degree: outcome.degree?.key ?? "" }) : null;
+    const { convictionRefundRow, convictionRefundLine, convictionRefundDailyUsed, usedTodayForCard } = await import("../conviction-refund.mjs");
+    // A DAILY ROW (3.684.0, G18; Fate's Favour) is marked used by the spend it answers.
+    const usedToday = owner?.getFlag?.(SYSTEM_ID, "declaredUsedToday") ?? {};
+    // …AND A USE THIS CARD'S OWN ROLL TOOK IS STILL ITS OWN (3.684.0, review):
+    // a DC changed on the card re-asks the same spend, so the row is asked as
+    // free for it. See conviction-refund.mjs `usedTodayForCard`.
+    const takenHere = Array.isArray(raw.convictionRefundDaily) ? raw.convictionRefundDaily : [];
+    const refundAsk = { checkType: raw.type, subject: raw.subject ?? "", degree: outcome.degree?.key ?? "", usedToday: usedTodayForCard(usedToday, takenHere) };
+    const refund = owner ? convictionRefundRow(owner.items, refundAsk) : null;
+    const dailyUsed = owner ? convictionRefundDailyUsed(owner.items, refundAsk) : [];
+    if (dailyUsed.length) {
+      await owner.setFlag(SYSTEM_ID, "declaredUsedToday", { ...usedToday, ...Object.fromEntries(dailyUsed.map((k) => [k, true])) });
+      raw.convictionRefundDaily = [...new Set([...takenHere, ...dailyUsed])];
+    }
     if (refund) {
       const { awardConviction } = await import("../conviction.mjs");
       await awardConviction(owner, 1);
@@ -399,6 +411,12 @@ async function onAttemptPrisonEscape(prisonerUuid) {
   const { resolveAgainstDefences } = await import("../combat/damage-workflow.mjs");
   const { applyDamageAndCheckDying } = await import("../combat/dying-workflow.mjs");
   const { ownedCreatureTypeSystem } = await import("../creature-type-rules.mjs");
+  // A DAMAGE REACTION, BEFORE THE DEFENCES (3.681.0; found in review): the
+  // cage is a spell's.
+  {
+    const { spellDamageReactionsFor } = await import("../reactions/reactions-workflow.mjs");
+    await spellDamageReactionsFor(prisoner, spec.damageType, { spellName: cage.spellName ?? spec.label ?? "", source: null });
+  }
   const roll = await new Roll(outcome.dice).evaluate();
   const packet = resolveAgainstDefences(prisoner.system ?? {}, {
     amount: roll.total,
@@ -599,7 +617,7 @@ export async function applyMedicineOutcome(target, raw) {
       // and Unconscious, and gains a point of Fatigue. This is the path
       // Resuscitation (Medicine) takes, and it used to leave the target in
       // the same stateless limbo the turn-start recovery did.
-      await applyDyingRecovery(target);
+      await applyDyingRecovery(target, { route: "medicine" });
     } else {
       await target.toggleStatusEffect(raw.conditionKey, { active: false });
     }
@@ -838,6 +856,7 @@ async function maybeAddUnbreakableReroll(message, html) {
 async function maybeAddDevotionDowngrade(message, html) {
   const raw = message.getFlag(SYSTEM_ID, "checkCard");
   if (!raw || raw.type !== "skill") return;
+  if (raw.locked) return;
   const degree = message.getFlag(SYSTEM_ID, "check")?.degree;
   if (message.getFlag(SYSTEM_ID, "devotionSpent")) return;
 
@@ -934,6 +953,7 @@ async function maybeAddDevotionDowngrade(message, html) {
 async function maybeAddNaturalDefence(message, html) {
   const raw = message.getFlag(SYSTEM_ID, "checkCard");
   if (!raw) return;
+  if (raw.locked) return;
 
   const { naturalDefenceTriggers } = await import("../magic/natural-defence.mjs");
   if (!naturalDefenceTriggers(raw.type)) return;
@@ -1034,6 +1054,8 @@ async function maybeAddNaturalDefence(message, html) {
 async function maybeAddHeldBonuses(message, html) {
   const raw = message.getFlag(SYSTEM_ID, "checkCard");
   if (!raw) return;
+  // A RESULT A REACTION LOCKED (3.681.0) is not modified further.
+  if (raw.locked) return;
 
   const roller = await cardActor(raw);
   if (!roller?.isOwner) return;

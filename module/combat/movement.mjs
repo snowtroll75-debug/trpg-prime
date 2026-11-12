@@ -36,6 +36,81 @@ export const MOVEMENT_ACTION_SPEEDS = Object.freeze({
   burrow: "burrow"
 });
 
+/**
+ * IS THIS FOUNDRY ACTION A TELEPORT? (3.680.1; Graham, 2 November 2026,
+ * after the Eldritch Arts 0.5.0 live test.) Foundry V14 says so itself:
+ * `CONFIG.Token.movement.actions[action].teleport`, true for blink and
+ * displace. Read from there, so a module's own teleporting action counts;
+ * blink and displace by name only where Foundry's table is absent (the
+ * harness).
+ *
+ * @param {string} action
+ * @param {object} [actions] CONFIG.Token.movement.actions
+ */
+export function isTeleportAction(action, actions = globalThis.CONFIG?.Token?.movement?.actions) {
+  const def = actions?.[String(action ?? "")];
+  if (def && typeof def.teleport === "boolean") return def.teleport;
+  return ["blink", "displace"].includes(String(action ?? ""));
+}
+
+/**
+ * EVERY GRID SQUARE A PROPOSED PATH TOUCHES, IN ORDER (moved here from
+ * movement-workflow.mjs at 3.680.1, so it can be driven).
+ *
+ * A walked leg is SAMPLED square by square, not just at its corners: a
+ * straight drag across four squares is TWO waypoints, and the creature in
+ * the middle of it is the one page 198 is about.
+ *
+ * A TELEPORTED LEG IS NOT (3.680.1). A teleport does not pass through the
+ * squares between where it leaves and where it lands, so nothing is
+ * sampled between them, and the square it lands on before another leg is
+ * marked `landing`: the creature is there, it did not move through it.
+ * Before, a Blink drag with waypoints was sampled like a walk, and refused
+ * as "would move through" any creature on the straight line between hops.
+ * The square the whole move ends on is never a landing: page 198's "you
+ * cannot end your turn in a space already occupied" is asked of it as of
+ * any move.
+ *
+ * @param {Array<{x:number,y:number,action?:string}>} waypoints
+ * @param {number} grid the grid size in pixels
+ * @param {object} [actions] CONFIG.Token.movement.actions
+ * @returns {Array<{col:number,row:number,landing?:boolean}>}
+ */
+export function pathSquaresOf(waypoints, grid = 100, actions = globalThis.CONFIG?.Token?.movement?.actions) {
+  const size = Number(grid) || 100;
+  const points = (waypoints ?? []).filter((w) => Number.isFinite(Number(w?.x)) && Number.isFinite(Number(w?.y)));
+  const out = [];
+  const push = (x, y, landing = false) => {
+    const square = { col: Math.round(Number(x) / size), row: Math.round(Number(y) / size) };
+    const last = out.at(-1);
+    if (last && last.col === square.col && last.row === square.row) return;
+    if (landing) square.landing = true;
+    out.push(square);
+  };
+  for (let i = 0; i < points.length; i++) {
+    const teleported = isTeleportAction(points[i].action, actions);
+    if (i > 0 && !teleported) {
+      const a = points[i - 1];
+      const b = points[i];
+      const steps = Math.max(Math.abs(Number(b.x) - Number(a.x)), Math.abs(Number(b.y) - Number(a.y))) / size;
+      for (let s = 1; s < steps; s++) {
+        push(Number(a.x) + (Number(b.x) - Number(a.x)) * (s / steps), Number(a.y) + (Number(b.y) - Number(a.y)) * (s / steps));
+      }
+    }
+    push(points[i].x, points[i].y, teleported && i < points.length - 1);
+  }
+  return out;
+}
+
+/**
+ * The squares a path MOVES THROUGH: all but the last, less a teleport's
+ * landings (see `pathSquaresOf`). Page 198's passage rules are asked of these.
+ * @param {Array<{col:number,row:number,landing?:boolean}>} squares
+ */
+export function crossedSquares(squares) {
+  return (squares ?? []).slice(0, -1).filter((s) => !s.landing);
+}
+
 /** Movement methods that represent a person moving their own token. */
 export const CHARGED_MOVEMENT_METHODS = Object.freeze(["dragging", "keyboard", "api"]);
 
@@ -195,6 +270,42 @@ export function isArmableMovement(actionKey) {
 export const COMPOUND_LEG_KEY = "compoundLeg";
 
 /**
+ * THE COST AN ARMED ACTION'S CARD HEADER SHOWS (3.684.8): the cost this
+ * character pays (`armedApCost`, Sudden Charge's 2 for a Charge) when it
+ * differs from the printed one; otherwise `undefined`, so the header keeps
+ * the printed cost exactly as it was.
+ *
+ * @param {string|number} printed the action entry's apCost
+ * @param {string|number} pays what `armedMovementSummary` says the move costs
+ * @returns {string|undefined}
+ */
+export function armedHeaderCost(printed, pays) {
+  const a = String(printed ?? "").trim(), b = String(pays ?? "").trim();
+  if (!/^\d+$/.test(a) || !/^\d+$/.test(b) || Number(a) === Number(b)) return undefined;
+  return b;
+}
+
+/**
+ * WHAT AN ARMED MOVE COUNTS AS (3.684.2; Agile Display). A compound leg may
+ * say it is a Step (`countsAs: "step"` on its flag), so that what keys on a
+ * Step — Feather Step's terrain relief, a Step-only restricted point — reads
+ * the leg as one. Only a key the armed table knows is honoured; anything
+ * else, and every non-leg key, is answered as itself.
+ *
+ * Graham, 5 November 2026: "When activated, this should allow the character
+ * to step as a free (0 AP) action but does not seem to work."
+ *
+ * @param {string|null} armed the armed key on the actor
+ * @param {object|null} leg the compound leg's flag, when one is armed
+ * @returns {string|null}
+ */
+export function armedMovementKind(armed, leg = null) {
+  if (String(armed ?? "") !== COMPOUND_LEG_KEY) return armed ?? null;
+  const as = String(leg?.countsAs ?? "").trim().toLowerCase();
+  return as && as !== COMPOUND_LEG_KEY && Object.hasOwn(ARMED_MOVEMENT_ACTIONS, as) ? as : COMPOUND_LEG_KEY;
+}
+
+/**
  * A compound leg's own check: the move must use the leg's Speed and stay
  * within its limit; it costs no AP of its own.
  */
@@ -284,4 +395,81 @@ export function validateArmedMove(actionKey, { moveCost, speed, prone = false, l
     };
   }
   return { allowed: true, reason: "", apCost: config.apCost, limit };
+}
+
+/* ------------------------------------------------------------------ */
+/* Movement this turn (3.683.0; Eldritch Arts Block 5, seam C17)        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The flag a Movement-trait action's AP is recorded under when it is spent
+ * OUTSIDE the drag (Stand, Climb, Swim, a Jump, Tumble …), keyed by the turn
+ * it was spent on: `{ combatId, round, turn, ap }`. Written by
+ * `spendActionPoints` (action-points-workflow.mjs).
+ */
+export const MOVEMENT_TRAIT_AP_FLAG = "movementTraitAp";
+
+/**
+ * Does this AP spend count as AP spent on movement, beside the drag's own?
+ *
+ * THE DRAG IS COUNTED BY ITS POOLS, and passes a `use` ("stride", "step",
+ * "move") when it spends; counting it here as well would count it twice. So
+ * only a spend with no `use` and the Movement trait counts: an action
+ * resolved by name (resolveAction passes the action's traits). The book's
+ * word is "Movement" (data/basic-actions.mjs, data/skill-actions.mjs);
+ * "Move" is read too.
+ *
+ * @param {{use?: string|null, traits?: string|string[]}} spend
+ * @returns {boolean}
+ */
+export function countsAsMovementAp({ use = null, traits = "" } = {}) {
+  if (String(use ?? "").trim()) return false;
+  const text = Array.isArray(traits) ? traits.join(",") : String(traits ?? "");
+  return /\bmove(?:ment)?\b/i.test(text);
+}
+
+/**
+ * The next Movement-trait record after a spend of `ap` on this turn.
+ * A record from another turn is replaced, never added to.
+ */
+export function nextMovementTraitRecord(record, ap, turn = {}) {
+  const spent = Math.max(0, Math.trunc(Number(ap) || 0));
+  const same = record && record.combatId === turn.combatId && record.round === turn.round && record.turn === turn.turn;
+  return { combatId: turn.combatId ?? null, round: turn.round ?? null, turn: turn.turn ?? null, ap: (same ? Math.max(0, Number(record.ap) || 0) : 0) + spent };
+}
+
+/**
+ * HOW FAR THIS CREATURE HAS MOVED THIS TURN, AND WHAT IT HAS SPENT ON MOVING
+ * (3.683.0, seam C17). Skyborne Agility, Astral Drift ("after spending all 3
+ * AP on movement actions"), Shadow's Discipline and Veilstride ("When you
+ * move at least 10 ft … before making a melee attack"; Graham, Q72: "10 ft or
+ * more of your own movement this turn (a teleport is not moving)").
+ *
+ *   feet          the MEASURED distance of the turn's own moves, every pool
+ *                 (Strides at any Speed, Steps, Crawls, Charges, Repositions,
+ *                 a compound action's leg) — the ruler's distance, NOT the
+ *                 terrain-priced cost. A teleport is no pool's: it is not
+ *                 Speed-governed, the movement workflow never charges it.
+ *   apOnMovement  the AP those pools charged, plus the AP of Movement-trait
+ *                 actions spent on THIS turn outside the drag (`record`).
+ *
+ * Pools are the movement workflow's, cleared at the start of the creature's
+ * turn (`resetMovementForTurn`); they are kept only for moves on its own
+ * turn in a running combat, which is when "this turn" means anything.
+ *
+ * @param {object} pools    movementState(actor).pools
+ * @param {object|null} record the MOVEMENT_TRAIT_AP_FLAG record
+ * @param {{combatId, round, turn}} turn the turn being asked about
+ * @returns {{feet: number, apOnMovement: number}}
+ */
+export function movementThisTurnFrom(pools = {}, record = null, turn = {}) {
+  let feet = 0;
+  let ap = 0;
+  for (const pool of Object.values(pools ?? {})) {
+    feet += Math.max(0, Number(pool?.movedFeet) || 0);
+    ap += Math.max(0, Number(pool?.apCharged) || 0);
+  }
+  const same = record && record.combatId === turn?.combatId && record.round === turn?.round && record.turn === turn?.turn;
+  if (same) ap += Math.max(0, Number(record.ap) || 0);
+  return { feet, apOnMovement: ap };
 }

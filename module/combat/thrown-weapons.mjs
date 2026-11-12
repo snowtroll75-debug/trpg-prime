@@ -45,6 +45,7 @@
 import { fieldToRunes } from "../rune-catalogue.mjs";
 import { runeUsageAllows, weaponUsage } from "../weapon-rune-usage.mjs";
 import { recoveredAsAmmunition } from "./ammunition.mjs";
+import { runeFieldOf } from "../infused-runes.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -158,7 +159,7 @@ function partyActor() {
  */
 export function returnsToHand(weapon) {
   if (!weapon?.system?.equipped) return false;
-  const carries = fieldToRunes("weapon", weapon.system.runes ?? "").some((rune) => rune.key === "returning");
+  const carries = fieldToRunes("weapon", runeFieldOf(weapon)).some((rune) => rune.key === "returning");
   return carries && runeUsageAllows("returning", weaponUsage(weapon.system)).ok;
 }
 

@@ -62,6 +62,7 @@
 
 const int = (v) => Math.trunc(Number(v) || 0);
 const text = (v) => String(v ?? "").trim();
+const SYSTEM_ID = "trg-prime";
 
 /** Armed on the caster by casting Spell Storing; consumed by the next cast. */
 export const STORING_ARMED_FLAG = "spellStoringArmed";
@@ -87,8 +88,125 @@ export function normaliseSpellStoring(raw) {
   if (raw.kind !== undefined && text(raw.kind) !== "spellStoring") return null;
   return {
     label: text(raw.label) || "Spell Storing",
-    releaseCost: releaseActionCost(raw)
+    releaseCost: releaseActionCost(raw),
+    host: spellStoreHostKind(raw.host)
   };
+}
+
+/*
+ * ─────────────────────────────────────────────────────────────────────
+ * A STORE HELD BY A RUNE, NOT ONLY A STAFF (3.684.0; Eldritch Arts Block 6,
+ * G16 — a FIX).
+ *
+ * Eldritch Arts' Storing Rune (the Rune birthright's specialist spell, built
+ * in its Block 3a on this effect): "The next spell that you cast within one
+ * round of casting this spell is stored in ONE OF YOUR RUNES and may be
+ * released at a later date … for a 1 AP concentrate action." Until this
+ * release the store lived only in an Arcane Bond, so a Rune Sorcerer — who
+ * has none — cast Storing Rune and was told "stores into a bonded item and
+ * none is designated today": the spell did nothing. Measured in code: the
+ * effect case asked `bondedItemFor`, which reads only `flags.arcaneBond`.
+ *
+ * So the row may name its HOST:
+ *   "arcaneBond"  the item designated today (the default, and Spell
+ *                 Storing's, unchanged: "your Mage Staff" is the bond);
+ *   "spell"       the spell that opened the window holds the stored spell
+ *                 itself — "one of your runes" is the rune you cast;
+ *   "spellStore"  an owned item flagged `flags.trg-prime.spellStore: true`
+ *                 (a module's rune, tattoo or birthright ability).
+ * Eldritch Arts' Storing Rune row needs `host: "spell"` (or a flagged item)
+ * for the fix to reach it; a row naming no host is read as before.
+ */
+export const SPELL_STORE_HOSTS = Object.freeze(["arcaneBond", "spell", "spellStore"]);
+
+/** The host a row names, or the Arcane Bond. Pure. */
+export function spellStoreHostKind(value) {
+  const v = text(value);
+  return SPELL_STORE_HOSTS.includes(v) ? v : "arcaneBond";
+}
+
+/**
+ * The item a store of this kind lives in, among an actor's items, or null.
+ * Pure: `items` is any iterable of item-like objects (`{ id, flags }`).
+ * @param {Iterable<object>} items
+ * @param {{host?: string, spellId?: string, hostId?: string}} opts
+ */
+export function spellStoreHostOf(items, { host = "arcaneBond", spellId = "", hostId = "" } = {}) {
+  const list = Array.from(items ?? []);
+  // A WINDOW ALREADY OPEN NAMES ITS HOST, so the store lands where it opened.
+  if (text(hostId)) return list.find((i) => i?.id === text(hostId)) ?? null;
+  const kind = spellStoreHostKind(host);
+  if (kind === "spell") return text(spellId) ? (list.find((i) => i?.id === text(spellId)) ?? null) : null;
+  if (kind === "spellStore") return list.find((i) => i?.flags?.["trg-prime"]?.spellStore === true) ?? null;
+  return list.find((i) => i?.flags?.["trg-prime"]?.arcaneBond) ?? null;
+}
+
+/** What the card says when a non-staff store has nowhere to open. Pure. */
+export function noStoreCastLine(spellName, host = "arcaneBond") {
+  const kind = spellStoreHostKind(host);
+  if (kind === "arcaneBond") return noBondCastLine(spellName);
+  return `<em>${spellName} stores into ${kind === "spell" ? "the rune it is cast from, which is not on this sheet"
+    : "an item that holds a store, and none is owned"}, so no window opened — the PP for this casting is spent.</em>`;
+}
+
+/**
+ * A FOREIGN STORED SPELL (3.684.0, G16): one cast BY ANOTHER CREATURE and
+ * absorbed — Runebreaker: "You may cast your Storing Rune spell as a reaction
+ * triggered by you being targeted by an incoming spell … you absorb the
+ * incoming spell and may then release it as if it had been cast into your
+ * Storing Rune as normal." Graham's Q115: only a spell whose sole target is
+ * you; you pay Storing Rune's PP and your reaction; "On release you are its
+ * caster." So the spell is COPIED onto the storer, flagged `storedForeign`,
+ * and released through `castSpell` like any stored spell — your check, your
+ * DC — with no settlement (its PP were its caster's). The copy is deleted
+ * when it is released, displaced or cleared, and cannot be cast directly.
+ */
+export const STORED_FOREIGN_FLAG = "storedForeign";
+
+/**
+ * WHAT AN ABSORBED SPELL'S COPY MUST NOT CARRY (3.684.0; Eldritch Arts Block
+ * 6, G16 — review, Medium-low). The copy was `toObject()`'d as-is, so its
+ * caster's state rode along: `system.innate` (cast at the caster's innate
+ * DC, with no check), `itemCast` (a potion's or wand's fixed PP),
+ * `signatureSpell` and `innateMetamagic` (the caster's feats, not the
+ * storer's), and the book and preparation marks that make
+ * `spellCastBlocked` refuse it. Q115: "On release you are its caster" — the
+ * storer's check, the storer's DC — so all of it goes.
+ */
+const FOREIGN_COPY_STRIPPED_FLAGS = Object.freeze([
+  "itemCast", "signatureSpell", "innateMetamagic", "warpDiscount",
+  "spellBookPick", "archetypeBook", "archetypeCantrip", "dailyMemorised", "featSpellSlot",
+  "repertoirePick", "cantripPick", "grantedBy", STORED_SPELL_FLAG
+]);
+
+/**
+ * The item data for an absorbed spell's copy, from the incoming spell's
+ * plain data. Pure; returns a new object.
+ *
+ * Stripped as FOREIGN_COPY_STRIPPED_FLAGS says, and `system.innate`,
+ * `system.specialist` and `system.prepared` cleared; flagged
+ * `storedForeign` (so it is cast only by its release, and
+ * `spellAvailability` reads it castable for that release).
+ */
+export function foreignSpellCopyData(raw, { fromName = "", fromUuid = "" } = {}) {
+  const data = raw && typeof raw === "object" ? JSON.parse(JSON.stringify(raw)) : {};
+  delete data._id;
+  data.system = data.system && typeof data.system === "object" ? data.system : {};
+  for (const key of ["innate", "specialist", "prepared"]) {
+    if (key in data.system) data.system[key] = false;
+  }
+  data.flags = data.flags && typeof data.flags === "object" ? data.flags : {};
+  const ours = data.flags[SYSTEM_ID] && typeof data.flags[SYSTEM_ID] === "object" ? data.flags[SYSTEM_ID] : {};
+  for (const key of FOREIGN_COPY_STRIPPED_FLAGS) delete ours[key];
+  ours[STORED_FOREIGN_FLAG] = { fromName: text(fromName), fromUuid: text(fromUuid) };
+  data.flags[SYSTEM_ID] = ours;
+  return data;
+}
+
+/** The release card's line for an absorbed spell. Pure. */
+export function foreignReleaseLine(spellName, fromName = "") {
+  return `<em>${spellName} was absorbed${text(fromName) ? ` from ${text(fromName)}` : ""} and is released as your own casting: `
+    + "its PP were its caster's, so nothing in your pool moves.</em>";
 }
 
 /**
@@ -137,7 +255,9 @@ export function armWindowOpen(armed, { round = null, worldTime = null } = {}) {
  * comment describes about potions.
  */
 export function storedSpellRecord({
-  spellId, spellName, ppPaid = 0, mods = {}, notes = [], releaseCost = "1", storedAt = null
+  spellId, spellName, ppPaid = 0, mods = {}, notes = [], releaseCost = "1", storedAt = null,
+  // ABSORBED FROM ANOTHER CASTER (3.684.0, G16): `foreign` with who cast it.
+  foreign = false, foreignFrom = "", foreignFromUuid = ""
 } = {}) {
   return {
     spellId: text(spellId),
@@ -146,7 +266,8 @@ export function storedSpellRecord({
     mods: mods && typeof mods === "object" ? { ...mods } : {},
     notes: Array.isArray(notes) ? notes.map(text).filter(Boolean) : [],
     releaseCost: ["1", "reaction", "free"].includes(text(releaseCost)) ? text(releaseCost) : "1",
-    storedAt: storedAt == null ? null : int(storedAt)
+    storedAt: storedAt == null ? null : int(storedAt),
+    ...(foreign ? { foreign: true, foreignFrom: text(foreignFrom), foreignFromUuid: text(foreignFromUuid) } : {})
   };
 }
 

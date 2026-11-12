@@ -23,6 +23,7 @@
  * pure so the harness can prove that a two-GM table moves one sword.
  */
 
+import { isGMConnectionWriter } from "./gm-connection.mjs";
 import {
   addCoin, coinLine, findMergeTarget, planCoinTake, planTake, quantityOf
 } from "./party.mjs";
@@ -49,8 +50,12 @@ export const PARTY_ACTIONS = Object.freeze({
  * @param {{id: string}|null} activeGM Foundry's designated GM
  * @returns {boolean}
  */
-export function shouldHandleAsGM(user, activeGM) {
+export function shouldHandleAsGM(user, activeGM, connectionWriter = true) {
   if (!user?.isGM) return false;
+  // ONE CONNECTION OF THAT GM (3.686.2): every tab of the designated GM
+  // receives the request, so only the elected one (gm-connection.mjs)
+  // carries it out. Defaults to true so the pure two-argument contract holds.
+  if (connectionWriter === false) return false;
   // No designated GM (the property is absent on some builds, or every
   // GM just disconnected): fall back to acting, because refusing here
   // means a player's click silently does nothing at all. A duplicated
@@ -221,7 +226,7 @@ function liveDeps() {
 }
 
 /** Dispatch one inbound message. Exported so the harness can drive it. */
-export async function handlePartyMessage(data, { user, activeGM, deps }) {
+export async function handlePartyMessage(data, { user, activeGM, deps, connectionWriter = true }) {
   if (data?.action === "party.refused") {
     if (user.id === data.userId) ui.notifications?.warn(data.message);
     return { handled: false, reason: "refusal notice" };
@@ -229,7 +234,7 @@ export async function handlePartyMessage(data, { user, activeGM, deps }) {
   if (!Object.values(PARTY_ACTIONS).includes(data?.action)) {
     return { handled: false, reason: "not a party message" };
   }
-  if (!shouldHandleAsGM(user, activeGM)) {
+  if (!shouldHandleAsGM(user, activeGM, connectionWriter)) {
     return { handled: false, reason: "another client is the designated GM" };
   }
   const result = data.action === PARTY_ACTIONS.TAKE_ITEM
@@ -244,6 +249,7 @@ export function registerPartySocket() {
     handlePartyMessage(data, {
       user: game.user,
       activeGM: game.users.activeGM ?? null,
+      connectionWriter: isGMConnectionWriter(),
       deps: liveDeps()
     }).catch((error) => console.error("TRG Prime | party socket", error));
   });

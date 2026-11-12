@@ -268,8 +268,9 @@ const MUTATIONS = [
   {
     file: CAST,
     name: "W6 the pool is checked against the printed minimum",
-    from: "  } else if (!apPaid && !(await ensureActionPoints(actor, castTimeApCost(effCastAPWithScale), `${spell.name} — Cast a Spell`))) {",
-    to: "  } else if (!apPaid && !(await ensureActionPoints(actor, castTimeApCost(effCastAP), `${spell.name} — Cast a Spell`))) {",
+    // RE-ANCHORED AT 3.684.0 (G25): a Prepared Sigil's −1 AP.
+    from: "  } else if (!apPaid && !(await ensureActionPoints(actor, castTimeApCost(sigil ? totalCastTime(effCastAPWithScale, { apDelta: -1 }) : effCastAPWithScale), `${spell.name} — Cast a Spell`))) {",
+    to: "  } else if (!apPaid && !(await ensureActionPoints(actor, castTimeApCost(sigil ? totalCastTime(effCastAP, { apDelta: -1 }) : effCastAP), `${spell.name} — Cast a Spell`))) {",
     breaks: "W6 — a caster picking 3 AP with two in the pool, clamped at the end"
   },
   {

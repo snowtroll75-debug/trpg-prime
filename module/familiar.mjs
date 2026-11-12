@@ -270,7 +270,15 @@ export function familiarMirrorFrom(masterSystem, masterName = "") {
     bab: Math.floor(Number(masterSystem?.combat?.bab?.total) || 0),
     bdb: Math.floor(Number(masterSystem?.combat?.bdb?.total) || 0),
     maxHP: Math.max(0, Math.floor(Number(masterSystem?.resources?.hp?.max) || 0)),
-    skills
+    skills,
+    // THE MASTER'S ABILITY TOTALS (3.680.0; Eldritch Arts D8): the Soulbound
+    // Familiar "can add your Charisma ability score as a class bonus to all
+    // saving throws", and the master's Charisma is not otherwise on the
+    // familiar. Read by familiar-modifiers.mjs; the core reads none of it.
+    abilities: Object.fromEntries(
+      ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"]
+        .map((key) => [key, Math.trunc(Number(masterSystem?.attributes?.[key]?.total) || 0)])
+    )
   };
 }
 
@@ -335,6 +343,12 @@ export function familiarSyncState({ stored, current, hasMaster } = {}) {
   }
   if (JSON.stringify(stored?.skills ?? {}) !== JSON.stringify(current?.skills ?? {})) {
     drifted.push("skills");
+  }
+  // The master's abilities (3.680.0) drift only when both sides carry them: a
+  // mirror stored before 3.680.0 has none, and is caught up by the first sync
+  // that finds anything else, not flagged on its own.
+  if (stored?.abilities && current?.abilities && JSON.stringify(stored.abilities) !== JSON.stringify(current.abilities)) {
+    drifted.push("abilities");
   }
   return { bound: true, inSync: drifted.length === 0, drifted };
 }

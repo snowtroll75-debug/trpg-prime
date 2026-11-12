@@ -93,7 +93,7 @@ const MUTATIONS = [
   { file: AURAWF, name: "D16 THE DEFECT: a creature aura charges fliers",
     from: "    ? [...DEFAULT_AURA_MOVEMENTS]", to: "    ? [...ALL_MOVEMENTS]", breaks: "P4" },
   { file: BOMBWF, name: "D20 THE DEFECT: the bomb card quotes DC 15",
-    from: "until a DC ${RECURRING_FLAT_CHECK_DC} flat check ends it", to: "until a DC 15 flat check ends it", breaks: "S2" },
+    from: "until a DC ${RECURRING_FLAT_CHECK_DC} flat check ends that type's total", to: "until a DC 15 flat check ends that type's total", breaks: "S2" },
 
   /* ── the multiple attack penalty ───────────────────────────────── */
   { file: ATTACK, name: "R1: anything rolled counts, trait or not",
@@ -239,8 +239,8 @@ const MUTATIONS = [
     // Spirit Trap's difficult-terrain floor is applied to it next.
     from: "  const surcharged = measured + Math.max(0, Number(space.surcharge) || 0) + Math.max(0, Number(auraLimits.surcharge) || 0);", to: "  const surcharged = measured + Math.max(0, Number(auraLimits.surcharge) || 0);", breaks: "O7" },
   { file: MOVEWF, name: "R15: the Tumble marker survives the turn",
-    from: "  for (const flag of [MOVED_FLAG, ARMED_FLAG, TUMBLE_FLAG, ...LEGACY_FLAGS]) {",
-    to: "  for (const flag of [MOVED_FLAG, ARMED_FLAG, ...LEGACY_FLAGS]) {", breaks: "O8" },
+    from: "  for (const flag of [MOVED_FLAG, ARMED_FLAG, TUMBLE_FLAG, LAPSED_LEG_FLAG, ...LEGACY_FLAGS]) {",
+    to: "  for (const flag of [MOVED_FLAG, ARMED_FLAG, LAPSED_LEG_FLAG, ...LEGACY_FLAGS]) {", breaks: "O8" },
   { file: GEOMETRY, name: "R12: engagement turns a reach of zero into five",
     from: "    const reachFeet = declared === undefined ? 5 : Math.max(0, declared);", to: "    const reachFeet = declared || 5;", breaks: "L7" },
 

@@ -48,7 +48,7 @@ const MOVE = Object.freeze({ none: 0, normal: 20 });
  * A `wall` row, warps applied, or null.
  *
  * @param {object} raw the row as authored
- * @param {object} [warpMods] the aggregated warp mods (wallLength, wallRadius, wallHp)
+ * @param {object} [warpMods] the aggregated warp mods (wallLength, wallRadius, wallHp, wallHeight)
  */
 export function normaliseWall(raw, warpMods = {}) {
   if (!raw || typeof raw !== "object" || text(raw.kind) !== "wall") return null;
@@ -78,7 +78,7 @@ export function normaliseWall(raw, warpMods = {}) {
   return {
     label: text(raw.label),
     lengthFeet,
-    heightFeet: Math.max(0, num(raw.height)),
+    heightFeet: Math.max(0, num(raw.height)) + (num(raw.height) > 0 ? Math.max(0, num(warpMods?.wallHeight)) : 0),
     thickness: text(raw.thickness),
     forms,
     ringRadiusFeet,

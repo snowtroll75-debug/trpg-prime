@@ -39,7 +39,9 @@ async function setRainAndWind(region, on, label) {
   const { terrainBehaviours } = await import("../creature-aura-workflow.mjs");
   const spec = normaliseDifficultTerrain({ kind: "difficultTerrain", label, target: "area" });
   const behaviours = terrainBehaviours(terrainAuraShape(spec, label))
-    .map((b) => ({ ...b, flags: { ...(b.flags ?? {}), [SYSTEM_ID]: { [STORM_TERRAIN_FLAG]: true } } }));
+    // THE BEHAVIOUR'S OWN FLAGS KEPT (3.683.0): the magical-terrain mark
+    // (seam C16) rides beside the storm's own.
+    .map((b) => ({ ...b, flags: { ...(b.flags ?? {}), [SYSTEM_ID]: { ...(b.flags?.[SYSTEM_ID] ?? {}), [STORM_TERRAIN_FLAG]: true } } }));
   if (behaviours.length) await region.createEmbeddedDocuments("RegionBehavior", behaviours);
 }
 
@@ -109,6 +111,11 @@ async function stormStrike(caster, region, record, mode) {
     lines.push(`Rolled <strong>${roll.total}</strong>.`);
     for (const t of inside) {
       const actor = t.actor;
+      // A DAMAGE REACTION, BEFORE THE DEFENCES (3.681.0; found in review).
+      {
+        const { spellDamageReactionsFor } = await import("../reactions/reactions-workflow.mjs");
+        lines.push(...await spellDamageReactionsFor(actor, mode.type, { spellName: record?.label ?? "", source: caster }));
+      }
       const packet = resolveAgainstDefences(actor.system ?? {}, {
         amount: roll.total, type: mode.type, creatureTypeSystem: ownedCreatureTypeSystem(actor), magical: true, area: true
       });

@@ -75,6 +75,17 @@
 const int = (v) => Math.trunc(Number(v) || 0);
 const text = (v) => String(v ?? "").trim();
 
+/**
+ * THE MARK OF MAGICAL GROUND (3.683.0; Eldritch Arts Block 5, seam C16): set
+ * on every `modifyMovementCost` behaviour a spell lays (`terrainAuraShape`'s
+ * `magical`, carried by `terrainBehaviours`) and on the storm's rain, so the
+ * movement workflow can tell a spell's vines from a GM's bog. Astral Drift
+ * ("ignore magical difficult terrain") reads it; see combat/passive-feats.mjs
+ * `MAGICAL_TERRAIN_RELIEF`. Ground laid before 3.683.0 carries no mark and
+ * counts as mundane.
+ */
+export const MAGICAL_TERRAIN_FLAG = "magicalTerrain";
+
 /** "Difficult terrain, in this system, costs double" — combat/fly.mjs. */
 export const DIFFICULT_MULTIPLIER = 2;
 
@@ -160,7 +171,9 @@ export function terrainAuraShape(spec, spellName = "") {
     // express; disbelief is not a trait, and putting it there would make
     // the Region read "except disbelieved", which is a rule no trait
     // check could ever confirm.
-    exemptTrait: null
+    exemptTrait: null,
+    // A SPELL MADE IT (3.683.0, C16): marked on the behaviour it builds.
+    magical: true
   };
 }
 

@@ -80,7 +80,7 @@ function before(body, a, b) {
  * A. THE READER
  * ================================================================== */
 
-const damageBody = bodyOf(attack, "async function resolveWeaponDamage(");
+const damageBody = bodyOf(attack, "async function resolveWeaponDamageInScope(");
 ok("A1 resolveWeaponDamage's body was found", damageBody.length > 0);
 ok("A2 and reaches its real code", damageBody.includes("runeDamageFor(weapon, { target"),
   "a body that cannot see the rune loop is not this function's body");
@@ -218,9 +218,10 @@ ok("E7 the attack path measures and passes the melee distance",
  * F. THE INTENSIFY HOOK AND THE TURN CLOCK
  * ================================================================== */
 
-const castBody = bodyOf(cast, "export async function castSpell(");
+const castBody = bodyOf(cast, "async function castSpellResolved(");
 ok("F1 castSpell's body was found and reaches its real code",
-  castBody.length > 0 && castBody.includes("componentGate(actor, spellData, spell.name)"));
+  // RE-ANCHORED AT 3.684.0 (G25): the ordinary cast's gate is told of a Prepared Sigil.
+  castBody.length > 0 && castBody.includes("componentGate(actor, spellData, spell.name, { symbolPrepared: Boolean(sigil) })"));
 ok("F2 casting intensifies the thorns",
   has(castBody, "intensifyThorns(actor, spell)"));
 // AFTER THE CAST HAS SUCCEEDED. A failed cast sharpens nothing, and the

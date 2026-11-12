@@ -249,16 +249,36 @@ export async function promptJumpDistance(actionKey) {
  * 91's NEGATIVE PP rule exists precisely so that spending past what you
  * hold is a price rather than a refusal (Graham's R3, same day).
  *
+ * A MODULE'S DISPEL MODIFIERS (3.683.0; Eldritch Arts Block 5, D10, C9) are
+ * shown here: an optional one as a tick (Dispel Power, a Focus use), any
+ * other as a line saying it applies (Resonant Ascendance's half PP), and one
+ * whose Focus use is spent as a line saying so. The ticked keys come back as
+ * `taken`. See combat/dispel-modifiers.mjs.
+ *
  * @param {number} maxPP the caster's own per-cast PP ceiling
  * @param {number} poolPP what they actually hold, for the hint
- * @returns {Promise<{pp:number, dc:number|null, effectValue:number}|undefined>}
+ * @returns {Promise<{pp:number, dc:number|null, effectValue:number, taken:string[]}|undefined>}
  *   `undefined` when cancelled.
  */
-export async function promptDispel(maxPP, poolPP, { level = 0, dc = 0 } = {}) {
+export async function promptDispel(maxPP, poolPP, { level = 0, dc = 0, offers = [] } = {}) {
   const { DialogV2 } = foundry.applications.api;
   const ceiling = Math.max(1, Math.trunc(Number(maxPP) || 1));
   const held = Math.max(0, Math.trunc(Number(poolPP) || 0));
   const start = Math.max(1, Math.min(ceiling, held || 1));
+  const esc = (s) => foundry.utils?.escapeHTML?.(String(s ?? "")) ?? String(s ?? "");
+  const field = (key) => `dispelMod-${String(key).replace(/[^a-z0-9_-]/gi, "_")}`;
+  const offered = Array.isArray(offers) ? offers : [];
+  const offerHtml = offered.length
+    ? `<hr>${offered.map((o) => {
+      const hint = o.hint ? ` <span class="hint">&mdash; ${esc(o.hint)}</span>` : "";
+      if (o.unavailable) return `<p class="hint" style="margin:4px 0"><s>${esc(o.label)}</s> &mdash; ${esc(o.unavailable)}</p>`;
+      if (o.optional) {
+        return `<label style="display:flex;align-items:center;gap:8px;margin:4px 0">
+        <input type="checkbox" name="${field(o.key)}"><span><strong>${esc(o.label)}</strong>${hint}</span></label>`;
+      }
+      return `<p style="margin:4px 0"><strong>${esc(o.label)}</strong> applies${hint}</p>`;
+    }).join("")}`
+    : "";
 
   const result = await DialogV2.wait({
     window: { title: "Dispel — declare the counteract", icon: "fa-solid fa-wand-sparkles" },
@@ -285,6 +305,7 @@ export async function promptDispel(maxPP, poolPP, { level = 0, dc = 0 } = {}) {
       </label>
       <p class="hint" style="font-size:.82em;margin:8px 0 0">Spending more than you hold is
         allowed: your pool floors at 0 and you take 5 Soul Drain per PP below it.</p>
+      ${offerHtml}
     </div>`,
     buttons: [
       {
@@ -295,7 +316,9 @@ export async function promptDispel(maxPP, poolPP, { level = 0, dc = 0 } = {}) {
         callback: (event, button, dialog) => {
           const root = dialog?.element ?? button?.form;
           const num = (name) => Number(root?.querySelector?.(`input[name="${name}"]`)?.value) || 0;
-          return { pp: num("dispelPP"), effectValue: num("effectValue"), dc: num("effectDC") };
+          const taken = offered.filter((o) => o.optional && !o.unavailable
+            && Boolean(root?.querySelector?.(`input[name="${field(o.key)}"]`)?.checked)).map((o) => o.key);
+          return { pp: num("dispelPP"), effectValue: num("effectValue"), dc: num("effectDC"), taken };
         }
       },
       { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark" }
@@ -310,7 +333,8 @@ export async function promptDispel(maxPP, poolPP, { level = 0, dc = 0 } = {}) {
     // A DC OF ZERO IS "NOT SET", NOT "trivially easy". The next dialog
     // takes it, which is where every other action with an unstated DC
     // already lands.
-    dc: result.dc > 0 ? Math.trunc(result.dc) : null
+    dc: result.dc > 0 ? Math.trunc(result.dc) : null,
+    taken: Array.isArray(result.taken) ? result.taken : []
   };
 }
 

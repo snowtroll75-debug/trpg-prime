@@ -17,7 +17,8 @@ import {
   rageEffectChanges,
   rageTemporaryHP,
   rageExpiry,
-  rageHasElapsed
+  rageHasElapsed,
+  castsWhileRagingFrom
 } from "./rage.mjs";
 
 const SYSTEM_ID = "trg-prime";
@@ -50,6 +51,26 @@ export function rageEffect(actor) {
 /** Whether an actor is currently raging. */
 export function isRaging(actor) {
   return Boolean(rageEffect(actor));
+}
+
+/**
+ * WHAT CASTS WHILE RAGING (3.684.0; Eldritch Arts Block 6, G10): the label of
+ * the actor's feat, ability or effect declaring `castsWhileRaging`, or "".
+ * Its items and its applied effects. See rage.mjs `castsWhileRagingFrom`.
+ */
+export function castsWhileRaging(actor) {
+  const items = Array.from(actor?.items ?? []).filter((i) => i?.type === "feat" || i?.type === "ability");
+  const effects = Array.from(actor?.appliedEffects ?? actor?.effects ?? []);
+  return castsWhileRagingFrom([...items, ...effects]);
+}
+
+/**
+ * Whether Rage's "You cannot cast spells" stops this actor casting now: it is
+ * raging, and nothing it has lets it cast while raging (3.684.0, G10;
+ * Birthrager). Read by cast-workflow.mjs's two rage refusals.
+ */
+export function rageBarsCasting(actor) {
+  return isRaging(actor) && !castsWhileRaging(actor);
 }
 
 /**

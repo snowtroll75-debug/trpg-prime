@@ -118,6 +118,11 @@ export function assembledCastingDC({
   materialPenalty = 0,
   defensive = false,
   runemage = false,
+  // COMBAT INSCRIPTION (3.684.0; Eldritch Arts Block 6, G25): the Runemage's
+  // defensive increase as declared (runemage.mjs `runemageAdjustments`), 2
+  // when nothing says otherwise, and the feat that lowered it, for the label.
+  runemageDefensive = 2,
+  runemageDefensiveLabel = "",
   favouredTerrain = false,
   metamagicDelta = 0,
   eloquence = false,
@@ -130,10 +135,44 @@ export function assembledCastingDC({
   // Defensive Casting. Defensive Casting checks for your spells are Medium
   // (+0) rather than Very Hard (DC +5)." `{label, dcAdd}`; the caller then
   // passes `defensive: false` so the core's +5 is not added as well.
-  declaredDefensive = null
+  declaredDefensive = null,
+  // HIGH MAGIC (3.678.0; Eldritch Arts Block 2, D1): "the Spellcraft check is
+  // Hard (+2 DC)", and its armour rule's own label — "the DC … increases by
+  // the armours DR bonus x4", in place of the tradition's prohibited armour.
+  highMagicDelta = 0,
+  armourLabel = "",
+  // A MODULE'S CASTING OPTION (3.679.0; Eldritch Arts Block 2b): Spell
+  // Trickery's "increase the DC of your casting check by 2", each its own
+  // labelled part so the card says what it cost.
+  moduleParts = [],
+  // A MODULE'S RAISE OF THE CAP (3.680.0; Eldritch Arts' Raw Power, review):
+  // PP up to the raised cap are within the caster's maximum, so they are not
+  // overcast and raise no DC.
+  capRaise = 0,
+  // PP THE DC COUNTS AND NOBODY PAYS (3.684.0; Eldritch Arts Block 6, G3).
+  // Metamagic Adept: an option paid in AP instead, "the DC to cast the spell
+  // is still increased … (as if the additional PP had been expended)". The
+  // DC is read from 10 + 1.5 × PP, not stepped, so a fixed delta would be
+  // wrong by one on half the spells (Appendix F, n7 (c)): the part is the
+  // difference the PP make. Not overcast: they are neither paid nor capped.
+  dcOnlyPP = 0,
+  // ECONOMIC SPELL'S PP, READ BACK FOR THE DC (3.684.3; Graham, 5 November
+  // 2026, asked "Did you mean the DC ends up 2 higher for each PP lowered?":
+  // "Yes"). Chapter 5: "The DC to cast the spell increases by 2 for every PP
+  // you lower by." Until 3.684.3 the DC was read from the LOWERED PP and then
+  // raised by 2 per PP, and since each PP moves 10 + 1.5 × PP by about 1.5 a
+  // PP lowered netted about +0.5. The base is now the DC at the unlowered PP
+  // (this part restores it) and the +2 per PP stays in `metamagicDelta`: a
+  // net +2 per PP lowered. The cap, the overcast, the payment and the save DC
+  // still read the lowered `totalPP` (3.684.1). Signature Spell's PP are not
+  // here: its text says nothing of the DC.
+  economicPP = 0
 } = {}) {
   const parts = [];
   const pp = Math.max(0, int(totalPP));
+  const asIfPaid = Math.max(0, int(dcOnlyPP));
+  const lowered = isCantrip ? 0 : Math.max(0, int(economicPP));
+  const unlowered = pp + lowered;
 
   // THE BASE. A cantrip's DC does not scale with PP — it has none to
   // scale with — so the overcast increase is not merely zero for a
@@ -141,8 +180,9 @@ export function assembledCastingDC({
   const base = isCantrip ? CANTRIP_PENALISED_DC : castingDC(pp);
 
   let dc = base;
-  if (!isCantrip) dc += push(parts, "Overcast", overcastDCIncrease(pp, int(casterLevel)));
-  dc += push(parts, "Prohibited armour", Math.max(0, int(armourPenalty)));
+  if (!isCantrip) dc += push(parts, "Overcast", Math.max(0, overcastDCIncrease(pp, int(casterLevel)) - 2 * Math.max(0, int(capRaise))));
+  dc += push(parts, armourLabel || "Prohibited armour", Math.max(0, int(armourPenalty)));
+  dc += push(parts, "High Magic, Hard", int(highMagicDelta));
   dc += push(parts, "Eaog armour", Math.max(0, int(materialPenalty)));
   if (defensive) dc += push(parts, "Defensive Casting", 5);
   // Said even at +0, so the card shows the cast WAS defensive and why it cost nothing.
@@ -165,13 +205,20 @@ export function assembledCastingDC({
     // read as a formatting fault, and a reader who distrusts the shape
     // of a line stops reading the line. Changed at 3.387.0 after seeing
     // it on a real cast.
-    dc += push(parts, defensive ? "Runemage, defensive" : "Runemage", -1 + (defensive ? 2 : 0));
+    const increase = Number.isFinite(Number(runemageDefensive)) ? Math.max(0, Math.trunc(Number(runemageDefensive))) : 2;
+    const named = defensive && increase !== 2 && String(runemageDefensiveLabel ?? "").trim() ? `, ${String(runemageDefensiveLabel).trim()}` : "";
+    dc += push(parts, defensive ? `Runemage, defensive${named}` : "Runemage", -1 + (defensive ? increase : 0));
   }
   if (favouredTerrain) dc += push(parts, "Favoured Terrain", -1);
+  if (lowered) dc += push(parts, `Economic Spell, the DC of ${unlowered} PP`, castingDC(unlowered) - castingDC(pp));
   dc += push(parts, "Metamagic", int(metamagicDelta));
+  if (!isCantrip && asIfPaid) dc += push(parts, `Metamagic paid in AP, as ${asIfPaid} PP`, castingDC(unlowered + asIfPaid) - castingDC(unlowered));
   if (eloquence) dc += push(parts, "Eloquence", -1);
   dc += push(parts, "Wizard School", int(wizardSchoolDelta));
   dc += push(parts, "Reagent", int(reagentDelta));
+  for (const part of Array.isArray(moduleParts) ? moduleParts : []) {
+    dc += push(parts, String(part?.label ?? "").trim() || "Module", int(part?.value));
+  }
 
   return { dc, parts, base };
 }

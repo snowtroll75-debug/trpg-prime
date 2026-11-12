@@ -20,8 +20,15 @@
  * and paste what it gives you.
  */
 
+/*
+ * RE-RECORDED ON 14.367 (3.685.2). The live world's own comparison on Foundry
+ * 14.367 — `snapshotDrift(coreSchemasOnly(captureSchemas(
+ * CONFIG.RegionBehavior.dataModels)), …)` — found no drift (gone [], grew
+ * []), so the field lists below are those 14.363 recorded, unchanged, and
+ * only the build they are now known true on moves.
+ */
 export const FOUNDRY_SCHEMA_SNAPSHOT = Object.freeze({
-  foundry: "14.363",
+  foundry: "14.367",
   capturedFrom: "CONFIG.RegionBehavior.dataModels, walked to depth 3",
   capturedBy: "the 'Verify Foundry Integration' macro",
   schemas: Object.freeze({

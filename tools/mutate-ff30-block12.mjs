@@ -15,7 +15,7 @@ const MUTATIONS = [
   { name: "one resistance halves coldfire", file: DM, from: '    resisted: !immune && covers("cold") && covers("fire"),', to: '    resisted: !immune && (covers("cold") || covers("fire")),', breaks: "C1" },
   { name: "weakness needs both", file: DM, from: '    weak: has(weaknesses, "cold") || has(weaknesses, "fire")', to: '    weak: has(weaknesses, "cold") && has(weaknesses, "fire")', breaks: "C1" },
   { name: "the traits still carry cold and fire", file: DM, from: "  if (coldfire) sourceTraits = Array.from(sourceTraits ?? []).filter((t) => !/^(cold|fire)$/i.test(String(t).trim()));", to: "", breaks: "C2" },
-  { name: "the immunity is not read", file: DM, from: "if (has(immunities, type) || coldfire?.immune || blockingTrait", to: "if (has(immunities, type) || blockingTrait", breaks: "C2" },
+  { name: "the immunity is not read", file: DM, from: "if (has(immunities, type) || allImmune || coldfire?.immune || blockingTrait", to: "if (has(immunities, type) || allImmune || blockingTrait", breaks: "C2" },
   { name: "the resistance is not read", file: DM, from: "const resisted = has(resistances, type) || Boolean(coldfire?.resisted) || categoryResisted", to: "const resisted = has(resistances, type) || categoryResisted", breaks: "C3" },
   { name: "the weakness is not read", file: DM, from: "const weakened = has(weaknesses, type) || Boolean(coldfire?.weak) || materialWeak", to: "const weakened = has(weaknesses, type) || materialWeak", breaks: "C4" },
   { name: "every type is coldfire", file: DM, from: 'const coldfire = type === "coldfire" ? coldfireDefences', to: "const coldfire = type ? coldfireDefences", breaks: "C5" },

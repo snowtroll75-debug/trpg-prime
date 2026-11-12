@@ -37,7 +37,87 @@ const POUCH_TRAIT = /\bmaterial component pouch\b/i;
  * @returns {boolean}
  */
 export function hasSomaticOverride(actor) {
-  return Boolean(actor?.getFlag?.("trg-prime", "freeSomatic"));
+  const flag = actor?.getFlag?.("trg-prime", "freeSomatic");
+  // A SCOPED DECLARATION (3.684.0) is not the actor-wide override: an object
+  // names the traditions it covers, and is read by `traditionComponentWaiver`.
+  if (flag && typeof flag === "object") return false;
+  return Boolean(flag);
+}
+
+/*
+ * A FREE SOMATIC COMPONENT BY TRADITION (3.684.0; Eldritch Arts Block 6, G22).
+ *
+ *   FERROMANCER: "You replace material and somatic components when casting
+ *   arcane spells with various shards of metal … kept in a component pouch."
+ *
+ * Graham's Q112 (as proposed): yes, a free hand is not needed; a pouch use is
+ * spent on each arcane cast; the Arcane tradition only. The actor-wide
+ * `freeSomatic` flag cannot say "arcane only", so the declaration may be an
+ * object — on the actor flag, or on an owned feat, ability or applied effect:
+ *
+ *   flags["trg-prime"].freeSomatic = {
+ *     traditions: ["arcane"],   // the casts it covers
+ *     needsPouch: true,         // the shards: an equipped pouch with a use,
+ *                               // spent on the cast whether or not the spell
+ *                               // has a material component
+ *     label: "Ferromancer"
+ *   }
+ *
+ * "CASTING ARCANE SPELLS": the caster's own tradition, where the sheet has
+ * one, must be one the declaration names — a Sorcerer whose birthright is not
+ * arcane gains nothing (the audit's note 3) — and so must one of the spell's,
+ * where the spell names any. A Runemage's Symbol is not a somatic component,
+ * and is not lifted.
+ */
+function declarationOf(raw, fallbackLabel) {
+  if (!raw || typeof raw !== "object") return null;
+  const traditions = (Array.isArray(raw.traditions) ? raw.traditions : [])
+    .map((t) => String(t ?? "").trim().toLowerCase()).filter(Boolean);
+  if (!traditions.length) return null;
+  return { traditions, needsPouch: raw.needsPouch === true, label: String(raw.label ?? fallbackLabel ?? "").trim() || "A feature" };
+}
+
+/** Every tradition-scoped component declaration the actor carries. */
+export function declaredTraditionComponents(actor) {
+  const out = [];
+  const own = declarationOf(actor?.getFlag?.("trg-prime", "freeSomatic"), actor?.name);
+  if (own) out.push(own);
+  for (const item of Array.from(actor?.items ?? [])) {
+    if (!["feat", "ability"].includes(item?.type)) continue;
+    if (item.type === "ability" && item.system?.active === false) continue;
+    const d = declarationOf(item.flags?.["trg-prime"]?.freeSomatic, item.name);
+    if (d) out.push(d);
+  }
+  for (const effect of Array.from(actor?.appliedEffects ?? [])) {
+    if (!effect || effect.disabled) continue;
+    const d = declarationOf(effect.flags?.["trg-prime"]?.freeSomatic, effect.name);
+    if (d) out.push(d);
+  }
+  return out;
+}
+
+/**
+ * The declaration that covers this cast, or null. Pure.
+ * @param {Array<{traditions: string[], needsPouch: boolean, label: string}>} declarations
+ * @param {object} spellData the spell's `system`
+ * @param {string} casterTradition the actor's `system.magic.tradition`
+ */
+export function traditionComponentWaiver(declarations = [], spellData = {}, casterTradition = "") {
+  const words = (v) => String(v ?? "").split(/[,;/]/).map((t) => t.trim().toLowerCase()).filter(Boolean);
+  const own = words(casterTradition);
+  const spells = words(spellData?.tradition);
+  for (const d of declarations ?? []) {
+    if (own.length && !own.some((t) => d.traditions.includes(t))) continue;
+    if (spells.length && !spells.some((t) => d.traditions.includes(t))) continue;
+    if (!own.length && !spells.length) continue;
+    return d;
+  }
+  return null;
+}
+
+/** Does this cast spend a pouch use? Its material component, or shards that need the pouch (3.684.0). Pure. */
+export function castSpendsPouch(components = {}, waiver = null) {
+  return Boolean(components?.material) || Boolean(waiver?.needsPouch);
 }
 
 /**
@@ -79,7 +159,7 @@ export function hasComponentPouch(actor) {
  *   supplied when the item was made, so only that one is waived.
  * @returns {boolean} false (and warns) to abort; true to proceed
  */
-export function componentGate(actor, spellData, spellName = "This spell", { materialProvided = false } = {}) {
+export function componentGate(actor, spellData, spellName = "This spell", { materialProvided = false, symbolPrepared = false } = {}) {
   let components = spellData?.components ?? {};
 
   // Component Savant (Chapter 5 metamagic): a queued one-cast swap replaces
@@ -147,16 +227,33 @@ export function componentGate(actor, spellData, spellName = "This spell", { mate
    * Symbol stricter than the component it replaces — chosen deliberately
    * over the reading where the focus covers both.
    */
+  /*
+   * A PREPARED SIGIL (3.684.0; Eldritch Arts Block 6, G25): "You do not
+   * require room to draw the Symbol." Graham's Q123: the Symbol then needs
+   * no hand; "Any Somatic component is unaffected", so a somatic spell still
+   * needs a hand, a focus or an implement, as for anyone.
+   *
+   * SHARDS FOR THE ARCANE (G22, Ferromancer): the somatic component is
+   * replaced; the pouch they are kept in must be there (below).
+   */
+  // NOT ON AN ITEM'S CAST: a scroll's components are the item's rules, and
+  // the shards' pouch is not spent on one (cast-workflow spends none there).
+  const shards = materialProvided ? null : traditionComponentWaiver(declaredTraditionComponents(actor), spellData, actor?.system?.magic?.tradition ?? "");
+  const handComponents = {
+    ...components,
+    ...(symbolPrepared ? { symbol: false } : {}),
+    ...(shards ? { somatic: false } : {})
+  };
   if (
-    needsFreeHandFor(components) &&
+    needsFreeHandFor(handComponents) &&
     !hasSomaticOverride(actor) &&
     !naturalCasting.somatic &&
-    !(focusHand && focusSatisfiesHand(components)) &&
-    !(implementHand && focusSatisfiesHand(components)) &&
+    !(focusHand && focusSatisfiesHand(handComponents)) &&
+    !(implementHand && focusSatisfiesHand(handComponents)) &&
     !hasFreeHandAvailable(Array.from(actor?.items ?? []), size)
   ) {
     ui.notifications.warn(
-      components.symbol
+      handComponents.symbol
         ? `${spellName} is cast with a Symbol component and needs a free hand to draw the rune, but both of your hands are occupied.`
         : `${spellName} has a somatic component and needs a free hand, but both of your hands are occupied.`
     );
@@ -169,6 +266,15 @@ export function componentGate(actor, spellData, spellName = "This spell", { mate
   if (components.material && !materialProvided && !naturalCasting.material && !hasComponentPouch(actor)) {
     ui.notifications.warn(
       `${spellName} has a material component, but you have no Material Component Pouch equipped (or it's empty).`
+    );
+    return false;
+  }
+  // THE SHARDS' POUCH (3.684.0, G22): "kept in a component pouch" — every
+  // arcane cast needs one with a use, material component or not. A scroll's
+  // material was provided, but the somatic shards were not.
+  if (shards?.needsPouch && !hasComponentPouch(actor)) {
+    ui.notifications.warn(
+      `${spellName}: ${shards.label}'s metal shards stand in for its components, but you have no Material Component Pouch equipped (or it's empty).`
     );
     return false;
   }

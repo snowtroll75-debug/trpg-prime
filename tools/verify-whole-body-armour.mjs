@@ -96,7 +96,7 @@ const BRACERS = { itemId: "b1", effectId: "", effective: 6, itemName: "Bracers o
 /* C — the wiring */
 {
   ok("C1 the injury table reads the worn pieces with the whole-body armour laid over them",
-    /const targetArmour = targetActor\s*\? withWholeBodyArmour\(armourAtLocation\(seenItems, hitLocation\), targetActor\.system\)/.test(ATTACK));
+    /(?:const|let) targetArmour = targetActor\s*\? withWholeBodyArmour\(armourAtLocation\(seenItems, hitLocation\), targetActor\.system\)/.test(ATTACK));
   ok("C2 the old rigidity line is gone (one rule, in hit-location.mjs)",
     !/spellArmour\?\.rigid\) targetArmour\.rigid = true/.test(ATTACK));
   ok("C3 Vital Strike's named location is covered by it",

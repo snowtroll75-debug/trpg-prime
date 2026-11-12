@@ -48,12 +48,14 @@ import { maxPPPerCast } from "./casting.mjs";
 import { magicalDiscoveryBonus } from "./magical-discovery.mjs";
 import {
   cantripPoolEligible,
+  countsTowardMemorisation,
   dailyMemorisedCantrips,
   dailyMemorisedLeveled,
   memorisationPoolEligible,
   memorisationState
 } from "./memorisation.mjs";
-import { sourceEntryId, spellBookSpells } from "./spellbook.mjs";
+import { sourceEntryId, spellBookCantrips, spellBookSpells } from "./spellbook.mjs";
+import { declaredCantripBonus } from "./known-cantrips.mjs";
 import { spellListFilterOptions, wireSpellListFilters } from "../sheets/list-filters.mjs";
 import { packItemData } from "../items.mjs";
 import { contentPack } from "../content-packs.mjs";
@@ -127,7 +129,9 @@ export function memorisationContext(actor) {
   // tradition it happens to name.
   const grantedCounts = new Map(grantedSlots.map((g) => [g.tradition, 0]));
   let ownLeveled = 0;
-  for (const spell of dailyMemorisedLeveled(actor)) {
+  // A FREE PREP FILLS NO SLOT (3.683.0; Eldritch Arts Block 5, C13): Spell
+  // Thief's critical borrow. See `countsTowardMemorisation`.
+  for (const spell of dailyMemorisedLeveled(actor).filter(countsTowardMemorisation)) {
     const bucket = grantedSlots.find((g) => traditionMatches(spell, g.tradition));
     if (bucket) grantedCounts.set(bucket.tradition, grantedCounts.get(bucket.tradition) + 1);
     else ownLeveled += 1;
@@ -136,10 +140,19 @@ export function memorisationContext(actor) {
   const state = memorisationState({
     level,
     leveledMemorised: ownLeveled +
-      (style === "book" ? spellBookSpells(actor).filter((s) => s.system?.prepared).length : 0),
-    cantripsMemorised: dailyMemorisedCantrips(actor).length,
+      (style === "book" ? spellBookSpells(actor).filter((s) => s.system?.prepared && countsTowardMemorisation(s)).length : 0),
+    // A CANTRIP BOOK (3.680.0; Eldritch Arts D4c): the Archmage memorises
+    // "any three of these cantrips" from the six in the book, so today's are
+    // the book's prepared ones, not pack copies.
+    cantripsMemorised: actor.system?.progression?.classMagic?.cantripBook
+      ? spellBookCantrips(actor).filter((s) => s.system?.prepared).length
+      : dailyMemorisedCantrips(actor).length,
     cantripAllowance: classItem.system?.cantripsPerDay,
-    bonusLeveled: bonus
+    // A FEAT'S DECLARED BONUS CANTRIPS (3.684.0; Extra Cantrip). See known-cantrips.mjs.
+    bonusCantrips: declaredCantripBonus(Array.from(actor.items ?? [])),
+    bonusLeveled: bonus,
+    // A CLASS'S OWN BUDGET (3.682.0; D4): the Spellblade's level + 1.
+    memorisedPerDay: actor.system?.progression?.classMagic?.memorisedPerDay ?? "2+2L"
   });
 
   const granted = grantedSlots.map((entry) => {
@@ -372,7 +385,9 @@ export async function openMemoriseSpell(actor) {
 
   let result;
   if (context.style === "book") {
-    const pool = spellBookSpells(actor).filter((s) => Number(s.system?.ppCost ?? 0) <= cap);
+    // A FREE PREP IS NOT OFFERED (3.683.0, C13): the checklist caps its ticks at
+    // the allowance, and an untick would unprepare what the module prepared.
+    const pool = spellBookSpells(actor).filter((s) => Number(s.system?.ppCost ?? 0) <= cap && countsTowardMemorisation(s));
     if (!pool.length) {
       ui.notifications.warn("Memorisation: your Spell Book has no spells within your castable PP yet — add some to the book first.");
       return null;
@@ -401,7 +416,8 @@ export async function openMemoriseSpell(actor) {
     const introHtml = `<p class="hint">Select up to <strong>${context.leveledAllowed}</strong> ${tradition || "tradition"} spell(s) from the full spell list. Previously memorised spells are highlighted and pre-checked. Only spells with PP ≤ your Max PP (${cap}) are shown.</p>`;
     result = await promptPackMemorisation(actor, classItem, {
       poolEntries: pool,
-      existingItems: dailyMemorisedLeveled(actor),
+      // …nor matched to a pack entry, which an untick would delete (C13).
+      existingItems: dailyMemorisedLeveled(actor).filter(countsTowardMemorisation),
       title, icon, introHtml, target: context.leveledAllowed
     });
   }
@@ -431,6 +447,29 @@ export async function openMemoriseCantrip(actor) {
   }
 
   const tradition = String(actor.system?.magic?.tradition ?? "");
+  // FROM THE BOOK (3.680.0; Eldritch Arts D4c): "Each day when you prepare
+  // your spells you may memorise any three of these cantrips" — the six in
+  // the Archmage's book, toggled as the book's levelled spells are.
+  if (actor.system?.progression?.classMagic?.cantripBook) {
+    const book = spellBookCantrips(actor);
+    if (!book.length) {
+      ui.notifications.warn("Memorisation: there are no cantrips in your spell book yet — learn them on the Cantrips card.");
+      return null;
+    }
+    const result = await promptBookMemorisation(actor, {
+      pool: book,
+      title: `${actor.name} — Prepare Cantrips`,
+      icon: "fa-solid fa-wand-magic-sparkles",
+      introHtml: `<p class="hint">Select up to <strong>${context.cantripsAllowed}</strong> of the cantrips in your spell book. Previously memorised cantrips are highlighted and pre-checked.</p>`,
+      target: context.cantripsAllowed
+    });
+    if (!result) return null;
+    const after = memorisationContext(actor);
+    await postCard(actor, "Memorisation", [
+      line(`<strong>${after.cantripsPicked}</strong> of ${after.cantripsAllowed} cantrips memorised from your spell book — ${result.added} added, ${result.removed} removed.`)
+    ]);
+    return result;
+  }
   const pack = contentPack("spells");
   if (!pack) {
     ui.notifications.warn(`Compendium pack "spells" not found.`);

@@ -72,9 +72,10 @@ const MUTATIONS = [
   { name: "Fearful Strength never swaps", file: ACTOR, from: "      skill.ability = swap;\n", to: "", breaks: "B23" },
   { name: "the kill is announced to nobody", file: DYING, from: "    Hooks.callAll(\"trgPrimeCreatureSlain\", { victim: actor, sourceName, sourceLevel, deathCase: result.case });\n", to: "", breaks: "B24" },
   { name: "Souldrinker heals from any kill", file: HOOKS, from: "      if (levelOf(victim) >= levelOf(killer) - below) {", to: "      if (true) {", breaks: "B25" },
-  { name: "Spell Resilience leaves DB alone", file: CAST, from: "  const defendedDB = Number.isFinite(baseDB) ? baseDB + dragonhideDB + resilienceDB : NaN;", to: "  const defendedDB = Number.isFinite(baseDB) ? baseDB + dragonhideDB : NaN;", breaks: "B26" },
+  { name: "Spell Resilience leaves DB alone", file: CAST, from: "  const defendedDB = Number.isFinite(baseDB) ? baseDB + dragonhideDB + resilienceDB + Number(typedDefence.total ?? 0) : NaN;", to: "  const defendedDB = Number.isFinite(baseDB) ? baseDB + dragonhideDB + Number(typedDefence.total ?? 0) : NaN;", breaks: "B26" },
   { name: "Arcadian casts are not Specialist", file: CAST, from: "|| Boolean(spell.getFlag?.(SYSTEM_ID, \"bookOfNotationsPick\")) || castDerives.specialistAll;", to: "|| Boolean(spell.getFlag?.(SYSTEM_ID, \"bookOfNotationsPick\"));", breaks: "B27" },
   { name: "Corrode never splits with a shield", file: HOOKS, from: "    const half = Math.floor(Number(amount) / 2);", to: "    const half = 0;", breaks: "B29" },
+  { name: "3.685.2: Scorching Breath is keyed by its seventeen-character id again", file: path.join(SYSTEM_ROOT, "tools", "ff30-codex-declarations.mjs"), from: "  entry(\"ff30ScorchBreath\", \"Scorching Breath\",", to: "  entry(\"ff30ScorchingBrth\", \"Scorching Breath\",", breaks: "C3/C3b" },
   { name: "Trample provokes", file: CODEX, from: "provokes: false }, item.name);", to: "provokes: true }, item.name);", breaks: "B30" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-ff30-codex.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }

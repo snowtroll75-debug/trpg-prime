@@ -82,8 +82,11 @@ ok("C2 and reconciling is what that switches off",
 ok("C3 the entry save's write-back inside a refresh does not reconcile",
   flow.includes("await recordEmanation(actor, entry.id, { ...emanation, tested }, { reconcile: false });"),
   "a refresh that queues a refresh behind itself waits for ever — Bane's first latecomer never got the penalty");
-ok("C4 and it is the only call that turns it off",
-  count(flow, "reconcile: false") === 1 && count(cast, "reconcile: false") === 0);
+// 3.677.1: the beneficial save's write-back is the second, inside the same
+// refresh for the same reason.
+ok("C4 and the two write-backs inside a refresh are the only calls that turn it off",
+  count(flow, "reconcile: false") === 2 && count(cast, "reconcile: false") === 0
+  && flow.includes("await recordEmanation(actor, entry.id, { ...emanation, benefit: { ...benefit, accepted } }, { reconcile: false });"));
 
 /* ================================================================== *
  * D. F4 — Vision Of Havoc's held stun
@@ -180,7 +183,8 @@ ok("H2 and the card names that defence", /`Save: <strong>\$\{castDefence\}<\/str
 ok("H3 the area's row loops read the mode's rows",
   // 7 -> 9 at 3.610.0: the wall's and the storm's loops read the same rows.
   // 9 -> 10 at 3.612.0: Web's entry check (block 34's R6) reads them too.
-  count(cast, "for (const row of (effEffects ?? [])) {") === 10,
+  // 10 -> 11 at 3.685.0: an area's turn ladder (H3) is recorded from them too.
+  count(cast, "for (const row of (effEffects ?? [])) {") === 11,
   "Rock to Mud's difficult terrain is on its mode");
 ok("H4 and none of them reads the spell's rows past a chosen mode",
   !/for \(const row of \(spellData\.effects \?\? \[\]\)\) \{\n\s*if \(row\?\.kind !== "difficultTerrain"/.test(cast));

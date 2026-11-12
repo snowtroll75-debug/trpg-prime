@@ -38,7 +38,7 @@ const MUTATIONS = [
   { name: "a declared ladder is never read", file: GS, from: "  return TIME_LADDERS[actionKey] ?? declaredTimeLadder(action);", to: "  return TIME_LADDERS[actionKey] ?? null;", breaks: "E3" },
   { name: "a rung with no cost is accepted", file: GS, from: "    if (!key || !label || !Number.isInteger(modifier) || !apCost) return null;", to: "    if (!key || !label) return null;", breaks: "E2" },
   { name: "a default outside the rungs is accepted", file: GS, from: "  if (!options.some((o) => o.key === defaultKey)) return null;\n", to: "", breaks: "E2" },
-  { name: "the workflow ignores the action's ladder", file: ACW, from: "  const baseLadder = skipDialog(event) ? null : timeLadder(action.key, action);", to: "  const baseLadder = skipDialog(event) ? null : timeLadder(action.key);", breaks: "E4" },
+  { name: "the workflow ignores the action's ladder", file: ACW, from: "  const baseLadder = skipDialog(event) ? null : (featTimeLadder(action, actorFeatNames) ?? timeLadder(action.key, action));", to: "  const baseLadder = skipDialog(event) ? null : (featTimeLadder(action, actorFeatNames) ?? timeLadder(action.key));", breaks: "E4" },
   { name: "the action's traits are dropped again", file: CC, from: "  return [...new Set([...own, ...(alchemical ? [alchemical] : [])])].join(\", \");", to: "  return alchemical;", breaks: "F1" },
   { name: "any damage type is a ward", file: WZ, from: "  if (!WARD_DAMAGE_TYPES.includes(damageType)) return null;\n", to: "", breaks: "G1" },
   { name: "a Blunder still grants resistance", file: WZ, from: "  const field = spec.weakness ? \"weaknesses\" : \"resistances\";", to: "  const field = \"resistances\";", breaks: "G2" },

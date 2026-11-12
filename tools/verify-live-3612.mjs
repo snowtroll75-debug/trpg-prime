@@ -65,7 +65,7 @@ const read = (...p) => fs.readFileSync(path.join(SYSTEM_ROOT, ...p), "utf8");
   ok("B2 a reaction cast drops those notes before anything reads the rows",
     cast.includes('if (reaction && Array.isArray(effEffects)) effEffects = effEffects.filter((e) => !(e?.kind === "note" && e.sheetCastOnly === true));')
     && cast.indexOf("e.sheetCastOnly === true") > cast.indexOf("let effEffects = apMode?.effects ?? spellData.effects;")
-    && cast.indexOf("e.sheetCastOnly === true") < cast.indexOf("if (spellNeedsTarget(spellData) && !storingNow"));
+    && cast.indexOf("e.sheetCastOnly === true") < cast.indexOf("if (spellNeedsTarget(spellData, spell) && !storingNow"));
 }
 
 /* ================================================================== *

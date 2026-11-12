@@ -653,8 +653,11 @@ equal("N3b and its key is untouched",
       "reading shadowborn.degree here means a blunder, or any degree the action does "
       + "not print, silently does nothing while the card says otherwise");
   }
+  // 3.683.0 (Eldritch Arts Block 5, C9): the half-refund's rule moved to
+  // combat/dispel-modifiers.mjs `dispelPPPaid`, which this body hands the
+  // declared `degree`; verify-ea-block5d-core runs the rule itself.
   ok("G2b and Dispel's half-refund does too",
-    /const halved = degree === "critical" \|\| degree === "partial";/.test(body));
+    /const paidFor = dispelPPPaid\(degree, dispelSetup\);/.test(body));
   ok("G2c and Recharge Item's PP",
     /rechargeAmount\(\s*degree,/.test(body));
 

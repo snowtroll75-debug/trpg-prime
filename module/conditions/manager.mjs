@@ -5,6 +5,7 @@ import {
   RECURRING_FLAT_CHECK_DC,
   bleedingSeverity
 } from "./registry.mjs";
+import { recurringTypeLabel } from "./recurring.mjs";
 
 const SYSTEM_ID = "trg-prime";
 const { DialogV2 } = foundry.applications.api;
@@ -181,8 +182,12 @@ export function conditionEffectName(id, value = null, damageType = null) {
       : `${condition.label} ${value}`;
   }
 
-  if (id === "recurring" && damageType && DAMAGE_TYPES[damageType]) {
-    return `${condition.label} ${value} (${DAMAGE_TYPES[damageType].label})`;
+  // AN UNKNOWN TYPE BY ITS OWN NAME (3.685.1; Eldritch Arts 0.10.0's live
+  // test, finding 4): Eaog Balls' coldfire read "Recurring Damage 16" beside
+  // "Recurring Damage 24 (Force)". The end phase's card already said
+  // "Coldfire" (3.685.0); the effect's name now says it too.
+  if (id === "recurring" && String(damageType ?? "").trim()) {
+    return `${condition.label} ${value} (${recurringTypeLabel(damageType, DAMAGE_TYPES)})`;
   }
 
   return `${condition.label} ${value}`;

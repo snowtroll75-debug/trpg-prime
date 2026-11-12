@@ -83,14 +83,14 @@ const mod = (...p) => import(new URL(`../module/${p.join("/")}`, import.meta.url
     [[["Fortune's Reversal", true]], [["Fortune's Reversal", true]], [["Fortune's Reversal", true], ["Saves only", false]], []]);
   const ck = read("module", "dice", "check.mjs");
   ok("D2 a skill check's or a save's Fumble is offered once, rerolled, and the second result stands — never on a shared roll's later creatures",
-    /if \(check\.actor && !check\.flat && !check\.fumbleRerolled && !check\.presetDice && \["skill", "save"\]\.includes\(check\.type\)\n\s*&& (?:check\.outcome\?\.degree\?\.key === "fumble"|\["fumble", "blunder"\]\.includes\(check\.outcome\?\.degree\?\.key\))\) \{[\s\S]{0,420}offerFumbleReroll\(check\.actor, check\.type(?:, \{ degree: firstDegree \})?\);\n\s*if \(taken\) \{\n\s*check\.fumbleRerolled = true;\n\s*await check\.reroll\(\);/.test(ck));
+    /if \(check\.actor && !check\.flat && !check\.fumbleRerolled && !check\.presetDice && \["skill", "save"\]\.includes\(check\.type\)\n\s*&& (?:check\.outcome\?\.degree\?\.key === "fumble"|\["fumble", "blunder"\]\.includes\(check\.outcome\?\.degree\?\.key\)|rerollable)\) \{[\s\S]{0,420}offerFumbleReroll\(check\.actor, check\.type(?:, \{ degree: firstDegree(?:, subject: check\.subject)? \})?\);\n\s*if \(taken\) \{\n\s*check\.fumbleRerolled = true;\n\s*await check\.reroll\(\);/.test(ck));
   const aw = read("module", "combat", "attack-workflow.mjs");
   const early = aw.indexOf("  let fumbleConfirmedEarly = null;");
   ok("D3 an attack's fumble is confirmed and the reroll offered straight after the roll, for one who could take it",
     early > aw.indexOf("  let check = await TRGCheck.roll(attackCheckConfig);")
     && /if \(risk && fumbleRerollAvailable\(actor, "attack"\)\) \{\n[^\n]*\n\s*fumbleConfirmedEarly = await confirmAttackFumble\(actor, weapon, \{ dcHalved, weaponData \}\);/.test(aw));
   ok("D4 …rerolled IN PLACE, before the Strike spends anything (found in review): its ammunition, Aim, Aid, a once-rider, the multiple attack count",
-    /check = await TRGCheck\.roll\(\{ \.\.\.attackCheckConfig, conditionalChoices: check\.conditionalChoices \?\? \[\], allowConviction: false \}\);\n\s*fumbleRerolled = true;\n\s*fumbleConfirmedEarly = null;/.test(aw)
+    /check = await TRGCheck\.roll\(\{ \.\.\.attackCheckConfig, conditionalChoices: check\.conditionalChoices \?\? \[\], allowConviction: false(?:, checkReactionsBeforeAsked: true(?:, reactionAdvantages: check\.reactionAdvantages \?\? \[\](?:, reactionModifiers: check\.reactionModifiers \?\? \[\])?)?)? \}\);\n\s*fumbleRerolled = true;\n\s*fumbleConfirmedEarly = null;/.test(aw)
     && ["  const spinCarried = Math.max(0, Number(weaponData.spinBonus ?? 0));", "  if (aidDefence) await consumeAidBonus(targetActor, aidDefence.effect);", "    await setSharedMapCount(actor, attackIndex + mapSteps);"].every((n) => aw.indexOf(n) > early)
     && !/return rollWeaponAttack\(actor, weapon, \{\n\s*\.\.\.callOptions/.test(aw));
   ok("D5 a fumble confirmed early is not checked again; one averted early is not tabled",
@@ -117,8 +117,8 @@ const mod = (...p) => import(new URL(`../module/${p.join("/")}`, import.meta.url
     /if \(targetToken && targetActor && !isReaction && !skipTargetPrompt\) \{\n\s*const \{ offerIntercepts \} = await import\("\.\/defence-offer-workflow\.mjs"\);/.test(aw)
     && /targetToken = interceptor;\n\s*targetActor = interceptor\.actor;\n\s*try \{ targetToken\.setTarget\?\.\(true, \{ user: game\.user, releaseOthers: true \}\); \} catch \{ \/\* the attack goes on regardless \*\/ \}\n\s*\}/.test(aw));
   ok("E5 …asked once the Strike is committed — after its refusals, the GM's leave and the AP — and before the defender's own reactions (found in review)",
-    aw.indexOf("    await spendActionPoints(actor, \"1\", `${weapon.name} — Strike`, { use: \"strike\" });") > 0 && aw.indexOf("  if (sanctuary.blocked) return null;") > 0
-    && ask > aw.indexOf("    await spendActionPoints(actor, \"1\", `${weapon.name} — Strike`, { use: \"strike\" });")
+    aw.indexOf("    await spendActionPoints(actor, \"1\", `${weapon.name} — Strike`, { use: \"strike\", deferNextAction: true });") > 0 && aw.indexOf("  if (sanctuary.blocked) return null;") > 0
+    && ask > aw.indexOf("    await spendActionPoints(actor, \"1\", `${weapon.name} — Strike`, { use: \"strike\", deferNextAction: true });")
     && ask > aw.indexOf("  if (sanctuary.blocked) return null;")
     && ask < aw.indexOf("    await offerDefences(actor, targetActor, { kind: \"weapon\", what: weapon.name });"));
 }
@@ -137,7 +137,7 @@ const mod = (...p) => import(new URL(`../module/${p.join("/")}`, import.meta.url
 /* G — C7 */
 {
   const acw = read("module", "combat", "action-workflow.mjs");
-  ok("G1 the action takes the four options", /presetDice = null, dcOverride = null, dcLabel = "", ignoreActionImmunity = false,?\n(?:\s*\/\/[^\n]*\n)*(?:\s*presetConvictionDie = 0,?\n)?(?:\s*\/\/[^\n]*\n)*(?:\s*presetModifiers = null\n)?\} = \{\}\) \{/.test(acw));
+  ok("G1 the action takes the four options", /presetDice = null, dcOverride = null, dcLabel = "", ignoreActionImmunity = false,?\n(?:\s*\/\/[^\n]*\n)*(?:\s*presetConvictionDie = 0,?\n)?(?:\s*\/\/[^\n]*\n)*(?:\s*presetModifiers = null,?\n)?(?:\s*\/\/[^\n]*\n)*(?:\s*presetDispel = null\n)?\} = \{\}\) \{/.test(acw));
   ok("G2 the DC named replaces the action's", /if \(dcOverride !== null && dcOverride !== undefined && Number\.isFinite\(Number\(dcOverride\)\)\) \{\n\s*finalDC = Number\(dcOverride\);/.test(acw));
   ok("G3 the first roll's die is met again", /\.\.\.\(presetDice \? \{ presetDice(?:, presetConvictionDie)? \} : \{\}\),/.test(acw));
   ok("G4 the action's own immunity is neither asked nor stamped", /if \(targetActor && ACTION_IMMUNITIES\[action\.key\] && !ignoreActionImmunity\) \{/.test(acw) && /if \(targetActor && rawDegree && ACTION_IMMUNITIES\[action\.key\] && !ignoreActionImmunity\) \{/.test(acw)
@@ -207,7 +207,7 @@ const mod = (...p) => import(new URL(`../module/${p.join("/")}`, import.meta.url
   equal("J1 refunded on the named skill at the named degrees, and nowhere else", [r("mentalFocus", "success"), r("mentalFocus", "heroic"), r("mentalFocus", "partial"), r("perception", "success"), r("mentalFocus", "success", "save")], ["Adaptive Mind", "Adaptive Mind", null, null, null]);
   const ck = read("module", "dice", "check.mjs");
   ok("J2 the roll refunds it after Scoundrel's Luck, never with it, and never for a point Luck of Heroes kept",
-    /\} else if \(advantageSpent && !advantageKept && check\.actor\) \{\n[^\n]*\n[^\n]*\n\s*const \{ convictionRefundRow, convictionRefundLine \} = await import\("\.\.\/conviction-refund\.mjs"\);/.test(ck)
+    /\} else if \(advantageSpent && !advantageKept && check\.actor\) \{\n[^\n]*\n[^\n]*\n\s*const \{ convictionRefundRow, convictionRefundLine, convictionRefundDailyUsed \} = await import\("\.\.\/conviction-refund\.mjs"\);/.test(ck)
     && /if \(refund\) \{\n\s*await awardConviction\(check\.actor, 1\);\n\s*await check\.actor\.unsetFlag\(SYSTEM_ID, "convictionSpent"\);\n\s*check\.convictionRefunded = true;/.test(ck));
   ok("J3 the card remembers it, so a late DC does not give it twice", /convictionRefunded: Boolean\(this\.convictionRefunded\),/.test(ck)
     && /if \(!raw\.convictionRefunded && !raw\.scoundrelRefunded &&\n\s*raw\.modifiers\.some\(\(m\) => m\.label === "Conviction: Advantage"\)\) \{/.test(read("module", "dice", "check-card-interactions.mjs")));

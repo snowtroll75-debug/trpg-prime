@@ -28,7 +28,7 @@
  * @param {string} [opts.baseDamage] the spell's Base Damage, for a critical's extra dice
  * @returns {Promise<{line: string, degree: string, taken: number}>}
  */
-export async function basicSaveHit({ caster = null, target, save, dc, label, formula = "", amount = null, type, baseDamage = "" }) {
+export async function basicSaveHit({ caster = null, target, save, dc, label, formula = "", amount = null, type, baseDamage = "", ignoreDefences = false }) {
   const { TRGCheck } = await import("../dice/check.mjs");
   const { basicSavingThrow } = await import("../dice/resolution.mjs");
   const { criticalBonusDamage } = await import("./spell-damage.mjs");
@@ -72,7 +72,15 @@ export async function basicSaveHit({ caster = null, target, save, dc, label, for
   let hp = null;
   let bracersLine = "";
   if (dealt > 0) {
-    const packet = resolveAgainstDefences(target.system ?? {}, {
+    // DAMAGE NOTHING STOPS (3.679.0; Eldritch Arts' vital sacrifice: "this
+    // damage bypasses all DR, Resistance and Immunity"): the save still
+    // decides how much, and nothing after it reduces it.
+    // A DAMAGE REACTION, BEFORE THE DEFENCES (3.681.0; found in review).
+    if (!ignoreDefences) {
+      const { spellDamageReactionsFor } = await import("../reactions/reactions-workflow.mjs");
+      await spellDamageReactionsFor(target, type, { spellName: "", source: null });
+    }
+    const packet = ignoreDefences ? { taken: dealt, immune: false } : resolveAgainstDefences(target.system ?? {}, {
       amount: dealt, type,
       creatureTypeSystem: ownedCreatureTypeSystem(target),
       magical: true,
@@ -83,7 +91,14 @@ export async function basicSaveHit({ caster = null, target, save, dc, label, for
     bracersLine = await drainBracers(target, packet);
     taken = packet.taken;
     if (taken > 0) {
-      const applied = await applyDamageAndCheckDying(target, taken, { isCritical: Boolean(bs.criticalSeverity) });
+      // WHO DEALT IT (3.684.0; Eldritch Arts Block 6, G23): the caster this
+      // save was forced by, as the save itself was told above — Warlock's Hex
+      // is offered after Xithra Cone's damage (Graham's Q134). Only the hook
+      // hears it; the HP and the dying machinery read nothing new.
+      const applied = await applyDamageAndCheckDying(target, taken, {
+        isCritical: Boolean(bs.criticalSeverity),
+        ...(caster?.uuid ? { sourceUuid: caster.uuid, context: { kind: "areaSave", label: String(label ?? ""), damageType: String(type ?? "").toLowerCase() } } : {})
+      });
       hp = applied?.newHP ?? null;
     }
   }

@@ -50,7 +50,7 @@ ok("A12 the blow's type and source reach the primitive and cross the relay", /ap
 const aw = read("module", "combat", "attack-workflow.mjs");
 ok("A13 the weapon hit reports its type and the attacker's level", /nonlethal: Boolean\(packet\.nonlethal\),\s*\/\/ What a death guard asks[^\n]*\n\s*damageTypes: \[String\(effectiveDamageType \?\? ""\)\.trim\(\)\.toLowerCase\(\)\]\.filter\(Boolean\),\s*sourceLevel: Number\(actor\.system\?\.identity\?\.level \?\? 0\),/.test(aw));
 const dgw = read("module", "combat", "death-guard-workflow.mjs");
-ok("A14 a held guard writes 1 HP, marks a daily use, applies its spell to the creature itself", /await actor\.update\(\{ "system\.resources\.hp\.value": 1 \}\);/.test(dgw) && /\[spec\.label\]: true/.test(dgw) && /applySpellEffects\(actor, spell, \{ targets: \[actor\], lines \}\)/.test(dgw) && /actionKey: DEATH_GUARD_ACTION/.test(dgw));
+ok("A14 a held guard writes 1 HP, marks a daily use, applies its spell to the creature itself", /await actor\.update\(\{ "system\.resources\.hp\.value": healTo \}\);/.test(dgw) && /\[spec\.label\]: true/.test(dgw) && /applySpellEffects\(actor, spell, \{ targets: \[actor\], lines \}\)/.test(dgw) && /actionKey: DEATH_GUARD_ACTION/.test(dgw));
 ok("A15 a declared daily use renews at daily preparation", /if \(actor\.getFlag\?\.\(SYSTEM_ID, "declaredUsedToday"\)\) \{\s*await actor\.unsetFlag\(SYSTEM_ID, "declaredUsedToday"\);/.test(read("module", "uses-workflow.mjs")));
 
 /* B. After-strikes a creature declares */

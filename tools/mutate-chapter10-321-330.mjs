@@ -107,7 +107,8 @@ const MUTATIONS = [
   { file: BOOT, name: "E: the hook is never registered",
     from: `  registerEndSaveHooks();`, to: `  ;`, breaks: "E5" },
   { file: END_WF, name: "E: every client rolls the save",
-    from: `      if (game?.users?.activeGM && game.users.activeGM.id !== game.user?.id) return;`,
+    // RE-ANCHORED 3.686.2: the acting-client guard.
+    from: `      if (!isActingClientFor(actor)) return; // one connection of the acting GM; with no GM, one owner (3.686.2)`,
     to: `      ;`, breaks: "E5c" },
   { file: APPLIER, name: "E: the save is stamped on the FATIGUE, not the quickened",
     from: `            }, { on: effect.condition, castId });`, to: `            }, { on: "fatigued", castId });`,

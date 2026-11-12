@@ -81,7 +81,8 @@ const MUTATIONS = [
   { file: CAST, name: "R: the bypass never leaves the attack",
     from: "      armourBypass: ray.armourBypass ?? [],", to: "      armourBypass: [],", breaks: "R8b" },
   { file: ATTACK, name: "R: the table reads every piece again",
-    from: "withWholeBodyArmour(armourAtLocation(seenItems, hitLocation),", to: "withWholeBodyArmour(armourAtLocation(Array.from(targetActor.items ?? []), hitLocation),",
+    // RE-ANCHORED AT 3.685.0: the H7 re-read builds the same expression again; this is the first reading's.
+    from: "    ? withWholeBodyArmour(armourAtLocation(seenItems, hitLocation),", to: "    ? withWholeBodyArmour(armourAtLocation(Array.from(targetActor.items ?? []), hitLocation),",
     breaks: "R8c" },
   { file: WARP, name: "R: the armour step warp buys nothing",
     from: "    if (m.armourStep) mods.armourStep += Number(m.armourStep) * times;", to: "", breaks: "R8d" },
@@ -228,8 +229,9 @@ const MUTATIONS = [
 
   /* ---------------- F. the findings ---------------- */
   { file: EFFECT_APP, name: "F: THE LIVE DEFECT — a granted condition reads as applied",
-    from: "    const wasAlreadyPresent = directConditionEffect(actor, tag.key) !== null;",
-    to: "    const wasAlreadyPresent = Boolean(actor.hasCondition?.(tag.key));", breaks: "F1" },
+    // RE-ANCHORED AT 3.685.0: recurring damage is present by type (Q150).
+    from: "    const wasAlreadyPresent = recurringTag ? recurringHere > 0 : directConditionEffect(actor, tag.key) !== null;",
+    to: "    const wasAlreadyPresent = recurringTag ? recurringHere > 0 : Boolean(actor.hasCondition?.(tag.key));", breaks: "F1" },
   { file: RESULT, name: "F: a ladder whose targets all saved finds nobody again",
     // RE-ANCHORED 3.609.0: the list now continues past "zone".
     from: "\"hazard\", \"saveLadder\", \"difficultTerrain\", \"zone\",\n", to: "\"hazard\", \"difficultTerrain\", \"zone\",\n",

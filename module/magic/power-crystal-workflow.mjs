@@ -20,10 +20,28 @@
  * a single character is holding it. See power-crystal.mjs for what that
  * looked like in Graham's world.
  *
- * ONE HOOK EACH, and all on the GM's client alone: two clients racing
- * to delete the same crystal would have one of them delete a document
- * that is already gone, and the second failure is noisier than the first.
+ * ONE HOOK EACH, AND EACH ON ONE CLIENT: two clients racing to delete the
+ * same crystal would have one of them delete a document that is already
+ * gone, and the second failure is noisier than the first.
+ *
+ * WHICH CLIENT IS NOT THE SAME QUESTION FOR ALL THREE (3.685.3). All three
+ * asked `game.user.isGM` until then, and that was wrong two different ways:
+ *
+ *   HELD, GONE  `createItem` and `deleteItem` fire on EVERY connected
+ *               client, so with two GMs both settled the pool, and a crystal
+ *               could be counted in or taken out twice. They now ask
+ *               `isActingGM()`, the one GM Foundry designates.
+ *   SPENT       `preUpdateActor` fires ONLY on the client that made the
+ *               update — there is nothing to de-duplicate. Asking `isGM`
+ *               there meant a spend a player made on their own client (a
+ *               cast, a sustain, a feat) never drew a crystal down: the
+ *               hook ran, on the player's client, and returned. It now asks
+ *               whether this client owns the actor, which is exactly what
+ *               the settlement's writes need — the crystals are that
+ *               actor's own items, and the card is an ordinary chat message.
  */
+
+import { isActingGM } from "../acting-gm.mjs";
 
 import {
   CRYSTAL_FLAG, crystalArrival, crystalDeparture, crystalDraw, crystalPoints, crystalSpentLine,
@@ -38,6 +56,64 @@ function heldCrystals(actor) {
     .map((item) => ({ id: item.id, pp: crystalPoints(item) }))
     .filter((c) => c.pp > 0);
 }
+
+/**
+ * ONE SETTLEMENT AT A TIME, PER CREATURE (3.685.3).
+ *
+ * A cast and its surcharge write the pool twice in a row
+ * (cast-workflow's `casterPPSpent`, then `surcharge.pp`), so two
+ * settlements are queued a moment apart. Each reads the crystal's points
+ * from the local item, and a flag write does not change the local item
+ * until the server answers. Run side by side, the second read the points
+ * the first had not yet written, and wrote its own answer over the first:
+ * a 3 PP crystal spent 2 and then 1 was left holding 2, not dissolved.
+ *
+ * So each settlement on this client waits for the last one on the same
+ * creature to finish, every write awaited. Foundry's update promise
+ * resolves after the local document has the change, so the next one
+ * reads what the last one wrote. Arrival and departure queue on the same
+ * line, so a GM's own sequence of the three cannot interleave either.
+ *
+ * A BOUNDED WAIT (3.685.3, the second review). A write that never comes
+ * back — a dropped socket, a server that refused it silently — would hold
+ * every later settlement for that creature on this client for ever. So the
+ * queue waits at most `QUEUE_WAIT_MS` for the one before, then moves on and
+ * says so in the console.
+ */
+const QUEUE_WAIT_MS = 10000;
+const settling = new Map();
+function waitBounded(before, label) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      console.warn(`TRG Prime | a Power Crystal settlement for ${label} did not finish in ${QUEUE_WAIT_MS / 1000} seconds; the next one goes ahead`);
+      resolve();
+    }, QUEUE_WAIT_MS);
+    before.then(() => { clearTimeout(timer); resolve(); });
+  });
+}
+function inTurn(actor, work) {
+  const key = actor?.uuid ?? actor?.id ?? "";
+  const before = settling.get(key);
+  const gate = before ? waitBounded(before, actor?.name ?? key) : Promise.resolve();
+  const run = gate
+    .then(() => work())
+    .catch((error) => { console.error("TRG Prime | Power Crystal settlement", error); return null; });
+  settling.set(key, run);
+  run.then(() => { if (settling.get(key) === run) settling.delete(key); });
+  return run;
+}
+
+/**
+ * THE DEPARTURE'S OWN WRITE IS NOT A SPEND (3.685.3). `settleCrystalDeparture`
+ * takes a leaving crystal's points out of the pool with an ordinary update,
+ * and `preUpdateActor` read that fall as a spend against the crystals still
+ * held: own maximum 10, crystals of 3 and 2, pool 15 — the 3 expired, the
+ * pool went to 12, and the 2 was drawn down and dissolved as well, leaving 12
+ * over a maximum of 10. The write now carries this option and the spend hook
+ * passes it by. The arithmetic is unchanged: 15 − 3 = 12, under the new
+ * maximum of 12.
+ */
+const DEPARTURE_OPTION = "trgCrystalDeparture";
 
 /**
  * Draw down the crystals a spend has just consumed.
@@ -130,7 +206,7 @@ async function settleCrystalDeparture(actor, points) {
   const value = Number(pp.value ?? 0);
   const left = crystalDeparture(value, points);
   if (left === value) return null;
-  await actor.update({ "system.resources.pp.value": left });
+  await actor.update({ "system.resources.pp.value": left }, { [DEPARTURE_OPTION]: true });
   return { from: value, to: left };
 }
 
@@ -144,36 +220,47 @@ export function registerPowerCrystalHooks() {
    * resting position — which is all `updateActor` can offer — is what
    * made a crystal dissolve in the hand of anybody who was not at full
    * pool.
+   *
+   * THE CLIENT THAT MADE THE SPEND SETTLES IT (3.685.3). Foundry runs
+   * `preUpdate*` on the requesting client only, so this runs once per
+   * update with no guard at all; `isOwner` is not there to de-duplicate.
+   * It states what the settlement needs: every write below is to this
+   * actor's own items, so a client that owns the actor may make them, and
+   * one that does not must not try. A GM owns every actor, so a GM's spend
+   * — or a relay the GM writes for a player — settles as it always did.
    */
-  Hooks.on("preUpdateActor", (actor, changed) => {
-    if (!game.user?.isGM) return;
+  Hooks.on("preUpdateActor", (actor, changed, options) => {
+    if (!actor?.isOwner) return;
+    if (options?.[DEPARTURE_OPTION]) return;
     const after = changed?.system?.resources?.pp?.value;
     if (after === undefined) return;
     const before = Number(actor.system?.resources?.pp?.value ?? 0);
     // Next tick, so the spend has landed before the crystals follow it
     // down and the card describes a pool that has already moved.
-    globalThis.setTimeout(() => { settleCrystals(actor, before, Number(after)); }, 0);
+    globalThis.setTimeout(() => { inTurn(actor, () => settleCrystals(actor, before, Number(after))); }, 0);
   });
 
+  // THE ACTING GM (3.685.3): this fires on every client.
   Hooks.on("createItem", (item) => {
-    if (!game.user?.isGM) return;
+    if (!isActingGM()) return;
     const points = crystalPoints(item);
     if (points <= 0) return;
     const actor = item.parent;
     if (!actor?.system?.resources?.pp) return;
     // Next tick, so the derived maximum already counts the crystal the
     // arriving points have to fit under.
-    globalThis.setTimeout(() => { settleCrystalArrival(actor, points); }, 0);
+    globalThis.setTimeout(() => { inTurn(actor, () => settleCrystalArrival(actor, points)); }, 0);
   });
 
+  // THE ACTING GM (3.685.3): this fires on every client.
   Hooks.on("deleteItem", (item) => {
-    if (!game.user?.isGM) return;
+    if (!isActingGM()) return;
     const points = crystalPoints(item);
     if (points <= 0) return;
     const actor = item.parent;
     if (!actor?.system?.resources?.pp) return;
     // Next tick, so the actor's derived maximum has lost the crystal
     // before its points are taken out from under it.
-    globalThis.setTimeout(() => { settleCrystalDeparture(actor, points); }, 0);
+    globalThis.setTimeout(() => { inTurn(actor, () => settleCrystalDeparture(actor, points)); }, 0);
   });
 }

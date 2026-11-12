@@ -21,7 +21,7 @@ import { sheathedGroups as sheathedGroupsOf } from "../combat/sheathed.mjs";
 import { lightPenaltyRow, perceivedLightShift } from "../light-check.mjs";
 import { toolPenaltyRow } from "../tools-requirement.mjs";
 import { allyAuraConditionalsFor } from "../creature-aura-workflow.mjs";
-import { lightLevelForToken } from "../light-workflow.mjs";
+import { ambientLightLevelOf, lightLevelForToken } from "../light-workflow.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -183,6 +183,9 @@ export async function promptCheckConfiguration({
   rangeBand = "",
   // THE TARGET'S STATE (3.668.0), accepted for the same reason.
   targetStates = "",
+  // THE AMBIENT LIGHT AT THE ROLLER'S TOKEN (3.683.0, seam C4), accepted for
+  // the same reason; read off the roller's token below when no caller says.
+  lightLevel = "",
   // WHAT A REFOCUS RESTORES (3.671.0, Veilborn), accepted for the same
   // reason; the action workflow names the item before opening this.
   restores = "",
@@ -324,6 +327,8 @@ export async function promptCheckConfiguration({
           {
             checkType, subject, actionKey, traits, traditions,
             sourceTypes, targetTypes, sourceUuid, targetUuid, attackMode, targetTraits, attackForm, attackGroup, rangeBand, targetStates,
+            // THE LIGHT WHERE THE ROLLER STANDS (3.683.0, C4; Q61: ambient, not perceived).
+            lightLevel: String(lightLevel ?? "").trim() !== "" ? lightLevel : (ambientLightLevelOf(actor) ?? ""),
             // AND WHAT IS SHEATHED (3.671.0), read off the actor as the roll reads it.
             sheathedGroups: sheathedGroups || sheathedGroupsOf(actor?.items ?? []), restores
           }

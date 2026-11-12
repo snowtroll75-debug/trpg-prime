@@ -18,6 +18,7 @@ import {
   POISON_FLAG, conditionsToWithdraw, exposureResult, poisonCriticalSeverity, stageIntervalRounds
 } from "../poisons.mjs";
 import { CONDITIONS } from "../conditions/registry.mjs";
+import { isActingClientFor } from "../acting-gm.mjs";
 
 function line(text) {
   return `<p style="margin:2px 0">${text}</p>`;
@@ -322,6 +323,26 @@ function stageDamageType(entry) {
   return t || "poison";
 }
 
+/**
+ * THE TRAITS A STAGE'S DAMAGE CARRIES (3.682.0). A poison's damage has
+ * always carried the poison trait. A DISEASE's damage now carries the
+ * disease trait too, whatever its type (Ghoul Fever's essence, say), so a
+ * resistance to disease halves it (Graham, Eldritch Arts Q43: "any damage
+ * sustained from a disease would also be halved"). A curse's is unchanged.
+ * Pure.
+ *
+ * @param {object} item the affliction
+ * @param {string} type the stage damage's type
+ * @returns {string[]}
+ */
+export function stageDamageTraits(item, type) {
+  const traits = [];
+  if (type === "poison") traits.push("poison");
+  const kind = String(item?.system?.afflictionType ?? "").trim().toLowerCase();
+  if ((kind === "poison" || kind === "disease") && !traits.includes(kind)) traits.push(kind);
+  return traits;
+}
+
 /** A stage's damage for the interval just ended (p.190: "you take damage from them"). */
 async function dealStageDamage(actor, item) {
   const stage = Number(item.system.currentStage ?? 0);
@@ -330,7 +351,7 @@ async function dealStageDamage(actor, item) {
   const roll = await new Roll(String(entry.damage)).evaluate();
   const { applyTypedDamage } = await import("./damage-workflow.mjs");
   const type = stageDamageType(entry);
-  const applied = await applyTypedDamage(actor, { amount: roll.total, type, traits: type === "poison" ? ["poison"] : [] });
+  const applied = await applyTypedDamage(actor, { amount: roll.total, type, traits: stageDamageTraits(item, type) });
   await postCard(actor, `${item.name} — Stage ${stage} Damage`, [
     line(`<strong>${roll.total} ${type}</strong> (${entry.damage})${applied.applied !== roll.total ? ` — ${applied.applied} after defences` : ""}.`)
   ]);
@@ -783,10 +804,16 @@ export function registerAfflictionConditionLock() {
    * there is no race: the document object is still readable for its
    * record, and the conditions live on the actor either way.
    */
+  // THE ACTING GM (3.685.3): `deleteItem` fires on every client, and with no
+  // guard every owning client withdrew the same conditions, the losers told
+  // the effect did not exist. The withdrawal raises `releasing` on the client
+  // that runs it, which is the client whose deletes the lock then sees.
+  // With no GM connected, one owner (`isActingClientFor`).
   Hooks.on("deleteItem", async (item) => {
     if (item?.type !== "affliction") return;
     const actor = item.parent;
     if (!actor?.items) return;
+    if (!isActingClientFor(actor)) return;
     if (!(recordOf(item).applied ?? []).length) return;
     await releaseAffliction(actor, item);
   });

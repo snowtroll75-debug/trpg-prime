@@ -88,7 +88,7 @@ const blocked = (traits, usage, opts) => T.traitRestriction({ traits }, usage, o
   ok("A7 the workflow hands them in: the counter on your own turn, AP spent this turn",
     /attacksThisTurn: ownTurn \? Number\(actor\?\.getFlag\?\.\(SYSTEM_ID, "attackCount"\) \?\? 0\) : 0,/.test(TWS)
     && /actedThisTurn: Boolean\(ownTurn && apStamp && apStamp\.combatId === combat\.id/.test(TWS)
-    && /round: game\.combat\.round, turn: game\.combat\.turn \}/.test(APW));
+    && /apSpentRound`\]: \{ combatId: game\.combat\.id, round: game\.combat\.round, turn: game\.combat\.turn \}/.test(APW));
   ok("A8 A11 — the record is written only in combat",
     /export async function recordTraitUsage\(actor, action\) \{\s*if \(!game\.combat\?\.started\) return;/.test(TWS));
   ok("A9 A12 — Word's −4 only on your own turn",

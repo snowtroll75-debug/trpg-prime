@@ -85,9 +85,10 @@ ok("K5 one claiming row among several is enough",
 // the check that made the terrain pair declare itself.
 // SIX AT 3.610.0: the wall and the storm, whose Regions carry their riders.
 // SEVEN AT 3.630.1: the entry check, whose threshold spells had no other row.
-ok("K6 the claiming set is exactly the seven region-reading kinds",
-  REGION_CLAIMING_KINDS.length === 7
-  && ["hazard", "elementalNexus", "areaRider", "difficultTerrain", "wall", "storm", "entryCheck"]
+// EIGHT SINCE 3.685.0 (H3): an area's turn ladder lives on its Region too.
+ok("K6 the claiming set is exactly the eight region-reading kinds",
+  REGION_CLAIMING_KINDS.length === 8
+  && ["hazard", "elementalNexus", "areaRider", "difficultTerrain", "wall", "storm", "entryCheck", "turnLadder"]
     .every((k) => REGION_CLAIMING_KINDS.includes(k)));
 // K7 THE NEWEST CLAIMANT IS THE MOST LITERAL ONE. For the other three the
 // Region is where a mechanism is recorded; for this one the Region IS the
@@ -168,7 +169,7 @@ ok("W1 a cancelled picker refunds rather than proceeding",
 ok("W2 both resources are given back",
   // 3.616.0: the caster's share, since a rod may have paid the rest (R13).
   cast.includes("refundedPool(ppPoolNow, casterPPSpent, ppMax)")
-  && cast.includes("if (totalCastAP > 0) await refundActionCost(actor, totalCastAP);"),
+  && cast.includes("if (totalCastAP > 0) await refundActionCost(actor, totalCastAP, { receipt: castReceipt });"),
   "a dead branch still contains the call");
 /*
  * W3 — AND NOBODY IS HIT. Refunding while leaving the caught list intact

@@ -24,7 +24,7 @@ const MUTATIONS = [
   { name: "the enemy grant shares the ally's key", file: AL, from: "${opposed ? \":enemy\" : \"\"}", to: "", breaks: "A4" },
   { name: "an enemy-only aura is never synced", file: ALW, from: "a.kind === \"ally\" && (a.allyEffect || a.enemyEffect)", to: "a.kind === \"ally\" && a.allyEffect", breaks: "A5" },
   { name: "an outcome-only ladder never rolls", file: AU, from: "    || (aura?.rollOutcomes && Object.keys(aura?.outcomes ?? {}).length)));", to: "));", breaks: "A6" },
-  { name: "a rolled save is not read", file: TH, from: "saveRoll: raw.save && typeof raw.save === \"object\"", to: "saveRoll: false && typeof raw.save === \"object\"", breaks: "T1" },
+  { name: "a rolled save is not read", file: TH, from: "    saveRoll: rolledSave\n", to: "    saveRoll: false\n", breaks: "T1" },
   { name: "3d8+10 is refused", file: TH, from: "const DICE_OR_FLAT = /^(?:[1-9]\\d*d[1-9]\\d*(?:[+-]\\d+)?|[1-9]\\d*)$/i;", to: "const DICE_OR_FLAT = /^(?:[1-9]\\d*d[1-9]\\d*|[1-9]\\d*)$/i;", breaks: "T1" },
   { name: "the Balor's flames are halved by the save", file: TH, from: "  return spec?.saveRoll?.avoidsCriticalOnly ? Math.max(1, m) : m;", to: "  return m;", breaks: "T2" },
   { name: "thorns read only the actor's own effects", file: THW, from: "for (const effect of actor?.appliedEffects ?? actor?.effects ?? [])", to: "for (const effect of actor?.effects ?? [])", breaks: "T3" },

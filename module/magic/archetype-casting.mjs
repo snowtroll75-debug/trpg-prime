@@ -437,15 +437,22 @@ export function archetypeSpellcraftAbility(item, ownCastingAbility) {
  * @param {number} args.classBSB `system.progression.bsb`
  * @param {number} args.ownFieldBSB the STORED `system.magic.bsb`
  * @param {number} args.alreadyGranted what this grant has recorded
+ * @param {"down"|"up"} [args.round] how half the level rounds (3.684.0;
+ *   Eldritch Arts Block 6, G11). The core's four print "half your level" and
+ *   round down; Eldritch Arts' Birthrager prints "a BSB equal to half your
+ *   level (round up)", registered as `registerPPGrant(name, { stat: "bsb",
+ *   halfLevel: "up" })`. The floor rule is the same either way.
  * @returns {number} the amount this grant should be contributing now
  */
 export function archetypeBSBDue({
   level = 0,
   classBSB = 0,
   ownFieldBSB = 0,
-  alreadyGranted = 0
+  alreadyGranted = 0,
+  round = "down"
 } = {}) {
-  const half = Math.floor(Math.max(0, Number(level) || 0) / 2);
+  const lv = Math.max(0, Math.trunc(Number(level) || 0));
+  const half = round === "up" ? Math.ceil(lv / 2) : Math.floor(lv / 2);
   const withoutThisGrant =
     (Number(classBSB) || 0) + ((Number(ownFieldBSB) || 0) - (Number(alreadyGranted) || 0));
   return Math.max(0, half - withoutThisGrant);

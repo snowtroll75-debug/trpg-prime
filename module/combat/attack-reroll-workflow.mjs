@@ -120,7 +120,9 @@ async function freshAttackDice(attacker, check) {
   const fresh = await TRGCheck.roll({
     actor: attacker, label: "Reroll", type: "attack", modifiers: [],
     ...(check?.bias ? { bias: check.bias } : {}),
-    suppressDegree: true, toMessage: false, allowConviction: false
+    suppressDegree: true, toMessage: false, allowConviction: false,
+    // The same attack rolled again: not offered a reaction before it (3.681.0).
+    checkReactionsBeforeAsked: true
   });
   return fresh?.dice ?? null;
 }

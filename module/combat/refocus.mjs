@@ -245,7 +245,11 @@ export function refocusBarred(state, { worldTime = 0 } = {}) {
  */
 export function refocusRestoreDue(state, { worldTime = 0, ownTurnStarted = false } = {}) {
   if (!state) return false;
-  if (state.nextTurn) return Boolean(ownTurnStarted);
+  // WHICHEVER COMES FIRST (3.686.2, the third review). One Refocus never
+  // writes both; a pool's MERGED state (several legacy restores, see
+  // refocus-workflow's `mergeRefocusStates`) can, and reading only the
+  // next-turn half left its minute restore never coming due out of combat.
+  if (state.nextTurn && ownTurnStarted) return true;
   if (state.restoreAt == null) return false;
   return (Number(worldTime) || 0) >= Number(state.restoreAt);
 }

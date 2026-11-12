@@ -124,10 +124,10 @@ async function packRows(pack) {
   // B7: a potion is gated on its one hand, not on its spell's somatic component.
   ok("A4 B7 — a drunk potion skips the rage gate, the casting refusal and the component gate",
     /const drunkPotion = Boolean\(spell\?\.getFlag\?\.\(SYSTEM_ID, "itemCast"\)\?\.consumed\)/.test(CAST)
-    && /isRaging\(actor\) && !drunkPotion/.test(CAST) && /refusal\.blocked && !drunkPotion/.test(CAST)
+    && /rageBarsCasting\(actor\) && !drunkPotion/.test(CAST) && /refusal\.blocked && !drunkPotion/.test(CAST)
     && /const componentsOK = drunkPotion/.test(CAST));
   ok("A4b the target picker is skipped for preset targets",
-    CAST.includes("if (spellNeedsTarget(spellData) && !storingNow && !reaction?.presetTargets && !presetTargets) {"));
+    CAST.includes("if (spellNeedsTarget(spellData, spell) && !storingNow && !reaction?.presetTargets && !presetTargets) {"));
   // A1, R2: the builder's level and price.
   ok("A5 R2 — a PP 0 consumable is level 1: 30 gp, a scroll 20 gp",
     consumableLevelFor(0) === 1 && buildConsumable("potion", { spell: { pp: 0 } }).price === 30

@@ -43,7 +43,7 @@ const src = { aw: read("module", "combat", "attack-workflow.mjs"), cw: read("mod
 ok("S1 a hit with recurring +N lays it, of the damage type, through the bombs' rule, and not on an immune target",
   /const recurring = weaponRecurringValue\(weapon\.system\?\.traits\);\n\s+if \(recurring > 0\) lines\.push\(line\(await layWeaponRecurring\(targetActor, recurring, String\(effectiveDamageType/.test(src.aw)
   && /async function layWeaponRecurring\(targetActor, amount, damageType, immune\) \{\n\s+if \(immune\) return/.test(src.aw)
-  && /const next = recurringAfterHit\(existing, amount, damageType\);\n\s+await targetActor\.toggleStatusEffect\("recurring", \{ value: next\.value, damageType: next\.damageType \}\);/.test(src.aw));
+  && /const next = await layRecurring\(targetActor, amount, damageType\);/.test(src.aw));
 ok("S2 Air Blast Magic: one target, the spell chosen before the AP is spent, the strike rolled, then the innate cast free at it on the strike's bonus",
   /if \(!target\?\.actor \|\| game\.user\.targets\.size !== 1\)/.test(src.cw)
   && /const spell = spells\[Number\(index\)\];\n\s+if \(!\(await spendAp\(actor, spec\.ap \?\? 2, item\.name\)\)\) return false;/.test(src.cw)

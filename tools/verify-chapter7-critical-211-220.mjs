@@ -839,7 +839,7 @@ ok("J7 the AP watch is called from spendActionPoints",
 // The casting gate sits beside Rage's, before anything is spent.
 {
   const cw = code("module", "magic", "cast-workflow.mjs");
-  const rage = cw.indexOf("isRaging(actor)");
+  const rage = cw.indexOf("rageBarsCasting(actor)");
   const gate = cw.indexOf("castingRefusal");
   const spend = cw.indexOf("system.resources.pp.value");
   ok("J8 the critical lockout is refused beside Rage", rage >= 0 && gate > rage);

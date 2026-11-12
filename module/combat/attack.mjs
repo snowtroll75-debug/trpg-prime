@@ -213,6 +213,21 @@ export function sweepApplies(hasSweep, targetsAlreadyAttacked, currentTargetId) 
 }
 
 /**
+ * WITHIN A SPELL'S REACH (3.682.0; Eldritch Arts' Shooting Star: "If it's a
+ * melee weapon, the attack can target a creature within 30 feet"). True when
+ * an override is given and the measured distance is inside it. Pure.
+ *
+ * @param {number|null} distance feet to the target, or null when unmeasured
+ * @param {number|null} overrideFeet the spell's reach, or null for none
+ * @returns {boolean}
+ */
+export function withinReachOverride(distance, overrideFeet) {
+  if (overrideFeet === null || overrideFeet === undefined || distance === null || distance === undefined) return false;
+  const reach = Number(overrideFeet), d = Number(distance);
+  return Number.isFinite(reach) && reach > 0 && Number.isFinite(d) && d <= reach;
+}
+
+/**
  * Reach (Chapter 6): "increase the reach at which you can make melee
  * attacks (usually 5 to 10 feet). Such attacks are subject to a -2
  * penalty to AB." Per Graham directly: the -2 applies only when
@@ -753,6 +768,16 @@ export function weaponQualityDamageBonus(baseDamage, {
  */
 export function itemDamageExcess(bonus, existing) {
   return Math.max(0, Math.floor(Number(bonus) || 0) - Math.max(0, Math.floor(Number(existing) || 0)));
+}
+
+/**
+ * A STRIKE'S DAMAGE WHEN A RIDER PUTS EXACTLY ITS OWN IN PLACE (3.685.0, H10;
+ * Graham on Spirit Arrow: "Flat 6d6"). The rider's dice and a critical's bonus
+ * dice, as weapon damage takes them; nothing else — no BAB dice, quality,
+ * material or Mighty — whatever the Strike would otherwise have passed.
+ */
+export function flatReplacementFormula(dice, { critical = null, criticalDice = null } = {}) {
+  return buildWeaponDamageFormula(dice, { critical, criticalDice });
 }
 
 export function buildWeaponDamageFormula(

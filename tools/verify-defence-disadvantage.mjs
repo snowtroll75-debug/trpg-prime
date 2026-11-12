@@ -48,7 +48,7 @@ equal("C3 nothing to add returns the roll's bias untouched", [biasWithKinds(unde
 const aw = read("module", "combat", "action-workflow.mjs");
 ok("D1 the action keeps the defender's disadvantage rows", /defenceDisadvantages = defence\.disadvantages \?\? \[\];/.test(aw));
 ok("D2 …says so on the card", /this check is rolled at disadvantage\$\{entry\.scope \? ` \(\$\{entry\.scope\}\)` : ""\}/.test(aw));
-ok("D3 …and rolls at it, in the same pass as the attack's advantage", /bias: rollBiasWith\(tracklessBias\(situational\?\.bias, tracklessQuarry\), \[\s*\.\.\.\(actionAttackTerms\?\.advantage \? \["advantage"\] : \[\]\),\s*\.\.\.\(defenceDisadvantages\.length \? \["disadvantage"\] : \[\]\),\s*\.\.\.\(firstAdvantage \? \["advantage"\] : \[\]\)\s*\]\),/.test(aw) && /return biasWithKinds\(chosen, kinds, BIAS\);/.test(aw));
+ok("D3 …and rolls at it, in the same pass as the attack's advantage", /bias: rollBiasWith\(tracklessBias\(situational\?\.bias, tracklessQuarry\), \[\s*\.\.\.\(actionAttackTerms\?\.advantage \? \["advantage"\] : \[\]\),\s*\.\.\.\(defenceDisadvantages\.length \? \["disadvantage"\] : \[\]\),\s*\.\.\.\(firstAdvantage \? \["advantage"\] : \[\]\),[\s\S]{0,200}?\]\),/.test(aw) && /return biasWithKinds\(chosen, kinds, BIAS\);/.test(aw));
 
 const EXPECTED = 15;
 equal("Z the suite ran every check it is meant to", checks + 1, EXPECTED);

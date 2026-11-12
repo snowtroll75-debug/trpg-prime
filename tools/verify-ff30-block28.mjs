@@ -70,7 +70,12 @@ const src = { pw: read("module", "peril-workflow.mjs"), hooks: read("module", "c
   aw: read("module", "combat", "attack-workflow.mjs"), eff: read("module", "combat", "effect-application-workflow.mjs"), caw: read("module", "creature-aura-workflow.mjs") };
 ok("S1 a further packet is skipped on a degree it does not name", /for \(const extra of extraRolls\) \{\n\s+if \(!extraPacketLands\(extra, key\)\) continue;/.test(src.pw));
 ok("S2 every death is offered to the harvesters within reach, who heal",
-  /if \(!isActingGM\(\) \|\| !victim\) return;\n\s+await harvestNearbyDeath\(victim\);/.test(src.hooks)
+  // RE-PINNED 3.686.2 (Graham's 3.686.1): the kill hook has NO acting-GM
+  // guard. trgPrimeCreatureSlain is a local Hooks.callAll on the client that
+  // applied the damage, so the elected writer never hears it; guarded, a
+  // kill on any other client harvested nothing.
+  /async function onCreatureSlain\(\{ victim, sourceName \}\) \{\n(\s*\/\/[^\n]*\n)*\s*if \(!victim\) return;\n\s+await harvestNearbyDeath\(victim\);/.test(src.hooks)
+  && !/async function onCreatureSlain[^}]*isActingGM/.test(src.hooks)
   && /if \(!withinAura\(tokenCentreFeet\(token\.document\), tokenCentreFeet\(where\.document\), reach\)\) continue;\n\s+const roll = await new Roll\(`\$\{harvest\.dice\}d8`\)\.evaluate\(\);/.test(src.hooks));
 ok("S3 the divine mark rides the typed-damage path and both spell paths",
   /damageTypes: \[String\(type \?\? ""\)\.trim\(\)\.toLowerCase\(\), \.\.\.divineDamageMark\(traits\)\]/.test(src.dw)
@@ -82,7 +87,9 @@ ok("S4 Unstoppable Force empties the blow's resistances and bypasses its other p
 ok("S5 Fearful Power: frightened in reach raised as it is applied; the Tenebrax's attacks and DB read the highest frightened around it",
   /if \(powers\.length\) tags = tags\.map\(\(t\) => boostedFrightenedTag\(t, powers\)\);/.test(src.eff)
   && /const fearful = fearfulPowerBonus\(actor\);/.test(src.caw) && /when: \{ checkTypes: \["attack"\] \}, sourceName: "Fearful Power" \}\]/.test(src.caw)
-  && /fearfulDB = statusBonusOver\(fearfulPowerBonus\(targetActor\),/.test(src.aw) && /shieldedStrideDB \+ typedDefence\.total \+ fearfulDB/.test(src.aw));
+  // RE-POINTED AT 3.684.3: weighed among every row the Strike met; the DB adds the stack that holds it.
+  && /fearfulPowerBonus\(targetActor\)/.test(src.aw) && /const fearful = stackFearfulPower\(rowsMet, defenceBase, fearfulBonus\);/.test(src.aw)
+  && /defenceStack = fearful\.stack;/.test(src.aw) && /\? baseDB \+ defenceStack\.total - pierce\.amount/.test(src.aw));
 
 const EXPECTED = 14;
 ok(`Z1 the check count is ${EXPECTED}`, checks + 1 === EXPECTED, `ran ${checks + 1}`);

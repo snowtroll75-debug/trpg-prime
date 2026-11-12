@@ -161,7 +161,7 @@ ok("C10 …nothing waiting is spent on it: Cutting Words, Counter Perform, Inspi
 ok("C10 a Strike announces whether it missed, resolved and not a hit (found in review: Snake Stance answered a grab)",
   /resolved: Boolean\(outcome\?\.resolved\), missed: Boolean\(outcome\?\.resolved\) && !outcome\?\.hits(?:,\n(?:\s*\/\/[^\n]*\n)*\s*noReactions: Boolean\(noReactions\))?\n\s*\}\);/.test(read("module", "combat", "attack-workflow.mjs")));
 ok("C10 resolveAction hands them on with the dice",
-  /presetModifiers = null\n\} = \{\}\) \{/.test(acw) && /\.\.\.\(presetDice && Array\.isArray\(presetModifiers\) \? \{ presetModifiers \} : \{\}\),/.test(acw));
+  /presetModifiers = null,?\n(?:\s*\/\/[^\n]*\n)*(?:\s*presetDispel = null\n)?\} = \{\}\) \{/.test(acw) && /\.\.\.\(presetDice && Array\.isArray\(presetModifiers\) \? \{ presetModifiers \} : \{\}\),/.test(acw));
 
 /* C11 — a class's feats opened by a feat */
 {
@@ -204,9 +204,10 @@ ok("C10 resolveAction hands them on with the dice",
     [sw.innateCantripOf({ ppCost: 0, traits: "Cantrip, Evocation" }), sw.innateCantripOf({ ppCost: 0, traits: "Evocation" }), sw.innateCantripOf({ ppCost: 2, traits: "Cantrip" })], [true, false, false]);
   const cw = read("module", "magic", "cast-workflow.mjs");
   ok("C12 an innate spell flagged innateMetamagic (never a cantrip, never an item's) is offered Metamagic, priced on its printed cost, without Economic Spell",
-    /const innateMetamagic = isInnate && !isItemCast && !isCantrip && !innateCantripOf\(spellData\) && spell\.getFlag\?\.\(SYSTEM_ID, "innateMetamagic"\) === true;\n\s*const mmOptions = \(isCantrip \|\| \(isInnate && !innateMetamagic\)\) \? \[\] : buildMetamagicOptions\(\{/.test(cw)
+    /const innateMetamagic = isInnate && !isItemCast && !isCantrip && !innateCantripOf\(spellData\) && spell\.getFlag\?\.\(SYSTEM_ID, "innateMetamagic"\) === true;\n\s*const mmBuildArgs = \{/.test(cw)
+    && /const mmOptions = \(isCantrip \|\| \(isInnate && !innateMetamagic\)\) \? \[\] : buildMetamagicOptions\(mmBuildArgs\)/.test(cw)
     && /basePP: innateMetamagic \? Math\.max\(0, Number\(spellData\.ppCost \?\? 0\)\) : basePP,/.test(cw)
-    && /\}\)\.filter\(\(o\) => !\(innateMetamagic && o\.kind === "economic"\)\);/.test(cw));
+    && /\n\s+\.filter\(\(o\) => !\(innateMetamagic && o\.kind === "economic"\)\);/.test(cw));
   ok("C12 …its feats and its Metamagic box spent from the free budget, and nothing charged to the pool",
     /warpPP = warp\.ppSpent;\n(?:\s*\/\/[^\n]*\n)*\s*mm = aggregateMetamagicSelection\(mmOptions, form, \{/.test(cw)
     && /const fit = innateWarpFits\(warp, innateBudget, \{ countRaw: innateMetamagic, metamagicPP: mm\.ppSpent \}\);/.test(cw)

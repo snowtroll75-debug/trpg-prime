@@ -336,12 +336,19 @@ export function touchAttackRequired({ rangeText, willing = true, isAttackSpell =
  * so this answers landed-or-not and nothing else. No critical, no
  * damage: a touch that lands is a touch.
  *
+ * AN UNMODIFIED 1 ALWAYS MISSES, AN UNMODIFIED 20 ALWAYS HITS (3.682.0;
+ * Graham, 3 November 2026), as every attack check does (`attackOutcome`).
+ *
  * @param {number} attackValue the Spellcraft attack roll's total
  * @param {number} defence the target's defence
- * @returns {{landed: boolean, by: number}}
+ * @param {{natural?: number}} [options] the d20's unmodified face
+ * @returns {{landed: boolean, by: number, natural: string}}
  */
-export function touchAttackOutcome(attackValue, defence) {
+export function touchAttackOutcome(attackValue, defence, { natural = 0 } = {}) {
   const av = Math.floor(Number(attackValue) || 0);
   const db = Math.floor(Number(defence) || 0);
-  return { landed: av >= db, by: av - db };
+  const face = Math.floor(Number(natural) || 0);
+  if (face === 1) return { landed: false, by: av - db, natural: "1" };
+  if (face === 20) return { landed: true, by: av - db, natural: "20" };
+  return { landed: av >= db, by: av - db, natural: "" };
 }

@@ -453,9 +453,11 @@ eq("J9 the Critical trade is not broken",
 }
 {
   const cast = code("module", "magic", "cast-workflow.mjs");
-  ok("K18 the optional rule reaches the Save DC", /\+ harderSaveDCStep\n/.test(cast));
+  ok("K18 the optional rule reaches the Save DC", /\+ harderStep\n/.test(cast) && /harderStep: harderSaveDCStep, consume: true/.test(cast));
   ok("K19 and takes the PP saving with it",
-    /waiveSaving: harderSaveRule && harderSaveDCStep > 0/.test(cast),
+    // RE-PINNED AT 3.684.0: both the cast's outcome and G4's discounted
+    // `paidOutcome` withdraw it, so both are counted.
+    (cast.match(/waiveSaving: harderSaveRule && harderSaveDCStep > 0/g) ?? []).length === 2,
     "the paragraph that raises the DC withdraws the saving in the same breath");
   ok("K20 the unwilling touch is offered only where it can bite",
     /touchAttackRequired\(\{ rangeText: spell\?\.system\?\.range, willing: false, isAttackSpell: isAttack \}\)/.test(cast));

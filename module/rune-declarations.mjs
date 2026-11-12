@@ -41,6 +41,7 @@ import { registeredRune } from "./module-api.mjs";
 import { runeKindOf, runesCountFor } from "./rune-bearing.mjs";
 import { roman } from "./runes.mjs";
 import { runeUsageAllows, weaponUsage } from "./weapon-rune-usage.mjs";
+import { runeFieldOf } from "./infused-runes.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -53,7 +54,7 @@ function declaredRunesOn(item) {
   const kind = runeKindOf(item);
   if (!kind) return [];
   const out = [];
-  for (const chosen of fieldToRunes(kind, item?.system?.runes ?? "")) {
+  for (const chosen of fieldToRunes(kind, runeFieldOf(item))) {
     const rune = registeredRune(chosen.key);
     if (!rune) continue;
     // ON A WEAPON ITS USAGE LINE REFUSES, IT DECLARES NOTHING (3.673.0).
@@ -87,7 +88,7 @@ function activeDeclaredRunes(items = []) {
 function potencyTierOf(item) {
   const kind = runeKindOf(item);
   if (!kind) return 0;
-  return fieldToRunes(kind, item?.system?.runes ?? "").find((r) => r.key === "potency")?.tier ?? 0;
+  return fieldToRunes(kind, runeFieldOf(item)).find((r) => r.key === "potency")?.tier ?? 0;
 }
 
 /**

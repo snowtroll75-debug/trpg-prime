@@ -155,7 +155,7 @@ const MUTATIONS = [
     file: C,
     name: "C1 area spells are dragged into the picker",
     // RE-ANCHORED 3.612.0: a reaction cast with its target preset skips it too.
-    from: "  if (spellNeedsTarget(spellData) && !storingNow && !reaction?.presetTargets && !presetTargets) {",
+    from: "  if (spellNeedsTarget(spellData, spell) && !storingNow && !reaction?.presetTargets && !presetTargets) {",
     to: "  if (true) {",
     breaks: "C1 — every area cast warned at for a selection it never needed"
   }

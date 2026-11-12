@@ -3,6 +3,7 @@
  * material-shift.mjs (3.614.0, Graham's R11 of block 35).
  */
 
+import { isActingClientFor } from "../acting-gm.mjs";
 import { MATERIAL_SHIFT_FLAG, materialShiftChoices, shiftableItem, materialShiftLine } from "./material-shift.mjs";
 
 const SYSTEM_ID = "trg-prime";
@@ -65,7 +66,7 @@ export function registerMaterialShift() {
     try {
       const record = effect?.flags?.[SYSTEM_ID]?.[MATERIAL_SHIFT_FLAG];
       if (!record || record.superseded) return;
-      if (game.users?.activeGM && game.users.activeGM.id !== game.user?.id) return;
+      if (!isActingClientFor(effect.parent)) return; // one connection of the acting GM; with no GM, one owner (3.686.2)
       const item = effect.parent?.items?.get?.(record.itemId);
       // ONLY IF IT IS STILL WHAT THE SPELL MADE IT: a material somebody set
       // since is theirs, not the spell's to undo.

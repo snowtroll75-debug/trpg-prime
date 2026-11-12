@@ -47,7 +47,7 @@
  *   derives.grabbedTurnDamage: { dice: "3d6", save: "reflex" }  (type from the name)
  *   derives.bleedSplash: true                                   (type from the name)
  *
- * Every hook is guarded by isActingGM() where it writes — one client acts.
+ * Broadcast hooks use isActingGM(); the local kill hook runs on its invoker.
  */
 import { isActingGM } from "./acting-gm.mjs";
 import { abilityDerives, elementOfName, footprintsAdjacent } from "./creature-ability-rules.mjs";
@@ -116,7 +116,9 @@ async function basicSaveDamage(source, target, { formula, type, save, title, dcA
 /* ---------------------------------------------------------------- kills */
 
 async function onCreatureSlain({ victim, sourceName }) {
-  if (!isActingGM() || !victim) return;
+  // trgPrimeCreatureSlain is dispatched only on the damage-applying browser.
+  // The elected writer does not receive this local event.
+  if (!victim) return;
   await harvestNearbyDeath(victim);
   // SPITEFUL STRIKE (3.663.0; F&F 3.0 block 33 R5): the Wight's last blow,
   // offered on its own death. See spiteful-strike-workflow.mjs.

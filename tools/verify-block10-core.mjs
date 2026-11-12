@@ -128,7 +128,7 @@ const aw = read("module", "combat", "attack-workflow.mjs");
     [row({}), row({ isCompanion: true, companionKind: "animal" }), row({ isCompanion: true, companionKind: "dragon" })],
     [[true, false, false], [true, true, false], [true, false, true]]);
   ok("C4 the picker asks the pack for the kind, and the sheet says whose sheet it is",
-    /"flags\.trg-prime\.companionKind"\]/.test(read("module", "picker-filters.mjs")) && /companionKind: companionKindOf\(this\.actor\),/.test(sheet));
+    /"flags\.trg-prime\.companionKind"[,\]]/.test(read("module", "picker-filters.mjs")) && /companionKind: companionKindOf\(this\.actor\),/.test(sheet));
 }
 
 /* C5 — dice by level */

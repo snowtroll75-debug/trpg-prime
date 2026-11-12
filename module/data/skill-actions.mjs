@@ -353,6 +353,14 @@ const RAW_SKILL_ACTIONS = [
   },
   {
     key: "recallKnowledge",
+    // GRAHAM'S RULING, 29 October 2026 (3.675.1): "Specialist skills
+    // should always have the recall knowledge action on their dropdown."
+    // The page lists the knowledge skills that may Recall Knowledge and
+    // says nothing either way about specialist skills, so this flag rests
+    // on that ruling rather than on a printed line. Every specialist skill
+    // gets it — Animal Lore, Barkeeping, Etiquette alike — because the
+    // ruling says "always", not "the Lore ones".
+    specialistSkills: true,
     name: "Recall Knowledge",
     // "linguistics" added 3.337.0 — Chapter 4 lists Recall Knowledge
     // (untrained) and Research (trained) among Linguistics' own actions,
@@ -374,7 +382,7 @@ const RAW_SKILL_ACTIONS = [
       fumble: "You recall incorrect information, or gain an erroneous or misleading clue.",
       blunder: ""
     },
-    description: "General Skill Action — remember useful information on a topic related to the skill you invoke this from. The GM determines the difficulty and which skills apply; time spent modifies the DC at GM discretion."
+    description: "General Skill Action — remember useful information on a topic related to the skill you invoke this from: one of the knowledge skills, OR any specialist skill you have, which you invoke by choosing this action from that specialist skill's own row. The GM determines the difficulty and which skills apply; time spent modifies the DC at GM discretion."
   },
   {
     key: "research",
@@ -544,7 +552,7 @@ const RAW_SKILL_ACTIONS = [
       fumble: "As Failure, but the materials are expended. Learning from a spellbook, the worst you can roll is a Failure instead.",
       blunder: ""
     },
-    description: "General Skill Action (Trained) — learn a new spell of your tradition from a spellbook, a scroll, or someone who already knows it. Materials Price and Difficulty come from the spell's own PP cost (a printed table, PP 0-2 through 19-20, +40,000 gp/+2 DC per PP above that). Learning from a spellbook grants a +2 item bonus to the check but floors the worst possible result at Failure; a scroll's materials survive a Critical untouched. On success the spell joins your Spell Library — a Wizard's own Spellbook, currently — without touching the free per-level slots that class already grants."
+    description: "General Skill Action (Trained) — learn a new spell of your tradition from a spellbook, a scroll, or someone who already knows it. Materials Price and Difficulty come from the spell's own PP cost (a printed table, PP 0-2 through 19-20, +40,000 gp/+2 DC per PP above that). Learning from a spellbook grants a +2 item bonus to the check but floors the worst possible result at Failure; a scroll's materials survive a Critical untouched. On success the spell joins your Spell Library — a Wizard's own Spellbook, or an Arcanist's spellbook (arcane spells, memorised through your Arcane Knight and caster-feat slots) — without touching the free additions either already grants."
   },
 
   // --- Athletics -------------------------------------------------------

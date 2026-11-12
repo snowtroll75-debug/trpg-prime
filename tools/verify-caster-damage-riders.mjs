@@ -30,8 +30,9 @@ equal("B6 a rider naming no axes joins every damaging blow", spellDamageRidersFo
 ok("B7 the card lines", /<strong>4<\/strong> essence \(Consecrated Flame, 1d6\)/.test(spellRiderLine("Skeleton", riders[0], 4)) && /immune/.test(spellRiderLine("Skeleton", riders[0], 0, true)));
 
 const cast = fs.readFileSync(path.join(SYSTEM_ROOT, "module", "magic", "cast-workflow.mjs"), "utf8");
-ok("C1 STRUCTURAL: one helper, reached from the attack path after the holy half and from the save path after the second pool", (cast.match(/await applyCasterSpellDamageRiders\(actor, spell, /g) ?? []).length === 2 && /async function applyCasterSpellDamageRiders\(actor, spell, target, \{ damageType, taken, rolls, lines \}\)/.test(cast));
-ok("C2 STRUCTURAL: the helper rolls, resolves as the rider's own type, applies, and burns the marker", /const roll = await new Roll\(rider\.dice\)\.evaluate\(\);[\s\S]*?type: rider\.damageType,[\s\S]*?await applyDamageAndCheckDying\(target, packet\.taken, \{\}\)[\s\S]*?setFlag\(SYSTEM_ID, SPELL_RIDERS_USED_FLAG, spellRidersBurnUpdate\(joining, target\?\.uuid \?\? "", used\)\)/.test(cast));
+ok("C1 STRUCTURAL: one helper, reached from the attack path after the holy half and from the save path after the second pool", (cast.match(/await applyCasterSpellDamageRiders\(actor, spell, /g) ?? []).length === 2 && /async function applyCasterSpellDamageRiders\(actor, spell, target, \{ damageType, taken, rolls, lines(?:, castPP = 0, attack = false)? \}\)/.test(cast));
+// RE-ANCHORED AT 3.684.0 (G12, G23): a per-PP rider's formula, and the caster named on the blow.
+ok("C2 STRUCTURAL: the helper rolls, resolves as the rider's own type, applies, and burns the marker", /const roll = await new Roll\(spellRiderFormula\(rider, castPP\)\)\.evaluate\(\);[\s\S]*?type: rider\.damageType,[\s\S]*?await applyDamageAndCheckDying\(target, packet\.taken, \{ sourceUuid: actor\?\.uuid[\s\S]*?setFlag\(SYSTEM_ID, SPELL_RIDERS_USED_FLAG, spellRidersBurnUpdate\(joining, target\?\.uuid \?\? "", used\)\)/.test(cast));
 const combat = fs.readFileSync(path.join(SYSTEM_ROOT, "module", "documents", "combat.mjs"), "utf8");
 ok("C3 STRUCTURAL: the round reset clears the marker", new RegExp(`\\.${SPELL_RIDERS_USED_FLAG}\`\\]: deletionValue\\(\\)`).test(combat));
 

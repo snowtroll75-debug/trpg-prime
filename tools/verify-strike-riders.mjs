@@ -124,7 +124,7 @@ function before(body, a, b) {
 
 const has = (body, needle) => strip(body).includes(needle);
 
-const RESOLVE = "async function resolveWeaponDamage(";
+const RESOLVE = "async function resolveWeaponDamageInScope(";
 const ROLL_ATTACK = "export async function rollWeaponAttack(";
 
 /* ================================================================== *
@@ -326,7 +326,7 @@ ok("F1 the damage loop asks for rider packets",
 // leaves the list open. Pinning the exact spelling is what broke this
 // check the moment a third legitimate source arrived.
 ok("F2 and iterates them in the same loop as the runes",
-  /for \(const rune of \[[^\]]*strikeRunes\.filter\(\(r\) => !r\.addsToStrike\)[^\]]*strikeRiderPackets\(actor, weapon, riderCtx\)[^\]]*\]\)/s
+  /for \(const rune of (?:replacingFlat \? \[\] : )?\[[^\]]*strikeRunes\.filter\(\(r\) => !r\.addsToStrike\)[^\]]*strikeRiderPackets\(actor, weapon, riderCtx\)[^\]]*\]\)/s
     .test(strip(resolveBody)),
   "a second loop would be a second place deciding how secondary damage meets a defence");
 ok("F3 rider conditions are applied on a hit",
@@ -574,9 +574,11 @@ ok("K5 a spell with no rider rows at all is not gated",
   weaponRiderRequirement({ effects: [{ kind: "bonus", slot: "athletics", value: 2 }] }) === null
   && weaponRiderRequirement({}) === null && weaponRiderRequirement(null) === null);
 
-const castBody = bodyOf(cast, "export async function castSpell(");
+// RE-POINTED AT 3.684.0 (Eldritch Arts Block 6, G25): the component gate
+// is asked with Prepared Sigil's `symbolPrepared`, so its call is matched whole.
+const castBody = bodyOf(cast, "async function castSpellResolved(");
 ok("K6 castSpell's body was found and reaches its real code",
-  castBody.length > 0 && castBody.includes("componentGate(actor, spellData, spell.name)"),
+  castBody.length > 0 && castBody.includes("componentGate(actor, spellData, spell.name, { symbolPrepared: Boolean(sigil) })"),
   "a body that cannot see the component gate is not castSpell's body");
 ok("K7 the cast asks the weapon gate",
   has(castBody, "weaponRiderGate(actor, spellData, spell.name)"),
@@ -596,9 +598,9 @@ ok("K8b and asks it BEFORE the Power Points are debited",
   before(castBody, "weaponRiderGate(actor, spellData, spell.name)", "ppPool - casterPPSpent"),
   "a gate below the debit is the 3.437.0 defect wearing a gate's name");
 ok("K9 and asks it beside the component gate",
-  before(castBody, "componentGate(actor, spellData, spell.name)", "weaponRiderGate(actor, spellData, spell.name)")
+  before(castBody, "componentGate(actor, spellData, spell.name, { symbolPrepared: Boolean(sigil) })", "weaponRiderGate(actor, spellData, spell.name)")
   && !/ppPool - casterPPSpent/.test(strip(castBody).slice(
-      strip(castBody).indexOf("componentGate(actor, spellData, spell.name)"),
+      strip(castBody).indexOf("componentGate(actor, spellData, spell.name, { symbolPrepared: Boolean(sigil) })"),
       strip(castBody).indexOf("weaponRiderGate(actor, spellData, spell.name)"))),
   "the same question about the same hands, and nothing is spent between the two");
 // TWO GUARDS, TWO CLAIMS. If the applier goes back to saying "is wielding

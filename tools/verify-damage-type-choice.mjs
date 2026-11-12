@@ -159,7 +159,12 @@ ok("W3 THE FORMULA IS NOT TOUCHED, ONLY THE TYPE",
   cast.includes("{ ...(baseDamageRow ?? {}), type: damageChoice }"),
   "an AP mode answers 'how big' and the choice answers 'of what' — they must not overwrite");
 ok("W4 the save path takes the override", cast.includes("damage: damageForCast,"));
-ok("W5 the attack path takes it too", cast.includes("damageOverride: damageForCast"));
+// RE-PINNED AT 3.684.0: G1's Echo passes `damageOverride: damageForCast` to
+// its second creature's attack too, so a bare `includes` passed with the
+// PRIMARY attack's override removed (mutate-damage-type-choice, SURVIVED —
+// the code was intact; the check could no longer see it). Pinned on the
+// primary call's own line, beside the volley's `rays`.
+ok("W5 the attack path takes it too", /rays: Number\(apMode\?\.rays \?\? 0\),\n\s*damageOverride: damageForCast,/.test(cast));
 ok("W5b and honours it", cast.includes("const dmg = damageOverride ?? spellData.damage ?? {};"));
 ok("W6 a refused choice is said out loud", cast.includes("lines.push(line(typeRefusal(label)));"));
 // W6b IS THE CARD AND THE DICE AGREEING. The refusal line says "nothing

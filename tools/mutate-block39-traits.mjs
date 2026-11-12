@@ -42,7 +42,7 @@ const MUTATIONS = [
   { file: TRAITS, name: "A13 — THE OLD DEFECT: Press reads only the trait record", from: "  if (hasTrait(action, \"press\") && attacks === 0) {", to: "  if (hasTrait(action, \"press\") && used.attack === 0) {", breaks: "A5" },
   { file: TRAITS, name: "Open ignores the counter", from: "  if (hasTrait(action, \"open\") && (attacks > 0 || used.open > 0)) {", to: "  if (hasTrait(action, \"open\") && (used.attack > 0 || used.open > 0)) {", breaks: "A5" },
   { file: TRAITS, name: "R11 — a Word may follow a Stride", from: "    if (used.actions > 0 || actedThisTurn) {", to: "    if (used.actions > 0) {", breaks: "A6" },
-  { file: APW, name: "the AP stamp forgets the turn", from: "round: game.combat.round, turn: game.combat.turn }", to: "round: game.combat.round }", breaks: "A7" },
+  { file: APW, name: "the AP stamp forgets the turn", from: "apSpentRound`]: { combatId: game.combat.id, round: game.combat.round, turn: game.combat.turn }", to: "apSpentRound`]: { combatId: game.combat.id, round: game.combat.round }", breaks: "A7" },
   { file: TW, name: "A11 — the record is written out of combat", from: "  if (!game.combat?.started) return;\n  const usage = traitUsage(actor);", to: "  const usage = traitUsage(actor);", breaks: "A8" },
   { file: TW, name: "A12 — THE OLD DEFECT: Word's −4 on an enemy's turn", from: "  if (!isOwnTurn(actor)) return null;\n", to: "", breaks: "A9" },
   { file: BOMB, name: "A12 — a bomb escapes the Word aftermath", from: "  if (wordPenalty) modifiers.push(wordPenalty);\n  const { attackTermsAgainst }", to: "  const { attackTermsAgainst }", breaks: "A10" },

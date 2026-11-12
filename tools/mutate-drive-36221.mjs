@@ -31,7 +31,7 @@ const MUTATIONS = [
   { file: WF, name: "the circle carries no clock", from: "          ...(ends ? { [REGION_EXPIRY_FLAG]: regionExpiryRecord({ castId, spellName: spell.name, ends }) } : {})\n", to: "", breaks: "A4" },
   { file: WF, name: "the decoy is not written onto the circle", from: "          [LIGHT_SHIFT_DROPPABLE_FLAG]: spec.droppable === true,\n", to: "", breaks: "A4" },
   { file: ACTIVE, name: "F1 — THE OLD DEFECT: ending the spell leaves its circles", from: " || circles.has(r.id))", to: ")", breaks: "A5" },
-  { file: WF, name: "every client moves the circle", from: "    if (gm ? gm.id !== game.user?.id : !game.user?.isGM) return;\n", to: "", breaks: "A6" },
+  { file: WF, name: "every client moves the circle", from: "    if (!isActingGM()) return;\n    const scene = tokenDoc?.parent ?? null;", to: "    const scene = tokenDoc?.parent ?? null;", breaks: "A6" }, /* RE-ANCHORED 3.686.2: the acting-GM guard (the election) */
   { file: WF, name: "a rename moves the circle", from: "    if (!(\"x\" in (changes ?? {})) && !(\"y\" in (changes ?? {})) && !(\"width\" in (changes ?? {}))) return;\n", to: "", breaks: "A6" },
   { file: WF, name: "the drop clears nothing", from: "  for (const region of held) await region.setFlag(SYSTEM_ID, LIGHT_SHIFT_ANCHOR_FLAG, null);\n", to: "", breaks: "A7" },
   { file: WF, name: "a cast with nothing to drop still reports", from: "  if (!held.length) return null;\n", to: "  if (!held.length) return lightShiftDroppedLine(\"The shadows\", actor.name);\n", breaks: "A7" },

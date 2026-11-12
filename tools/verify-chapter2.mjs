@@ -499,7 +499,8 @@ const flagsOf = (row) => row?.flags?.["trg-prime"] ?? {};
     "the flag alone grants nothing — something has to ask the question");
 
   const workflow = strip(read("module", "feats-workflow.mjs"));
-  const stance = workflow.slice(workflow.indexOf('"shadow stance"'), workflow.indexOf('"adoptive race"'));
+  // THE STANCE'S BODY, moved out of the button at 3.683.0 (seam C19).
+  const stance = workflow.slice(workflow.indexOf("async function enterShadowStanceFor("), workflow.indexOf("The A-batch automation registry"));
   ok("I6 Shadow Stance puts Concealed on a clock",
     /applyConditionTags\(actor, \[\{ key: "concealed", label: "Concealed" \}\], \{ expiresRound \}\)/.test(stance),
     "it printed 'until the start of your next turn' and applied a condition that never ended");
@@ -784,13 +785,18 @@ const flagsOf = (row) => row?.flags?.["trg-prime"] ?? {};
   ok("J15 Open among them", /\bopen\b/.test(stanceTraits));
   ok("J16 and Stance", /\bstance\b/.test(stanceTraits));
 
-  const stanceBody = workflow.slice(workflow.indexOf('"shadow stance"'), workflow.indexOf('"adoptive race"'));
+  // THE BODY MOVED OUT AT 3.683.0 (seam C19) into `enterShadowStanceFor`,
+  // which the button calls and a module may call with its own AP cost; the
+  // traits it asks are the item's own, less Open only when the caller says.
+  const stanceButton = workflow.slice(workflow.indexOf('"shadow stance"'), workflow.indexOf('"adoptive race"'));
+  const stanceBody = workflow.slice(workflow.indexOf("async function enterShadowStanceFor("), workflow.indexOf("The A-batch automation registry"));
   ok("J17 the button gates on those traits BEFORE spending the AP",
-    /if \(!traitGate\(actor, item\.system, item\.name\)\) return;/.test(stanceBody) &&
+    /await enterShadowStanceFor\(actor, item\);/.test(stanceButton) &&
+      /: item\?\.system\?\.traits;\s*const asAction = \{ \.\.\.\(item\?\.system \?\? \{\}\), traits \};\s*if \(!traitGate\(actor, asAction, item\.name\)\) return false;/.test(stanceBody) &&
       stanceBody.indexOf("traitGate") < stanceBody.indexOf("resources?.ap?.value"),
     "an Open action must be your first, and a Stance waits a round — both were unreachable");
   ok("J18 and records the use, so the next Stance is held for a round",
-    /await recordTraitUsage\(actor, item\.system\);/.test(stanceBody));
+    /await recordTraitUsage\(actor, asAction\);/.test(stanceBody));
 }
 
 /* ================================================================== */

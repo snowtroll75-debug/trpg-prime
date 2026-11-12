@@ -161,7 +161,7 @@ ok("B1 the not-chosen line is measured against what was ticked, not what the cap
     && /const (?:outcome|shifted) = applyDegreeShift\(buildOutcome\(\{[\s\S]{0,200}\}\), raw\.degreeShift \?\? ""\);/.test(CARD));
   ok("C17 a reaction cast skips the target picker, and the cast hands back its warps",
     // 3.617.0: a potion fed to someone presets its targets the same way.
-    CAST.includes("if (spellNeedsTarget(spellData) && !storingNow && !reaction?.presetTargets && !presetTargets) {")
+    CAST.includes("if (spellNeedsTarget(spellData, spell) && !storingNow && !reaction?.presetTargets && !presetTargets) {")
     && CAST.includes("return { ...outcome, ppSpent, check, spellSave, refunded: castRefunded, warpMods };"));
   const flow = read("module", "magic", "save-reaction-spells-workflow.mjs");
   ok("C18 both are cast through castSpell, and the user's targets are put back",
@@ -217,7 +217,9 @@ ok("B1 the not-chosen line is measured against what was ticked, not what the cap
     && ew.includes("if (!hazardTriggers(actionOf(movement))) return;") && ew.includes("if (alreadyAnswered(movement?.id)) return;"));
   ok("D13 the rung is applied by the spell engine", ew.includes("await applySpellEffects(caster ?? mover, spell, {")
     && ew.includes("effects: outcome.rows"));
-  ok("D14 a Critical ends the checks for this turn", ew.includes("if (turnKey && cleared?.region === region.id && cleared?.turn === turnKey) continue;")
+  // RE-PINNED AT 3.685.0: one helper for both moments (a move, a turn's start).
+  ok("D14 a Critical ends the checks for this turn", ew.includes("return Boolean(turnKey) && cleared?.region === region?.id && cleared?.turn === turnKey;")
+    && (ew.match(/if \(entryClearedThisTurn\(mover, region, turnKey\)\) continue;/g) ?? []).length === 2
     && ew.includes("if (outcome.endsChecksThisTurn && turnKey)"));
   ok("D15 the system boots the hook", /registerEntryChecks\(\);/.test(read("scripts", "trg-prime.mjs")));
   ok("D16 the kind is handled, and quietly by the effect engine",

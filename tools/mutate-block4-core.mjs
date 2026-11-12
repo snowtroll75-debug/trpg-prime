@@ -23,11 +23,11 @@ const MUTATIONS = [
   { name: "the group scope is never tested", file: CD, from: "  if (wantedAttackGroups && !wantedAttackGroups.some((t) => attackGroups.includes(t))) return false;\n", to: "", breaks: "B2" },
   { name: "the group is read case-sensitively", file: CD, from: "  const attackGroups = [String(context.attackGroup ?? \"\").trim().toLowerCase()].filter(Boolean);", to: "  const attackGroups = [String(context.attackGroup ?? \"\").trim()].filter(Boolean);", breaks: "B2" },
   { name: "reach counts as adjacent", file: AT, from: "  if (!isRanged) return feet > 5 ? \"reach\" : \"adjacent\";", to: "  if (!isRanged) return \"adjacent\";", breaks: "B3" },
-  { name: "the attack forgets its group", file: AW, from: "    attackGroup: String(weaponData.group ?? \"\").trim().toLowerCase(),\n    // HOW FAR", to: "    // HOW FAR", breaks: "B4" },
+  { name: "the attack forgets its group", file: AW, from: "    attackGroup: String(weaponData.group ?? \"\").trim().toLowerCase(),\n    // THE WEAPON, AND THE GRIP USED", to: "    // THE WEAPON, AND THE GRIP USED", breaks: "B4" }, // re-anchored at 3.684.0 (G25 sits between)
   { name: "the check drops the band", file: CK, from: "    this.rangeBand = config.rangeBand ?? \"\";", to: "    this.rangeBand = \"\";", breaks: "B5" },
   { name: "the damage's bonuses see only the traits", file: DCW, from: "  const rows = damageConditionalRows(entries, { ...context, traits: String(weapon?.system?.traits ?? \"\") });", to: "  const rows = damageConditionalRows(entries, { traits: String(weapon?.system?.traits ?? \"\") });", breaks: "B6" },
   // C
-  { name: "an exclusion alone is not scope", file: DD, from: " && !sourceTraits.length && !notSourceUuids.length) return null;", to: " && !sourceTraits.length) return null;", breaks: "C1" },
+  { name: "an exclusion alone is not scope", file: DD, from: " && !sourceTraits.length && !notSourceUuids.length && !lightLevels) return null;", to: " && !sourceTraits.length && !lightLevels) return null;", breaks: "C1" },
   { name: "the challenged creature meets the penalty too", file: DD, from: "    if ((entry.notSourceUuids ?? []).length && entry.notSourceUuids.includes(uuid)) return false;\n", to: "", breaks: "C2" },
   // D
   { name: "an unscoped rending row is accepted", file: REND, from: "      if (entry && entry.value > 0) out.push(entry);", to: "      if (entry && entry.value > 0) out.push(entry);\n      else if (row.value > 0) out.push({ id: \"x\", label: String(row.label ?? carrier.name), value: Number(row.value), when: {}, not: {} });", breaks: "D1" },
@@ -49,8 +49,8 @@ const MUTATIONS = [
   // F
   { name: "considered flanked stacks on a real flank", file: SO, from: "  if (alreadyFlanking || cannotBeFlanked) return null;", to: "  if (cannotBeFlanked) return null;", breaks: "F1" },
   { name: "flat-footed loses only Dexterity", file: SO, from: "  return dex + dodge;", to: "  return dex;", breaks: "F2" },
-  { name: "every DB bonus is ignored, not the stance's", file: SO, from: "    if (!uuids.has(from)) continue;", to: "", breaks: "F3" },
-  { name: "a suppressed bonus is ignored too", file: SO, from: "    if (!entry?.applied) continue;\n    const from", to: "    const from", breaks: "F3" },
+  { name: "every DB bonus is ignored, not the stance's", file: SO, from: "  const stanceBase = (entry) => uuids.has(String(entry.carrierUuid ?? entry.source ?? \"\")) && ", to: "  const stanceBase = (entry) => ", breaks: "F3" },
+  { name: "a suppressed bonus is paid back too (face value, not stacked)", file: SO, from: "  return { total: Math.max(0, withStance - without), labels };", to: "  return { total: [...base.filter(stanceBase), ...rows.filter(stanceRow)].reduce((t, e) => t + Number(e.value), 0), labels };", breaks: "F3" },
   { name: "the group trait ignores the grip", file: SO, from: "      if (row.oneHanded && !oneHanded) continue;\n", to: "", breaks: "F4" },
   { name: "a disabled effect still punishes reactions", file: SO, from: "    if (!carrier || carrier.disabled) continue;\n    const raw = carrier.flags?.[\"trg-prime\"]?.reactionAttackPenalty;", to: "    if (!carrier) continue;\n    const raw = carrier.flags?.[\"trg-prime\"]?.reactionAttackPenalty;", breaks: "F5" },
   { name: "the Strike ignores ignoreTargetStance", file: AW, from: "  if (ignoreTargetStance && targetActor) {", to: "  if (false) {", breaks: "F6" },
@@ -76,7 +76,7 @@ const MUTATIONS = [
   { name: "no quiet trait check for modules", file: API, from: "      traitCheck: async (...args) => (await import(\"./traits-workflow.mjs\")).traitCheck(...args),\n", to: "", breaks: "K2" },
   { name: "the wait cannot be waived", file: FW, from: "  if (!waiveWait && round !== null && lastStance !== null && round <= lastStance) {", to: "  if (round !== null && lastStance !== null && round <= lastStance) {", breaks: "K3" },
   { name: "a waived wait leaves no stamp", file: FW, from: "  if (round !== null) await actor.setFlag(SYSTEM_ID, \"lastStanceRound\", stanceStamp());", to: "  if (round !== null && !waiveWait) await actor.setFlag(SYSTEM_ID, \"lastStanceRound\", stanceStamp());", breaks: "K3" },
-  { name: "a flat rider is refused", file: RID, from: "  const flat = raw.flat === true && !weaponDie;", to: "  const flat = false;", breaks: "K4" },
+  { name: "a flat rider is refused", file: RID, from: "  const flat = raw.flat === true && !weaponDie && !replaceFlat;", to: "  const flat = false;", breaks: "K4" },
   { name: "a flat rider forgets it is flat on the round trip", file: RID, from: "  if (flat) out.flat = true;\n", to: "", breaks: "K4" },
   { name: "any number is a flat rider", file: RID, from: "const FLAT_PATTERN = /^[1-9]\\d*$/;", to: "const FLAT_PATTERN = /^\\d+$/;", breaks: "K5" },
   { name: "a bare number is a die", file: RID, from: "const DICE_PATTERN = /^([1-9]\\d*)d([1-9]\\d*)$/i;", to: "const DICE_PATTERN = /^([1-9]\\d*)(d([1-9]\\d*))?$/i;", breaks: "K5" }

@@ -95,6 +95,11 @@ export async function applyElementalNexus(actor, token) {
       if (!outcome.harmless) {
         const roll = await new Roll(outcome.dice).evaluate();
         total = roll.total;
+        // A DAMAGE REACTION, BEFORE THE DEFENCES (3.681.0; found in review).
+        {
+          const { spellDamageReactionsFor } = await import("../reactions/reactions-workflow.mjs");
+          lines.push(...await spellDamageReactionsFor(actor, element, { spellName: spec?.label ?? "", source: null }));
+        }
         const packet = resolveAgainstDefences(actor.system ?? {}, {
           amount: roll.total,
           type: element,

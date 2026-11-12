@@ -63,9 +63,24 @@ const SYSTEM_ID = "trg-prime";
  * site: a class item's own `cantripsPerDay` field wins when set. */
 export const DEFAULT_CANTRIPS_PER_DAY = 4;
 
-/** "2 + (level x 2)" — the daily leveled-spell memorisation budget. */
-export function memorisedSpellCount(level) {
-  return 2 + 2 * Math.max(0, Math.floor(Number(level) || 0));
+/**
+ * The daily leveled-spell memorisation budget: "2 + (level x 2)", the core's
+ * learned casters' (and Eldritch Arts' Archmage, M16), or a class's own
+ * printed rule (3.682.0; Eldritch Arts Block 4, D4): the Spellblade's "an
+ * amount of spells … equal to your level +1" is `"L+1"`. An unknown rule
+ * reads as the default, so a typo cannot close the book.
+ */
+export const MEMORISED_PER_DAY_RULES = Object.freeze({
+  "2+2L": (level) => 2 + 2 * level,
+  "L+1": (level) => level + 1
+});
+export function memorisedPerDayRule(rule) {
+  const key = String(rule ?? "").replace(/\s+/g, "").toUpperCase();
+  return Object.prototype.hasOwnProperty.call(MEMORISED_PER_DAY_RULES, key) ? key : "2+2L";
+}
+export function memorisedSpellCount(level, rule = "2+2L") {
+  const l = Math.max(0, Math.floor(Number(level) || 0));
+  return MEMORISED_PER_DAY_RULES[memorisedPerDayRule(rule)](l);
 }
 
 /** The class's own cantrip allowance, or the printed default. */
@@ -117,6 +132,31 @@ export function dailyMemorisedLeveled(actor) {
   return dailyMemorisedSpells(actor).filter((item) => Number(item.system?.ppCost ?? 0) > 0);
 }
 
+/**
+ * A PREPARED SPELL OUTSIDE THE COUNT (3.683.0; Eldritch Arts Block 5, C13).
+ *
+ * Spell Thief: "if you get a critical result on a Borrow Spell check, the
+ * borrowed spell does not count against your prepared slots that day
+ * (essentially a free prep). Be aware that you may only have one free
+ * borrowed spell at any one time." The module marks that copy
+ * `flags.trg-prime.memorisationFree: true`; it is prepared, it casts as any
+ * prepared spell does, and it fills no slot. The one-at-a-time rule is the
+ * module's (it marks one and clears the last).
+ *
+ * LEFT OUT OF THE DIALOG TOO, not only the count: the Prepare Spells checklist
+ * caps its ticks at the day's allowance, so a free copy ticked there would
+ * take a slot after all, and unticking it would unprepare (or, for a "list"
+ * caster, delete) what the module made. Its preparation is the module's.
+ *
+ * Pure.
+ *
+ * @param {object} spell an owned spell item
+ * @returns {boolean} true when the spell fills a memorisation slot
+ */
+export function countsTowardMemorisation(spell) {
+  return spell?.flags?.[SYSTEM_ID]?.memorisationFree !== true;
+}
+
 /** The subset that are today's cantrip picks. */
 export function dailyMemorisedCantrips(actor) {
   return dailyMemorisedSpells(actor).filter((item) => Number(item.system?.ppCost ?? 0) === 0);
@@ -143,13 +183,19 @@ export function memorisationState({
   leveledMemorised = 0,
   cantripsMemorised = 0,
   cantripAllowance = null,
-  bonusLeveled = 0
+  bonusLeveled = 0,
+  memorisedPerDay = "2+2L",
+  // DECLARED BONUS CANTRIPS (3.684.0; Eldritch Arts Block 6, G25): Extra
+  // Cantrip's "an additional memorised cantrip". The feat names one, so the
+  // sentence above ("Cantrips are never bonused") holds for Magical
+  // Discovery and no longer for everything. See known-cantrips.mjs.
+  bonusCantrips = 0
 } = {}) {
-  const leveledAllowed = memorisedSpellCount(level) + Math.max(0, Math.floor(Number(bonusLeveled) || 0));
+  const leveledAllowed = memorisedSpellCount(level, memorisedPerDay) + Math.max(0, Math.floor(Number(bonusLeveled) || 0));
   const leveledPicked = Math.max(0, Math.floor(Number(leveledMemorised) || 0));
-  const cantripsAllowed = cantripAllowance === null
+  const cantripsAllowed = (cantripAllowance === null
     ? DEFAULT_CANTRIPS_PER_DAY
-    : cantripsPerDay(cantripAllowance);
+    : cantripsPerDay(cantripAllowance)) + Math.max(0, Math.floor(Number(bonusCantrips) || 0));
   const cantripsPicked = Math.max(0, Math.floor(Number(cantripsMemorised) || 0));
   return {
     leveledAllowed,

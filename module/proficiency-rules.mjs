@@ -69,7 +69,7 @@
 
 import { favouredWeaponMatches } from "./divine-aspect.mjs";
 import { weaponWaivesProficiency } from "./codex-runes.mjs";
-import { registeredClass } from "./module-api.mjs";
+import { registeredClass, registeredWeaponTraitRules } from "./module-api.mjs";
 import { weaponFormBaseOf } from "./charged-weapon-forms.mjs";
 
 const SYSTEM_ID = "trg-prime";
@@ -752,6 +752,15 @@ export function proficiencyProfile(actor) {
       items.find((item) => item.type === "race")?.name
       ?? actor?.system?.identity?.race ?? ""
     ).trim(),
+    // AND THE HERITAGE (3.675.0; Eldritch Arts Block 1, C7): the Clamhscrios
+    // carries "Wyrmdral", a Scaelyn heritage, as its racial trait.
+    heritage: String(items.find((item) => item.type === "heritage")?.name ?? "").trim(),
+    // THE CLASS TYPES (3.675.0, C8): Martial, Expert, Adept — a weapon
+    // trait may change a weapon's category for one (Eldritch Arts' Adept).
+    // A Bard is "Adept/Expert": both.
+    classTypes: new Set(items.filter((item) => item.type === "class")
+      .flatMap((item) => String(item.system?.classType ?? item.system?.tier ?? "").split(/[/,]/))
+      .map((t) => t.trim().toLowerCase()).filter(Boolean)),
     armourCategories: new Set(),
     // Which source put each category in the set above — so the panel can
     // credit "Heavy" to War Priest rather than to the Cleric that did not
@@ -965,6 +974,28 @@ export const SHIELD_CATEGORY_COVERED_BY = Object.freeze({ scabbard: "light" });
  * @param {string} traits The weapon's trait line.
  * @returns {boolean}
  */
+/** Simple is the easiest category to be proficient with, then Martial, then Exotic. */
+const CATEGORY_RANK = Object.freeze({ simple: 0, martial: 1, exotic: 2 });
+/** A racial weapon, one category easier for its race (3.677.0, m64). Simple stays Simple. */
+export const RACIAL_STEP = Object.freeze({ exotic: "Martial", martial: "Simple" });
+
+/**
+ * The category a registered weapon-trait rule gives this wielder (C8), or "".
+ * @param {object} profile from proficiencyProfile (carries `classTypes`)
+ * @param {object} item a weapon
+ */
+export function traitRuleCategory(profile, item, rules = registeredWeaponTraitRules()) {
+  const traits = String(item?.system?.traits ?? "").split(",").map((t) => norm(t).replace(/[^a-z]/g, "")).filter(Boolean);
+  const types = profile?.classTypes instanceof Set ? profile.classTypes : new Set();
+  let best = "";
+  for (const rule of rules ?? []) {
+    if (!traits.includes(String(rule.trait).replace(/[^a-z]/g, ""))) continue;
+    if (!rule.classTypes.some((t) => types.has(t))) continue;
+    if (!best || CATEGORY_RANK[norm(rule.categoryAs)] < CATEGORY_RANK[norm(best)]) best = rule.categoryAs;
+  }
+  return best;
+}
+
 export function racialWeaponMatches(race, traits) {
   const wanted = norm(race).replace(/[^a-z]/g, "");
   if (!wanted) return false;
@@ -974,9 +1005,11 @@ export function racialWeaponMatches(race, traits) {
 }
 
 /**
- * The weapon's category FOR THIS WIELDER. An exotic weapon whose racial
- * trait names the wielder's race is martial for them (Chapter 6, Exotic);
- * everything else is what the item says.
+ * The weapon's category FOR THIS WIELDER. A weapon whose racial trait names
+ * the wielder's race (or heritage) is one category easier for them: exotic
+ * becomes martial (Chapter 6, Exotic) and martial becomes simple (3.677.0,
+ * m64). A weapon-trait rule for the class type may make it easier still.
+ * Everything else is what the item says.
  *
  * @param {object} profile From proficiencyProfile (carries `race`).
  * @param {object} item
@@ -984,9 +1017,23 @@ export function racialWeaponMatches(race, traits) {
  */
 export function effectiveWeaponCategory(profile, item) {
   const category = String(item?.system?.category ?? "");
-  if (norm(category) === "exotic" && racialWeaponMatches(profile?.race, item?.system?.traits)) {
-    return "Martial";
-  }
+  // ONE CATEGORY EASIER FOR ITS RACE (3.677.0; Graham's m64 of 1 November
+  // 2026): "A weapon with a specific race listed in its traits allows a
+  // member of that race to use it with less proficiency. So a Martial weapon
+  // would become simple and an exotic weapon martial." Before, only an
+  // Exotic weapon stepped down (Chapter 6, Exotic).
+  const ownRace = racialWeaponMatches(profile?.race, item?.system?.traits)
+    || racialWeaponMatches(profile?.heritage, item?.system?.traits);
+  const racial = ownRace ? (RACIAL_STEP[norm(category)] ?? "") : "";
+  // A TRAIT THAT CHANGES THE CATEGORY FOR A CLASS TYPE (3.675.0, C8):
+  // Eldritch Arts' Adept, "treated as a Simple weapon for any character with
+  // this class trait". The friendliest category a rule gives wins (an Adept
+  // Emberkin's Brikail Naomhtha is Simple, not Martial), and a rule never
+  // makes a weapon harder than it is.
+  const byTrait = traitRuleCategory(profile, item);
+  const friendlier = [racial, byTrait].filter(Boolean)
+    .sort((a, b) => CATEGORY_RANK[norm(a)] - CATEGORY_RANK[norm(b)])[0] ?? "";
+  if (friendlier && CATEGORY_RANK[norm(friendlier)] < (CATEGORY_RANK[norm(category)] ?? 99)) return friendlier;
   // An effect's declaration (3.671.0, Oathbound's katana and wakizashi).
   // Exotic only: the clause makes an exotic weapon martial, never a simple
   // or martial weapon something else.
@@ -1098,14 +1145,21 @@ export function proficiencyOf(profile, item) {
 
   if (type === "weapon") {
     // THE RACIAL CLAUSE (Chapter 6, Exotic): "If your race matches that of
-    // the weapon's racial trait, it is considered a martial weapon." Read
+    // the weapon's racial trait, it is considered a martial weapon." And a
+    // martial one simple (3.677.0, m64) — see effectiveWeaponCategory. Read
     // before everything else, so a dwarf's zokarrin goes through every
     // following test as the martial weapon it is for them. Not built
     // until 3.575.0.
     const category = effectiveWeaponCategory(profile, item);
     const racial = category !== String(system.category ?? "");
     if (racial && profile.weaponCategories.has(category)) {
-      return { proficient: true, why: `martial weapon proficiency (a ${profile.race} weapon, martial for a ${profile.race})` };
+      // SAY WHICH CLAUSE (3.675.0): the race, the heritage (C7), or a trait's
+      // rule for the class type (C8).
+      const traitsOf = item?.system?.traits;
+      const who = racialWeaponMatches(profile.race, traitsOf) ? profile.race
+        : racialWeaponMatches(profile.heritage, traitsOf) ? profile.heritage : "";
+      if (traitRuleCategory(profile, item) === category) return { proficient: true, why: `${category.toLowerCase()} weapon proficiency (its trait makes it ${category.toLowerCase()} for your class type)` };
+      return { proficient: true, why: `${category.toLowerCase()} weapon proficiency (a ${who || profile.race} weapon, ${category.toLowerCase()} for a ${who || profile.race})` };
     }
     if (profile.weaponCategories.has(category)) {
       return { proficient: true, why: category === "Unarmed"

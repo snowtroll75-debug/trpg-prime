@@ -54,7 +54,7 @@ export async function applyAuraTraitEffect(actor, effect, { source = "" } = {}) 
   } else {
     await actor.createEmbeddedDocuments("ActiveEffect", [{
       name: effect.name,
-      img: "icons/svg/water.svg",
+      img: "icons/svg/waterfall.svg",
       duration: { seconds: effect.seconds },
       flags
     }]);

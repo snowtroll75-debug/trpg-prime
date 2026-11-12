@@ -2,7 +2,11 @@ import { attackCountOf, setAttackCount } from "../combat/turn-records.mjs";
 import { spellOwnBonus } from "./spell-own-bonus.mjs";
 import { TRGCheck } from "../dice/check.mjs";
 import { innateAttackFor, innateSaveFor } from "./innate-printed.mjs";
-import { highMagicFumble, highMagicHeightens, highMagicSaveStep } from "./high-magic.mjs";
+import {
+  highMagicFumble, highMagicHeightens, highMagicSaveStep, highMagicCast, highMagicCastingDCStep,
+  highMagicArmourApplies, highMagicArmourPenalty, highMagicFocusSetAside, highMagicTraditions,
+  spellSaveTraditions
+} from "./high-magic.mjs";
 import { HARMONIZE_FLAG, harmonyTotal } from "../harmonize.mjs";
 import { classTradition, grantedTraditions, spellcraftAbilityFor } from "./caster-tier-feats.mjs";
 import { CHAIN_PROFILES, OPEN_ENDED, rollChain, percentileValue } from "../dice/open-ended.mjs";
@@ -37,12 +41,13 @@ import { ownedCreatureTypeSystem } from "../creature-type-rules.mjs";
 import { creatureTypesOf } from "../aligned.mjs";
 import { basicSavingThrow } from "../dice/resolution.mjs";
 import {
-  addDice, applyCasterLevelMods, casterLevelOf, describeCasterLevelMods, warpedRowExtra
+  addDice, applyCasterLevelMods, casterLevelDuration, casterLevelOf, casterLevelRows, describeCasterLevelMods, warpedRowExtra
 } from "./caster-level-mods.mjs";
 import { describeArea, keepByDisposition, lineOfEffectBlocked, parseRangeFeet, parseSpellArea, placeSpellTemplate, spellBreaches, tokensInTemplate } from "./spell-template.mjs";
 import { declaredSaveNetFeet, saveNetLine } from "./save-net.mjs";
 import { ladderRungAmount, ladderUsesSharedRoll, normaliseSaveLadder, saveLadderLine, saveLadderOutcome } from "./save-ladder.mjs";
 import { valueFromMargin } from "./condition-timing-rules.mjs";
+import { appliedCastOptions, castAPWithOptions, castOptionField, offeredCastOptions, takenCastOptions } from "./cast-options.mjs";
 import {
   normaliseSecondaryDamage, secondaryDamageLine, secondaryReaches
 } from "./secondary-damage.mjs";
@@ -51,7 +56,8 @@ import {
 import { actorDeathState, reapDead } from "../combat/death-state.mjs";
 // ONE SPELLING OF THE RECURRING-STACK RULE (3.585.0). The bombs own it;
 // a spell's rider asks the same question and must get the same answer.
-import { recurringAfterHit } from "../bombs.mjs";
+import { layRecurring } from "../conditions/recurring-workflow.mjs";
+import { recurringStackLine } from "../conditions/recurring.mjs";
 import { feetFromPointToToken } from "../combat/geometry.mjs";
 import { warpedAreaText, warpedAreaTargeting } from "./warp-area.mjs";
 import { opposedAuraLine, opposingTraitsOf } from "./opposed-aura.mjs";
@@ -73,7 +79,7 @@ import {
   normaliseApScale, apScaleChoices, apScaleMods, apScaleLine, baseAPOf, castAPIsScalable
 } from "./ap-scale.mjs";
 import {
-  releaseActionCost, storedSettlement, storedLine, displacedLine, noBondLine, settlementLine
+  releaseActionCost, storedSettlement, storedLine, displacedLine, noBondLine, settlementLine, foreignReleaseLine
 } from "./spell-storing.mjs";
 import { targetCapFor, targetCapNote, overTargetRefusal } from "./target-count.mjs";
 import { luminanceOpeningState } from "./luminance-workflow.mjs";
@@ -121,15 +127,19 @@ import { actorDefences, hasCreatureTrait } from "../creature-traits.mjs";
 import { spellIsManeuver } from "./spell-maneuver.mjs";
 import { criticalBonusDamage, spellInflictsCriticalInjury } from "./spell-damage.mjs";
 import { effectiveSpellTradition, traditionGate } from "./tradition-gate.mjs";
-import { beneficialTraditionSave } from "./beneficial-save.mjs";
+import { beneficialTraditionSave, benefitRecord } from "./beneficial-save.mjs";
 import { aggregateMetamagicSelection, buildMetamagicChooser, buildMetamagicOptions, emptyMetamagic, temporalDurationText } from "./metamagic.mjs";
-import { grantedSpellWarps, warpsWithGranted } from "./granted-warps.mjs";
-import { SPELL_RIDERS_USED_FLAG, declaredSpellDamageRiders, spellDamageRidersFor, spellRidersBurnUpdate, spellRiderLine } from "./caster-damage-riders.mjs";
+import { grantedSpellWarps, warpsWithGranted, warpedDamageRow } from "./granted-warps.mjs";
+import { SPELL_RIDERS_USED_FLAG, declaredSpellDamageRiders, spellDamageRidersFor, spellRidersBurnUpdate, spellRiderFormula, spellRiderLine } from "./caster-damage-riders.mjs";
+// THE PP A CAST IS CAST AT, AND THE SPELL'S OWN (3.684.0; Eldritch Arts Block 6, G12).
+import { castRiderPP, printedSpellPP, spellHasNoDuration } from "./cast-pp.mjs";
 import { registeredSpellWarps } from "../module-api.mjs";
 import { consumeGearUse } from "../gear-uses-workflow.mjs";
 import { innateSpendUpdate, itemUsesMax, itemUsesRemaining } from "../uses-workflow.mjs";
 import { clearAimIfOtherAction } from "../combat/aim.mjs";
-import { isRaging } from "../combat/rage-workflow.mjs";
+// Rage's "You cannot cast spells", unless something lets its owner cast while
+// raging (3.684.0; Eldritch Arts' Birthrager, G10). See combat/rage.mjs.
+import { rageBarsCasting } from "../combat/rage-workflow.mjs";
 import { recordTraitUsage, traitGate, wordAftermathModifier } from "../traits-workflow.mjs";
 import { secretRollMode } from "../traits.mjs";
 import { applyConditionTags, applySelfDamage, formatAppliedTags } from "../combat/effect-application-workflow.mjs";
@@ -175,6 +185,7 @@ import {
   restingPPRecovery,
   spellFumbleModifierTotal,
   spellNeedsTarget,
+  spellTargetsObject,
   ritualDCModifierTotal,
   sacrificeSoulDrain,
   sleepingPPRecovery,
@@ -327,7 +338,7 @@ async function refuseLongCast(actor, spellName, castAP) {
   });
 }
 
-async function promptCastingConditions(spell, { extraInc = null, isAttack = false, actor = null, reagents = [] } = {}) {
+async function promptCastingConditions(spell, { extraInc = null, isAttack = false, actor = null, reagents = [], castOptions = [] } = {}) {
   const row = (inner) => `<label style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:3px 0">${inner}</label>`;
   const check = (name, label) => `<label style="display:block;margin:3px 0"><input type="checkbox" name="${name}"> ${label}</label>`;
   const extraField = extraInc
@@ -384,6 +395,15 @@ async function promptCastingConditions(spell, { extraInc = null, isAttack = fals
       .join("")}`
     : "";
 
+  // A MODULE'S CASTING OPTIONS (3.679.0; Eldritch Arts Block 2b): Spell
+  // Trickery, a true name. A required one (a summoning circle's Critical) is
+  // said, not asked. See cast-options.mjs.
+  const optionField = castOptions.length
+    ? `<hr>${castOptions.map((o) => o.required
+      ? `<p class="hint" style="margin:3px 0"><strong>${esc(o.label)}</strong>${o.hint ? ` — ${esc(o.hint)}` : ""} <em>(applies)</em></p>`
+      : check(castOptionField(o.key), `${esc(o.label)}${o.hint ? ` — <em>${esc(o.hint)}</em>` : ""}`)).join("")}`
+    : "";
+
   // A creature that always casts defensively (3.627.0) is not asked.
   const alwaysDefensive = actor
     ? (await import("./defensive-casting.mjs")).declaredDefensiveCasting(declarationCarriers(actor))
@@ -403,6 +423,7 @@ async function promptCastingConditions(spell, { extraInc = null, isAttack = fals
     ${touchField}
     ${performField}
     ${reagentField}
+    ${optionField}
   </div>`;
   const form = await DialogV2.prompt({
     window: { title: `${spell.name} — Casting Conditions` },
@@ -428,7 +449,8 @@ async function promptCastingConditions(spell, { extraInc = null, isAttack = fals
     touchUnwilling: Boolean(form.unwilling),
     bardicPerform: Boolean(form.bardicPerform),
     bardicConviction: Boolean(form.bardicConviction),
-    reagents: reagents.filter((r) => Boolean(form[`reagent-${r.id}`])).map((r) => r.id)
+    reagents: reagents.filter((r) => Boolean(form[`reagent-${r.id}`])).map((r) => r.id),
+    castOptions: takenCastOptions(castOptions, form)
   };
 }
 
@@ -466,7 +488,150 @@ async function promptCastingConditions(spell, { extraInc = null, isAttack = fals
  * means the caller has already set the user's targets to the triggering
  * creature, so the picker is not opened over a roll in progress.
  */
-export async function castSpell(actor, spell, { itemCheck = null, stored = null, ritual = null, reaction = null, presetTargets = false, apPaid = false, carried = null } = {}) {
+/**
+ * A CAST, AND ITS SCOPE (3.681.0; Eldritch Arts Block 3b): a defence a
+ * reaction grants "until the spell has been resolved" (Resist Magic) is tied
+ * to the cast running when it was granted, and ends as this returns. See
+ * combat/granted-defences.mjs. Everything else is `castSpellResolved`.
+ */
+/**
+ * WOULD THIS CAST BE REFUSED? (3.681.0; Eldritch Arts Block 3b, found in
+ * review.) The refusals `castSpellResolved` makes before anything is spent —
+ * a Rage, a module's (an antimagic zone, a Magic Suppression area), a
+ * critical's "cannot cast spells" or "cannot use verbal components" — asked
+ * quietly, for a reaction that is a spell but is not cast through castSpell
+ * (Disrupting Magic, whose casting is its Dispel check). The reason, or "".
+ */
+export async function castRefusalReason(actor, spell) {
+  if (!actor) return "no caster";
+  if (rageBarsCasting(actor)) return `${actor.name} cannot cast spells while raging.`;
+  const { castRefusalFrom } = await import("./cast-hooks.mjs");
+  const refused = await castRefusalFrom({
+    actor, spell, spellData: spell?.system ?? {}, innate: Boolean(spell?.system?.innate),
+    itemCast: false, ritual: false
+  });
+  if (refused) return refused;
+  const { castingRefusal } = await import("./casting-restriction-workflow.mjs");
+  const refusal = castingRefusal(actor, spell?.system ?? {}, Boolean(spell?.system?.innate));
+  return refusal.blocked ? String(refusal.reason ?? "cannot cast") : "";
+}
+
+/**
+ * THE SPELL ATTACK'S HITS, for `trgPrimeSpellSettled` (3.682.0): one entry a
+ * ray that hit, `{ target, critical }`. A miss resolves to null, a volley to
+ * its rays. Pure.
+ */
+export function spellHitsOf(spellAttack) {
+  if (!spellAttack) return [];
+  const rays = Array.isArray(spellAttack.rays) ? spellAttack.rays : [spellAttack];
+  return rays.filter((r) => r?.targetActor).map((r) => ({ target: r.targetActor, critical: Boolean(r.critical) }));
+}
+
+/** The spells whose prelude is being asked now (3.682.0, review). */
+const PRELUDES_RUNNING = new Set();
+
+/**
+ * THE TOKEN A CAST IS MEASURED FROM (3.684.0; Eldritch Arts Block 6, G24):
+ * a `rangeFrom` token uuid, resolved to the placed Token and its actor, or
+ * null when it is not on the canvas (the cast then measures from the caster).
+ */
+function resolveRangeOrigin(uuid) {
+  try {
+    const doc = globalThis.fromUuidSync?.(String(uuid ?? "")) ?? null;
+    const token = doc?.object ?? (doc?.document ? doc : null);
+    if (!token?.center) return null;
+    return { token, actor: token.actor ?? doc?.actor ?? null, name: String(token.name ?? doc?.name ?? "") };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * IS A PRELUDE ASKED FOR THIS CAST (3.682.0)? Only for a cast with none of
+ * the core's own options: an item's check, a stored spell, a ritual, a
+ * reaction, preset targets, paid AP, a carried spell or a Strike's check.
+ * Pure.
+ */
+export function castPreludeOwed(options = {}) {
+  const o = options ?? {};
+  // A THREADED SPELL OR A PRESET METAMAGIC (3.684.0, G1) is a cast of the
+  // core's own options too.
+  // …AND A PREPARED SIGIL'S CAST, OR ONE MEASURED FROM ANOTHER TOKEN (3.684.0,
+  // G25 and G24): each is a prelude's (or a feat Use's) own call already.
+  return !o.itemCheck && !o.stored && !o.ritual && !o.reaction && !o.presetTargets && !o.apPaid && !o.carried && !o.strikeCheck && !o.thread && !o.metamagic && !o.preparedSymbol && !o.rangeFrom;
+}
+
+export async function castSpell(actor, spell, options = {}) {
+  // A MODULE'S PRELUDE (3.682.0; Eldritch Arts Block 4): asked only for a
+  // cast made with none of the core's own options. See castPreludeOwed.
+  // NEVER TWICE FOR ONE SPELL AT ONCE (review): a prelude that calls
+  // castSpell bare, to fall back on the core's cast, meets none.
+  const preludeKey = String(spell?.uuid ?? spell?.id ?? spell?.name ?? "");
+  if (castPreludeOwed(options) && !PRELUDES_RUNNING.has(preludeKey)) {
+    const { castPreludeFrom } = await import("./cast-hooks.mjs");
+    PRELUDES_RUNNING.add(preludeKey);
+    let taken = null;
+    try {
+      taken = await castPreludeFrom({ actor, spell, options: { ...(options ?? {}) } });
+    } finally {
+      PRELUDES_RUNNING.delete(preludeKey);
+    }
+    if (taken?.handled) return taken.result ?? null;
+  }
+  const { beginCastScope, endCastScope } = await import("../combat/granted-defences.mjs");
+  const scope = beginCastScope();
+  try {
+    // AN OBJECT'S SPELL CASTS WITH NO CREATURE TARGETED (3.685.1, review): see
+    // magic/cast-targets.mjs and `spellTargetsObject`.
+    if (spellTargetsObject(spell)) {
+      const { withTargetsReleased } = await import("./cast-targets.mjs");
+      return await withTargetsReleased(() => castSpellResolved(actor, spell, options ?? {}));
+    }
+    return await castSpellResolved(actor, spell, options ?? {});
+  } finally {
+    endCastScope(scope);
+  }
+}
+
+/*
+ * THREE OPTIONS FOR A MODULE'S METAMAGIC (3.684.0; Eldritch Arts Block 6, G1):
+ *   itemMetamagic  true on a charged item's cast that may take metamagic (G6's
+ *                  Metamagic Conduit sets it; Q94: never a scroll, potion or
+ *                  stored spell). Read as `=== true` and nothing else.
+ *   itemMetamagicCeiling  with it, the most PP that cast may total (Q130:
+ *                  "no more than double the item's normal maximum", G6's
+ *                  default double the release PP): the cap in place of the
+ *                  release PP. The wielder pays the PP above the release PP —
+ *                  the metamagic's — from their own pool.
+ *   metamagic      { preset: [{ key, choice, times }] }: options applied
+ *                  without a tick (S-M4; Subconscious Casting), the dialog
+ *                  still offering the rest. Core ids tick the core's row.
+ *   thread         { check, degree, primaryUuid }: a spell woven into another
+ *                  (S-M11; Spellthread, Q126) resolves under that spell's check
+ *                  at its degree — no PP, AP, dialog, prompt, check, reaction,
+ *                  fumble or Resonance of its own; the targets already chosen.
+ */
+async function castSpellResolved(actor, spell, { itemCheck = null, stored = null, ritual = null, reaction = null, presetTargets: presetTargetsGiven = false, apPaid: apPaidGiven = false, carried = null, strikeCheck = null, itemMetamagic = false, itemMetamagicCeiling = 0, metamagic = null, thread = null, preparedSymbol = null, rangeFrom = null } = {}) {
+  // A THREADED SPELL'S ACTIONS AND TARGETS WERE THE FIRST SPELL'S (S-M11).
+  const threaded = Boolean(thread?.degree);
+  const apPaid = apPaidGiven || threaded;
+  const presetTargets = presetTargetsGiven || threaded;
+  /*
+   * TWO CASTS A MODULE ASKS FOR (3.684.0; Eldritch Arts Block 6).
+   *
+   * `preparedSymbol: { label }` (G25, Prepared Sigil; Graham's Q123, Q124):
+   * the Symbol was inscribed at daily preparation, so it needs no hand and no
+   * room to draw, and the casting time is 1 AP less (stacking with Quicken,
+   * never below 1 AP). "Any Somatic component is unaffected"; the Runemage
+   * DCs stand. Only meaningful on a Runemage's cast; reported on the hooks.
+   *
+   * `rangeFrom: <token uuid>` (G24, Symbiotic Witch's conduit; Q137): the
+   * range test and the area's origin are measured from that token, not from
+   * the caster's. A token that cannot be found measures from the caster.
+   */
+  const sigil = preparedSymbol && typeof preparedSymbol === "object" ? { label: String(preparedSymbol.label ?? "").trim() || "Prepared Sigil" } : (preparedSymbol ? { label: "Prepared Sigil" } : null);
+  const sigilAP = sigil ? -1 : 0;
+  const rangeOrigin = rangeFrom ? resolveRangeOrigin(rangeFrom) : null;
   // A DRUNK POTION IS NOT A CAST (3.617.0, Graham's R1 of block 37). The
   // spell inside is released by drinking it, so nothing that forbids
   // CASTING — a Rage, a critical's "cannot cast spells", a lost voice or a
@@ -474,7 +639,7 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   const drunkPotion = Boolean(spell?.getFlag?.(SYSTEM_ID, "itemCast")?.consumed);
   // Rage (Chapter 4): "You cannot cast spells." Checked before anything
   // is spent or rolled, so a blocked attempt costs nothing.
-  if (isRaging(actor) && !drunkPotion) {
+  if (rageBarsCasting(actor) && !drunkPotion) {
     ui.notifications.warn(`${actor.name} cannot cast spells while raging.`);
     return null;
   }
@@ -488,6 +653,20 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
    * BESIDE RAGE AND FOR THE SAME REASON — before anything is spent or
    * rolled, so a refused cast costs nothing.
    */
+  // A MODULE'S REFUSAL (3.678.0; Eldritch Arts Block 2, D7): an antimagic
+  // zone. Beside Rage and the critical's, and for the same reason. A drunk
+  // potion is not a cast, so nothing that forbids casting forbids it.
+  if (!drunkPotion) {
+    const { castRefusalFrom } = await import("./cast-hooks.mjs");
+    const refused = await castRefusalFrom({
+      actor, spell, spellData: spell?.system ?? {}, innate: Boolean(spell?.system?.innate),
+      itemCast: Boolean(spell?.getFlag?.(SYSTEM_ID, "itemCast")), ritual: Boolean(ritual)
+    });
+    if (refused) {
+      ui.notifications.warn(refused);
+      return null;
+    }
+  }
   {
     const { castingRefusal } = await import("./casting-restriction-workflow.mjs");
     const refusal = castingRefusal(actor, spell?.system ?? {}, Boolean(spell?.system?.innate));
@@ -536,6 +715,17 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
 
   const system = actor.system;
   const spellData = spell.system;
+  /*
+   * A RITUAL VARIANT (3.679.0; Eldritch Arts Block 2b, D13): "The following
+   * methods may be used in place of PP expenditure" — vital, material or
+   * communal sacrifice, paid by the module that offered it. The primary's
+   * pool is neither tested nor drawn; the cap per cast stands (Graham's Q9,
+   * "do not bypass maximum PP per cast"); and a primary with no caster level
+   * — "even with 0 Caster Level/PP" — has nothing to prepare, so is not asked
+   * to have prepared it (Q10). A caster leading one still is.
+   */
+  const ritualSubstitutes = Boolean(ritual?.variant);
+  const ritualNonCaster = ritualSubstitutes && Number(system?.magic?.casterLevelValue ?? 0) <= 0;
 
   /*
    * SPELL STORING'S INTERCEPT (3.495.0) — ONE GATE, at the top of the
@@ -552,7 +742,16 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
    */
   const isStoringSpell = (spellData?.effects ?? []).some((e) => e?.kind === "spellStoring");
   const { readArmed } = await import("./spell-storing-workflow.mjs");
-  const storingNow = !stored && !isStoringSpell && Boolean(readArmed(actor));
+  // NOT A RITUAL'S CASTING (3.679.0, review): its check is rolled and its
+  // degree settled; storing it would drop both, and a variant's PP.
+  const storingNow = !stored && !isStoringSpell && !ritual && Boolean(readArmed(actor));
+  // AN ABSORBED SPELL IS CAST ONLY BY ITS RELEASE (3.684.0; Eldritch Arts
+  // Block 6, G16). Runebreaker's copy sits on the storer's sheet so that, on
+  // release, "you are its caster" (Q115); it is not a spell they know.
+  if (!stored && spell?.getFlag?.(SYSTEM_ID, "storedForeign")) {
+    ui.notifications.warn(`${spell.name} is held in a store, absorbed from another caster: release it from your Magic tab.`);
+    return null;
+  }
 
   // ONE GATE. `canCastSpell` asked whether the class was "learned" and
   // refused anything unprepared if so, which is why a Cleric's deific
@@ -562,7 +761,10 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // both, and it asks about the SPELL rather than about the character:
   // the only thing that is known but not ready is a book entry that has
   // not been prepared today. See spell-availability.mjs.
-  const castBlocked = spellCastBlocked(spell);
+  // AN ABSORBED SPELL'S RELEASE IS NEVER REFUSED HERE (3.684.0, G16 —
+  // review): `spellCastBlocked` answers null for a `storedForeign` copy, which
+  // the gate above has already confined to its release. See there.
+  const castBlocked = ritualNonCaster ? "" : spellCastBlocked(spell);
   let spontaneousSpent = false;
   if (castBlocked) {
     // SPONTANEOUS SCHOLAR (3.382.0) waives exactly this refusal and no
@@ -623,7 +825,8 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       .filter((i) => i.type === "feat")
       .map((i) => [String(i.name).trim().toLowerCase(), registeredSpellWarps(i.name)])
       .filter(([, entries]) => Array.isArray(entries) && entries.length),
-    spell, { innate: isInnate });
+    // THE CASTER (3.684.0, G15): a granted warp's `when(actor)` is asked of it.
+    spell, { innate: isInnate, actor });
   // What the chooser and the aggregation read: the spell's warps plus the
   // granted ones, on an object shaped like the spell for the chooser.
   const warpSpell = grantedWarps.length
@@ -672,7 +875,11 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // Characters and companions only — a stat block's spell-likes are the
   // creature's own. Refused before anything is committed.
   if (isInnate) {
-    const gateLevel = innateCastLevel(spell, Array.from(actor.items ?? []), Number(system.identity?.level ?? 0)).level;
+    const gateAt = innateCastLevel(spell, Array.from(actor.items ?? []), Number(system.identity?.level ?? 0));
+    // A MODULE'S LEVELS ON THIS CAST (3.682.0; D9): the bonded souls' "+1".
+    // Not for a spell an item grants, which the item's level fixes.
+    const { innateLevelBonusFor } = await import("./innate-level-bonus.mjs");
+    const gateLevel = gateAt.level + (gateAt.itemName ? 0 : await innateLevelBonusFor(actor, spell));
     const refusal = innateLevelRefusal({
       actorType: actor.type, basePP: spellData.ppCost, castLevel: gateLevel, isItemCast,
       allowance: innatePPAllowanceOf(spell)
@@ -742,7 +949,8 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     // hands are on the bow, and the bow is the somatic hand.
     : carried && !isInnate
     ? componentGate(actor, { ...spellData, components: { ...(spellData.components ?? {}), somatic: false } }, spell.name)
-    : (isInnate || componentGate(actor, spellData, spell.name));
+    // A PREPARED SIGIL'S SYMBOL NEEDS NO HAND (3.684.0, G25; Q123).
+    : (isInnate || componentGate(actor, spellData, spell.name, { symbolPrepared: Boolean(sigil) }));
   if (!componentsOK) return null;
 
   /*
@@ -836,7 +1044,15 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // tradition has none whether the magic came from a class or its own
   // blood; the exemption above is about components, which an innate spell
   // genuinely lacks.
-  if (!traditionGate(actor, spellData, spell.name)) return null;
+  //
+  // …EXCEPT FOR HIGH MAGIC (3.680.0; Eldritch Arts Block 3a). "Even though
+  // these spells are selected from a specific tradition, they are classed as
+  // high magic and not the tradition they hail from … Some races have
+  // restrictions placed upon with regards to what traditions of magic they can
+  // use. These restrictions are irrelevant when it comes to high magic"
+  // (Sorcerer, L837–839); and Chapter 7: "high magic spells belong to no
+  // tradition or school of magic".
+  if (!highMagicCast(actor, spellData).highMagic && !traditionGate(actor, spellData, spell.name)) return null;
 
   // KIND — see `applyKindGate` further down. It used to sit HERE, beside the
   // component gate, and that placement was the bug: the gate ran, and then
@@ -1009,7 +1225,8 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       await refuseLongCast(actor, spell.name, effCastAPWithScale);
       return null;
     }
-  } else if (!apPaid && !(await ensureActionPoints(actor, castTimeApCost(effCastAPWithScale), `${spell.name} — Cast a Spell`))) {
+  // A PREPARED SIGIL ASKS THE POOL FOR THE REDUCED COST (3.684.0, G25): −1 AP, never below 1.
+  } else if (!apPaid && !(await ensureActionPoints(actor, castTimeApCost(sigil ? totalCastTime(effCastAPWithScale, { apDelta: -1 }) : effCastAPWithScale), `${spell.name} — Cast a Spell`))) {
     return null;
   }
 
@@ -1061,7 +1278,8 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // NOT WHILE STORING. There is nothing to aim at yet — the whole point
   // of the ruling is that the targets are chosen at the release, and a
   // target picked now would be a creature that has had a round to move.
-  if (spellNeedsTarget(spellData) && !storingNow && !reaction?.presetTargets && !presetTargets) {
+  // AN OBJECT'S SPELL ASKS FOR NO CREATURE (3.685.1): see `spellTargetsObject`.
+  if (spellNeedsTarget(spellData, spell) && !storingNow && !reaction?.presetTargets && !presetTargets) {
     // THE SIDE GATE'S OWN SENTENCE, ONE STEP EARLY (3.443.2). The gate
     // below still decides; this only lets the picker say what it will
     // decide, so a Bard is not offered a bare row for a creature their
@@ -1136,7 +1354,7 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // is pruned and named on the card, and a cast whose every target is immune
   // is refused before anything is spent. An area is asked against what its
   // template caught, further down. See magic/spell-trait-immunity.mjs.
-  if (!isAreaSpell(spellData) && spellNeedsTarget(spellData) && !storingNow) {
+  if (!isAreaSpell(spellData) && spellNeedsTarget(spellData, spell) && !storingNow) {
     const targeted = Array.from(game.user?.targets ?? []).filter((t) => t?.actor);
     if (targeted.length) {
       const { partitionTraitImmune } = await import("./spell-trait-immunity.mjs");
@@ -1164,7 +1382,11 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // AN ITEM'S SPELL IS CAST AT THE ITEM'S LEVEL (3.617.0, A11 of block 37;
   // Graham's R23): its DC, its innate attack and its free warp budget.
   const innateAt = innateCastLevel(spell, Array.from(actor.items ?? []), characterLevel);
-  const innateLevel = innateAt.level;
+  // A MODULE'S LEVELS ON THIS CAST (3.682.0; D9), as at the PP limit above.
+  const { innateLevelBonusFor } = await import("./innate-level-bonus.mjs");
+  // Nor for an item's cast (review): a stored or carried spell is cast at what the item fixed.
+  const innateBonusLevels = isInnate && !innateAt.itemName && !isItemCast ? await innateLevelBonusFor(actor, spell) : 0;
+  const innateLevel = innateAt.level + innateBonusLevels;
   const innateLevelWord = innateAt.itemName ? `${innateAt.itemName}'s level ${innateLevel}` : `level ${innateLevel}`;
   // "Auto-warped to the maximum (caster level N)" — an innate spell-like is
   // cast at the creature's own level rather than a class-derived caster
@@ -1225,6 +1447,11 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // tradition and six tradition-keyed rules went silent. See
   // `effectiveSpellTradition` for what that cost.
   const tradition = effectiveSpellTradition(spellData.tradition, system.magic?.tradition);
+  // HIGH MAGIC (3.678.0; Eldritch Arts Block 2, D1): which casts are, and the
+  // traditions a Highmagic spell counts as (M27: all of them) and fumbles by
+  // (Q4: the caster's own). See high-magic.mjs.
+  const hmCast = highMagicCast(actor, spellData);
+  const hmTraditions = highMagicTraditions(spellData, tradition, system.magic?.tradition);
 
   // WHAT THIS SPELL IS, handed to every casting check below.
   //
@@ -1256,7 +1483,9 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // is the obvious neighbour of the one that prompted this.
   const castContext = {
     traits: spellData.traits ?? "",
-    traditions: tradition,
+    // A HIGHMAGIC SPELL IS EVERY TRADITION (M27): "they also benefit from
+    // effects that enhance any of them".
+    traditions: hmTraditions.traditions,
     // SECRET (3.622.0; Graham's R11 of block 39): "If an ability has this
     // trait, the GM rolls the check in secret." Actions already were; a
     // Secret spell's casting check now is too.
@@ -1284,6 +1513,17 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       notes: Array.isArray(stored.notes) ? [...stored.notes] : []
     };
   }
+  // A THREADED SPELL'S OWN WARPS (3.684.0, S-M11; Q126: "Other metamagic and
+  // warps add to the total"): chosen and paid with the first spell, so they
+  // arrive here as a stored spell's do — `thread.warp: { mods, notes }`.
+  if (threaded && thread.warp) {
+    warp = {
+      ppSpent: 0,
+      rawPP: 0,
+      mods: { ...emptyWarp().mods, ...(thread.warp.mods ?? {}) },
+      notes: Array.isArray(thread.warp.notes) ? [...thread.warp.notes] : []
+    };
+  }
   if (isItemCast && itemCast.warp) {
     warp = {
       ppSpent: 0,
@@ -1293,6 +1533,11 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     };
   }
   let mm = emptyMetamagic();
+  // THE WAIVED FREE-WARP PP THAT STILL COUNT FOR THE SAVE DC (3.685.0, H9):
+  // only from a grant that says `raisesSaveDC: true` (Mana Surge, Q162).
+  let freeWarpSaveDCPP = 0;
+  // …and whose they are, for the Save line (3.685.0, review).
+  let freeWarpSaveDCLabel = "";
   // Metamagic is a learned caster's feat set — an innate spell-like warps
   // automatically and has nothing to pay a feat with.
   const { metamagicRodsOf } = await import("../rod-powers.mjs");
@@ -1302,7 +1547,7 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // its free innate budget below rather than from the pool. Never a cantrip
   // and never an item's spell.
   const innateMetamagic = isInnate && !isItemCast && !isCantrip && !innateCantripOf(spellData) && spell.getFlag?.(SYSTEM_ID, "innateMetamagic") === true;
-  const mmOptions = (isCantrip || (isInnate && !innateMetamagic)) ? [] : buildMetamagicOptions({
+  const mmBuildArgs = {
     // THE METAMAGIC RODS HELD (3.616.0, R12) — see rod-powers.mjs.
     rods: metamagicRodsOf(Array.from(actor.items ?? [])),
     featNames: Array.from(actor.items ?? [])
@@ -1319,8 +1564,86 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     tradition,
     // Echoing Performance needs the number, not the word "Cha".
     charisma: Number(system.attributes?.charisma?.total ?? 0)
+  };
+  const mmOptions = (isCantrip || (isInnate && !innateMetamagic)) ? [] : buildMetamagicOptions(mmBuildArgs)
   // Economic Spell lowers a pool cost a marked innate spell does not have.
-  }).filter((o) => !(innateMetamagic && o.kind === "economic"));
+    .filter((o) => !(innateMetamagic && o.kind === "economic"));
+  /*
+   * LENT METAMAGIC (3.685.0, H9; Eldritch Arts' Metamagic Resonance, Q163).
+   * A core Metamagic feat an effect lends this creature is offered as if it
+   * held the feat ("no requirements but the caster's"), once a round, each
+   * row marked with its lender and cost factor. See magic/lent-metamagic.mjs.
+   * Not on a cantrip, an item's spell or a stored one.
+   */
+  const { lentMetamagicOf } = await import("./lent-metamagic.mjs");
+  const lentRoundKey = game.combat?.started ? `${game.combat.id}:${game.combat.round}` : "";
+  const lentHere = (isCantrip || isItemCast || stored)
+    ? []
+    : lentMetamagicOf(Array.from(actor.appliedEffects ?? actor.effects ?? []), lentRoundKey, SYSTEM_ID).filter((l) => !l.used);
+  if (lentHere.length && !(isCantrip || (isInnate && !innateMetamagic))) {
+    const own = new Set(mmOptions.map((o) => o.id));
+    for (const lent of lentHere) {
+      if (mmBuildArgs.featNames.includes(lent.key)) continue;
+      const wider = buildMetamagicOptions({ ...mmBuildArgs, featNames: [...mmBuildArgs.featNames, lent.key] })
+        .filter((o) => !own.has(o.id) && !(innateMetamagic && o.kind === "economic"));
+      for (const o of wider) {
+        own.add(o.id);
+        mmOptions.push({ ...o, label: `${o.label} (lent: ${lent.label}${lent.costFactor === 1 ? "" : lent.costFactor === 0 ? ", no extra PP" : ", half the extra PP"})`, lent: { costFactor: lent.costFactor, label: lent.label, effectId: lent.effectId } });
+      }
+    }
+  }
+  // METAMAGIC ON A CHARGED ITEM'S CAST (3.684.0; Eldritch Arts Block 6, G1 and
+  // G6 — Metamagic Conduit: "apply metamagic feats to spells cast from charged
+  // items"; Q94). Only when the cast's options say `itemMetamagic === true`,
+  // which G6's rule sets for a charged item and nothing sets for a scroll or a
+  // potion; a module's options are then offered, paid from the wielder's pool
+  // (the item paid its own value at the release). The core's table above is
+  // left as it was, offered on no item's spell.
+  const itemTakesMetamagic = isItemCast && itemMetamagic === true && !isCantrip && !innateCantripOf(spellData) && !stored;
+  /*
+   * A MODULE'S METAMAGIC (3.684.0; Eldritch Arts Block 6, G1 — the audit's
+   * D2, Appendix D's S-M1 and S-M3; Graham's Q94–Q96, as proposed). Offered in
+   * this same dialog beside the table above, in the same totals. Which casts
+   * take it is `moduleMetamagicScope` (Q94: learned and innate casts, a
+   * charged item's only through `itemMetamagic`, never a cantrip, scroll,
+   * potion or stored spell); an innate cast's are paid from the PP pool, not
+   * the free budget, and raise no DC (Q95). With nothing registered the
+   * offers are empty and this cast is what it was. See magic/module-metamagic.mjs.
+   */
+  const { moduleMetamagicScope } = await import("./module-metamagic.mjs");
+  const mmxScope = moduleMetamagicScope({
+    cantrip: isCantrip, innateCantrip: innateCantripOf(spellData), innate: isInnate, itemCast: isItemCast,
+    itemMetamagic: itemTakesMetamagic, stored: Boolean(stored), storing: storingNow, thread: threaded
+  });
+  const mmxBase = {
+    spell, spellData, basePP: isItemCast ? Math.max(0, Number(itemCast.pp ?? spellData.ppCost ?? 0) || 0) : isInnate ? Math.max(0, Number(spellData.ppCost ?? 0) || 0) : basePP,
+    casterLevel, tradition, traits: String(spellData.traits ?? ""),
+    damageTypes: [spellData.damage?.type, spellData.secondaryDamage?.type].map((t) => String(t ?? "").trim().toLowerCase()).filter(Boolean),
+    defence: String(effDefence ?? spellData.defence ?? ""), range: String(effRange ?? ""), duration: String(spellData.duration ?? ""),
+    area: String(effArea ?? ""), castAP: effCastAPWithScale, attack: isAttack, rollsCheck: !isInnate && !isCantrip,
+    innate: isInnate, itemCast: isItemCast, chargedItem: isItemCast ? itemCast : null, cantrip: isCantrip,
+    ritual: Boolean(ritual), reaction: Boolean(reaction), highMagic: Boolean(hmCast.highMagic),
+    inCombat: actorInCombat(actor), scopeKind: mmxScope.allowed ? mmxScope.kind : "",
+    targets: Array.from(game.user?.targets ?? []),
+    // THE MODULE OPTIONS LENT TO THIS CREATURE (3.685.0, H9), not spent this round.
+    lent: lentHere
+  };
+  const {
+    offeredModuleMetamagic, offeredMetamagicPayments, appliedModuleMetamagic, castCostDiscount,
+    askCastPPSources, settleModuleMetamagic, actorFromUuid
+  } = await import("./module-metamagic-workflow.mjs");
+  const mmxWorkflow = {
+    offeredModuleMetamagic, offeredMetamagicPayments, appliedModuleMetamagic, castCostDiscount,
+    askCastPPSources, settleModuleMetamagic, actorFromUuid
+  };
+  const mmxOffers = mmxScope.allowed ? await mmxWorkflow.offeredModuleMetamagic(actor, mmxBase) : [];
+  // G3 (Metamagic Adept): which offered options may be paid in AP instead.
+  const mmPayments = await mmxWorkflow.offeredMetamagicPayments(actor, mmxBase, {
+    coreIds: mmOptions.map((o) => o.id), moduleKeys: mmxOffers.filter((o) => !o.hidden).map((o) => o.key)
+  });
+  const mmxPresets = Array.isArray(metamagic?.preset) ? metamagic.preset : [];
+  let mmxForm = {};
+  let mmx = null;
   // INNATE CASTS NOW CHOOSE THEIR WARPS, FREE, UP TO THE CHARACTER'S
   // LEVEL (3.332.0, Graham's ruling 18 Aug 2026).
   //
@@ -1345,13 +1668,30 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // that it will be cast with"). Offering the drinker a second, free
   // choice would let a 1 PP potion be cast as a 20 PP one.
   const innateBudget = (isInnate && !isItemCast) ? innateWarpBudget(innateLevel) : 0;
-  if (!isCantrip && !isItemCast && !stored && (!isInnate || innateBudget > 0)) {
+  // THE DIALOG OPENS FOR A MODULE'S METAMAGIC TOO (3.684.0, G1; S-M3: "The
+  // dialog's gate opens when any module option is offered, even with no free
+  // budget"), and for a charged item's cast that takes metamagic. The spell's
+  // own warp chooser is offered exactly where it always was — never on an
+  // item (its warp was paid at the workbench) nor a threaded spell.
+  const warpChooserOpen = !isCantrip && !isItemCast && !stored && (!isInnate || innateBudget > 0) && !threaded;
+  const coreMMShown = warpChooserOpen;
+  const mmxShown = mmxOffers.some((o) => !o.hidden);
+  const { buildModuleMetamagicChooser, corePaymentTicks } = await import("./module-metamagic.mjs");
+  if (warpChooserOpen || mmxShown) {
     const form = await DialogV2.prompt({
       window: { title: `${spell.name} — Warp?` },
       classes: ["trg-prime", "trg-check-dialog"],
-      content: (isInnate
+      content: (isInnate && warpChooserOpen
         ? `<p class="hint">Innate spell-like — <strong>free</strong> warping up to <strong>${innateBudget} PP</strong> (${innateAt.itemName ? innateLevelWord : "your level"}). Nothing here costs Power Points.</p>`
-        : "") + buildWarpChooser(warpSpell, basePP, { casterLevel }) + buildMetamagicChooser(mmOptions),
+        : "")
+        // WHO PAYS WHAT THIS DIALOG OFFERS when it is not the warp chooser
+        // (Q95: an innate cast's metamagic is paid from the PP pool).
+        + (!warpChooserOpen
+          ? `<p class="hint">${isItemCast ? "Released from an item: the item paid its own PP. Metamagic here is paid from your PP pool." : "Innate spell-like: metamagic here is paid from your PP pool, and no casting check is rolled."}</p>`
+          : "")
+        + (warpChooserOpen ? buildWarpChooser(warpSpell, basePP, { casterLevel }) : "")
+        + (coreMMShown ? buildMetamagicChooser(mmOptions) + corePaymentTicks(mmOptions, mmPayments) : "")
+        + buildModuleMetamagicChooser(mmxOffers, mmPayments, { coreShown: coreMMShown && mmOptions.length > 0 }),
       ok: {
         label: "Continue",
         callback: (event, button) => {
@@ -1363,6 +1703,13 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       rejectClose: false
     });
     if (form === null || form === undefined) return null;
+    // A PRESET NAMING A CORE OPTION TICKS ITS ROW (3.684.0, S-M4).
+    for (const p of mmxPresets) {
+      const option = mmOptions.find((o) => o.id === String(p?.key ?? p ?? ""));
+      if (option) form[`mm-${option.id}`] = option.kind === "select" ? String(p?.choice ?? "") : Math.max(1, Math.trunc(Number(p?.times ?? 1)) || 1);
+    }
+    mmxForm = form;
+    const warpBeforeDialog = warp;
     warp = aggregateWarpSelection(warpSpell.system?.warps, form);
     warpPP = warp.ppSpent;
     // Read here, before the innate budget is checked (3.670.0): a marked
@@ -1371,6 +1718,14 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       damageFormula: String(spellData.damage?.formula ?? ""),
       baseDamage: String(spellData.baseDamage ?? "")
     });
+    // A DIALOG THAT OFFERED NO WARP CHOOSER (3.684.0, G1: a module's metamagic
+    // on an item's or an innate spell with no free budget) chose no warp and
+    // no core feat: the item's baked warp stands, and nothing was ticked.
+    if (!warpChooserOpen) {
+      warp = warpBeforeDialog;
+      warpPP = 0;
+      mm = emptyMetamagic();
+    }
 
     // THE INNATE BUDGET IS SPENT HERE AND CHARGED NOWHERE.
     //
@@ -1434,12 +1789,13 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     // under Healer's Grace would have been told a Wizard feat had waived
     // their PP. The same class of defect as the card that said "cone"
     // over a line: a sentence asserting something it does not know.
+    // `school: "*"` IS EVERY SPELL (3.684.0, G25; Resonance Surge, Q148) —
+    // see granted-warps.mjs `freeWarpSchoolMatches`.
+    const { freeWarpSchoolMatches } = await import("./granted-warps.mjs");
     const freeWarpSources = Array.from(actor.appliedEffects ?? actor.effects ?? [])
       .filter((e) => !e.disabled)
       .map((e) => ({ effect: e, scoped: e.getFlag?.(SYSTEM_ID, "warpFreeSchool") }))
-      .filter(({ scoped }) => scoped?.school
-        && spellTraits.includes(String(scoped.school).trim().toLowerCase())
-        && (Number(scoped.value) || 0) > 0);
+      .filter(({ scoped }) => freeWarpSchoolMatches(scoped, spellTraits));
     const freeWarp = freeWarpSources.reduce((sum, { scoped }) => sum + (Number(scoped.value) || 0), 0);
     if (freeWarp) {
       const free = applyFreeWarp(warpPP, warp.rawPP, freeWarp);
@@ -1450,7 +1806,16 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
           .map(({ effect, scoped }) => String(scoped.label ?? effect.name ?? "").trim())
           .filter(Boolean);
         const who = named.length ? named.join(", ") : "a free-warp effect";
-        warp.notes.push(`-${free.waived} PP: ${who} (free, no minimum)`);
+        // WHICH OF IT STILL RAISES THE SAVE DC (3.685.0, H9; Q162: "The Save
+        // DC rises by the free PP; the cap does not count them"). The waived
+        // PP are taken from the raising grants first, up to what they offer.
+        const raising = freeWarpSources
+          .filter(({ scoped }) => scoped?.raisesSaveDC === true)
+          .reduce((sum, { scoped }) => sum + (Number(scoped.value) || 0), 0);
+        freeWarpSaveDCPP = Math.min(free.waived, raising);
+        freeWarpSaveDCLabel = freeWarpSources.filter(({ scoped }) => scoped?.raisesSaveDC === true)
+          .map(({ effect, scoped }) => String(scoped.label ?? effect.name ?? "").trim()).filter(Boolean).join(", ");
+        warp.notes.push(`-${free.waived} PP: ${who} (free, no minimum${freeWarpSaveDCPP ? `; the Save DC still counts ${freeWarpSaveDCPP}` : ""})`);
         warpPP = free.total;
       }
     }
@@ -1470,6 +1835,108 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       }
     }
   }
+  /*
+   * THE MODULE'S METAMAGIC, APPLIED (3.684.0; Eldritch Arts Block 6, G1–G3).
+   * What was ticked, and what a preset names (S-M4), whether or not the
+   * dialog opened. G3 first: an option paid in AP leaves the PP the core's
+   * aggregate counted and is counted by the Casting DC only. Then each taken
+   * option's `apply` — which may ask (a creature picker), and may call the
+   * cast off before anything is spent. Refused rather than trimmed, as the
+   * innate budget is: two options of one group, or a resource short.
+   */
+  const { readModuleMetamagicForm, metamagicAPPayments, coreMetamagicTaken, withAddedTraits } = await import("./module-metamagic.mjs");
+  const mmxTaken = readModuleMetamagicForm(mmxOffers, mmxForm, mmxPresets);
+  const mmAP = metamagicAPPayments({ coreOptions: coreMMShown ? mmOptions : [], offers: mmxOffers, taken: mmxTaken, form: mmxForm, payments: mmPayments });
+  if (mmAP.refusal) {
+    ui.notifications.warn(`${spell.name}: ${mmAP.refusal}.`);
+    return null;
+  }
+  /*
+   * THE PP THE SPELL IS CAST AT, FOR `apply(ctx)` (3.684.1; Graham, 4
+   * November 2026: Wellspring Conduit counts "the PP the spell is cast at:
+   * base plus warps and metamagic", as Q101 reads the Pacts). `castPP`: the
+   * base (an innate's printed PP, an item's release PP), the warps chosen, and
+   * every metamagic option taken — the core's as ticked, before G3 moves any
+   * to AP, and each module option's own, the asking option included — less
+   * Economic's and Signature's PP; not less G4's payment-only discounts.
+   * `basePP` is unchanged. See cast-pp.mjs `metamagicCastPP`.
+   * NOT THE SETTLED `castPP` BELOW (3.684.1, review): this one counts options
+   * paid in AP or a resource; that one drops them and adds the Component
+   * Savant swap and `mmx.basePPAdd`. The G1 contract in module-api.mjs says
+   * exactly how they differ.
+   */
+  const { moduleTakenPP } = await import("./module-metamagic.mjs");
+  const { metamagicCastPP } = await import("./cast-pp.mjs");
+  const applyMetamagicPP = mm.ppSpent + moduleTakenPP(mmxOffers, mmxTaken);
+  const applyCastPP = metamagicCastPP({
+    cantrip: isCantrip, innate: isInnate, itemCast: isItemCast,
+    spellPP: Number(spellData.ppCost ?? 0), itemPP: isItemCast ? (itemCast?.pp ?? null) : null,
+    basePP, warpPP: isInnate ? Number(warp?.ppSpent ?? 0) : warpPP, metamagicPP: applyMetamagicPP,
+    economicPP: -Math.min(0, Number(mm.ppDelta) || 0),
+    signaturePP: spell.getFlag?.(SYSTEM_ID, "signatureSpell") && (warpPP + applyMetamagicPP) > 0 ? 1 : 0
+  });
+  if (mmAP.corePP) mm.ppSpent = Math.max(0, mm.ppSpent - mmAP.corePP);
+  mmx = await mmxWorkflow.appliedModuleMetamagic(actor, mmxOffers, mmxTaken, {
+    ...mmxBase,
+    castPP: applyCastPP,
+    // EFFECTIVE, AFTER ELEMENTAL SPELL (S-M1): the type the cast will deal.
+    damageTypes: mm.elementalType ? [mm.elementalType, ...mmxBase.damageTypes.slice(1)] : mmxBase.damageTypes
+  }, { apKeys: mmAP.moduleKeys, coreMM: mm });
+  if (mmx.refusal || mmx.cancelled) {
+    if (mmx.refusal) ui.notifications.warn(`${spell.name}: ${mmx.refusal}.`);
+    return null;
+  }
+  // AN ITEM'S CEILING (3.684.0, G1 with G6; Q130: "You cannot increase the
+  // total modified PP cost to more than double the item's normal maximum").
+  // The item pays what it releases at; the metamagic above it is the
+  // wielder's, from the pool (below). Refused, not trimmed.
+  if (itemTakesMetamagic && mmx.taken.length) {
+    // EVERY TAKEN OPTION'S PP (3.684.0, review): AP- and resource-paid too —
+    // they are PP of the cast for the cap. See `itemCeilingMetamagicPP`.
+    const { itemMetamagicCeilingRefusal, itemCeilingMetamagicPP } = await import("./module-metamagic.mjs");
+    const refusal = itemMetamagicCeilingRefusal({
+      releasePP: Number(itemCast.pp ?? spellData.ppCost ?? 0), metamagicPP: itemCeilingMetamagicPP(mmx), ceiling: itemMetamagicCeiling
+    });
+    if (refusal) {
+      ui.notifications.warn(`${spell.name}: ${refusal}.`);
+      return null;
+    }
+    mmx.notes.push(`the item pays its ${Math.max(0, Math.trunc(Number(itemCast.pp ?? 0)) || 0)} PP; the metamagic is paid from your pool`);
+  }
+  mmx.dcPP += mmAP.dcPP;
+  mmx.apDelta += mmAP.apDelta;
+  mmx.notes.push(...mmAP.lines);
+  // THE AP JOIN THE CORE'S METAMAGIC AP, which every AP sum below reads.
+  mm.apDelta += mmx.apDelta;
+  // A ROD-PAID MODULE OPTION IS PAID AS THE CORE'S RODS ARE (R12).
+  if (mmx.rodSpends?.length) mm.rodSpends = [...(mm.rodSpends ?? []), ...mmx.rodSpends];
+  // A FREE WARP THE OPTION BUYS (Resonance Surge: "warp a spell … by 2 PP
+  // without expending the additional PP or increasing the casting DC"): the
+  // free-warp channel above, without a trait to scope it.
+  if (mmx.freeWarpPP) {
+    const free = applyFreeWarp(warpPP, warp.rawPP, mmx.freeWarpPP);
+    if (free.waived) {
+      warp.notes.push(`-${free.waived} PP: ${mmx.taken.map((t) => t.label).join(", ")} (free, no DC)`);
+      warpPP = free.total;
+    }
+  }
+  // TRAITS THE CAST GAINS (Pact Channeler), for this cast's check.
+  if (mmx.addTraits.length) castContext.traits = withAddedTraits(castContext.traits, mmx.addTraits);
+  /*
+   * WHAT THIS CAST TOOK, AS THE HOOKS AND THE ROLLS READ IT (G1, and the
+   * G1 ↔ G5 contract): the keys of every metamagic taken, core ids and module
+   * keys, and the fumble and Resonance biases a metamagic declared. The Spell
+   * Fumble and Resonance rolls read `castMetamagic` (carried on the cast's
+   * Resonance context below), so Spell Surge's and Spellthread's
+   * disadvantage need no code path of their own.
+   */
+  const coreTaken = coreMMShown ? coreMetamagicTaken(mmOptions, mmxForm) : [];
+  const castMetamagic = {
+    keys: [...coreTaken.map((t) => t.key), ...mmx.keys],
+    taken: [...coreTaken, ...mmx.taken.map((t) => ({ key: t.key, times: t.times, choice: t.choice }))],
+    fumbleBias: mmx.fumbleBias,
+    resonanceBias: mmx.resonanceBias
+  };
   const warpMods = warp.mods;
 
   /*
@@ -1487,6 +1954,12 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   for (const [key, value] of Object.entries(apScaleMods(spellData?.apScale, apScaleExtra))) {
     warpMods[key] = (Number(warpMods[key]) || 0) + Number(value);
   }
+  // A CASTER-LEVEL STEP THAT GROWS THE AREA (3.685.0, H2) lands in the same
+  // channel, added: `areaFeet` per step. None declares it before this release.
+  {
+    const clArea = applyCasterLevelMods(spellData?.casterLevelMods, casterLevel).areaFeet;
+    if (clArea > 0) warpMods.areaGrowth = (Number(warpMods.areaGrowth) || 0) + clArea;
+  }
 
   // Metamagic damage riders join the warp-dice channel; Extend/Temporal
   // override the duration text; the rest fold in further below.
@@ -1499,6 +1972,14 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   }
   if (mm.temporalSteps && !warpMods.durationText) {
     warpMods.durationText = temporalDurationText(spellData.duration, mm.temporalSteps);
+  }
+  // AND THE MODULE'S (3.684.0, G1): its mods as a warp's, its typed Save DC
+  // rows, ×1.5 of a parseable range, duration or area, a die step, an added
+  // self-row recipient — after the core's, so a duration the core already set
+  // is not stacked. See `foldModuleMetamagicMods`.
+  if (mmx.taken.length) {
+    const { foldModuleMetamagicMods } = await import("./module-metamagic.mjs");
+    mmx.lines.push(...foldModuleMetamagicMods(warpMods, mmx, { duration: spellData.duration, range: effRange, area: effArea }).lines);
   }
 
   /*
@@ -1604,14 +2085,18 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   const componentSwap = actor.getFlag(SYSTEM_ID, "componentSwapNext") ?? null;
   // A marked innate spell's feats were spent from its free budget above
   // (3.670.0, found in review: they were charged to the pool).
-  const metamagicPP = (componentSwap ? Math.max(0, Number(componentSwap.pp ?? 1)) : 0) +
+  // A MODULE'S METAMAGIC IS ALWAYS THE POOL'S (3.684.0, G1; Graham's Q95: on
+  // an innate cast "The PP pool … No Casting DC is raised, as no check is
+  // rolled"), never the free innate budget: from it, Pact Channeler and Echo
+  // would be free on every innate spell and the Warlock's pool never spent.
+  const metamagicPP = mmx.ppSpent + (componentSwap ? Math.max(0, Number(componentSwap.pp ?? 1)) : 0) +
     (innateMetamagic ? 0 : mm.ppSpent);
 
   // Signature Spell (Class, Chapter 5): "when you Warp this spell, the
   // total PP cost is reduced by 1" — only when something was actually
   // warped (spell warps or metamagic).
   const signatureDiscount = spell.getFlag?.(SYSTEM_ID, "signatureSpell") &&
-    (warpPP + mm.ppSpent) > 0 ? 1 : 0;
+    (warpPP + mm.ppSpent + mmx.ppSpent) > 0 ? 1 : 0;
 
   // Economic Spell's reduction applies last and can never drop a levelled
   // spell below 1 PP ("min 1 PP").
@@ -1619,10 +2104,46 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // none, and neither has an innate spell-like — without `isInnate` here the
   // floor would charge every monster 1 PP for a spell whose card has always
   // read "0 PP", and refuse the cast outright for a creature with no pool.
+  // `mmx.basePPAdd` (3.684.0, G1): PP a metamagic counts as BASE — the spells
+  // Spellthread weaves in (Q126: "one check at DC(total), the total counted
+  // against the cap"), so a Critical's "half base" reads them.
   const totalPP = Math.max(
     (isCantrip || isInnate) ? 0 : 1,
-    basePP + warpPP + metamagicPP + mm.ppDelta - signatureDiscount
+    basePP + mmx.basePPAdd + warpPP + metamagicPP + mm.ppDelta - signatureDiscount
   );
+  /*
+   * AND WHAT IS PAID WITH IT (3.684.1; Graham, 4 November 2026: "Yes for
+   * Economic and Signature spell"). Economic Spell: "lower the PP cost of a
+   * spell by up to your caster level (min 1 PP). The DC to cast the spell
+   * increases by 2 for every PP you lower by"; Signature Spell: "the total PP
+   * cost of the spell is reduced by 1 PP" (Chapter 5). Both lower the cost
+   * itself, so `totalPP` above — the cap and the save DC — reads them, as it
+   * always has (Economic's +2 per PP is `mm.dcDelta`; since 3.684.3 the
+   * Casting DC's base is the unlowered PP's, `economicLowered`). Until
+   * 3.684.1 the PAYMENT did not: `castingOutcome` is asked of the base and
+   * warp parts, which never held `mm.ppDelta` or the Signature PP, so a
+   * Success charged the price before either. `coreCostCut` is those PP, after
+   * the floor; the degree splits the price less them, beside G4's discounts.
+   * See module-metamagic.mjs `chapter5CostCut`.
+   */
+  const { chapter5CostCut } = await import("./module-metamagic.mjs");
+  const { cut: coreCostCut, labels: coreCostLabels } =
+    chapter5CostCut(basePP + mmx.basePPAdd + warpPP + metamagicPP, totalPP, signatureDiscount);
+  // ECONOMIC'S OWN PP (3.684.3; Graham, 5 November 2026: "Yes", the Casting
+  // DC ends up 2 higher for each PP lowered): the cut less Signature's, after
+  // the floor. The Casting DC reads the spell's DC at the PP before them.
+  const economicLowered = Math.max(0, coreCostCut - signatureDiscount);
+  // THE PP THE SPELL IS CAST AT, FOR A RULE THAT COUNTS THEM (3.684.0; Eldritch
+  // Arts Block 6, G12; Graham's Q101): an ordinary cast's `totalPP`, whoever
+  // paid it and whatever the degree refunds; an innate cast's printed PP and
+  // what its budget and pool bought; a cantrip's 0. See magic/cast-pp.mjs.
+  const castPP = castRiderPP({
+    cantrip: isCantrip, innate: isInnate, itemCast: isItemCast,
+    spellPP: Number(spellData.ppCost ?? 0), itemPP: isItemCast ? (itemCast?.pp ?? null) : null,
+    warpPP: isInnate ? Number(warp?.ppSpent ?? 0) : warpPP,
+    metamagicPP: isInnate ? Number(mm?.ppSpent ?? 0) + Number(mmx?.ppSpent ?? 0) : metamagicPP,
+    totalPP
+  });
 
   // ONE PLACE SAYS "innate costs nothing", and it is the `totalPP` floor
   // just above (via `basePP`). This guard deliberately does NOT repeat it.
@@ -1647,10 +2168,13 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   let rodDraw = 0;
   let rodPaid = 0;
   const { ppSourceRodFor } = await import("../rod-powers.mjs");
-  const rodSource = (isCantrip || isInnate || isItemCast || stored || totalPP <= 0)
+  // NOR FOR A RITUAL VARIANT (3.679.0, review): its PP are substituted, and
+  // a rod's draw on top of the sacrifice would be paid twice.
+  const rodSource = (isCantrip || isInnate || isItemCast || stored || totalPP <= 0 || ritualSubstitutes)
     ? null
     : ppSourceRodFor(Array.from(actor.items ?? []), tradition);
-  if (rodSource) {
+  // NOR A THREADED SPELL (3.684.0, S-M11): the first spell paid for both.
+  if (rodSource && !threaded) {
     const shortfall = Math.max(0, totalPP - ppPool);
     const offered = Math.max(0, Math.min(totalPP, Math.max(rodSource.uses, shortfall)));
     const answer = await DialogV2.prompt({
@@ -1674,11 +2198,88 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     rodDraw = Math.max(0, Math.min(offered, Math.floor(Number(answer.draw) || 0)));
   }
 
-  if (totalPP > ppPool + rodDraw) {
-    ui.notifications.warn(
-      `${spell.name} costs ${totalPP} PP (${basePP} base + ${warpPP} warp${metamagicPP ? ` + ${metamagicPP} metamagic` : ""}); only ${ppPool} remain${rodDraw ? `, and ${rodDraw} from ${rodSource.name}` : ""}.`
-    );
-    return null;
+  /*
+   * A SURCHARGE A MODULE LAYS ON THIS CASTING (3.675.0; Eldritch Arts Block 1,
+   * C3). Zhal-vryn: "All creatures within your Null Aura must expend an
+   * additional PP to cast spells (including cantrips)." Paid on top of the
+   * casting's own PP, whatever the degree; it raises no DC and counts against
+   * no cap. An item's spell pays its own way and is not asked. See
+   * magic/cast-surcharge.mjs.
+   */
+  const { runCastSurcharges } = await import("./cast-surcharge.mjs");
+  const surcharge = isItemCast
+    ? { pp: 0, labels: [], lines: [] }
+    : await runCastSurcharges({ actor, spell, spellData, innate: isInnate, cantrip: isCantrip, itemCast: isItemCast, basePP, totalPP });
+  // A THREADED SPELL IS ONE SPELL WITH THE FIRST (3.684.0, S-M11): the first
+  // paid the surcharge, and this one pays none of its own.
+  if (threaded) Object.assign(surcharge, { pp: 0, labels: [], lines: [] });
+
+  /*
+   * PP OFF WHAT IS PAID (3.684.0; Eldritch Arts Block 6, G4; Graham's Q93:
+   * "Payment only. The DC, the cap and the save DC read the PP as cast.").
+   * Hex Mastery's −1 (min 1), Storm Bolt's −1, and a module option's own
+   * `discount` (Spell Weaver's charge: −2, min 0). `payable` is what a
+   * Success costs; the degree splits it below. `totalPP` — the PP as cast —
+   * is left exactly as it was, and is what the cap, the Casting DC and the
+   * save DC go on reading. Not asked of an item's cast, a stored spell, a
+   * spell being stored (storage takes the price as cast) or a threaded one.
+   */
+  // WHAT A LENT OPTION DOES NOT COST (3.685.0, H9; Metamagic Resonance's "+3
+  // PP: … half the extra PP", "+6 PP: … do not have to expend additional PP"):
+  // a payment discount beside G4's, with no floor, so the PP as cast still
+  // read the Casting DC, the cap and the Save DC.
+  const { lentMetamagicDiscount, LENT_USED_FLAG } = await import("./lent-metamagic.mjs");
+  const lentCut = lentMetamagicDiscount({ coreOptions: mmOptions, form: mmxForm, offers: mmxOffers, taken: mmx.taken });
+  if (lentCut.pp > 0) mmx.discounts = [...(mmx.discounts ?? []), { pp: lentCut.pp, floor: 0, label: `${lentCut.label} (lent metamagic)` }];
+  const costCut = (isItemCast || stored || storingNow || threaded || ritualSubstitutes)
+    ? { payable: totalPP, reduction: 0, labels: [], lines: [] }
+    : await mmxWorkflow.castCostDiscount({
+      actor, spell, spellData, innate: isInnate, cantrip: isCantrip, itemCast: isItemCast, basePP, totalPP,
+      highMagic: Boolean(hmCast.highMagic), metamagic: castMetamagic.keys
+    }, mmx.discounts);
+  const payablePP = costCut.payable;
+  if (costCut.labels.length) mmx.notes.push(`Paid: ${costCut.labels.join(", ")} (the Casting DC, cap and save DC read ${totalPP} PP)`);
+  // ECONOMIC AND SIGNATURE ON THE CARD (3.684.1; Graham, 4 November 2026),
+  // as the G4 discounts above are: what came off, and that the Casting DC,
+  // cap and save DC read the lowered cost, since the book lowers the cost.
+  // Since 3.684.3 the Casting DC with Economic reads the unlowered PP, +2 per PP.
+  if (coreCostLabels.length) mmx.notes.push(`Cost: ${coreCostLabels.join(", ")} (the cap and save DC read the lowered ${totalPP} PP${economicLowered ? `; the Casting DC that of ${totalPP + economicLowered} PP, +2 per PP lowered` : ", and the Casting DC"})`);
+  mmx.lines.push(...costCut.lines);
+
+  /*
+   * ANOTHER WAY TO PAY (3.684.0; Eldritch Arts Block 6, G2 — the rod draw
+   * above, generalised; Bloodmage: "pay any of a spell's PP as Bleed"). Each
+   * registered source is offered after the rod, and what is drawn counts in
+   * the test below exactly as the rod's draw does. The split by degree is
+   * at the spend. Not asked of a cast nobody pays for — innate, an item's, a
+   * stored or threaded spell, a cantrip — nor a ritual variant's.
+   */
+  const ppSources = (isCantrip || isInnate || isItemCast || stored || storingNow || threaded || ritualSubstitutes || payablePP <= 0)
+    ? { draws: [], total: 0 }
+    : await mmxWorkflow.askCastPPSources({
+      actor, spell, spellData, basePP, totalPP, payable: payablePP, ppPool, rodDraw, tradition,
+      highMagic: Boolean(hmCast.highMagic), metamagic: castMetamagic.keys
+    });
+  if (ppSources === null) return null;
+
+  // WITH A DISCOUNT OR A MODULE SOURCE (G2, G4) the test is of what is PAID and
+  // what is drawn; a threaded spell pays nothing to test. Otherwise it is the
+  // core's own test, as it always was.
+  const mmxPaysOtherwise = threaded || costCut.reduction > 0 || ppSources.total > 0;
+  if (mmxPaysOtherwise) {
+    if (!threaded && (ritualSubstitutes ? 0 : payablePP) + surcharge.pp > ppPool + rodDraw + ppSources.total) {
+      ui.notifications.warn(
+        `${spell.name} costs ${payablePP} PP (${basePP} base + ${warpPP} warp${metamagicPP ? ` + ${metamagicPP} metamagic` : ""}${costCut.reduction ? `, less ${costCut.reduction}` : ""})${surcharge.pp ? `, and ${surcharge.labels.join(", ")}` : ""}; only ${ppPool} remain${rodDraw ? `, and ${rodDraw} from ${rodSource.name}` : ""}${ppSources.draws.filter((d) => d.drawn).map((d) => `, and ${d.drawn} by ${d.label}`).join("")}.`
+      );
+      return null;
+    }
+  } else {
+    if ((ritualSubstitutes ? 0 : totalPP) + surcharge.pp > ppPool + rodDraw) {
+      ui.notifications.warn(
+        `${spell.name} costs ${totalPP} PP (${basePP} base + ${warpPP} warp${metamagicPP ? ` + ${metamagicPP} metamagic` : ""})${surcharge.pp ? `, and ${surcharge.labels.join(", ")}` : ""}; only ${ppPool} remain${rodDraw ? `, and ${rodDraw} from ${rodSource.name}` : ""}.`
+      );
+      return null;
+    }
   }
 
   /*
@@ -1702,7 +2303,7 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
    * all and `game.user.targets` may still hold whatever was aimed at
    * last. See magic/spell-storing.mjs.
    */
-  if (!storingNow && spellNeedsTarget(spellData)) {
+  if (!storingNow && spellNeedsTarget(spellData, spell)) {
     const refusal = overTargetRefusal({
       spellName: spell.name,
       // THE CASTER LEVEL THIS CAST IS ALREADY USING (3.520.0), so a
@@ -1741,8 +2342,12 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
    * hundred lines below — so this refuses rather than warns, exactly as
    * the weapon does.
    */
-  if (!storingNow && (game.user?.targets?.size ?? 0)) {
-    const casterToken = actor.getActiveTokens?.()?.[0] ?? null;
+  // NOT FOR AN OBJECT'S SPELL (3.685.1): the creature targeted is not what it
+  // aims at, so its distance is no reason to refuse (see `spellTargetsObject`).
+  if (!storingNow && !spellTargetsObject(spell) && (game.user?.targets?.size ?? 0)) {
+    // FROM ANOTHER TOKEN, WHEN THE CAST SAYS SO (3.684.0, G24): Symbiotic
+    // Witch's "cast … through your familiar", measured from the familiar.
+    const casterToken = rangeOrigin?.token ?? actor.getActiveTokens?.()?.[0] ?? null;
     const reach = touchReach(system);
     // THE AREA IS PART OF THE QUESTION NOW (3.532.0). A spell printing
     // neither a range nor an area affects the caster — Graham's ruling of
@@ -1809,10 +2414,13 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
    */
   if (storingNow) {
     const {
-      bondedItemFor, readArmed: readArmedNow, storeSpell, disarmStoring
+      storeHostFor, readArmed: readArmedNow, storeSpell, disarmStoring
     } = await import("./spell-storing-workflow.mjs");
     const armed = readArmedNow(actor);
-    const bond = bondedItemFor(actor);
+    // THE HOST THE WINDOW WAS OPENED ON (3.684.0; Eldritch Arts Block 6, G16):
+    // a Storing Rune's own rune, not only a wizard's Arcane Bond. A window
+    // opened before this release names none, and reads the bond as it did.
+    const bond = storeHostFor(actor, armed);
     if (!bond) {
       // NOTHING IS SPENT AND THE WINDOW STAYS OPEN. A wizard who has not
       // designated a bonded item today has lost nothing yet, and closing
@@ -1841,7 +2449,7 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       mods: warp.mods,
       notes: warp.notes,
       releaseCost: armed?.releaseCost ?? "1"
-    });
+    }, bond);
     await disarmStoring(actor);
 
     const said = [storedLine(spell.name, bond.name, totalPP)];
@@ -1872,7 +2480,8 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // afterwards would let a +1 ring cast a 20 PP spell at 1st level.
   let spellAdderUsed = false;
   let adderSummary = null;
-  if (spellAdderApplies({ isCantrip, isInnate, isItemCast, totalPP })) {
+  // NOT FOR A THREADED SPELL (3.684.0, S-M11): it pays nothing to be freed of.
+  if (!threaded && spellAdderApplies({ isCantrip, isInnate, isItemCast, totalPP })) {
     const wondrous = wondrousBonusesForActor(Array.from(actor.items ?? []), {
       className: Array.from(actor.items ?? []).find((i) => i.type === "class")?.name ?? "",
       tradition: system.magic?.tradition ?? ""
@@ -1897,12 +2506,28 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     }
   }
 
-  let overcast = 0;
+  // A MODULE'S RAISE OF THE CAP (3.680.0; Eldritch Arts Block 3a, D5): Raw
+  // Power's "1 higher than that normally allowed" when warping High Magic.
+  // Asked only of a cast that would otherwise be over, and never of an innate
+  // one (which has no cap here). See cast-cap.mjs.
+  let capRaise = { value: 0, labels: [] };
   if (!isInnate && totalPP > cap) {
-    overcast = totalPP - cap;
+    const { castCapRaise } = await import("./cast-cap.mjs");
+    capRaise = await castCapRaise({
+      actor, spell, spellData, highMagic: hmCast.highMagic, warped: totalPP > basePP,
+      specialist: isSpecialist, basePP, totalPP, ritual: Boolean(ritual)
+    });
+  }
+  // A THREADED SPELL'S PP WERE COUNTED AGAINST THE FIRST SPELL'S CAP (3.684.0,
+  // Q126: "the total counted against the cap"), so its own is not tested.
+  if (threaded && totalPP > cap) capRaise = { value: totalPP - cap, labels: [] };
+  const castCap = cap + capRaise.value;
+  let overcast = 0;
+  if (!isInnate && totalPP > castCap) {
+    overcast = totalPP - castCap;
     const proceed = await DialogV2.confirm({
       window: { title: "Overcasting — Sacrifice" },
-      content: `<p><strong>${spell.name}</strong> costs ${totalPP} PP, above your limit of ${cap} (${isSpecialist ? "character level, specialist spell" : "caster level + 1"}).</p><p>Overcast by Sacrifice? The casting DC rises by ${overcastDCIncrease(totalPP, casterLevel)}, and afterwards a Fortitude save against attack level ${totalPP} determines Soul Drain.</p>`,
+      content: `<p><strong>${spell.name}</strong> costs ${totalPP} PP, above your limit of ${castCap} (${isSpecialist ? "character level, specialist spell" : "caster level + 1"}${capRaise.labels.length ? `, ${capRaise.labels.join(", ")}` : ""}).</p><p>Overcast by Sacrifice? The casting DC rises by ${Math.max(0, overcastDCIncrease(totalPP, casterLevel) - 2 * capRaise.value)}, and afterwards a Fortitude save against attack level ${totalPP} determines Soul Drain.</p>`,
       rejectClose: false
     });
     if (!proceed) {
@@ -1975,7 +2600,14 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       .filter((item) => !isProficientWith(casterProficiency, item))
       .map((item) => item.system)
     : equippedArmour;
-  const armourPenalty = armourCastingPenalty(tradition, penalisingArmour);
+  // HIGH MAGIC AND ARMOUR "SIMPLY DO NOT MIX" (3.678.0, D1; Graham's Q3):
+  // every worn piece's DR × 4, in place of the tradition's rule, for a cast
+  // that is High Magic by its caster's class or its spell's trait. Not
+  // Transcend Armour's to waive: it ignores the USUAL penalties.
+  const highMagicArmour = highMagicArmourApplies(hmCast);
+  const armourPenalty = highMagicArmour
+    ? highMagicArmourPenalty(equippedArmour)
+    : armourCastingPenalty(tradition, penalisingArmour);
 
   // One consolidated pre-cast prompt: Defensive Casting, Extra Casting Time, and
   // the situational penalties (Chapter 9). Dismissing it cancels the cast.
@@ -2030,10 +2662,60 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   const reagentChoices = (isItemCast || isInnate || noCheckCantrip)
     ? []
     : reagentOffers(Array.from(actor.items ?? []), spellData, { tradition });
-  const conditions = (isItemCast || isInnate || noCheckCantrip)
-    ? { defensive: false, extraIncrements: 0, interference: false, motion: "", weather: 0, targetInMelee: false, touchUnwilling: false, bardicPerform: false, reagents: [] }
-    : await promptCastingConditions(spell, { extraInc, isAttack, actor, reagents: reagentChoices });
+  // A MODULE'S CASTING OPTIONS (3.679.0; Eldritch Arts Block 2b), asked of
+  // a cast that has the prompt. An innate, item or no-check cast is offered
+  // none, as it is offered no reagent: the prompt is not shown.
+  const castOptionContext = {
+    actor, spell, spellData, innate: isInnate, itemCast: isItemCast,
+    ritual: Boolean(ritual), highMagic: hmCast.highMagic,
+    // A RELEASED STORED SPELL, SAID SO (3.684.0; Eldritch Arts Block 6, G16):
+    // Runic Overload, "When you release a spell stored in your Storing Rune,
+    // you may choose to overload it". `storedForeign`: one absorbed from
+    // another caster (Runebreaker); `storedPP` the PP it was stored at.
+    stored: Boolean(stored), storedForeign: Boolean(stored?.foreign), storedPP: stored ? Math.max(0, Math.trunc(Number(stored.ppPaid) || 0)) : 0,
+    // THE PP SOURCES DRAWN ON THIS CAST (3.684.0; Eldritch Arts Block 6, G2 ↔
+    // G14 — review). Sanguine Channel (a casting option) must know whether
+    // Bloodmage's Bleed (a G2 source) paid part of this cast. No reorder was
+    // needed: the sources are asked above, with the cost test, before this
+    // prompt. What each DREW is known; what it PAID is split by the degree at
+    // the spend, after the check, so it is on trgPrimeSpellSettled only.
+    ppSources: ppSources.draws.map((d) => ({ key: d.key, label: d.label, drawn: Number(d.drawn ?? 0) }))
+  };
+  // NOR A RITUAL THAT FAILED (3.679.0, review): its check is rolled, nothing
+  // on the prompt can change a spell that does not take effect, and a cancel
+  // there would let a Fumble escape its consequences.
+  const ritualFailed = Boolean(ritual) && !["success", "critical", "heroic"].includes(String(ritual.degree));
+  const castOptionOffers = (isItemCast || isInnate || noCheckCantrip || ritualFailed) ? [] : await offeredCastOptions(castOptionContext);
+  const conditions = (isItemCast || isInnate || noCheckCantrip || ritualFailed)
+    ? { defensive: false, extraIncrements: 0, interference: false, motion: "", weather: 0, targetInMelee: false, touchUnwilling: false, bardicPerform: false, reagents: [], castOptions: [] }
+    // NOR A THREADED SPELL (3.684.0, S-M11): its check is the first spell's,
+    // and that spell's prompt was asked. Nothing on it is taken.
+    : threaded
+    ? { defensive: false, extraIncrements: 0, interference: false, motion: "", weather: 0, targetInMelee: false, touchUnwilling: false, bardicPerform: false, reagents: [], castOptions: [] }
+    : await promptCastingConditions(spell, { extraInc, isAttack, actor, reagents: reagentChoices, castOptions: castOptionOffers });
   if (conditions === null) return null;
+  // WHAT THE TAKEN OPTIONS DO: a casting DC part each, a Save DC that joins
+  // the warp's channel (as a reagent's does), and lines for the card.
+  const castOptionsApplied = await appliedCastOptions(castOptionContext, conditions.castOptions ?? []);
+  const castOptionLines = castOptionsApplied.lines.map((text) => line(text));
+  // AN OPTION THAT COSTS ACTIONS (3.683.0; Eldritch Arts Block 5, C14): Runic
+  // Stabiliser's "spend 1 AP inscribing a stabilizing rune". Charged with the
+  // cast's own AP below; asked of the pool HERE, as the cast's own AP was
+  // asked above, so a caster who cannot pay is told before anything is spent
+  // (nothing is yet: the reagents go just below). In an encounter only, as
+  // `ensureActionPoints` and the spend both are.
+  if (castOptionsApplied.ap > 0) {
+    castOptionLines.push(line(`<em>${esc(castOptionsApplied.apParts.map((p) => `${p.label}: +${p.value} AP`).join("; "))}.</em>`));
+    const owed = castAPWithOptions(totalCastTime(warpedCastAP, { apDelta: mm.apDelta + sigilAP }), castOptionsApplied.ap);
+    // ASKED ONCE (review): when the pool could not cover the cast alone, the
+    // player was asked above and chose to go on; asking again for the option
+    // would be the same question twice.
+    const castAlone = castAPWithOptions(totalCastTime(warpedCastAP, { apDelta: mm.apDelta + sigilAP }), 0).total;
+    const alreadyShort = Number(actor.system?.resources?.ap?.value ?? 0) < castAlone;
+    if (!apPaid && !alreadyShort && !(await ensureActionPoints(actor, owed.total, `${spell.name} — Cast a Spell`))) {
+      return null;
+    }
+  }
 
   // SPENT NOW, AS BARDIC PERFORMANCE'S USE IS: a material component is
   // consumed by the casting, whatever the check then does. What each adds
@@ -2072,6 +2754,7 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     }
   }
   if (reagentBonus.saveDC) warpMods.saveDC = (Number(warpMods.saveDC) || 0) + reagentBonus.saveDC;
+  if (castOptionsApplied.saveDC) warpMods.saveDC = (Number(warpMods.saveDC) || 0) + castOptionsApplied.saveDC;
   if (reagentBonus.reliefBump) warpMods.reliefBump = (Number(warpMods.reliefBump) || 0) + reagentBonus.reliefBump;
 
   // ALWAYS DEFENSIVE, AT A DECLARED PRICE (3.627.0) — Faultless Casting.
@@ -2226,6 +2909,10 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // chances to disagree about it.
   const runemage = isRunemage(Array.from(actor.items ?? [])
     .filter((i) => i.type === "feat" || i.type === "ability").map((i) => i.name));
+  // WHAT A RUNEMAGE'S FEATS DECLARE (3.684.0, G25): Combat Inscription's
+  // defensive increase and room note. See runemage.mjs `runemageAdjustments`.
+  const { runemageAdjustments } = await import("./runemage.mjs");
+  const runeAdjust = runemageAdjustments(Array.from(actor.items ?? []));
 
   // Favoured Terrain (Class, Chapter 5): "the DC for all Spellcraft
   // checks made to cast verdant spells is reduced by 1 whilst in your
@@ -2265,11 +2952,27 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     defensive: defensive && !declaredDefensive,
     declaredDefensive,
     runemage,
+    runemageDefensive: runeAdjust.defensiveIncrease,
+    runemageDefensiveLabel: runeAdjust.label,
     favouredTerrain: favouredTerrainActive,
-    metamagicDelta: mm.dcDelta,
+    // A MODULE'S METAMAGIC'S DC PARTS, AND THE PP AN OPTION PAID IN AP STILL
+    // COUNTS FOR (3.684.0, G1 and G3; Metamagic Adept).
+    metamagicDelta: mm.dcDelta + mmx.dcDelta,
+    dcOnlyPP: mmx.dcPP,
+    // ECONOMIC SPELL'S DC AT THE UNLOWERED PP (3.684.3; Graham, 5 November
+    // 2026: "Yes", the DC ends up 2 higher for each PP lowered): the PP it
+    // took off, after the floor and Signature's (see casting-dc.mjs).
+    economicPP: economicLowered,
     eloquence: hasEloquence,
     wizardSchoolDelta: wizardSchoolCasting,
-    reagentDelta: reagentBonus.castingDC
+    reagentDelta: reagentBonus.castingDC,
+    // HARD (+2), AND ITS ARMOUR (3.678.0, D1).
+    highMagicDelta: highMagicCastingDCStep(hmCast),
+    armourLabel: highMagicArmour ? "Armour, High Magic ×4" : "",
+    // A MODULE'S CASTING OPTIONS (3.679.0): Spell Trickery's +2.
+    moduleParts: castOptionsApplied.castingDC,
+    // RAW POWER'S PP ARE NOT OVERCAST (3.680.0, review).
+    capRaise: capRaise.value
   });
   const dc = castingDCResult.dc;
 
@@ -2381,7 +3084,11 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
 
   // Casting Focus (Chapter 9): +1 item with the focus in hand, -2 circumstance
   // when casting without it (a focus caster who has lost/can't use their focus).
-  const focusMod = focusCheckModifier(system.magic);
+  // A HIGH MAGIC CAST SETS THE FOCUS ASIDE (3.678.0, D1; Graham's Q2): no
+  // +1, and no penalty for casting without it — unless an Archmage, or a
+  // Sorcerer with the Arcanum birthright.
+  const focusSetAside = highMagicFocusSetAside(actor, hmCast);
+  const focusMod = focusSetAside ? null : focusCheckModifier(system.magic);
   if (focusMod) modifiers.push(focusMod);
 
   // Combat Casting (Chapter 5): "+2 class bonus to all attempts to
@@ -2534,16 +3241,39 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
    * join the card. See magic/spell-check-gates.mjs.
    */
   const { runSpellCheckGates } = await import("./spell-check-gates.mjs");
-  const gated = await runSpellCheckGates({
+  // A RITUAL'S GATES WERE ASKED ONCE, ON ITS OWN CHECK (3.679.0, review): its
+  // answer is handed in, so no gate is asked twice — Spiritual Distraction's
+  // save, rolled twice, could end its own mark — and its casting-only rows
+  // still come off a ritual attack spell's attack.
+  const gated = ritual?.gated ?? await runSpellCheckGates({
     actor, spell, spellData,
     innate: isInnate, itemCast: isItemCast, attack: isAttack,
+    // WHETHER THIS CAST IS HIGH MAGIC (3.678.0, D1): a Scaelyn's Ley Line
+    // Connection, "When casting High Magic spells, reduce the Casting DC by 1".
+    highMagic: hmCast.highMagic,
     // WHETHER A CHECK IS ROLLED BELOW, by the branch that will run (review):
     // none for a no-check cantrip, a ritual (rolled already), an item's spell
     // whose release check was handed in, or an innate or item spell that is
     // not an attack. A gate's penalty reaches only a check rolled here.
-    rollsCheck: !noCheckCantrip && !ritual?.check && (isItemCast ? (isAttack && !itemCheck) : isInnate ? isAttack : true)
+    rollsCheck: !noCheckCantrip && !ritual?.check && (isItemCast ? (isAttack && !itemCheck) : isInnate ? isAttack : true),
+    // WHO IS TARGETED (3.684.0, G14): Spellblade's Mark's "+1 … to spell
+    // attacks" against the Mark alone.
+    targetUuids: Array.from(game.user?.targets ?? []).map((t) => t?.actor?.uuid).filter(Boolean)
   });
-  modifiers.push(...gated.modifiers);
+  // AN ATTACK-ONLY ROW IS NEVER ON THE CHECK (3.684.0; Eldritch Arts Block 6,
+  // G14): it joins the spell attack's own pool against DB (`gateAttackOnlyRows`,
+  // handed to the volley below). See spell-check-gates.mjs `splitGateRows`.
+  const { splitGateRows } = await import("./spell-check-gates.mjs");
+  const gateSplit = splitGateRows(gated.modifiers);
+  const gateAttackOnlyRows = gateSplit.attackOnly;
+  modifiers.push(...gateSplit.check);
+  // A ROW ON THE CASTING DC ONLY (3.675.0; review of Eldritch Arts' Null
+  // Aura: "Spellcraft checks … have their casting DC increased"). Such a row
+  // decides the casting's degree but is no part of an attack spell's attack
+  // against DB, and an innate or item attack, which has no casting DC, never
+  // takes it. Its total rides on the check, a reroll's copy included.
+  const gateAttackRows = gateSplit.check.filter((m) => !m.castingOnly);
+  const castingOnlyTotal = gated.modifiers.filter((m) => m.castingOnly).reduce((sum, m) => sum + m.value, 0);
   const gateLines = gated.lines.map((text) => line(text));
   /*
    * THE ROD OF ACCURACY (3.616.0, Graham's R14 of block 36): "expend 1 PP
@@ -2584,6 +3314,22 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     const firstTarget = Array.from(game.user?.targets ?? [])[0]?.actor ?? null;
     const { attackTermsAgainst } = await import("../conditions/condition-events-workflow.mjs");
     if (firstTarget && attackTermsAgainst(firstTarget, actor).advantage) castContext.bias = "advantage";
+    // A SPELL ATTACK'S CASTING CHECK IS ITS ATTACK CHECK (3.681.0), for a
+    // reaction that names "an attack check" (Prophetic Warning).
+    castContext.reactionAs = "attack";
+  }
+  // A METAMAGIC'S BIAS ON THE CHECK (3.684.0, G1): Focused Spell's "advantage
+  // on your spellcraft check" — and a spell attack's casting check is its
+  // attack (Q111). Reconciled with whatever is already there, as a d20's are.
+  if (mmx.checkBias && !noCheckCantrip) {
+    const { joinedBias } = await import("./module-metamagic.mjs");
+    castContext.bias = joinedBias(castContext.bias, mmx.checkBias) || "normal";
+  }
+  // A GATE'S DISADVANTAGE (3.685.0, H8; Zone Disruption: "All Spellcraft
+  // checks made within the zone are at disadvantage"), joined the same way.
+  if (gated.disadvantage && !noCheckCantrip) {
+    const { joinedBias } = await import("./module-metamagic.mjs");
+    castContext.bias = joinedBias(castContext.bias, "disadvantage") || "normal";
   }
 
   // THE DEFENDERS' REACTIONS, BEFORE THE ATTACK IS ROLLED (3.666.1). A spell
@@ -2602,6 +3348,11 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     ? null
     : ritual?.check
     ? ritual.check
+    // THE FIRST SPELL'S CHECK (3.684.0, S-M11): "one check at DC(total)" — a
+    // copy whose die raises no chaos and no named natural of its own, since
+    // the first spell already answered both.
+    : threaded
+    ? (thread.check ? Object.assign(Object.create(Object.getPrototypeOf(thread.check)), thread.check, { dice: { ...(thread.check.dice ?? {}), chaos: false, unmodified: 0 } }) : null)
     : isItemCast
     ? (isAttack
       ? (itemCheck ?? await TRGCheck.roll({
@@ -2613,7 +3364,7 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
         suppressDegree: true,
         modifiers: [...(system.magic?.spellcraft?.checkModifiers ?? [
           { label: "Spellcraft", value: Number(system.magic?.spellcraft?.total ?? 0), type: "untyped" }
-        ]), ...gated.modifiers]
+        ]), ...gateAttackRows]
       }))
       : null)
     : isInnate
@@ -2647,10 +3398,32 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
             // Necromancer). See magic/spell-own-bonus.mjs.
             ...(ownBonus?.attack && !isItemCast ? [{ label: ownBonus.label, value: ownBonus.attack, type: ownBonus.type }] : []),
             // A MODULE'S ANSWER (3.672.0): this roll is the casting's check.
-            ...gated.modifiers
+            // Not a casting-DC row (3.675.0): an innate attack has no casting DC.
+            ...gateAttackRows
           ]
         })
         : null)
+    // A STRIKE'S ROLL AS THE CASTING CHECK (3.682.0; Eldritch Arts Block 4,
+    // Thunderous Strike: "You make a Strike … as part of the spell casting
+    // and use the result of this check as your spellcasting check"; Graham's
+    // Q48). Its dice and its modifiers, read against this casting's DC: one
+    // roll, two comparisons. The Strike already had its Conviction. The
+    // casting's own gate rows join it (review): a Null Aura's casting DC, a
+    // distraction's penalty, a Ley Bond's −1 all reach the casting check.
+    : strikeCheck?.dice
+    ? await TRGCheck.roll({
+      actor,
+      label: `${spell.name} — Cast a Spell (the Strike's roll)`,
+      subtitle: `${tradition ? `${tradition} — ` : ""}${totalPP} PP, Casting DC ${dc}. The Strike's total, ${Number(strikeCheck.outcome?.total ?? 0)}, is the casting check` +
+        (isSpecialist ? " (Specialist Spell — Very Easy)" : ""),
+      type: "spellcraft",
+      ...castContext,
+      dc,
+      difficulty: isSpecialist ? SPECIALIST_DIFFICULTY : undefined,
+      presetDice: strikeCheck.dice,
+      presetModifiers: [...Array.from(strikeCheck.modifiers ?? []), ...gated.modifiers],
+      allowConviction: false
+    })
     : await TRGCheck.roll({
       actor,
       label: `${spell.name} — Cast a Spell`,
@@ -2674,6 +3447,11 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       modifiers: [...modifiers]
     });
 
+  if (check && castingOnlyTotal && !isItemCast && !isInnate) check.castingOnlyTotal = castingOnlyTotal;
+  // THE STRIKE'S ROLL, MARKED (3.682.0, review): its total holds the Strike's
+  // BAB already, so Battle Mage's row is not laid on it again.
+  if (check && strikeCheck?.dice) check.fromStrike = true;
+
   // An innate spell-like has no casting check to succeed or fail at, so it
   // is settled as a plain success. `chaos` follows the same logic: there is
   // no Spellcraft roll for a chaos result to appear on. An innate ATTACK
@@ -2694,6 +3472,33 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
    */
   if (ritual) degree = String(ritual.degree ?? degree);
   /*
+   * AN INNATE CAST THAT A GATE MAKES ROLL (3.685.0, H8; Zone Disruption's
+   * "Innate spells (including monster abilities) require a Spellcraft check
+   * using the innate ability modifier + level against the spell's normal
+   * casting DC"; Graham's Q154: every innate spell, the Warlock's included; a
+   * failure is a failed casting, the use spent; a Fumble rolls the fumble
+   * table). Its degree is the casting's. Not an item's spell (it has no innate
+   * ability), a ritual's or a threaded one.
+   */
+  if (isInnate && !isItemCast && !ritual && !threaded && gated.innateCheck) {
+    const { innateZoneCheck } = await import("./spell-check-gates.mjs");
+    const zone = innateZoneCheck({ pp: Math.max(0, Number(spellData.ppCost ?? 0)) + Number(warpPP ?? 0), ability: innateAbility, level: innateLevel });
+    const zoneCheck = await TRGCheck.roll({
+      actor,
+      label: `${spell.name} — Spellcraft (innate)`,
+      subtitle: `An innate spell in a zone that makes it roll — DC ${zone.dc} (its normal casting DC)`,
+      type: "spellcraft",
+      ...castContext,
+      dc: zone.dc,
+      modifiers: [{ label: "Innate ability + level", value: zone.modifier, type: "untyped" }, ...gateSplit.check]
+    });
+    degree = zoneCheck?.outcome?.degree?.key ?? "failure";
+    gateLines.push(line(`<em>${spell.name}: an innate cast's Spellcraft check — ${zoneCheck?.outcome?.degree?.label ?? degree}.</em>`));
+  }
+  // A THREADED SPELL RESOLVES AT THE FIRST SPELL'S DEGREE (3.684.0, S-M11;
+  // Spellthread: "Both spells resolve simultaneously"), its remaps included.
+  if (threaded) degree = String(thread.degree);
+  /*
    * AND PAGE 238 OVERRIDES THE DICE. "If you are struck for hit point
    * damage whilst casting a spell, your spell casting check is
    * automatically a failure. If you are struck for a critical … a
@@ -2713,9 +3518,35 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // Auditory spell while Deafened, or a Manipulate one while Grabbed, owes a
   // DC 5 flat check, "or the action is lost". Lost, the cast resolves as a
   // failure: whatever a failure costs is paid, and nothing lands.
-  if (!ritual) {
+  if (!ritual && !threaded) {
     const { passActionFlatChecks } = await import("../conditions/condition-events-workflow.mjs");
     if (!(await passActionFlatChecks(actor, { name: spell.name, traits: spellData.traits ?? "" }))) degree = "failure";
+  }
+  // A MODULE READS THE DEGREE (3.678.0; Eldritch Arts Block 2, D7): a Magic
+  // Suppression area's "partial, failure and fumble are all classed as a
+  // failure whereas blunder results are treated as fumbles". After the
+  // page's own overrides and before the degree decides the PP and the
+  // fumble roll. An innate or no-check cast has no degree to read. (A threaded
+  // spell's is the first spell's, already read; read again, it is told
+  // `threaded`, 3.684.0.)
+  const degreeRemapLines = [];
+  if (!isInnate && !noCheckCantrip) {
+    const { remapCastDegree } = await import("./cast-hooks.mjs");
+    const remapped = await remapCastDegree({
+      actor, spell, spellData, degree, innate: isInnate,
+      itemCast: Boolean(itemCheck), ritual: Boolean(ritual),
+      // AND THE METAMAGIC TAKEN, AND A WOVEN SPELL (3.684.0, G1: Spellthread).
+      metamagic: [...castMetamagic.keys], threaded,
+      // AND WHETHER IT WAS HIGH MAGIC, AND WHICH CASTING OPTIONS WERE TAKEN
+      // (3.683.0; Eldritch Arts Block 5, C14). Runic Stabiliser: "When
+      // attempting a High Magic check, you may spend 1 AP inscribing a
+      // stabilizing rune. If you do, you treat a Partial result as a Success"
+      // — an option on the prompt, and a remap that reads whether it was taken.
+      highMagic: Boolean(hmCast.highMagic),
+      castOptions: [...castOptionsApplied.keys]
+    });
+    degree = remapped.degree;
+    degreeRemapLines.push(...remapped.lines);
   }
   const chaos = (isInnate || noCheckCantrip) ? false : Boolean(check?.dice?.chaos);
 
@@ -2724,7 +3555,7 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // PP equal to the base cost of the spell to change the result to a
   // success." Offered post-roll, before the outcome is settled.
   let variableSuccessPP = 0;
-  if (degree === "partial" && !isCantrip &&
+  if (degree === "partial" && !isCantrip && !threaded &&
     Array.from(actor.items ?? []).some(
       (i) => i.type === "feat" && String(i.name).trim().toLowerCase() === "variable success"
     ) && ppPool >= totalPP + basePP) {
@@ -2762,7 +3593,7 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       featNames: Array.from(actor.items ?? [])
         .filter((i) => i.type === "feat").map((i) => i.name)
     });
-    if (offer.allowance > 0 && !isCantrip && !isItemCast) {
+    if (offer.allowance > 0 && !isCantrip && !isItemCast && !threaded) {
       const extra = await promptWarpManipulation(warpSpell, basePP, offer, casterLevel);
       if (extra) {
         // WHICH FIELD IS BUDGETED lives in `warpManipulationSpend`, not
@@ -2798,35 +3629,252 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
    * carries the second half to `castingOutcome` and `harderSaveDCStep`
    * the first to the save below, from the same boolean.
    */
+  // A MODULE'S REACTION TO THIS CAST (3.681.0; Eldritch Arts Block 3b):
+  // Disrupting Magic, "you sense the casting of a spell within range and
+  // attempt to disrupt it". After the check, every override and the late
+  // warps (so the PP it meets are the cast's), and before the degree decides
+  // the PP or anything lands. Every cast that would land is asked, innate and
+  // no-check ones included (Q33); a cast that fails anyway needs no
+  // disrupting. A stopped cast resolves as a failure: whatever a failure
+  // costs is paid, and nothing lands.
+  const castingAbility = Number(
+    system.attributes?.[isInnate
+      ? innateAbilityKey(spell, system.magic?.castingAbility, system.attributes ?? {})
+      : system.magic?.castingAbility]?.total ??
+      system.magic?.castingAbilityScore ??
+      0
+  );
+  /*
+   * THE SAVE DC, ASSEMBLED IN ONE PLACE FOR TWO ASKERS (3.685.0, H5). The cast
+   * reactions are asked before the Save DC used to exist ("no Save DC exists
+   * yet when the reactions are asked"), and Argent Reversal's Spellcraft check
+   * is made "against the original caster's Spell Save DC". So the assembly is
+   * a function: the reactions' ctx reads it without spending anything
+   * (`consume: false` leaves Harmonize's aid where it is), and the cast reads
+   * it again after them, spending what it spends. One formula, never two.
+   */
+  const assembleCastSaveDC = async ({ clSaveDC = 0, harderStep = 0, consume = false } = {}) => {
+    // Heighten Spell (Chapter 5 metamagic): "treats the PP of the spell
+    // for Saving Throw DC purposes as the maximum PP that you can cast."
+    // HIGH MAGIC (3.633.0, F&F 3.0 R12) heightens for free.
+    // …AND A SPELL CARRIED BY A STRIKE (3.655.0, block 22 R5: Pixie Bow
+    // Casting, "Heightened automatically").
+    // A FREE WARP THAT STILL RAISES THE SAVE DC (3.685.0, H9; Mana Surge:
+    // "warped by 1 PP for free, without increasing the casting DC. The Save DC
+    // of the spell is increased as normal"; Q162) counts here, and nowhere else.
+    const savePP = heightenedSavePP(totalPP + freeWarpSaveDCPP, cap, highMagicHeightens(actor, mm.heightenSave || carried?.heighten === true));
+    const innateSaveHere = isInnate ? innateSaveFor(spell, castingAbility, innateLevel) : null;
+    // HARMONIZE (3.634.0, F&F 3.0 block 4 R10): companions' aid waiting for
+    // this innate spell's save DC this round; spent by this cast.
+    const harmonyRecord = isInnate ? actor.getFlag?.(SYSTEM_ID, HARMONIZE_FLAG) : null;
+    const harmonyHere = harmonyTotal(harmonyRecord, {
+      combatId: game.combat?.started ? game.combat.id : "", round: game.combat?.started ? Number(game.combat.round ?? 0) : 0,
+      worldTime: Number(game.time?.worldTime ?? 0)
+    });
+    if (consume && harmonyRecord && actor.unsetFlag) await actor.unsetFlag(SYSTEM_ID, HARMONIZE_FLAG);
+    // "Innate Save = 10 + magical ability score + level" (Chapter 9) — a
+    // creature's spell-like does not derive its DC from a PP cost it never
+    // paid. This is the same number the old innate card printed; the change
+    // is that it now reaches resolveSpellSave instead of being the last
+    // thing the card said.
+    const baseSaveDC = (isInnate
+      ? innateSaveHere.value
+      : isSpecialist
+        ? specialistSaveDC(castingAbility, characterLevel, spellcraftForCast)
+        : spellSaveDC({ pp: savePP, castingAbility }))
+      // Page 237's optional rule, when the world has turned it on.
+      + harderStep
+      // HIGH MAGIC: "All casting DCs are increased by 2" — not on a printed DC.
+      + highMagicSaveStep(actor, { printed: innateSaveHere?.printed === true })
+      + harmonyHere;
+    // Runemage archetype (Chapter 5): "All Save DCs are increased by 1."
+    // WAS `runemageSave > 0` AT THE CALL SITE BELOW, comparing a boolean
+    // to a number — it happened to work, because `true > 0`. Kept as a
+    // number here so the comparison it feeds is an honest one.
+    const runemageSave = isRunemage(Array.from(actor.items ?? [])
+      .filter((i) => i.type === "feat" || i.type === "ability").map((i) => i.name)) ? 1 : 0;
+    // Wizard School (Class, Chapter 3): "All spells of your chosen
+    // school are more difficult to resist and increase their Save DC by
+    // 2." Same trait match as the Casting DC reduction above.
+    const wizardSchoolSave = wizardSchoolSaveDCDelta(schoolsOf(actor), spellData.traits);
+    // A FIXED DC OVERRIDES EVERY FORMULA ABOVE.
+    //
+    // Some granted spell-likes borrow their DC from the effect that granted
+    // them rather than deriving one. The Wyrm's breath weapon is the first:
+    // "Targets may make a basic reflex save to avoid damage with a DC equal to
+    // the DC of this spell" — the Shape Of The Wyrm cast's own Save DC, which
+    // is known when the form is applied and is not what 10 + ability + level
+    // would produce. Stored on the granted item at that moment; honoured here.
+    //
+    // Nothing in the compendium sets it, so no existing spell's DC moves.
+    //
+    // A CONSUMABLE'S SPELL TAKES THE SAME ROUTE (3.310.0), for the same
+    // reason: the DC belongs to the item, which has a PP and no caster, so
+    // consumable-use-workflow computes it once (consumableSaveDC) and hands
+    // it over rather than letting `10 + ability + level` read the stats of
+    // whoever happened to open the bottle.
+    const fixed = Number(spellData.fixedSaveDC ?? 0);
+    // ASSEMBLED, for the reason the Casting DC is. Five terms were added
+    // inline here and the card named one of them: Runemage's +1, the
+    // Wizard School's +2 and the warp's own contribution all moved the
+    // number a target rolls against without appearing anywhere.
+    const { declaredSpellDCBonuses } = await import("./spell-dc-bonus.mjs");
+    const saveDCResult = assembledSaveDC({
+      fixedDC: fixed,
+      baseDC: baseSaveDC,
+      casterLevelWarp: clSaveDC,
+      warpSaveDC: warpMods.saveDC,
+      runemage: runemageSave === 1,
+      wizardSchoolDelta: wizardSchoolSave,
+      // ALL THREE BASES ABOVE ARE NOW SONG-FREE — the specialist one
+      // because it is handed `spellcraftForCast`, the other two because
+      // they never had a Spellcraft term — so this adds the class bonus
+      // exactly once, and the card names it.
+      songAndDance: songAndDanceForCast,
+      // A caster's own declared bonus for this spell's traits (3.627.0) — not
+      // on an item's spell, which is not "your own spellcasting".
+      declaredBonuses: [...(isItemCast ? [] : declaredSpellDCBonuses(
+        Array.from(actor.appliedEffects ?? actor.effects ?? []), spellData.traits, { innate: isInnate })),
+        // THE CARRYING STRIKE'S CRITICAL (3.655.0, block 22 R5): "+1 per level of severity".
+        ...(Number(carried?.dcBonus) > 0 ? [{ label: `${carried.label ?? "Carried"} (${carried.severity} critical)`, value: Number(carried.dcBonus) }] : []),
+        // THE SPELL'S OWN DC BONUS (3.671.0; Lotus Enchanter). Not an item's cast.
+        ...(spellOwnBonus(spell)?.dc && !isItemCast ? [{ label: spellOwnBonus(spell).label, value: spellOwnBonus(spell).dc, type: spellOwnBonus(spell).type }] : [])]
+    });
+    return { savePP, innateSaveHere, harmonyHere, fixed, saveDCResult };
+  };
+  let castDisrupted = false;
+  // NOT A THREADED SPELL (3.684.0, S-M11): "counts as a single spell for …
+  // counterspell purposes", so a reaction that stops the first stops both and
+  // the second is never asked of its own.
+  if (["heroic", "critical", "success"].includes(degree)) {
+    const { castReactionsFor } = await import("../reactions/reactions-workflow.mjs");
+    const reacted = threaded ? { lines: [], stop: false } : await castReactionsFor({
+      actor, spell, spellData, degree,
+      pp: Number(totalPP ?? 0) + Number(manipulationPP ?? 0),
+      // THE PP AS CAST (3.684.0; Eldritch Arts Block 6 — review, Graham's
+      // Q119: "the PP as cast (warps included)"). `pp` above is `totalPP`,
+      // which is 0 + warps for an innate spell (its `basePP` is 0, "innate
+      // costs nothing" being a rule about paying); Absolute Denial, Counter
+      // Channel and Runebreaker read this instead: `castRiderPP`'s number (an
+      // innate spell's printed PP + warps + metamagic; an item's release PP;
+      // a cantrip 0) plus the warp a manipulation bought after the check. The
+      // Save DC is not known yet here (it is assembled after the reactions,
+      // since a reaction may stop or reshape the cast), so none is passed.
+      castPP: isCantrip ? 0 : Number(castPP ?? 0) + Number(manipulationPP ?? 0),
+      // AND THE CAST'S SAVE DC (3.685.0, H5; Argent Reversal: "Make a
+      // Spellcraft check against the original caster's Spell Save DC"). The
+      // nominal DC this cast would have if it lands at this degree, from the
+      // same assembly the cast reads below, without spending anything.
+      saveDC: (await assembleCastSaveDC({
+        clSaveDC: applyCasterLevelMods(spellData.casterLevelMods, casterLevel).saveDC,
+        harderStep: globalThis.game?.settings?.get?.("trg-prime", "harderSaveDCOnCritical") ? harderSaveStep(degree) : 0
+      })).saveDCResult.dc,
+      level: Math.max(0, Math.trunc(Number(spellData.ppCost ?? 0) || 0)),
+      innate: Boolean(isInnate), itemCast: Boolean(itemCheck), ritual: Boolean(ritual),
+      highMagic: Boolean(hmCast?.highMagic)
+    });
+    degreeRemapLines.push(...reacted.lines);
+    if (reacted.stop) { degree = "failure"; castDisrupted = true; }
+    // OR SHAPES IT (3.684.0; Eldritch Arts Block 6, G17): Counter Channel's
+    // "variables are halved … doubled" (Graham's Q118: area to 5 ft, duration,
+    // targets min 1, damage dice min 1), else the saves' advantage or
+    // disadvantage; Reflective Warding's "redirect the spell back at its
+    // caster". Before anything is placed, rolled or saved.
+    else if ((reacted.scale ?? 1) !== 1 || reacted.saveBias || reacted.retargetCaster || reacted.turnBack || reacted.exclude?.length) {
+      const { applyCastReactionShape } = await import("./cast-reaction-shape-workflow.mjs");
+      degreeRemapLines.push(...await applyCastReactionShape({
+        actor, spell, spellData, warpMods, effArea, isArea: isAreaSpell(spellData), reacted
+      }));
+    }
+  }
+
   const harderSaveRule = Boolean(globalThis.game?.settings?.get?.("trg-prime", "harderSaveDCOnCritical"));
   const harderSaveDCStep = harderSaveRule ? harderSaveStep(degree) : 0;
 
+  // A METAMAGIC'S BASE PP AND ITS SAVING ONE RUNG LESS (3.684.0, G1;
+  // Spellthread's sidebar 15). Both 0 for every cast that takes none.
   const outcome = castingOutcome(degree, {
-    basePP,
+    basePP: basePP + mmx.basePPAdd,
     warpPP: warpPP + metamagicPP + manipulationPP,
     waiveCritical,
-    waiveSaving: harderSaveRule && harderSaveDCStep > 0
+    waiveSaving: harderSaveRule && harderSaveDCStep > 0,
+    savingStep: mmx.savingStep
   });
+  // WHAT IS PAID, WHEN A DISCOUNT APPLIES (3.684.0, G4; Q93): the degree splits
+  // the discounted price — the reduction off the warp first, so a Critical
+  // keeps all of it — while `outcome` stays the cast's own.
+  // ECONOMIC AND SIGNATURE TOO (3.684.1; Graham, 4 November 2026): their PP
+  // (`coreCostCut`, the Chapter 5 feats') join G4's, so the degree splits the
+  // price less both — a Heroic halves it, a Failure loses half of it.
+  const { discountedParts, castPPSplit } = await import("./module-metamagic.mjs");
+  const paidReduction = coreCostCut + costCut.reduction;
+  const paidOutcome = paidReduction > 0
+    ? castingOutcome(degree, {
+      ...discountedParts(basePP + mmx.basePPAdd, warpPP + metamagicPP + manipulationPP, paidReduction),
+      waiveCritical,
+      waiveSaving: harderSaveRule && harderSaveDCStep > 0,
+      savingStep: mmx.savingStep
+    })
+    : outcome;
   // A CAST, FOR WHOEVER LISTENS (3.631.0): Alien Mind ("targeted with a
   // mental effect") and Reflective Scales ("targeted with a spell") answer
   // from the target's side — codex-hooks-workflow.mjs.
   Hooks.callAll("trgPrimeSpellCast", {
     actor, spell, spellData, degree,
-    targets: Array.from(game.user?.targets ?? []).map((t) => t?.actor).filter(Boolean)
+    // WHAT ELSE A LISTENER NEEDS (3.678.0; Eldritch Arts Block 2): a Wild
+    // Magic area surges on "a Partial, Failure, Fumble, Blunder, or Chaos";
+    // and on any casting check (Graham's Q7: scrolls, wands and rituals too).
+    // AND WHETHER A REACTION STOPPED IT (3.681.0, `disrupted`): a failure,
+    // told apart for a listener that needs to know why (found in review: a
+    // Wild Magic area's surge).
+    chaos, innate: isInnate, rollsCheck: !isInnate && !noCheckCantrip,
+    itemCast: Boolean(itemCheck), ritual: Boolean(ritual), highMagic: hmCast.highMagic, disrupted: castDisrupted,
+    castOptions: castOptionsApplied.keys, ritualVariant: ritualSubstitutes ? String(ritual.variant) : "",
+    targets: Array.from(game.user?.targets ?? []).map((t) => t?.actor).filter(Boolean),
+    // THE METAMAGIC TAKEN (3.684.0; Eldritch Arts Block 6, G1): every key, the
+    // core's ids ("quicken", "empower") and a module's, and what each was;
+    // `threaded` for a spell woven into another (S-M11).
+    metamagic: [...castMetamagic.keys], metamagicTaken: castMetamagic.taken.map((t) => ({ ...t })), metamagicPP,
+    // THE G3 PAYMENTS TAKEN (3.684.0, review): the registry keys of each
+    // `registerMetamagicPayment` this cast used (Metamagic Adept's Flourish).
+    metamagicPayments: [...mmAP.paymentKeys],
+    threaded,
+    // A PREPARED SIGIL'S CAST, AND THE PP IT IS CAST AT (3.684.0; Eldritch Arts
+    // Block 6, G25 and G12): Living Script reforms on a Heroic sigil cast; a
+    // per-PP rule reads `castPP` (Q101).
+    preparedSymbol: Boolean(sigil), castPP
   });
 
   // A SPELL ADDER PAYS THE WHOLE COST, including a failed cast's partial
   // loss — the use was spent to cast this spell, and charging PP on top
   // of it would take payment twice for one casting.
-  const ppSpent = (isCantrip || spellAdderUsed)
+  // A THREADED SPELL PAYS NOTHING (3.684.0, S-M11): its base PP joined the
+  // first spell's total, paid there.
+  const ppSpent = (isCantrip || spellAdderUsed || threaded)
     ? 0
-    : Math.min(outcome.ppSpent + variableSuccessPP, ppPool + rodDraw);
+    // A RITUAL VARIANT'S PP ARE SUBSTITUTED (3.679.0, D13), not drawn: the
+    // degree's PP stand whatever the pool holds, and the module pays them in
+    // blood, gold or the secondaries' PP (Graham's Q11).
+    // (Never discounted by G4: `costCut` is not asked of one.)
+    // BUT ECONOMIC AND SIGNATURE DO LOWER IT (3.684.3; Graham, 5 November
+    // 2026, asked "Should they?" of a ritual's own price: "Yes"). Their PP,
+    // `coreCostCut`, come off the substituted price as off an ordinary one —
+    // off the warps and metamagic first (his answer of the same day) — so
+    // `paidOutcome`, whose `paidReduction` is `coreCostCut` alone here.
+    : ritualSubstitutes ? paidOutcome.ppSpent + variableSuccessPP
+    : Math.min(paidOutcome.ppSpent + variableSuccessPP, ppPool + rodDraw + ppSources.total);
   // THE ROD PAYS ITS SHARE (3.616.0, R13): what was drawn, up to the spend.
   // The rest is the caster's, below; the rod's is deducted with the other
   // rod spends once the cast is settled.
   const { rodDrawSplit } = await import("../rod-powers.mjs");
   rodPaid = rodDraw > 0 ? rodDrawSplit(ppSpent, rodDraw).rod : 0;
-  const casterPPSpent = ppSpent - rodPaid;
+  // AND EACH MODULE SOURCE ITS OWN (3.684.0, G2), after the rod, in the order
+  // asked: what was drawn, up to what is left of the spend. Settled with the
+  // module once the cast is over (`settleModuleMetamagic`).
+  const sourceSplit = castPPSplit(ppSpent - rodPaid, ppSources.draws.map((d) => d.drawn));
+  ppSources.draws.forEach((d, i) => { d.paid = sourceSplit.shares[i] ?? 0; });
+  const sourcesPaid = sourceSplit.shares.reduce((sum, n) => sum + n, 0);
+  const casterPPSpent = ritualSubstitutes ? 0 : ppSpent - rodPaid - sourcesPaid;
   /*
    * A RELEASED STORED SPELL SETTLES RATHER THAN PAYS. (3.495.0)
    *
@@ -2843,7 +3891,11 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
    */
   if (stored) {
     const settle = storedSettlement(stored.ppPaid, ppSpent);
-    if (settle.owed !== 0) {
+    // AN ABSORBED SPELL SETTLES NOTHING (3.684.0; Eldritch Arts Block 6, G16):
+    // Runebreaker's. Its PP were its caster's, paid when it was cast at you
+    // (Graham's Q115: "stored at the PP its caster paid"); you paid Storing
+    // Rune's. So its degree moves nothing in your pool. See spell-storing.mjs.
+    if (settle.owed !== 0 && !stored.foreign) {
       const poolNow = Number(actor.system?.resources?.pp?.value ?? 0);
       const ppMax = Number(actor.system?.resources?.pp?.max ?? 0);
       await actor.update({
@@ -2854,6 +3906,11 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     await actor.update({
       "system.resources.pp.value": Math.max(0, ppPool - casterPPSpent)
     });
+  }
+  // THE SURCHARGE IS PAID NOW, from the pool as it stands (3.675.0, C3).
+  if (surcharge.pp > 0) {
+    const poolAfterCast = Number(actor.system?.resources?.pp?.value ?? 0);
+    await actor.update({ "system.resources.pp.value": Math.max(0, poolAfterCast - surcharge.pp) });
   }
 
 
@@ -2907,7 +3964,12 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // something they already bought. `isItemCast` implies `isInnate` here, so
   // this one guard covers both — stated because the two reasons are different
   // and only one of them is "carries no components".
-  if (!isInnate && effectiveComponents.material) {
+  // AND AN ARCANE CAST'S SHARDS (3.684.0; Eldritch Arts Block 6, G22): the
+  // Ferromancer's pouch is spent on each arcane cast, once, material or not
+  // (Graham's Q112). See component-gate.mjs `traditionComponentWaiver`.
+  const { castSpendsPouch, declaredTraditionComponents, traditionComponentWaiver } = await import("./component-gate.mjs");
+  const shardsHere = isInnate ? null : traditionComponentWaiver(declaredTraditionComponents(actor), spellData, system.magic?.tradition ?? "");
+  if (!isInnate && castSpendsPouch(effectiveComponents, shardsHere)) {
     await consumeGearUse(actor, /\bmaterial component pouch\b/i);
   }
   if (componentSwap) {
@@ -2943,9 +4005,23 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
    * cast, not the turns the caster spent standing still for it. That
    * time passed whatever the spell did.
    */
-  const totalCastAP = totalCastTime(warpedCastAP, { apDelta: mm.apDelta });
+  // A PREPARED SIGIL'S −1 AP (3.684.0, G25; Q124) stacks with Quicken, never below 1.
+  const totalCastAP = totalCastTime(warpedCastAP, { apDelta: mm.apDelta + sigilAP });
   // A READIED CAST WAS PAID FOR BY READY (3.645.0, F7): its 2 AP bought it.
-  if (!apPaid) await spendActionCost(actor, totalCastAP, spell.name);
+  // ITS RECEIPT IS KEPT (3.684.7) so a refund gives back the restricted
+  // points it took as they were.
+  const castReceipt = apPaid ? null : await spendActionCost(actor, totalCastAP, spell.name);
+  // AND WHAT ITS OPTIONS COST (3.683.0; Eldritch Arts Block 5, C14): Runic
+  // Stabiliser's rune, spent beside the cast's own AP, as it is, and refunded
+  // with it. The cast's cost is untouched, so a reaction cast stays one. See
+  // `castAPWithOptions`.
+  const castAPOwed = castAPWithOptions(totalCastAP, castOptionsApplied.ap);
+  let optionReceipt = null;
+  if (!apPaid && castAPOwed.option > 0) {
+    optionReceipt = await spendActionCost(actor, castAPOwed.option, `${spell.name} — ${castOptionsApplied.apParts.map((p) => p.label).join(", ")}`, { continuesSpend: true });
+    // THE SAME ACTION'S AP (3.684.6, `continuesSpend`): a cancel refunds both,
+    // and the Agile Display Step the cast's spend removed comes back.
+  }
 
   /*
    * AND A SPELL COUNTS AS AN ATTACK (3.503.0). "…or attacks any
@@ -3002,15 +4078,18 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     const { spendFromRod } = await import("../charged-items-workflow.mjs");
     for (const spend of mm.rodSpends ?? []) {
       const rodItem = actor.items?.get?.(spend.itemId);
-      if (rodItem) rodLines.push(await spendFromRod(actor, rodItem, spend.pp));
+      // WHAT EACH SPEND IS FOR (3.684.0, G6): a charged-item rule's `reason` —
+      // a metamagic rod's power is an activation, a Rod of the Magi's draw
+      // for your own spell is not (the audit's n6).
+      if (rodItem) rodLines.push(await spendFromRod(actor, rodItem, spend.pp, { reason: "metamagic" }));
     }
     if (rodDraw > 0 && rodSource) {
       const rodItem = actor.items?.get?.(rodSource.itemId);
-      if (rodItem && rodPaid > 0) rodLines.push(await spendFromRod(actor, rodItem, rodPaid));
+      if (rodItem && rodPaid > 0) rodLines.push(await spendFromRod(actor, rodItem, rodPaid, { reason: "ppSource" }));
     }
     if (accuracyPP > 0 && accuracyRod) {
       const rodItem = actor.items?.get?.(accuracyRod.itemId);
-      if (rodItem) rodLines.push(await spendFromRod(actor, rodItem, accuracyPP));
+      if (rodItem) rodLines.push(await spendFromRod(actor, rodItem, accuracyPP, { reason: "accuracy" }));
     }
   }
   // AND THE ITEM'S REST STARTS (3.616.0, R11): the effect's minute, then
@@ -3030,7 +4109,14 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     }
   }
 
-  const lines = [...reagentLines, ...gateLines];
+  const lines = [...reagentLines, ...gateLines, ...degreeRemapLines.map((text) => line(text)), ...castOptionLines,
+    // HIGH MAGIC, SAID (3.678.0, D1): "When identified, high magic simply
+    // registers as magic. The DC for identifying high magic is considered to
+    // be a Very Hard (DC +5) check."
+    ...(hmCast.highMagic ? [line(`<em>High Magic (${hmCast.label}): it registers simply as magic, and identifying it is Very Hard (DC +5).</em>`)] : []),
+    // THE SURCHARGE, SAID (3.675.0, C3).
+    ...(surcharge.pp > 0 ? [line(`<strong>Surcharge:</strong> ${surcharge.labels.join(", ")}, paid on top of the casting's own PP.`)] : []),
+    ...surcharge.lines.map((text) => line(text))];
   for (const l of rodLines) lines.push(line(l));
   // THE DRAIN, SETTLED ONCE THE COST IS KNOWN: the PP this casting spent
   // go to the drainer, and the waiting record is spent either way.
@@ -3067,10 +4153,18 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
         dc: defence,
         modifiers: [{ label: "Spellcraft", value: Number(actor.system?.magic?.spellcraft?.total ?? 0), type: "untyped" }]
       });
-      const result = touchAttackOutcome(Number(touch?.total ?? 0), defence);
+      // THE CHECK'S TOTAL IS ITS OUTCOME'S (3.681.1; found beside the Death
+      // critical's): the check has no total of its own, so every unwilling
+      // touch read 0 and missed.
+      // AN UNMODIFIED 1 ALWAYS MISSES, AN UNMODIFIED 20 ALWAYS HITS (3.682.0;
+      // Graham, 3 November 2026: "The touch attack should always miss on a 1
+      // and hit on a 20"), as every attack check does.
+      const result = touchAttackOutcome(Number(touch?.outcome?.total ?? 0), defence, { natural: Number(touch?.dice?.unmodified ?? 0) });
       touchMissed = !result.landed;
       lines.push(line(result.landed
-        ? `<strong>The touch lands on ${mark.name}</strong> — no damage, but the spell takes hold (page 240).`
+        ? `<strong>The touch lands on ${mark.name}</strong>${result.natural === "20" ? " (an unmodified 20 always hits)" : ""} — no damage, but the spell takes hold (page 240).`
+        : result.natural === "1"
+        ? `<strong>The touch misses ${mark.name}</strong>: an unmodified 1 always misses. The spell is cast and does not reach them.`
         : `<strong>The touch misses ${mark.name}</strong> by ${-result.by}. The spell is cast and does not reach them.`));
     }
   }
@@ -3196,7 +4290,7 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // release, because the pool moved twice for one spell and a table that
   // cannot see both halves cannot check the arithmetic.
   if (stored) {
-    lines.push(line(settlementLine(spell.name, stored.ppPaid, ppSpent)));
+    lines.push(line(stored.foreign ? foreignReleaseLine(spell.name, stored.foreignFrom ?? "") : settlementLine(spell.name, stored.ppPaid, ppSpent)));
   }
 
   // Warping (Chapter 9): note which options were paid for; their quantifiable
@@ -3236,6 +4330,13 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   if (outcome.cast && mm.notes.length) {
     lines.push(line(`<em>Metamagic — ${mm.notes.join("; ")}.</em>`));
   }
+  // A MODULE'S METAMAGIC, SAID (3.684.0, G1): what each option was and cost,
+  // what it changed, and its own lines. An innate cast's PP came from the
+  // pool (Q95), and the card says so, since its subtitle reads "0 PP".
+  if (mmx.taken.length || mmx.notes.length) {
+    lines.push(line(`<em>Metamagic${isInnate ? " (paid from the PP pool)" : ""} — ${esc(mmx.notes.join("; "))}.</em>`));
+    if (outcome.cast) for (const text of mmx.lines) lines.push(line(text));
+  }
   /*
    * THE SYMBOL, SAID OUT LOUD (3.546.0).
    *
@@ -3251,7 +4352,8 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
    */
   if (outcome.cast && effectiveComponents?.symbol) {
     lines.push(line(`<em>Components — ${componentWords(effectiveComponents).join(", ")}.</em>`));
-    const room = symbolRoomLine(effectiveComponents);
+    // A PREPARED SIGIL NEEDS NO ROOM; COMBAT INSCRIPTION'S IS HAND-SIZED (3.684.0, G25).
+    const room = symbolRoomLine(effectiveComponents, { prepared: Boolean(sigil), preparedLabel: sigil?.label ?? "", roomNote: runeAdjust.roomNote });
     if (room) lines.push(line(room));
   }
   if (variableSuccessPP) {
@@ -3285,101 +4387,20 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // written the expression out again. The specialist attack uplift below is
   // the third, and a third copy of "which score is the casting ability" is
   // three places for it to drift.
-  const castingAbility = Number(
-    system.attributes?.[isInnate
-      ? innateAbilityKey(spell, system.magic?.castingAbility, system.attributes ?? {})
-      : system.magic?.castingAbility]?.total ??
-      system.magic?.castingAbilityScore ??
-      0
-  );
+  // `castingAbility` is defined above the cast reactions since 3.685.0 (H5).
   let saveDC = null;
   let nominalSaveDC = null;
+  // An innate cast's own Save DC formula, for trgPrimeSpellSettled (3.684.0).
+  let innateSaveDCBase = null;
   if (outcome.cast) {
 
-    // Heighten Spell (Chapter 5 metamagic): "treats the PP of the spell
-    // for Saving Throw DC purposes as the maximum PP that you can cast."
-    // HIGH MAGIC (3.633.0, F&F 3.0 R12) heightens for free.
-    // …AND A SPELL CARRIED BY A STRIKE (3.655.0, block 22 R5: Pixie Bow
-    // Casting, "Heightened automatically").
-    const savePP = heightenedSavePP(totalPP, cap, highMagicHeightens(actor, mm.heightenSave || carried?.heighten === true));
-    const innateSaveHere = isInnate ? innateSaveFor(spell, castingAbility, innateLevel) : null;
-    // HARMONIZE (3.634.0, F&F 3.0 block 4 R10): companions' aid waiting for
-    // this innate spell's save DC this round; spent by this cast.
-    const harmonyRecord = isInnate ? actor.getFlag?.(SYSTEM_ID, HARMONIZE_FLAG) : null;
-    const harmonyHere = harmonyTotal(harmonyRecord, {
-      combatId: game.combat?.started ? game.combat.id : "", round: game.combat?.started ? Number(game.combat.round ?? 0) : 0,
-      worldTime: Number(game.time?.worldTime ?? 0)
+    const { savePP, innateSaveHere, harmonyHere, fixed, saveDCResult } = await assembleCastSaveDC({
+      clSaveDC: clMods.saveDC, harderStep: harderSaveDCStep, consume: true
     });
-    if (harmonyRecord && actor.unsetFlag) await actor.unsetFlag(SYSTEM_ID, HARMONIZE_FLAG);
-    // "Innate Save = 10 + magical ability score + level" (Chapter 9) — a
-    // creature's spell-like does not derive its DC from a PP cost it never
-    // paid. This is the same number the old innate card printed; the change
-    // is that it now reaches resolveSpellSave instead of being the last
-    // thing the card said.
-    const baseSaveDC = (isInnate
-      ? innateSaveHere.value
-      : isSpecialist
-        ? specialistSaveDC(castingAbility, characterLevel, spellcraftForCast)
-        : spellSaveDC({ pp: savePP, castingAbility }))
-      // Page 237's optional rule, when the world has turned it on.
-      + harderSaveDCStep
-      // HIGH MAGIC: "All casting DCs are increased by 2" — not on a printed DC.
-      + highMagicSaveStep(actor, { printed: innateSaveHere?.printed === true })
-      + harmonyHere;
-    // Runemage archetype (Chapter 5): "All Save DCs are increased by 1."
-    // WAS `runemageSave > 0` AT THE CALL SITE BELOW, comparing a boolean
-    // to a number — it happened to work, because `true > 0`. Kept as a
-    // number here so the comparison it feeds is an honest one.
-    const runemageSave = isRunemage(Array.from(actor.items ?? [])
-      .filter((i) => i.type === "feat" || i.type === "ability").map((i) => i.name)) ? 1 : 0;
-    // Wizard School (Class, Chapter 3): "All spells of your chosen
-    // school are more difficult to resist and increase their Save DC by
-    // 2." Same trait match as the Casting DC reduction above.
-    const wizardSchoolSave = wizardSchoolSaveDCDelta(schoolsOf(actor), spellData.traits);
-    // A FIXED DC OVERRIDES EVERY FORMULA ABOVE.
-    //
-    // Some granted spell-likes borrow their DC from the effect that granted
-    // them rather than deriving one. The Wyrm's breath weapon is the first:
-    // "Targets may make a basic reflex save to avoid damage with a DC equal to
-    // the DC of this spell" — the Shape Of The Wyrm cast's own Save DC, which
-    // is known when the form is applied and is not what 10 + ability + level
-    // would produce. Stored on the granted item at that moment; honoured here.
-    //
-    // Nothing in the compendium sets it, so no existing spell's DC moves.
-    //
-    // A CONSUMABLE'S SPELL TAKES THE SAME ROUTE (3.310.0), for the same
-    // reason: the DC belongs to the item, which has a PP and no caster, so
-    // consumable-use-workflow computes it once (consumableSaveDC) and hands
-    // it over rather than letting `10 + ability + level` read the stats of
-    // whoever happened to open the bottle.
-    const fixed = Number(spellData.fixedSaveDC ?? 0);
-    // ASSEMBLED, for the reason the Casting DC is. Five terms were added
-    // inline here and the card named one of them: Runemage's +1, the
-    // Wizard School's +2 and the warp's own contribution all moved the
-    // number a target rolls against without appearing anywhere.
-    const { declaredSpellDCBonuses } = await import("./spell-dc-bonus.mjs");
-    const saveDCResult = assembledSaveDC({
-      fixedDC: fixed,
-      baseDC: baseSaveDC,
-      casterLevelWarp: clMods.saveDC,
-      warpSaveDC: warpMods.saveDC,
-      runemage: runemageSave === 1,
-      wizardSchoolDelta: wizardSchoolSave,
-      // ALL THREE BASES ABOVE ARE NOW SONG-FREE — the specialist one
-      // because it is handed `spellcraftForCast`, the other two because
-      // they never had a Spellcraft term — so this adds the class bonus
-      // exactly once, and the card names it.
-      songAndDance: songAndDanceForCast,
-      // A caster's own declared bonus for this spell's traits (3.627.0) — not
-      // on an item's spell, which is not "your own spellcasting".
-      declaredBonuses: [...(isItemCast ? [] : declaredSpellDCBonuses(
-        Array.from(actor.appliedEffects ?? actor.effects ?? []), spellData.traits, { innate: isInnate })),
-        // THE CARRYING STRIKE'S CRITICAL (3.655.0, block 22 R5): "+1 per level of severity".
-        ...(Number(carried?.dcBonus) > 0 ? [{ label: `${carried.label ?? "Carried"} (${carried.severity} critical)`, value: Number(carried.dcBonus) }] : []),
-        // THE SPELL'S OWN DC BONUS (3.671.0; Lotus Enchanter). Not an item's cast.
-        ...(spellOwnBonus(spell)?.dc && !isItemCast ? [{ label: spellOwnBonus(spell).label, value: spellOwnBonus(spell).dc, type: spellOwnBonus(spell).type }] : [])]
-    });
+    if (innateSaveHere) innateSaveDCBase = Number(innateSaveHere.value ?? 0) || null;
     nominalSaveDC = saveDCResult.dc;
+    // TURNED BACK AT THE REACTOR'S SAVE DC (3.685.0, H5; Argent Reversal).
+    if (Number(warpMods?.turnBack?.saveDC) > 0) nominalSaveDC = Number(warpMods.turnBack.saveDC);
     // The card, and the number targets actually roll against, belong to a
     // spell that HAS a save. One copy of the figure either way.
     // THE CHOSEN MODE'S DEFENCE when it names one (3.609.1, the 3.609.0 live
@@ -3398,7 +4419,7 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
           // Heighten Spell is named separately because it does not ADD to
           // the DC: it rebuilds the base from a larger PP, so no reading
           // of the spell's printed cost explains the number without it.
-          `Save: <strong>${castDefence}</strong> against DC <strong>${saveDC}</strong>${fixed > 0 ? (isItemCast ? ` (${esc(itemCast.saveDCSource || "the item's own")})` : " (set by the effect that granted this)") : isItemCast ? " (your own — you are the one casting it)" : isInnate ? (innateSaveHere?.printed ? " (as printed)" : " (10 + magical ability + level)") : isSpecialist ? " (Specialist — higher of ability+level or spellcraft)" : ""}${!fixed && !isInnate && savePP !== totalPP ? ` (Heighten Spell — as ${savePP} PP)` : ""}${!fixed && highMagicSaveStep(actor, { printed: innateSaveHere?.printed === true }) ? " (+2 High Magic)" : ""}${!fixed && harmonyHere ? ` (${harmonyHere > 0 ? "+" : ""}${harmonyHere} Harmonize)` : ""}${describeParts(saveDCResult.parts)}${spellDefersItsSave(spellData.effects) ? " — rolled later, not on casting" : ""}.`
+          `Save: <strong>${castDefence}</strong> against DC <strong>${saveDC}</strong>${fixed > 0 ? (isItemCast ? ` (${esc(itemCast.saveDCSource || "the item's own")})` : " (set by the effect that granted this)") : isItemCast ? " (your own — you are the one casting it)" : isInnate ? (innateSaveHere?.printed ? " (as printed)" : " (10 + magical ability + level)") : isSpecialist ? " (Specialist — higher of ability+level or spellcraft)" : ""}${!fixed && !isInnate && savePP !== totalPP + freeWarpSaveDCPP ? ` (Heighten Spell — as ${savePP} PP)` : ""}${!fixed && freeWarpSaveDCPP && savePP === totalPP + freeWarpSaveDCPP ? ` (+${freeWarpSaveDCPP} free warp PP, ${freeWarpSaveDCLabel || "a free warp"} — as ${savePP} PP)` : ""}${!fixed && highMagicSaveStep(actor, { printed: innateSaveHere?.printed === true }) ? " (+2 High Magic)" : ""}${!fixed && harmonyHere ? ` (${harmonyHere > 0 ? "+" : ""}${harmonyHere} Harmonize)` : ""}${describeParts(saveDCResult.parts)}${Number(warpMods?.turnBack?.saveDC) > 0 ? " (turned back: the reactor's Save DC)" : ""}${spellDefersItsSave(spellData.effects) ? " — rolled later, not on casting" : ""}.`
         )
       );
     }
@@ -3495,9 +4516,13 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       // A WALL HAS NO AREA TEXT AND IS ALWAYS PLACED IN RANGE (3.610.0).
       const rangeFeet = wallSpec ? parseRangeFeet(effRange) : warpedArea ? parseRangeFeet(effRange) : null;
       const { placeWall } = await import("./wall-spell-workflow.mjs");
+      // AIMED FROM ANOTHER TOKEN, WHEN THE CAST SAYS SO (3.684.0, G24): the
+      // familiar's, for Symbiotic Witch's conduit ("range and area measured
+      // from the familiar", Q137). Who it spares is still the caster's call below.
+      const aimFrom = rangeOrigin?.actor ?? actor;
       const placed = wallSpec
-        ? await placeWall(wallSpec, actor, rangeFeet, spell.name)
-        : await placeSpellTemplate(areaConfig, actor, rangeFeet, `${spell.name} Area`);
+        ? await placeWall(wallSpec, aimFrom, rangeFeet, spell.name)
+        : await placeSpellTemplate(areaConfig, aimFrom, rangeFeet, `${spell.name} Area`);
       placedArea = placed;
       // THE FORM IS KNOWN ONLY NOW (3.610.1): a Wall Of Fire or Ice ring is
       // described as a ring on every line below that names the area.
@@ -3581,6 +4606,13 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
         // AN AREA REACHES BOTH OF AN ETTIN'S HEADS (3.647.0, R9): never "one target".
         const areaImmunity = partitionTraitImmune(areaTargets, spellData.traits ?? "", ownedCreatureTypeSystem, { targetCount: Infinity });
         areaTargets = areaImmunity.kept;
+        // SPARED BY A REACTION (3.685.0, H5; Spectral Aegis, Q152: "an area
+        // spell spares only the target"): the area lands on everyone else.
+        // See cast-reaction-shape.mjs `withoutExcluded`.
+        if (Array.isArray(warpMods?.excludeUuids) && warpMods.excludeUuids.length) {
+          const { withoutExcluded } = await import("./cast-reaction-shape.mjs");
+          areaTargets = withoutExcluded(areaTargets, warpMods.excludeUuids);
+        }
         /*
          * THE HEAT'S WIDER RING (3.609.0, R1). Measured from the same
          * origin as the template, out to the template's own size plus the
@@ -3647,7 +4679,11 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
               const rodItem = actor.items?.get?.(rodSource.itemId);
               if (rodItem) await rodItem.update({ "system.uses": Number(rodItem.system?.uses ?? 0) + rodPaid });
             }
-            if (totalCastAP > 0) await refundActionCost(actor, totalCastAP);
+            // AND THE RESTRICTED POINTS THE CAST TOOK, as they were (3.684.7;
+            // Graham: a Strike-only point comes back Strike-only, "Yes").
+            if (totalCastAP > 0) await refundActionCost(actor, totalCastAP, { receipt: castReceipt });
+            // …and what its options cost beside it (3.683.0, C14).
+            if (!apPaid && castAPOwed.option > 0) await refundActionCost(actor, castAPOwed.option, { receipt: optionReceipt });
             lines.push(line(castRefundedLine(spell.name, ppSpent, totalCastAP)));
             areaTargets = [];
             /*
@@ -3922,7 +4958,8 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
         const { applyMissileStorm } = await import("./missile-storm-workflow.mjs");
         const stormLines = await applyMissileStorm(
           { ...row, label: row.label || spell.name },
-          areaTargets ?? []
+          areaTargets ?? [],
+          { spell, caster: actor }
         );
         if (!stormLines.length) {
           lines.push(line(`<em>${spell.name} declares a malformed missile storm.</em>`));
@@ -4028,6 +5065,24 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
           ? line(entryCheckRecordedLine(recorded, nominalSaveDC))
           : line(`<em>${spell.name} declares a malformed entry check.</em>`));
       }
+      /*
+       * AN AREA'S LADDER, ROLLED AT THE START OF EACH OF THE CASTER'S TURNS
+       * (3.685.0, H3), against this cast's DC, frozen on the Region — and at
+       * the cast itself for everyone the template caught, when it says so.
+       */
+      for (const row of (effEffects ?? [])) {
+        if (row?.kind !== "turnLadder" || String(row?.on ?? "") !== "casterTurnStart" || !placedArea?.regionId) continue;
+        const region = canvas.scene?.regions?.get(placedArea.regionId) ?? null;
+        if (!region) continue;
+        const { recordAreaTurnLadder } = await import("./turn-ladder-workflow.mjs");
+        const recorded = await recordAreaTurnLadder(region, row, {
+          dc: nominalSaveDC, castId, casterUuid: actor.uuid ?? "", spellUuid: spell.uuid ?? "", spellName: spell.name,
+          damageType: String(spellData.damage?.type ?? ""), caught: Array.isArray(areaTargets) ? areaTargets : []
+        });
+        if (!recorded) { lines.push(line(`<em>${spell.name} declares a malformed turn ladder.</em>`)); continue; }
+        for (const said of recorded.lines) lines.push(line(said));
+        lines.push(line(`Everyone inside rolls <strong>${recorded.spec.save.charAt(0).toUpperCase() + recorded.spec.save.slice(1)}</strong> at the start of each of ${actor.name}'s turns.`));
+      }
       for (const row of (effEffects ?? [])) {
         if (row?.kind !== "hazard" || !placedArea?.regionId) continue;
         const region = canvas.scene?.regions?.get(placedArea.regionId) ?? null;
@@ -4065,11 +5120,28 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
    * paid for once, on `tradition` and the warp chooser: every non-cantrip
    * cast threw before it reached the dialog.
    */
+  const { castFacts: castFactsOf } = await import("./fumble-resonance-modifiers.mjs");
   const resonanceContext = {
     spellTrait: isCantrip ? "cantrip" : isAttack ? "attack" : spellData.category === "save" ? "save" : "utility",
     pp: totalPP,
     etherealMagic: String(tradition || "").toLowerCase().includes("ethereal"),
-    soulMagic: /\bsoul\b/i.test(spellData.traits || "")
+    soulMagic: /\bsoul\b/i.test(spellData.traits || ""),
+    // HIGH MAGIC'S RESONANCE IS ROLLED WITH DISADVANTAGE (3.678.0, D1/D6).
+    // Carried with the context, so every Resonance this cast provokes —
+    // chaos, a named natural, the fumble's 66 — is rolled the same way.
+    ...(hmCast.highMagic ? { highMagic: true } : {}),
+    // AND WHAT A MODULE'S FUMBLE OR RESONANCE MODIFIER IS TOLD (3.684.0;
+    // Eldritch Arts Block 6, G5): the metamagic and casting options taken,
+    // and a metamagic's `fumbleBias`/`resonanceBias` (Spell Surge). Plain
+    // data, so it rides wherever the context is handed (a critical's 66).
+    // The metamagic is G1's `castMetamagic` (keys, and the biases declared).
+    cast: castFactsOf({
+      spell, metamagic: castMetamagic.keys, castOptions: castOptionsApplied.keys,
+      fumbleBias: castMetamagic.fumbleBias, resonanceBias: castMetamagic.resonanceBias,
+      innate: isInnate, itemCast: Boolean(itemCheck), ritual: Boolean(ritual), stored: Boolean(stored),
+      // A STORED RELEASE, SAID (3.684.0, G5 — review): the fumble ctx reads it.
+      storedForeign: Boolean(stored?.foreign)
+    })
   };
 
   /*
@@ -4132,9 +5204,24 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     }
   }
   const baseDamageRow = apMode?.damage ?? spellData.damage;
-  const damageForCast = damageChoice
+  const damageChosen = damageChoice
     ? { ...(baseDamageRow ?? {}), type: damageChoice }
     : (apMode?.damage ?? null);
+  // A WARP THAT CHANGES THE TYPE (3.684.0; Eldritch Arts Block 6, G15): Blood
+  // of the Wyrm's dragon type, laid over whatever the row would deal — a choice
+  // the spell made included (Q106: all of its damage). None bought: unchanged.
+  const damageForCast = warpMods?.damageType && String(baseDamageRow?.formula ?? damageChosen?.formula ?? "").trim()
+    ? warpedDamageRow(damageChosen ?? baseDamageRow, warpMods)
+    : damageChosen;
+  if (warpMods?.damageType && outcome.cast) lines.push(line(`<em>${esc(spell.name)}: all of its damage is <strong>${esc(warpMods.damageType)}</strong> (warped).</em>`));
+  // A SECOND CREATURE AT A SHARE OF THE DAMAGE (3.684.0, G1; Echo of the
+  // Ancestors, Q75: "one casting, one check … the second creature saves (or is
+  // compared with the same attack roll) for half damage rounded down and takes
+  // the other effects"). Named by the option's `apply` (a creature it picked),
+  // resolved to its actor here.
+  const mmxExtraTargets = mmx.extra
+    .map((extra) => ({ actor: mmxWorkflow.actorFromUuid(extra.tokenUuid), factor: extra.damageFactor, label: extra.label }))
+    .filter((extra) => extra.actor && extra.actor !== actor);
 
   /*
    * SPELL TURNING (3.608.0, R6). A casting that has succeeded and names a
@@ -4175,6 +5262,9 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   let spellAttack = null;
   let spellSave = null;
   if (isAttack && outcome.cast && !damageChoiceRefused) {
+    // THE PENALTY COUNT BEFORE THIS CAST (3.684.0, G1), for Echo's second
+    // creature: one attack, so it is compared at the first one's penalty.
+    const echoMapCount = mmxExtraTargets.length ? attackCountOf(actor) : null;
     spellAttack = await resolveSpellVolley(actor, spell, check, lines, clMods, warpMods, {
       // SPECIALIST ATTACK SPELLS (Chapter 9): "…equal to your magical
       // ability score + level or your spellcraft bonus, whichever is
@@ -4206,12 +5296,29 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       splashSaveDC: nominalSaveDC,
       // THE ROD OF ACCURACY'S ITEM BONUS (3.616.0, R14), stacked with the
       // attack pool so an item bonus from elsewhere is not paid twice.
-      extraAttackRows: accuracyAttackRow ? [accuracyAttackRow] : [],
+      // …AND THE ATTACK-ONLY ROWS (3.684.0; Eldritch Arts Block 6, G14): a
+      // casting option's `attack` (Sanguine Channel) and a gate's `attackOnly`
+      // row (Spellblade's Mark), both in the same pool.
+      extraAttackRows: [...(accuracyAttackRow ? [accuracyAttackRow] : []), ...(castOptionsApplied.attackRows ?? []), ...gateAttackOnlyRows],
       // "+ MAGICAL ABILITY SCORE" (3.666.1, Hurling): the ability this cast's
       // Spellcraft rolled off, the swap included, so the damage adds the same
       // score the card's check named.
-      castingAbilityKey: castAbilityKey
+      castingAbilityKey: castAbilityKey,
+      // THE PP THE SPELL IS CAST AT (3.684.0, G12), for a per-PP rider.
+      castPP
     });
+    // ECHO'S SECOND CREATURE (3.684.0, G1; Q75): "compared with the same attack
+    // roll" — this cast's check, against its own Defence — for its share of
+    // the damage, rolled for it. One attack for the multiple attack penalty.
+    for (const extra of mmxExtraTargets) {
+      await resolveSpellAttack(actor, spell, check, lines, clMods, warpMods, {
+        targetOverride: extra.actor, mapCount: echoMapCount, deferMapAdvance: true, quiet: true, damageOverride: damageForCast,
+        splashSaveDC: nominalSaveDC,
+        extraAttackRows: [...(accuracyAttackRow ? [accuracyAttackRow] : []), ...(castOptionsApplied.attackRows ?? []), ...gateAttackOnlyRows],
+        castingAbilityKey: castAbilityKey, castPP, damageFactor: extra.factor
+      });
+      lines.push(line(`<em>${esc(extra.label)}: ${esc(extra.actor.name)} is compared with the same roll for ${Math.round(extra.factor * 100)}% of the damage; any other effect on it is the table's.</em>`));
+    }
   } else if (outcome.cast && !damageChoiceRefused && (effDefence ?? spellData.defence) && saveDC != null && !touchMissed
       && !spellDefersItsSave(spellData.effects)
       // NOR A SAVE OWED AT THE START OF EACH CREATURE'S TURN (3.609.0, R3).
@@ -4254,8 +5361,15 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       lines,
       targets: areaTargets ?? undefined,
       damage: damageForCast,
+      // ECHO'S SECOND CREATURE (3.684.0, G1), in the same save.
+      extraTargets: mmxExtraTargets,
       resonanceContext,
-      regardlessTargets: regardlessActors
+      regardlessTargets: regardlessActors,
+      // THE PP THE SPELL IS CAST AT, AND ONE TARGET'S DC (3.684.0; Eldritch
+      // Arts Block 6, G12 and G14): a per-PP rider; Sanguine Channel's
+      // "only one target benefits".
+      castPP,
+      saveDCTargets: castOptionsApplied.saveDCTargets ?? []
     });
   }
 
@@ -4313,14 +5427,26 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // TELEPORTATION, ON WHOEVER IT MOVES (3.622.0; Graham's R11 of block 39):
   // a Spatial Awareness check to keep acting, and a second teleportation in
   // one turn fails. The targets, or the caster when there are none.
+  // NOT YET, WHEN THE TELEPORT COMES LATER (3.685.1; Eldritch Arts 0.10.0's
+  // live test, finding 1): Panic Transposition's card came at the cast, before
+  // the attack resolved, and when the bearer dropped and never teleported. A
+  // spell registered with `registerDeferredTeleport` is carded by its module,
+  // through `helpers.teleportationArrives`, when it moves.
   if (outcome.cast) {
-    const { teleportationArrives } = await import("../trait-rules-workflow.mjs");
-    const moved = Array.from(game.user?.targets ?? []).map((t) => t?.actor).filter(Boolean);
-    for (const said of await teleportationArrives(actor, spell, moved)) lines.push(line(said));
+    const { teleportationArrives, teleportDeferred } = await import("../trait-rules-workflow.mjs");
+    const { hasTrait: spellHasTrait } = await import("../traits.mjs");
+    const deferred = spellHasTrait(spell?.system?.traits ?? "", "teleportation") && await teleportDeferred({ actor, spell, spellData });
+    if (!deferred) {
+      const moved = Array.from(game.user?.targets ?? []).map((t) => t?.actor).filter(Boolean);
+      for (const said of await teleportationArrives(actor, spell, moved)) lines.push(line(said));
+    }
   }
 
   let spellEffectRolls = [];
   let affectedUuids = [];
+  // WHAT THE BENEFICIAL-SPELL SAVE ROLLED, per target (3.677.1), so a live
+  // emanation can remember who refused it — see beneficial-save.mjs.
+  const benefitOutcomes = new Map();
   // …OR NONE BUT THE LIGHT TRAIT'S STEP (3.622.0; R9): Fairy Fire prints no
   // row, and its glow is the whole of what it does here.
   const { lightTraitDefaultRow } = await import("../trait-rules.mjs");
@@ -4366,7 +5492,8 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     effectTargets = await beneficialTraditionSave(actor, spell, {
       targets: effectTargets,
       saveDC: nominalSaveDC,
-      lines
+      lines,
+      outcomes: benefitOutcomes
     });
 
     // POLYMORPH AGAINST POLYMORPH, AND AGAINST MORPH (3.622.0; Graham's R11
@@ -4405,6 +5532,8 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
 
     const eff = await applySpellEffects(actor, spell, {
       registersCast,
+      // THE PP THE SPELL IS CAST AT (3.684.0, G12): a heal's per-PP rider (the Angelic Pact).
+      castPP,
       // THE LIGHT TRAIT'S DEFAULT STEP is drawn by the cast's own call
       // (3.622.0; R9) — see spell-effects.mjs.
       lightTraitDefault: true,
@@ -4477,8 +5606,15 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       warpMods,
       lines,
       // A DISSIPATED WALL'S NOTES DESCRIBE A WALL THAT ISN'T THERE (3.610.1).
-      effects: (wallDissipated ? (effEffects ?? []).filter((r) => r?.kind !== "note") : effEffects)
-        .filter((r) => !(selfShapeBlocked && r?.target === "self")),
+      // AND THE CASTER-LEVEL STEPS ON THE ROWS (3.685.0, H2) — Brittleskin's
+      // DR and thorns die; a spell that declares none passes its rows as they are.
+      effects: casterLevelRows((wallDissipated ? (effEffects ?? []).filter((r) => r?.kind !== "note") : effEffects)
+        .filter((r) => !(selfShapeBlocked && r?.target === "self")), clMods),
+      // AND ITS DURATION (3.685.0, H2; Feltwarp's "+1 hour"), unless a warp
+      // already chose one.
+      ...(clMods?.duration?.amount && !String(warpMods?.durationText ?? "").trim()
+        ? { durationOverride: casterLevelDuration(spellData.duration, clMods.duration) }
+        : {}),
       extraDamage: intenseSpells,
       castId,
       pickedTraits
@@ -4815,6 +5951,11 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
         // step out and back in re-rolled a save the book rolls once,
         // which is the exact ruling the map exists to honour.
         tested: castSaveDegrees(spellSave),
+        // AND WHO REFUSED ITS HELP (3.677.1; Graham, 1 November 2026). A
+        // Nyrinn's Null Aura or an Ascendan's forbidden tradition rolled at
+        // the cast; the circle keeps the answer, and asks a latecomer once.
+        benefit: benefitRecord(spellData, nominalSaveDC, benefitOutcomes,
+          (target) => (canvas?.tokens?.placeables ?? []).find((t) => t.actor === target)?.id ?? null),
         // THE MINIMUM THIS AREA HOLDS, if it holds one (3.429.0).
         floors: emanationFloors(spellData.effects),
         // WHAT A SUSTAIN BUYS, and WHEN THE CIRCLE ENDS (3.430.0).
@@ -4960,9 +6101,28 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   const injuryRays = Array.isArray(spellAttack?.rays) && spellAttack.rays.length
     ? spellAttack.rays
     : (spellAttack ? [spellAttack] : []);
+  // SNIPING WITH A SPELL (3.683.0; Eldritch Arts Block 5, D14, C15): Silent
+  // Spellstrike's "You may use the Sniping (Stealth) skill action with spells
+  // that have the Attack trait". Asked once a cast; for a caster who declares
+  // nothing the critical is remembered as the melee one it always was. See
+  // magic/spell-sniping.mjs.
+  const { declaresSpellSniping, spellCriticalSnipingFacts } = await import("./spell-sniping.mjs");
+  const snipingDeclared = injuryRays.some((r) => r?.critical)
+    && declaresSpellSniping([...Array.from(actor.items ?? []), ...Array.from(actor.appliedEffects ?? [])]);
   for (const ray of injuryRays) {
     if (!ray?.critical || !ray.targetActor) continue;
     if (!spellInflictsCriticalInjury(spellData)) continue;
+    let sniping = null;
+    if (snipingDeclared) {
+      const { distanceBetweenActors } = await import("../conditions/condition-events-workflow.mjs");
+      sniping = spellCriticalSnipingFacts({
+        declared: true,
+        // THE RANGE THE CAST'S OWN GATE READ: warped, with silence as "self".
+        rangeText: effectiveRangeText(warpedRange(effRange, warpMods), warpedAreaText(effArea, warpMods)),
+        distanceFeet: await distanceBetweenActors(actor, ray.targetActor),
+        reach: touchReach(system)
+      });
+    }
     await rollCriticalInjury(actor, {
       targetActor: ray.targetActor,
       damageType: ray.damageType,
@@ -4972,7 +6132,9 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       armourBypassSource: spell.name,
       // THE SECOND RESONANCE TRIGGER (page 245). A 66 on this injury
       // roll is a Resonance Event because a SPELL scored it.
-      spellResonance: resonanceContext
+      spellResonance: resonanceContext,
+      // Sniping's half of the trigger, when the caster may snipe with a spell.
+      ...(sniping ?? {})
     });
   }
 
@@ -4997,7 +6159,10 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
    */
   {
     const resonanceFace = Math.trunc(Number(spellData?.resonanceOnNatural) || 0);
-    if (resonanceFace > 0 && Number(check?.dice?.faces?.[0] ?? 0) === resonanceFace) {
+    // `dice.unmodified` (3.680.0, review): the check's d20 result carries the
+    // chosen chain's first face as `unmodified`; it has no `faces` of its
+    // own, so `dice.faces[0]` was always undefined and this never fired.
+    if (resonanceFace > 0 && Number(check?.dice?.unmodified ?? 0) === resonanceFace) {
       await rollResonanceEvent(actor, {
         reason: `${spell.name} — a natural ${resonanceFace} on the Spellcraft check`,
         modifiers: resonanceContext
@@ -5005,12 +6170,16 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
     }
   }
 
-  if (outcome.fumbleRoll) {
+  // A THREADED SPELL ROLLS NO FUMBLE OF ITS OWN (3.684.0, S-M11): the weave's
+  // one check is the first spell's, and that spell rolled it.
+  if (outcome.fumbleRoll && !threaded) {
     await rollSpellFumble(actor, {
-      tradition,
+      // AN ALL-TRADITIONS SPELL FUMBLES BY THE CASTER'S OWN (3.678.0, Q4).
+      tradition: hmTraditions.fumbleTradition,
       blunder: outcome.fumbleModifier > 0,
       pp: totalPP,
-      focusPenalty: focusFumblePenalty(system.magic),
+      focusPenalty: focusSetAside ? 0 : focusFumblePenalty(system.magic),
+      highMagic: hmCast,
       // THE +20 ROW THAT NOTHING COULD REACH (3.585.0, page 244). The
       // Spell Fumble Modifiers table has carried "Spell Ritual +20"
       // since the table was transcribed, and `rollSpellFumble` has
@@ -5020,6 +6189,27 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
       ritual: Boolean(ritual),
       resonanceContext
     });
+  }
+
+  // A RESONANCE EVENT A MODULE FORCES (3.684.0; Eldritch Arts Block 6, G5).
+  // Resonance Surge: "automatically trigger a Resonance Event (which is
+  // resolved after the effects of the spell you cast)" — Graham's Q148, "rolled
+  // as a High Magic Resonance of that cast": this cast's context, so its
+  // modifiers, its High Magic disadvantage and the suppressors all apply.
+  // Not for a threaded spell, which has no Resonance of its own (G1, S-M11).
+  if (!threaded) {
+    const { forcedResonancesFrom } = await import("./fumble-resonance-modifiers.mjs");
+    const forced = await forcedResonancesFrom({
+      actor, spell, spellData, degree, cast: Boolean(outcome.cast), highMagic: Boolean(hmCast?.highMagic), pp: totalPP,
+      innate: Boolean(isInnate), itemCast: Boolean(itemCheck), ritual: Boolean(ritual),
+      // A STORED RELEASE (3.684.0, G5 — review): Resonance Surge is not spent
+      // on one, so the force is told; `storedForeign` an absorbed spell's.
+      stored: Boolean(stored), storedForeign: Boolean(stored?.foreign),
+      metamagic: resonanceContext.cast?.metamagic ?? [], castOptions: resonanceContext.cast?.castOptions ?? []
+    });
+    for (const event of forced) {
+      await rollResonanceEvent(actor, { reason: `${esc(event.reason)} — a Resonance event after ${esc(spell.name)}${event.line ? `. ${esc(event.line)}` : ""}`, modifiers: resonanceContext });
+    }
   }
 
   if (overcast && (outcome.cast || ppSpent)) {
@@ -5103,14 +6293,96 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
    * refunded cast is not answered as a paid one. `innate` is true for an
    * innate spell or an item's.
    */
+  /*
+   * A MODULE'S METAMAGIC AND PP SOURCES, SETTLED (3.684.0; Eldritch Arts Block
+   * 6, G1 and G2). Here, once the cast can no longer be refunded, so a
+   * refunded cast is settled as one. Each PP source is told what it drew and
+   * what it paid (0 on a refund). A Focus use is spent, and a resource
+   * payment taken, when the cast paid its PP — Graham's Q96: "Success or
+   * better, Failure, Fumble or Blunder. Not on a Partial, nor on a refunded
+   * cast. On an innate cast, when the spell is cast." Then each taken option's
+   * `after` (Steelbinding's save, Thunderclap Aura's burst, Spellthread's
+   * second spell through `castSpell(…, { thread })`). Their lines are posted
+   * on a card of their own. With nothing taken or drawn, nothing is asked.
+   */
+  // A LENT OPTION IS SPENT FOR THE ROUND (3.685.0, H9: "one spell they cast
+  // per round") once the cast is settled and not refunded.
+  if (lentCut.effectIds.length && lentRoundKey && outcome.cast && !castRefunded) {
+    for (const id of lentCut.effectIds) {
+      const lender = actor.effects?.get?.(id) ?? null;
+      if (lender?.setFlag) await lender.setFlag(SYSTEM_ID, LENT_USED_FLAG, lentRoundKey).catch(() => {});
+    }
+  }
+  if (mmx.taken.length || ppSources.draws.length) {
+    const settledLines = await mmxWorkflow.settleModuleMetamagic(actor, mmx, ppSources.draws, {
+      spell, spellData, degree, cast: Boolean(outcome.cast), refunded: Boolean(castRefunded),
+      innate: Boolean(isInnate), itemCast: Boolean(isItemCast), ritual: Boolean(ritual), highMagic: Boolean(hmCast.highMagic),
+      check, spellHits: spellHitsOf(spellAttack),
+      saveResults: Array.from(spellSave?.results ?? [], (r) => ({ target: r.target, degree: r.degree, saved: Boolean(r.saved) })),
+      totalPP, ppSpent, metamagicPP, warpMods, threaded,
+      // THE CAST'S SAVE DC (3.684.0, review): the value trgPrimeSpellSettled
+      // carries — what the cast's saves used, before a per-target shift — so a
+      // metamagic's `after(ctx)` (Steelbinding, Thunderclap Aura) reads
+      // `ctx.saveDC` instead of rebuilding 10 + PP + ability. Null if not cast.
+      saveDC: nominalSaveDC ?? null, innateSaveDC: isInnate ? innateSaveDCBase : null,
+      targets: Array.from(game.user?.targets ?? [])
+    });
+    if (settledLines.length) await postCard(actor, `${spell.name} — Metamagic`, settledLines.map((text) => line(text)));
+  }
   Hooks.callAll("trgPrimeSpellSettled", {
     actor, spell, spellData, degree,
+    // AND HOW IT WAS ROLLED (3.678.0): a Wild Magic area surges once the cast
+    // is settled — its PP rows must not race the cast's own payment.
+    chaos, rollsCheck: !isInnate && !noCheckCantrip, ritual: Boolean(ritual), highMagic: hmCast.highMagic, disrupted: castDisrupted,
+    // AND WHAT A SOURCEBOOK ASKED OF IT (3.679.0; Eldritch Arts Block 2b): the
+    // casting options taken (a true name), each target's save (a true name's
+    // "if the creature gets a success or greater … it becomes permanently
+    // hostile"), and a ritual variant's PP, paid by the module, not the pool.
+    castOptions: castOptionsApplied.keys, ritualVariant: ritualSubstitutes ? String(ritual.variant) : "", ppSubstituted: ritualSubstitutes && !castRefunded ? ppSpent : 0,
+    saveResults: (spellSave?.results ?? []).map((r) => ({ target: r.target, degree: r.degree, saved: Boolean(r.saved) })),
+    // THE UNMODIFIED DIE (3.680.0; Eldritch Arts Block 3a): the Wild
+    // birthright's "Whenever you cast a spell of PP 2 or greater and roll an
+    // unmodified 13". The chosen chain's first face (`dice.unmodified`), as an
+    // attack's natural 20 is read; 0 when no check was rolled.
+    natural: Math.trunc(Number(check?.dice?.unmodified ?? 0)) || 0,
+    // THE SPELL ATTACK'S HITS (3.682.0; Eldritch Arts Block 4): the Warlock's
+    // Xithra riders, "This effect only applies if the initial blast hits".
+    // One entry a ray that hit; none for a miss or a spell without an attack.
+    spellHits: spellHitsOf(spellAttack),
     cast: Boolean(outcome.cast),
     ppSpent,
+    // A RELEASED STORED SPELL (3.684.0; Block 6, G16): Rune Rend's and Runic
+    // Overload's riders read it; `storedForeign` an absorbed one.
+    stored: Boolean(stored), storedForeign: Boolean(stored?.foreign),
     refunded: Boolean(castRefunded),
     innate: Boolean(isInnate),
     itemCast: Boolean(isItemCast),
     level: characterLevel,
+    // A PREPARED SIGIL'S CAST, AND THE PP THE SPELL WAS CAST AT (3.684.0;
+    // Eldritch Arts Block 6, G25 and G12): the sigil fades on settle, and
+    // reforms on a Heroic (Living Script); `castPP` is Q101's number — base +
+    // warps and metamagic, the innate spell's own PP, a cantrip 0 — which a
+    // Partial's refund does not lower (`ppSpent` is what was paid).
+    preparedSymbol: Boolean(sigil), castPP,
+    // THE METAMAGIC TAKEN, AND WHO PAID (3.684.0; Eldritch Arts Block 6, G1 and
+    // G2): every key, core ids and a module's; and what each PP source drew and
+    // paid (Bloodmage's fumble Bleed reads it, Q105: "only on a cast that used
+    // the Bleed").
+    metamagic: [...castMetamagic.keys], metamagicTaken: castMetamagic.taken.map((t) => ({ ...t })), metamagicPP,
+    // THE G3 PAYMENTS TAKEN (3.684.0, review), as on trgPrimeSpellCast.
+    metamagicPayments: [...mmAP.paymentKeys],
+    // THE CAST'S SPELL SAVE DC (3.684.0; Eldritch Arts Block 6 — review): the
+    // one its own saves were rolled against, every bonus in (effects, warps,
+    // Runemage, school, High Magic), before any per-target shift (G14's
+    // `saveDCTarget`). Steelbinding, Thunderclap Aura, Void Pact and
+    // Versatile Binder rebuilt it as 10 + PP + ability, which drifts from it.
+    // Null when the cast did not go off. `innateSaveDC`: an innate cast's own
+    // formula (10 + magical ability + level, or as printed), before those
+    // bonuses; null for any other cast.
+    saveDC: nominalSaveDC ?? null,
+    innateSaveDC: isInnate ? innateSaveDCBase : null,
+    ppSources: ppSources.draws.map((d) => ({ key: d.key, label: d.label, drawn: d.drawn, paid: castRefunded ? 0 : Number(d.paid ?? 0) })),
+    threaded,
     // WHAT WAS BOUGHT (3.672.0): a module's own warp reads its `unlocks`
     // (Inner Tempest's Arrows Flight, "+4 PP: projectiles up to a large size").
     warpMods
@@ -5119,6 +6391,10 @@ export async function castSpell(actor, spell, { itemCheck = null, stored = null,
   // rolled — not just who failed — can read it without re-deriving anything.
   // AND THE WARPS IT WAS CAST WITH (3.612.0, R4): Fateful Temptation's bonus
   // is read from them by the save it answered.
+  // THE WARP PAID FOR (3.681.0), so a reaction cast can tell its warped
+  // option was taken (Phase Familiar's "+10 PP: your familiar instead gains
+  // immunity"). On the outcome, which the return spreads.
+  outcome.warpPP = Number(warpPP ?? 0) + Number(manipulationPP ?? 0);
   // The cast is over: a resistance it ignored is honoured again (3.630.0).
   { const { clearResistanceBypass } = await import("../combat/damage-workflow.mjs"); clearResistanceBypass(); }
   return { ...outcome, ppSpent, check, spellSave, refunded: castRefunded, warpMods };
@@ -5236,18 +6512,21 @@ async function resolveSpellVolley(actor, spell, check, lines, clMods = null, war
  * per-creature marker.
  * @returns {Promise<number|null>} the target's HP after the riders, or null when none fired
  */
-async function applyCasterSpellDamageRiders(actor, spell, target, { damageType, taken, rolls, lines }) {
+async function applyCasterSpellDamageRiders(actor, spell, target, { damageType, taken, rolls, lines, castPP = 0, attack = false }) {
   const riders = declaredSpellDamageRiders(Array.from(actor?.appliedEffects ?? actor?.effects ?? []));
   if (!riders.length) return null;
   const used = actor?.getFlag?.(SYSTEM_ID, SPELL_RIDERS_USED_FLAG) ?? {};
+  // AND THE CAST'S PP AND WHETHER THIS BLOW WAS AN ATTACK (3.684.0; Eldritch
+  // Arts Block 6, G12 and G25): a per-PP rider (Demonic Pact), an attacks-only
+  // one against one creature (Spellblade's Mark).
   const joining = spellDamageRidersFor(riders, {
     damageType, targetTypes: creatureTypesOf(target?.system ?? {}), taken, targetUuid: target?.uuid ?? "", used,
-    tradition: String(spell?.system?.tradition ?? "")
+    tradition: String(spell?.system?.tradition ?? ""), attack: Boolean(attack), castPP
   });
   if (!joining.length) return null;
   let newHP = null;
   for (const rider of joining) {
-    const roll = await new Roll(rider.dice).evaluate();
+    const roll = await new Roll(spellRiderFormula(rider, castPP)).evaluate();
     rolls.push(roll);
     const packet = resolveAgainstDefences(target.system ?? {}, {
       amount: roll.total,
@@ -5256,8 +6535,9 @@ async function applyCasterSpellDamageRiders(actor, spell, target, { damageType, 
       ...spellDamageSource(spell, { targeted: true }),
       sourceTraits: ""
     });
-    if (packet.taken > 0) newHP = (await applyDamageAndCheckDying(target, packet.taken, {}))?.newHP ?? newHP;
-    lines.push(line(spellRiderLine(target.name, rider, packet.taken, packet.immune)));
+    // THE CASTER, FOR WHOEVER LISTENS (3.684.0, G23).
+    if (packet.taken > 0) newHP = (await applyDamageAndCheckDying(target, packet.taken, { sourceUuid: actor?.uuid ?? "", context: { kind: "spell", spellName: spell?.name ?? "", rider: rider.label } }))?.newHP ?? newHP;
+    lines.push(line(spellRiderLine(target.name, rider, packet.taken, packet.immune, castPP)));
     // A RIDER THAT LANDED (3.630.0), announced for a module to follow —
     // Pillars of Faith's Elemental Overflow spills Elemental Mantle's
     // secondary damage onto a second creature. Its lines join this card.
@@ -5271,6 +6551,73 @@ async function applyCasterSpellDamageRiders(actor, spell, target, { damageType, 
   return newHP;
 }
 
+/**
+ * A NEW TYPED POOL A METAMAGIC ADDS (3.684.0; Eldritch Arts Block 6, G1 —
+ * Pact Channeler's Demonic and Grave: "If it already deals damage, it deals
+ * an additional 2d6 fire [essence] damage"). `warpMods.addedDamage` is
+ * `[{dice, type, label}]`, folded from the options taken. Rolled for each
+ * creature the spell's own blow damaged, after it, resolved against its own
+ * type; `scale` is that creature's share of the blow — its basic save's
+ * multiplier, and Echo's half — so the pool is "saved and halved with the
+ * primary" (S-M1). Critical dice are not doubled into it. Nothing added: null.
+ * @returns {Promise<number|null>} the target's HP after, or null
+ */
+async function applyMetamagicAddedDamage(actor, spell, target, warpMods, { taken = 0, scale = 1, rolls = [], lines = [] } = {}) {
+  const pools = Array.isArray(warpMods?.addedDamage) ? warpMods.addedDamage : [];
+  if (!pools.length || !target || !(Number(taken) > 0)) return null;
+  let newHP = null;
+  for (const pool of pools) {
+    const roll = await new Roll(String(pool.dice)).evaluate();
+    rolls.push(roll);
+    const amount = Math.floor(Math.max(0, roll.total) * Math.max(0, Number(scale) || 0));
+    const packet = resolveAgainstDefences(target.system ?? {}, {
+      amount,
+      type: pool.type,
+      creatureTypeSystem: ownedCreatureTypeSystem(target),
+      ...spellDamageSource(spell, { targeted: true }),
+      sourceTraits: ""
+    });
+    if (packet.taken > 0) newHP = (await applyDamageAndCheckDying(target, packet.taken, { sourceUuid: actor?.uuid ?? "", context: { kind: "spell", spellName: spell?.name ?? "", rider: pool.label } }))?.newHP ?? newHP;
+    lines.push(line(packet.immune
+      ? `${target.name}: <strong>immune</strong> to ${pool.type} (${esc(pool.label)}).`
+      : `${target.name}: <strong>${packet.taken}</strong> ${pool.type} (${esc(pool.label)}, ${pool.dice}${Number(scale) !== 1 ? `, ×${scale}` : ""}).`));
+  }
+  return newHP;
+}
+
+/**
+ * PER DIE, BY THE POOL'S DAMAGE TYPE (3.683.0; Eldritch Arts Block 5, C6).
+ * Emberborn Fury: "Whenever you deal fire damage with a spell or effect, you
+ * add +1 damage per die rolled"; Elemental Apotheosis the same for the
+ * heritage's element. Asked for each pool the cast rolls, with that pool's
+ * own formula (its dice, after warps) and type; Graham's Q70: every pool of
+ * that type, never recurring damage. See magic/spell-damage-bonus.mjs.
+ * @returns {Promise<{dice: number, perDie: number, total: number, text: string}>}
+ */
+async function spellPoolPerDie(actor, spell, formula, type) {
+  const { declaredSpellDamagePerDie, spellDamagePerDie } = await import("./spell-damage-bonus.mjs");
+  return spellDamagePerDie(String(formula ?? ""), declaredSpellDamagePerDie(
+    Array.from(actor?.appliedEffects ?? actor?.effects ?? []),
+    { damageType: String(type ?? ""), traits: spell?.system?.traits ?? "" }));
+}
+/** The card's line for a pool's per-die bonus (C6). */
+const perDieLine = (pd, pool) => line(`<em>Spell damage per die (${pool}): ${pd.text}.</em>`);
+
+/**
+ * A SPELL'S DAMAGE, ABOUT TO MEET A CREATURE (3.681.0; Eldritch Arts Block 3b):
+ * its damage reactions (Resist Magic, Phase Familiar) are asked once a cast
+ * (granted-defences `askOnceThisCast`), and what they grant is read by the
+ * defences the packets below meet. Resolves the lines to show.
+ */
+async function spellDamageReactions(target, spell, caster, types = []) {
+  if (!target) return [];
+  const { damageReactionsBefore } = await import("../reactions/reactions-workflow.mjs");
+  return damageReactionsBefore(target, {
+    kind: "spell", types: types.filter(Boolean), magical: true, spellName: spell?.name ?? "",
+    sourceName: caster?.name ?? "", sourceUuid: caster?.uuid ?? "", source: caster ?? null
+  });
+}
+
 async function resolveSpellAttack(actor, spell, check, lines, clMods = null, warpMods = null, {
   specialistUplift = 0, targetOverride = null, mapCount = null, deferMapAdvance = false, quiet = false,
   rays = 0, damageOverride = null,
@@ -5281,7 +6628,12 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
   // Bonus rows from the cast itself — the Rod of Accuracy (3.616.0).
   extraAttackRows = [],
   // The ability this cast rolled off (3.666.1) — see spell-damage-ability.mjs.
-  castingAbilityKey = ""
+  castingAbilityKey = "",
+  // The PP the spell is cast at (3.684.0, G12) — see cast-pp.mjs.
+  castPP = 0,
+  // A share of the damage for a metamagic's added creature (3.684.0, G1; Echo
+  // of the Ancestors, Q75: "half damage rounded down"). 1 for every other.
+  damageFactor = 1
 } = {}) {
   const spellData = spell.system;
   // THE CHOSEN TYPE, WHEN THE CAST MADE A CHOICE (3.603.0). The same
@@ -5308,11 +6660,30 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
   // …OR THE ABILITY THE CAST WAS MADE WITH (3.666.1): Hurling's "1d6 +
   // magical ability score", from the key castSpell resolved.
   const { withDamageAbility } = await import("./spell-damage-ability.mjs");
-  const damageFormula = withDamageAbility(
-    addDice(addDice(warpedRowExtra(dmg.formula, warpMods), clMods?.damageDice), warpMods?.damageDice),
+  // THE DICE A CAST REACTION HALVED OR DOUBLED (3.684.0, G17; Counter
+  // Channel, Q118: the dice count, min 1). Off unless a reaction scaled it.
+  const { scaleDiceCount } = await import("./cast-reaction-shape.mjs");
+  const abilityFormula = withDamageAbility(
+    scaleDiceCount(addDice(addDice(warpedRowExtra(dmg.formula, warpMods), clMods?.damageDice), warpMods?.damageDice), warpMods?.diceScale),
     dmg, actor.system ?? {}, castingAbilityKey,
     // A COPY OLDER THAN ITS ROW (3.674.0): the printed sentence stands in.
     String(spellData.description ?? "")).formula;
+  // THE CASTER'S DECLARED BONUS TO SPELL DAMAGE (3.675.0; Eldritch Arts'
+  // Elemental Surge: "your Charisma ability score as a racial bonus to all
+  // spell damage rolls"). See magic/spell-damage-bonus.mjs.
+  const { declaredSpellDamageBonuses, withSpellDamageBonus } = await import("./spell-damage-bonus.mjs");
+  const surged = withSpellDamageBonus(abilityFormula, declaredSpellDamageBonuses(
+    Array.from(actor?.appliedEffects ?? actor?.effects ?? []),
+    // THE SPELL'S PRINTED PP, AND WHETHER IT PRINTS A DURATION (3.684.0, G12;
+    // Dangerous Sorcery, Q146). See cast-pp.mjs.
+    { traits: spellData.traits ?? "", attributes: actor.system?.attributes ?? {}, spellPP: printedSpellPP(spellData), noDuration: spellHasNoDuration(spellData) }));
+  // AND PER DIE OF THE BOLT'S TYPE (3.683.0, C6): the dice of the warped
+  // formula, folded into it so the card's formula is the number beside it.
+  const boltPerDie = await spellPoolPerDie(actor, spell, abilityFormula, damageType);
+  if (boltPerDie.total && surged.formula) surged.formula = `${surged.formula} + ${boltPerDie.total}`;
+  const damageFormula = surged.formula;
+  if (surged.total && !quiet) lines.push(line(`<em>Spell damage bonus: ${surged.text}.</em>`));
+  if (boltPerDie.total && damageFormula && !quiet) lines.push(perDieLine(boltPerDie, damageType));
   const warpPersistent = Number(warpMods?.persistent ?? 0);
   const targetActor = targetOverride ?? Array.from(game.user?.targets ?? [])[0]?.actor ?? null;
   if (!targetActor) {
@@ -5430,6 +6801,14 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
       .concat(conditionRows)
       .concat(Array.isArray(extraAttackRows) ? extraAttackRows : []), {});
   const poolRows = (stackedPool.modifiers ?? []).filter((row) => row.applied !== false);
+  // A SPELL ATTACK ON ANOTHER BASE (3.682.0; Eldritch Arts Block 4, D17): the
+  // Spellblade's Battle Mage. The attack alone moves; the casting check and
+  // its degree stand. Not for an innate spell, whose attack holds no BSB.
+  if (!spell?.system?.innate && !check?.fromStrike) {
+    const { spellAttackBaseRow } = await import("../combat/attack-base.mjs");
+    const baseRow = spellAttackBaseRow([...Array.from(actor.items ?? []), ...Array.from(actor.appliedEffects ?? [])], actor.system, spellData);
+    if (baseRow) poolRows.push(baseRow);
+  }
 
   // THE MULTIPLE ATTACK PENALTY, on a spell (page 191; Graham's R1 of the
   // block-19 audit, 21 September 2026): "Any action which has the attack
@@ -5469,14 +6848,27 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
       await postRerollCard(targetActor, actor, asked.label, before, Number(check.outcome?.total ?? 0));
     }
   }
-  const attackTotal = assembledSpellAttackTotal({
-    checkTotal: check.outcome?.total,
-    attackWarp,
-    aggressiveMagic,
-    specialistUplift,
-    map: spellMap,
-    poolRows
-  });
+  // THE ATTACK'S TOTAL, AS A FUNCTION OF THE CHECK (3.681.0): read again
+  // when a reaction rerolls the attack below.
+  const attackTotalOf = (c) => {
+    const assembled = assembledSpellAttackTotal({
+      // Less a casting-DC-only row (3.675.0): it is no part of the attack.
+      checkTotal: Number(c.outcome?.total ?? 0) - Number(c.castingOnlyTotal ?? 0),
+      attackWarp,
+      aggressiveMagic,
+      specialistUplift,
+      map: spellMap,
+      poolRows
+    });
+    // TURNED BACK (3.685.0, H5; Argent Reversal: "you use the result of your
+    // Spellcraft check … to determine its results"): the reactor's result is
+    // the attack, as it stands.
+    const turned = warpMods?.turnBack?.checkTotal;
+    return turned !== null && turned !== undefined && Number.isFinite(Number(turned))
+      ? { ...assembled, total: Math.trunc(Number(turned)) }
+      : assembled;
+  };
+  const attackTotal = attackTotalOf(check);
   // AND THE LADDER CLIMBS: this attack counts toward the next one, hit or
   // miss — advanced here, before any of the outcome branches below can
   // return early.
@@ -5486,12 +6878,8 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
   if (!deferMapAdvance && spellCountsTowardMAP(spellData)) {
     await setAttackCount(actor, mapBefore + 1);
   }
-  // A DEFENCE THAT LASTED ONE ATTACK (3.666.0) — the spell attack has been
-  // rolled against the DB it raised. See combat/one-attack.mjs.
-  {
-    const { consumeOneAttackEffects } = await import("../combat/target-relay-workflow.mjs");
-    await consumeOneAttackEffects(targetActor, { kind: "spell", attackerUuid: actor?.uuid ?? "" });
-  }
+  // (A DEFENCE THAT LASTED ONE ATTACK is spent below, once the DB rows have
+  // been read — 3.684.0, G20 review.)
   if (attackWarp && !quiet) {
     lines.push(line(`<em>Caster level modifications: ${attackWarp > 0 ? "+" : ""}${attackWarp} to the attack.</em>`));
   }
@@ -5518,7 +6906,7 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
     lines.push(line(
       `<em>${row.label} ${row.value > 0 ? "+" : ""}${row.value}: ${row.suppressed ?? "does not stack"}.</em>`));
   }
-  const total = attackTotal.total;
+  let total = attackTotal.total;
   // A DRAGONHIDE SHIELD AGAINST ITS OWN DRAGON'S ENERGY (3.574.0). Page
   // 147: "an additional +2 DB when used against the energy type of the
   // dragon the scales were harvested from." A spell attack is where an
@@ -5534,16 +6922,93 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
       `<em>${targetActor.name}'s Dragonhide shield: +${dragonhideDB} DB against ${dealtType}.</em>`));
   }
   // SPELL RESILIENCE (3.631.0): the target's class bonus to DB against a spell attack.
-  const resilienceDB = spellResilienceModifiers(targetActor).reduce((sum, m) => sum + m.value, 0);
-  if (resilienceDB) lines.push(line(`<em>${targetActor.name}'s Spell Resilience: +${resilienceDB} DB against magical attacks.</em>`));
-  const defendedDB = Number.isFinite(baseDB) ? baseDB + dragonhideDB + resilienceDB : NaN;
-  const outcome = attackOutcome({
-    unmodified: check.dice?.unmodified ?? 0,
-    total,
+  // UNDER ITS OWN NAME, AND LOWERED BY THE CASTER (3.675.0, C2): Null Aura, Spell Penetration.
+  const resilienceRows = spellResilienceModifiers(targetActor, actor);
+  const resilienceDB = resilienceRows.reduce((sum, m) => sum + m.value, 0);
+  if (resilienceDB) lines.push(line(`<em>${targetActor.name}'s ${resilienceRows.map((r) => r.label).join(" and ")}: +${resilienceDB} DB against magical attacks${resilienceRows.some((r) => r.reducedBy) ? ` (lowered by ${resilienceRows.reduce((s, r) => s + (r.reducedBy ?? 0), 0)} against your spells)` : ""}.</em>`));
+  /*
+   * THE DEFENDER'S OWN DB ROWS, AGAINST A SPELL ATTACK TOO (3.684.0; Eldritch
+   * Arts Block 6, G20). A FIX: a Strike has read the target's defence-DC rows
+   * (combat/defence-dc.mjs) since 3.321.0 — Thengar's against undead, a
+   * ward's against one named creature (Forbidding Ward's "+1 status bonus to
+   * DB … against the target enemy's attacks"), a stance's — and a spell attack
+   * read none of them, so a ward held against a sword and not against a bolt.
+   * Asked here with the same attacker facts the Strike gives, and told the
+   * attack is a SPELL (`attackKinds: ["spell"]` rows: Shadowmantle's "+1
+   * circumstance … against spells") and the light the defender stands in
+   * (Shadowmantle's "light level 5 or less").
+   */
+  let typedDefence = { total: 0, entries: [] };
+  {
+    const { defenceDCBonus } = await import("../combat/defence-dc.mjs");
+    const { alignedTraitsOf } = await import("../aligned.mjs");
+    const { creatureTraits } = await import("../creature-traits.mjs");
+    const { ambientLightLevelAt } = await import("../light-workflow.mjs");
+    const defenderToken = activeToken(targetActor);
+    let lightLevel = null;
+    try { lightLevel = defenderToken ? ambientLightLevelAt(defenderToken) : null; } catch { lightLevel = null; }
+    typedDefence = defenceDCBonus(targetActor, "defence", "", creatureTypesOf(actor.system ?? {}), actor?.uuid ?? "",
+      alignedTraitsOf(actor.system ?? {}), creatureTraits(actor.system ?? {}), { attackKind: "spell", lightLevel });
+    // AND WHICH DID NOT STACK (3.684.1) — see defence-dc.mjs.
+    for (const entry of typedDefence.entries ?? []) {
+      const lost = typedDefence.notCounted?.find((n) => n.entry === entry);
+      lines.push(line(`<em>${targetActor.name}'s ${esc(entry.label)}: ${entry.value > 0 ? "+" : ""}${entry.value} DB${entry.scope ? ` (${esc(entry.scope)})` : ""}${lost ? ` — not counted: ${esc(lost.reason.toLowerCase())}` : ""}.</em>`));
+    }
+  }
+  const defendedDB = Number.isFinite(baseDB) ? baseDB + dragonhideDB + resilienceDB + Number(typedDefence.total ?? 0) : NaN;
+  // A DEFENCE THAT LASTED ONE ATTACK (3.666.0) — the spell attack has been
+  // rolled against the DB it raised. See combat/one-attack.mjs.
+  //
+  // SPENT AFTER THE ROWS ARE READ (3.684.0; Eldritch Arts Block 6, G20 —
+  // review, Medium). It ran before `defenceDCBonus` above, which since G20
+  // reads the defender's `defenceDC` rows on a spell attack too, so a ward
+  // that is a `defenceDC` row AND `oneAttack` (Inner Tempest's Observe
+  // Technique, +2 DB against one attack) was deleted before its +2 was read.
+  // The Strike (attack-workflow) and the bomb (alchemical-workflow) read
+  // first and spend after; so does this, now.
+  {
+    const { consumeOneAttackEffects } = await import("../combat/target-relay-workflow.mjs");
+    await consumeOneAttackEffects(targetActor, { kind: "spell", attackerUuid: actor?.uuid ?? "" });
+  }
+  const spellOutcomeOf = (c, t) => attackOutcome({
+    unmodified: c.dice?.unmodified ?? 0,
+    total: t,
     db: Number.isFinite(defendedDB) ? defendedDB : null,
     proficient: true,
     criticalResistance: Number(targetSystem?.combat?.criticalResistance ?? 0)
   });
+  let outcome = spellOutcomeOf(check, total);
+  // A MODULE'S REACTION TO THE HIT OR THE MISS (3.681.0; Eldritch Arts Block
+  // 3b): a spell attack is "an attack check" too. As Alter the Thread's, the
+  // reroll is this ray's creature's alone: new dice, the first roll's
+  // Conviction die dropped (Q27), and the second result stands.
+  if (outcome.resolved && !check?.rerolledFrom) {
+    const { checkReactionsAfter } = await import("../reactions/reactions-workflow.mjs");
+    const answered = await checkReactionsAfter(check, {
+      type: "attack", succeeded: outcome.hits, failed: !outcome.hits, target: targetActor,
+      reroll: async (c) => {
+        const { rerolledSpellCheck } = await import("../combat/attack-reroll-workflow.mjs");
+        const { withoutConvictionDie } = await import("../reactions/reactions.mjs");
+        const dropped = Array.from(c.modifiers ?? []).reduce((sum, m) => sum + Number(m?.value ?? 0), 0)
+          - withoutConvictionDie(c.modifiers).reduce((sum, m) => sum + Number(m?.value ?? 0), 0);
+        const next = await rerolledSpellCheck(actor, c);
+        return dropped ? { ...next, modifiers: withoutConvictionDie(c.modifiers), outcome: { ...next.outcome, total: Number(next.outcome?.total ?? 0) - dropped } } : next;
+      }
+    });
+    if (answered.rerolled) {
+      check = answered.check;
+      total = attackTotalOf(check).total;
+      outcome = spellOutcomeOf(check, total);
+      lines.push(line(`<em>${(answered.check.extraDetailLines ?? []).at(-1) ?? "The attack is rerolled."}</em>`));
+    }
+    // OR THE HIT IS A MISS (3.685.0, H6), against this ray's creature alone.
+    if (answered.missed) {
+      const { missedByReaction } = await import("../reactions/reactions.mjs");
+      outcome = missedByReaction(outcome);
+      lines.push(line(`<em>${answered.missedBy}: the hit is a miss.</em>`));
+    }
+    for (const said of answered.lines) lines.push(line(said));
+  }
   if (!outcome.resolved) {
     lines.push(line(`<em>vs ${targetActor.name}: no Defence Bonus found — resolve the attack by hand.</em>`));
     return null;
@@ -5593,10 +7058,18 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
     const guarded = await offerCriticalGuard(targetActor, actor, spell);
     const critRoll = await new Roll(critFormula).evaluate();
     rolls.push(critRoll);
+    // THE CRITICAL'S DICE ARE DICE OF THE BOLT'S TYPE (3.683.0, C6): its
+    // per-die bonus rides them, and a guard that negates them negates it.
+    const critPerDie = await spellPoolPerDie(actor, spell, critFormula, damageType);
     if (guarded) guardedNegated = { formula: critFormula, total: critRoll.total };
     else {
       critBonus = critRoll.total;
       dealt += critBonus;
+    }
+    if (critPerDie.total) {
+      if (guardedNegated) guardedNegated.total += critPerDie.total;
+      else { critBonus += critPerDie.total; dealt += critPerDie.total; }
+      lines.push(perDieLine(critPerDie, `${damageType}, the critical's dice`));
     }
   }
   /*
@@ -5622,6 +7095,9 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
   // × THE CRITICAL'S SEVERITY (3.622.0; block 39's A20).
   const splashDealt = splashOnHit(splashTotal(splashSpec, Number(clMods?.steps ?? 0)), outcome.critical?.severity ?? null);
   dealt += splashDealt;
+  // ECHO'S SHARE (3.684.0, G1): ⌊damage × factor⌋ for a metamagic's added creature.
+  if (Number(damageFactor) !== 1) dealt = Math.floor(Math.max(0, dealt) * Math.max(0, Number(damageFactor) || 0));
+  for (const said of await spellDamageReactions(targetActor, spell, actor, [damageType])) lines.push(line(said));
   const packet = resolveAgainstDefences(targetSystem, {
     amount: dealt,
     type: damageType,
@@ -5750,15 +7226,51 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
         // AND WITHOUT THE SPELL'S OTHER DAMAGE WORDS (R11).
         sourceTraits: vsTraitSourceTraits(spellSourceTraits(spell), vsSpec.type)
       });
-      if (vsPacket.taken > 0) await applyDamageAndCheckDying(targetActor, vsPacket.taken, {});
+      // THE CASTER, FOR WHOEVER LISTENS (3.684.0, G23): every packet of the spell names it.
+      if (vsPacket.taken > 0) await applyDamageAndCheckDying(targetActor, vsPacket.taken, { sourceUuid: actor?.uuid ?? "", context: { kind: "spell", spellName: spell?.name ?? "" } });
       lines.push(line(vsTraitDamageLine(
         targetActor.name, matched, vsPacket.taken, vsSpec, vsPacket.immune)));
     }
   }
+  /*
+   * A SECOND PACKET ON A HIT (3.675.0; Eldritch Arts' Orb of Water: "If your
+   * spell attack is successful you inflict 1d6 bludgeoning and 1 secondary
+   * cold damage"). The same `secondaryDamage` field the save path rolls as
+   * its second pool (magic/secondary-damage.mjs), here rolled once on a hit
+   * and resolved against its own type, after the main blow. A caster-level
+   * `secondary` step adds to it. Not part of the critical's dice.
+   */
+  {
+    // A WARPED TYPE IS ALL OF THE SPELL'S DAMAGE (3.684.0, G15; Q106).
+    const second = warpedDamageRow(normaliseSecondaryDamage(spellData), warpMods);
+    if (second && secondaryReaches(second, creatureTypesOf(targetActor.system ?? {}))) {
+      const flat = Math.max(0, Math.floor(Number(clMods?.secondary ?? 0)));
+      const formula = flat ? `${second.formula} + ${flat}` : second.formula;
+      const secondRoll = await new Roll(formula).evaluate();
+      rolls.push(secondRoll);
+      // Per die of the second pool's own type (3.683.0, C6).
+      const secondPerDie = await spellPoolPerDie(actor, spell, formula, second.type);
+      if (secondPerDie.total) lines.push(perDieLine(secondPerDie, `secondary ${second.type}`));
+      const secondPacket = resolveAgainstDefences(targetSystem, {
+        amount: secondRoll.total + secondPerDie.total,
+        type: second.type,
+        ...spellDamageSource(spell, { targeted: true }),
+        sourceTraits: spellSourceTraits(spell)
+      });
+      if (secondPacket.taken > 0) await applyDamageAndCheckDying(targetActor, secondPacket.taken, { sourceUuid: actor?.uuid ?? "", context: { kind: "spell", spellName: spell?.name ?? "" } });
+      lines.push(line(secondPacket.immune
+        ? `${targetActor.name} is <strong>immune</strong> to ${second.type} — no secondary damage.`
+        : `<strong>${secondPacket.taken}</strong> secondary ${second.type} damage (${formula}).`));
+    }
+  }
   // THE CASTER'S OWN RIDERS, AFTER THE BLOW AND THE HOLY HALF (3.625.0).
   await applyCasterSpellDamageRiders(actor, spell, targetActor, {
-    damageType, taken: packet.taken, rolls, lines
+    damageType, taken: packet.taken, rolls, lines,
+    // AN ATTACK, AT THE CAST'S PP (3.684.0, G12 and G25).
+    castPP, attack: true
   });
+  // AND A METAMAGIC'S ADDED POOL (3.684.0, G1), at this creature's share.
+  await applyMetamagicAddedDamage(actor, spell, targetActor, warpMods, { taken: packet.taken, scale: damageFactor, rolls, lines });
   /*
    * A CRITICAL THAT ARCS (3.608.0, R3). Shock Bolt: "If the attack inflicts
    * a critical injury, all adjacent targets who are wearing metal armour
@@ -5850,11 +7362,11 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
      * spells carry a rider: Acid Arrow, Acid Bolt, Arc Of Fire,
      * Incandescence, Fire Storm, Shocking Grasp and three more.
      *
-     * THROUGH `recurringAfterHit`, the same rule the bombs use — a
-     * second recurring damage of the SAME type takes the higher
-     * rather than stacking, and of a different type replaces. Writing
-     * a second spelling of that here is how the two would come to
-     * disagree.
+     * THROUGH `layRecurring`, the same rule the bombs use. Since 3.685.0
+     * (Graham's Q150) a second recurring damage of the SAME type adds to
+     * that type's total, and one of a different type is its own total,
+     * with its own flat check. Writing a second spelling of that here is
+     * how the two would come to disagree.
      *
      * ─────────────────────────────────────────────────────────────
      * AND SOME RIDERS ARE CRITICAL-ONLY (Graham's R11).
@@ -5886,22 +7398,10 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
         isMetal: targetIsMetal, critical: Boolean(outcome.critical), amount: persistRoll.total
       });
       const amount = metalRider.amount;
-      const existingEffect = Array.from(targetActor.effects ?? [])
-        .find((e) => e.statuses?.has?.("recurring"));
-      const existing = existingEffect
-        ? {
-          value: Number(existingEffect.getFlag(SYSTEM_ID, "value") ?? 0),
-          damageType: existingEffect.getFlag(SYSTEM_ID, "damageType") ?? ""
-        }
-        : null;
-      const next = recurringAfterHit(existing, amount, damageType);
-      await targetActor.toggleStatusEffect("recurring", {
-        value: next.value, damageType: next.damageType
-      });
+      const next = await layRecurring(targetActor, amount, damageType);
       lines.push(line(
-        `Plus <strong>Recurring ${next.value} ${damageType}</strong> on ${targetActor.name}`
-        + `${criticalOnly ? " (critical hit)" : ""}${metalRider.doubled ? " (doubled — critical hit)" : ""} — dealt in its end phase until a flat check ends it`
-        + `${next.replaced ? ", replacing the recurring damage already there" : ""}.`));
+        `Plus <strong>${recurringStackLine(next)}</strong> on ${targetActor.name}`
+        + `${criticalOnly ? " (critical hit)" : ""}${metalRider.doubled ? " (doubled — critical hit)" : ""} — dealt in its end phase until a flat check ends that type's total.`));
     }
   }
   /*
@@ -6000,8 +7500,17 @@ async function dropTemporarilyImmune(spellName, effects, targets, lines) {
   return kept;
 }
 
-async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines, targets: explicitTargets, damage: damageOverride = null, resonanceContext = null, regardlessTargets = null }) {
+async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines, targets: explicitTargets, damage: damageOverride = null, resonanceContext = null, regardlessTargets = null,
+  // A SECOND CREATURE AT A SHARE OF THE DAMAGE (3.684.0, G1; Echo of the
+  // Ancestors, Q75): `[{ actor, factor }]`, saving as the others do against
+  // the same roll and taking ⌊damage × factor⌋ and the other effects.
+  extraTargets = [],
+  // THE PP THE SPELL IS CAST AT, AND ONE TARGET'S DC (3.684.0; G12, G14).
+  castPP = 0, saveDCTargets = [] }) {
   const spellData = spell.system;
+  // IS THIS CAST HIGH MAGIC (3.683.0; Graham's Q58)? Then each target's save
+  // is told every tradition, for its Forbidden Magic (see `traditions` below).
+  const saveHighMagic = highMagicCast(actor, spellData ?? {});
   const parsed = parseSpellDefence(spellData.defence);
   if (!parsed) {
     lines.push(line("<em>Save unclear from the spell — resolve it by hand.</em>"));
@@ -6013,6 +7522,13 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
   let targets = (
     explicitTargets ?? Array.from(game.user?.targets ?? []).map((t) => t.actor)
   ).filter(Boolean);
+  // …AND A METAMAGIC'S ADDED CREATURE (3.684.0, G1), "not already affected".
+  const damageFactorOf = new Map();
+  for (const extra of Array.isArray(extraTargets) ? extraTargets : []) {
+    if (!extra?.actor || targets.includes(extra.actor)) continue;
+    targets.push(extra.actor);
+    damageFactorOf.set(extra.actor, Number(extra.factor ?? 1));
+  }
 
   // Hidden/Concealed (Appendix 2): TARGETED spells let each defender make
   // the avoidance flat check; area effects are exempt by the rule's wording.
@@ -6067,7 +7583,9 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
   // A variable-AP mode (see apOptions) can override the save-damage — e.g. Inflict
   // deals 1d8 essence at 1/3 AP but 1d8+8 at 2 AP.
   const effectiveDamage = damageOverride ?? spellData.damage;
-  let damageFormula = addDice(addDice(warpedRowExtra(effectiveDamage?.formula, warpMods), clMods?.damageDice), warpMods?.damageDice);
+  // A CAST REACTION'S SCALE ON THE DICE (3.684.0, G17), as the attack's.
+  const { scaleDiceCount: scaleSaveDice } = await import("./cast-reaction-shape.mjs");
+  let damageFormula = scaleSaveDice(addDice(addDice(warpedRowExtra(effectiveDamage?.formula, warpMods), clMods?.damageDice), warpMods?.damageDice), warpMods?.diceScale);
   /*
    * A BIGGER DIE, IF THE CASTER HAS ALREADY HURT SOMEBODY THIS TURN
    * (3.611.0, R5 of block 34). Destructive Roar: "1d8 sonic damage, which
@@ -6089,6 +7607,19 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
         damageFormula = upgradedFormula(damageFormula, upgrade);
         lines.push(line(`<em>${spell.name}: ${upgrade.because} — the damage dice are <strong>d${upgrade.to}</strong>.</em>`));
       }
+    }
+  }
+  // THE CASTER'S DECLARED BONUS TO SPELL DAMAGE (3.675.0), on the save
+  // path's primary pool: once per casting. See magic/spell-damage-bonus.mjs.
+  {
+    const { declaredSpellDamageBonuses, withSpellDamageBonus } = await import("./spell-damage-bonus.mjs");
+    const surged = withSpellDamageBonus(damageFormula, declaredSpellDamageBonuses(
+      Array.from(actor?.appliedEffects ?? actor?.effects ?? []),
+      // AND THE SPELL'S PRINTED PP AND DURATION (3.684.0, G12; Dangerous Sorcery).
+      { traits: spell.system?.traits ?? "", attributes: actor.system?.attributes ?? {}, spellPP: printedSpellPP(spell.system ?? {}), noDuration: spellHasNoDuration(spell.system ?? {}) }));
+    if (surged.total) {
+      damageFormula = surged.formula;
+      lines.push(line(`<em>Spell damage bonus: ${surged.text}.</em>`));
     }
   }
   // COLD UNDERWATER (3.622.0) — the attack path's rule, on the save path.
@@ -6115,7 +7646,8 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
    * the page's own sentence, so it is rolled here beside the primary and
    * scaled by the same degree below.
    */
-  const secondary = normaliseSecondaryDamage(spell.system);
+  // A WARPED TYPE IS ALL OF THE SPELL'S DAMAGE (3.684.0, G15; Q106).
+  const secondary = warpedDamageRow(normaliseSecondaryDamage(spell.system), warpMods);
   let secondaryBase = 0;
   /*
    * DAMAGE THAT IS A CONDITION, AND WHAT THE IMMUNE TAKE INSTEAD (3.608.0,
@@ -6129,6 +7661,22 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
   const asCondition = isBasic ? normaliseConditionDamage(effectiveDamage?.asCondition) : null;
   const immuneAlternate = asCondition ? normaliseImmuneAlternate(effectiveDamage?.immuneAlternate) : null;
   let alternateBase = null;
+  /*
+   * AND PER DIE OF THE POOL'S TYPE (3.683.0; Eldritch Arts Block 5, C6), on
+   * the primary when it is rolled as damage: the basic save's roll, or a
+   * ladder's shared one (of the ladder's own type). Folded into the formula
+   * the card prints. Not when the "damage" is a condition (Sonic Rupture's
+   * Bleed is a condition value, not hit points).
+   */
+  if (damageFormula && ((isBasic && !asCondition) || (saveLadder && ladderUsesSharedRoll(saveLadder)))) {
+    // A ladder deals its own type (see the ladder branch below).
+    const primaryType = saveLadder ? (saveLadder.damageType || damageType) : damageType;
+    const primaryPerDie = await spellPoolPerDie(actor, spell, damageFormula, primaryType);
+    if (primaryPerDie.total) {
+      damageFormula = `${damageFormula} + ${primaryPerDie.total}`;
+      lines.push(perDieLine(primaryPerDie, primaryType));
+    }
+  }
   if (isBasic) {
     const dmgRoll = await new Roll(damageFormula).evaluate();
     rolls.push(dmgRoll);
@@ -6146,8 +7694,13 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
       const secondRoll = await new Roll(secondaryFormula).evaluate();
       rolls.push(secondRoll);
       secondaryBase = secondRoll.total;
-      lines.push(line(secondaryDamageLine({ ...secondary, formula: secondaryFormula })
+      // Per die of the second pool's own type (3.683.0, C6): Meteor Swarm's
+      // second 14d6 fire is fourteen more fire dice.
+      const secondaryPerDie = await spellPoolPerDie(actor, spell, secondaryFormula, secondary.type);
+      secondaryBase += secondaryPerDie.total;
+      lines.push(line(secondaryDamageLine({ ...secondary, formula: secondaryPerDie.total ? `${secondaryFormula} + ${secondaryPerDie.total}` : secondaryFormula })
         + ` Rolled <strong>${secondaryBase}</strong>.`));
+      if (secondaryPerDie.total) lines.push(perDieLine(secondaryPerDie, `secondary ${secondary.type}`));
     }
   } else if (saveLadder && ladderUsesSharedRoll(saveLadder) && damageFormula) {
     /*
@@ -6211,7 +7764,15 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
   // work from a pass/fail list, and reading the degree back off the chat card
   // afterwards would be a second answer to a question already decided here.
   const results = [];
+  // ONE TARGET'S SAVE DC (3.684.0; Eldritch Arts Block 6, G14): a casting
+  // option's `saveDCTarget` — Sanguine Channel's "only one target benefits".
+  // Every other creature saves against the cast's DC, as before.
+  const castSaveDC = saveDC;
+  const { castOptionDCFor } = await import("./cast-options.mjs");
   for (const target of targets) {
+    const targetShift = castOptionDCFor(saveDCTargets, target?.uuid ?? "");
+    const saveDC = castSaveDC + targetShift.value;
+    if (targetShift.value) lines.push(line(`<em>${target.name}'s Save DC: ${saveDC} (${esc(targetShift.labels.join(", "))}).</em>`));
     const save = target.system?.combat?.saves?.[parsed.key];
     const saveName = `${parsed.key[0].toUpperCase()}${parsed.key.slice(1)}`;
     // A REACTION THE DEFENDER MAY SPEND, asked before the dice (3.320.0).
@@ -6249,6 +7810,11 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
       label: altBetter ? `${target.name} — ${altSkill.label ?? altSkillKey} (instead of ${saveName})` : `${target.name} — ${saveName} Save`,
       subtitle: `vs ${spell.name} — DC ${saveDC}`,
       type: "save",
+      // A CAST REACTION'S BIAS ON EVERY TARGET'S SAVE (3.684.0, G17): Counter
+      // Channel's "all targets of the spell receive advantage" (or, on its
+      // Fumble, disadvantage) when the spell had no variable to scale. It
+      // joins the save's own biases as any other does.
+      ...(["advantage", "disadvantage"].includes(warpMods?.saveBias) ? { bias: warpMods.saveBias } : {}),
       saveSource: spell.name,
       isArea: Boolean(String(spellData.area ?? "").trim()),
       // The spell's traits reach the conditional engine, so the Elf's
@@ -6263,7 +7829,11 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
       // absent from the one roll that provoked it. Live on 15 Aug 2026 an
       // Ascendan made a Will save against Unwelcome Halo (divinity) and
       // the card read "Modifiers +0"; the save succeeded by exactly zero.
-      traditions: spell.system?.tradition ?? "",
+      // A HIGH MAGIC CAST IS EVERY TRADITION (3.683.0; Graham's Q58: "Ascendan
+      // suffer penalties for High Magic (as it combines all magic)"), except
+      // at a target High Magic spares (Q59, Unbound). Before, a High Magic
+      // cast of an arcane spell escaped the -2. See magic/high-magic.mjs.
+      traditions: spellSaveTraditions(target, spell.system ?? {}, saveHighMagic),
       // AND WHO IS CASTING IT (3.321.1). Thengar: "+1 racial bonus to your
       // DB and Saving Throws against the attacks of creatures of the
       // Undead Type." 3.321.0 built the `sourceTypes` axis and fed it from
@@ -6300,7 +7870,7 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
         // SPELL RESILIENCE (Creature Codex; 3.631.0): "a racial bonus equal
         // to its class bonus to all saving throws and DB against magical
         // attacks" — a spell's save is one.
-        ...spellResilienceModifiers(target)
+        ...spellResilienceModifiers(target, actor)
       ]
     });
     const degreeKey = check.outcome?.degree?.key ?? "partial";
@@ -6364,6 +7934,12 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
         const rungRoll = await new Roll(addDice(rungAmount.formula, warpMods?.rungDice?.[outcome.rung])).evaluate();
         rolls.push(rungRoll);
         rungTotal = rungRoll.total;
+        // Per die of the ladder's type (3.683.0, C6), on the rung's own dice.
+        const rungPerDie = await spellPoolPerDie(actor, spell, addDice(rungAmount.formula, warpMods?.rungDice?.[outcome.rung]), ladderType);
+        if (rungPerDie.total) {
+          rungTotal += rungPerDie.total;
+          lines.push(perDieLine(rungPerDie, `${ladderType}, ${target.name}'s ${outcome.rung} rung`));
+        }
       } else if (rungAmount.fixed !== null) {
         rungTotal = rungAmount.fixed;
       }
@@ -6372,6 +7948,7 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
         // that name, and `mutate-basic-save` anchors on its exact line —
         // a second copy made that anchor AMBIGUOUS and broke a check
         // that has nothing to do with this rule. Caught by the sweep.
+        for (const said of await spellDamageReactions(target, spell, actor, [ladderType])) lines.push(line(said));
         const rungPacket = resolveAgainstDefences(target.system ?? {}, {
           amount: rungTotal,
           type: ladderType,
@@ -6462,7 +8039,7 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
        * a Success, full on a Failure, double on a Fumble. The rider is the
        * spell's own `damage.persistent` with its warp, rolled per creature
        * (each holds its own hot metal), multiplied by the rung, and laid
-       * through `recurringAfterHit` exactly as the attack path lays one.
+       * through `layRecurring` exactly as the attack path lays one.
        */
       if (outcome.persistent > 0) {
         const ladderPersist = String(effectiveDamage?.persistent || "");
@@ -6481,18 +8058,9 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
           const rungPersistRoll = await new Roll(ladderPersistFormula).evaluate();
           rolls.push(rungPersistRoll);
           const rungPersistAmount = Math.floor(rungPersistRoll.total * outcome.persistent);
-          const priorRecurring = Array.from(target.effects ?? []).find((e) => e.statuses?.has?.("recurring"));
-          const priorState = priorRecurring
-            ? {
-              value: Number(priorRecurring.getFlag(SYSTEM_ID, "value") ?? 0),
-              damageType: priorRecurring.getFlag(SYSTEM_ID, "damageType") ?? ""
-            }
-            : null;
-          const nextRecurring = recurringAfterHit(priorState, rungPersistAmount, ladderType);
-          await target.toggleStatusEffect("recurring", { value: nextRecurring.value, damageType: nextRecurring.damageType });
-          lines.push(line(`${target.name}: <strong>Recurring ${nextRecurring.value} ${ladderType}</strong>`
-            + `${outcome.persistent === 2 ? " (doubled)" : ""} — dealt in its end phase until a flat check ends it`
-            + `${nextRecurring.replaced ? ", replacing the recurring damage already there" : ""}.`));
+          const nextRecurring = await layRecurring(target, rungPersistAmount, ladderType);
+          lines.push(line(`${target.name}: <strong>${recurringStackLine(nextRecurring)}</strong>`
+            + `${outcome.persistent === 2 ? " (doubled)" : ""} — dealt in its end phase until a flat check ends that type's total.`));
         }
       }
     } else if (asCondition) {
@@ -6505,9 +8073,14 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
           const altRoll = await new Roll(immuneAlternate.formula).evaluate();
           rolls.push(altRoll);
           alternateBase = altRoll.total;
+          // Per die of the alternate's type (3.683.0, C6): it is damage, and rolled.
+          const altPerDie = await spellPoolPerDie(actor, spell, immuneAlternate.formula, immuneAlternate.type);
+          alternateBase += altPerDie.total;
           lines.push(line(`Instead, for anything immune to ${immuneAlternate.immuneTo}: <strong>${alternateBase}</strong> `
-            + `${immuneAlternate.type} (${immuneAlternate.formula}) — scaled by each save.`));
+            + `${immuneAlternate.type} (${immuneAlternate.formula}${altPerDie.total ? ` + ${altPerDie.total}` : ""}) — scaled by each save.`));
+          if (altPerDie.total) lines.push(perDieLine(altPerDie, immuneAlternate.type));
         }
+        for (const said of await spellDamageReactions(target, spell, actor, [immuneAlternate.type])) lines.push(line(said));
         const altPacket = resolveAgainstDefences(target.system ?? {}, {
           amount: Math.floor(alternateBase * bs.damageMultiplier),
           type: immuneAlternate.type,
@@ -6518,7 +8091,9 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
         let altHP = null;
         if (altPacket.taken > 0) {
           const appliedAlt = await applyDamageAndCheckDying(target, altPacket.taken, {
-            isCritical: Boolean(bs.criticalSeverity)
+            isCritical: Boolean(bs.criticalSeverity),
+            // THE CASTER, FOR WHOEVER LISTENS (3.684.0, G23).
+            sourceUuid: actor?.uuid ?? "", context: { kind: "spell", spellName: spell?.name ?? "" }
           });
           altHP = appliedAlt?.newHP ?? null;
         }
@@ -6566,7 +8141,20 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
         const bonusRoll = await new Roll(saveCrit).evaluate();
         rolls.push(bonusRoll);
         amount += bonusRoll.total;
+        // The critical's extra dice are dice of the spell's type (3.683.0, C6).
+        const saveCritPerDie = await spellPoolPerDie(actor, spell, saveCrit, damageType);
+        if (saveCritPerDie.total) {
+          amount += saveCritPerDie.total;
+          lines.push(perDieLine(saveCritPerDie, `${damageType}, ${target.name}'s critical dice`));
+        }
       }
+      // A METAMAGIC'S ADDED CREATURE TAKES ITS SHARE (3.684.0, G1; Echo, Q75:
+      // "half damage rounded down"), of the same roll, after its own save.
+      if (damageFactorOf.has(target)) {
+        amount = Math.floor(Math.max(0, amount) * Math.max(0, damageFactorOf.get(target)));
+        lines.push(line(`<em>${target.name} takes ${Math.round(damageFactorOf.get(target) * 100)}% of the damage (metamagic), rounded down.</em>`));
+      }
+      for (const said of await spellDamageReactions(target, spell, actor, [damageType, secondary?.type])) lines.push(line(said));
       const packet = resolveAgainstDefences(target.system ?? {}, {
         amount,
         type: damageType,
@@ -6592,7 +8180,7 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
       let secondPacket = null;
       if (secondary && secondaryReaches(secondary, creatureTypesOf(target.system ?? {}))) {
         secondPacket = resolveAgainstDefences(target.system ?? {}, {
-          amount: Math.floor(secondaryBase * bs.damageMultiplier),
+          amount: Math.floor(secondaryBase * bs.damageMultiplier * (damageFactorOf.get(target) ?? 1)),
           type: secondary.type,
           creatureTypeSystem: ownedCreatureTypeSystem(target),
           ...spellDamageSource(spell)
@@ -6616,9 +8204,17 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
       // THE CASTER'S OWN RIDERS (3.625.0), on the blow that landed.
       {
         const riderHP = await applyCasterSpellDamageRiders(actor, spell, target, {
-          damageType, taken: packet.taken, rolls, lines
+          damageType, taken: packet.taken, rolls, lines,
+          // A SAVE, NOT AN ATTACK, AT THE CAST'S PP (3.684.0, G12 and G25).
+          castPP, attack: false
         });
         if (riderHP != null) newHP = riderHP;
+        // AND A METAMAGIC'S ADDED POOL (3.684.0, G1): saved and halved with
+        // the blow (its basic save's multiplier), and Echo's share.
+        const addedHP = await applyMetamagicAddedDamage(actor, spell, target, warpMods, {
+          taken: packet.taken, scale: bs.damageMultiplier * (damageFactorOf.get(target) ?? 1), rolls, lines
+        });
+        if (addedHP != null) newHP = addedHP;
       }
       if (siphonRow) siphonTotal += siphonAmount(packet.taken + (secondPacket?.taken ?? 0), siphonRow.share);
       if (secondPacket) {
@@ -6725,6 +8321,7 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
       lines.push(line(`And to everyone in the area${spec.reachFeet ? ` or within ${spec.reachFeet} feet of it` : ""}, `
         + `regardless of their saves: <strong>${heatRoll.total}</strong> ${spec.type} (${spec.formula}).`));
       for (const victim of reached) {
+        for (const said of await spellDamageReactions(victim, spell, actor, [spec.type])) lines.push(line(said));
         const heatPacket = resolveAgainstDefences(victim.system ?? {}, {
           amount: heatRoll.total,
           type: spec.type,
@@ -6796,7 +8393,15 @@ async function rollSacrificeSave(actor, { pp, ppOver }) {
 }
 
 /** The Spell Fumble Table roll: top open-ended d100 + modifiers. */
-export async function rollSpellFumble(actor, { tradition, blunder = false, pp = 0, focusPenalty = 0, ritual = false, resonanceContext = null }) {
+export async function rollSpellFumble(actor, {
+  tradition, blunder = false, pp = 0, focusPenalty = 0, ritual = false, resonanceContext = null, highMagic = null,
+  // WHAT A MODULE'S FUMBLE MODIFIER IS TOLD (3.684.0; Eldritch Arts Block 6,
+  // G5): which check fumbled — a cast's Spellcraft (the default), a release's
+  // tradition skill, Spell Concentration — and the cast's own facts (its
+  // metamagic, its casting options, a metamagic's `fumbleBias`), which ride
+  // the cast's Resonance context when the caller does not hand them over.
+  check = null, release = false, cast = null
+}) {
   const rolls = [];
   const draw = async (faces) => {
     const roll = await new Roll(`1d${faces}`).evaluate();
@@ -6804,13 +8409,40 @@ export async function rollSpellFumble(actor, { tradition, blunder = false, pp = 
     return roll.total;
   };
 
+  // A MODULE'S HAND ON THE ROLL (3.684.0, G5): Mana Bound's −20 "on a
+  // Spellcraft check … does not affect Blunders", Spell Surge's and
+  // Spellthread's "at disadvantage". Asked before the dice. See
+  // magic/fumble-resonance-modifiers.mjs.
+  const castOf = cast ?? resonanceContext?.cast ?? null;
+  const { fumbleModifiersFrom, keptPercentile } = await import("./fumble-resonance-modifiers.mjs");
+  const moduleFumble = await fumbleModifiersFrom({
+    actor, blunder: Boolean(blunder), pp: Math.max(0, Math.floor(Number(pp) || 0)), tradition: tradition ?? "",
+    highMagic: Boolean(highMagic?.highMagic ?? highMagic === true),
+    check: { type: String(check?.type ?? "spellcraft"), skill: String(check?.skill ?? "") },
+    ritual: Boolean(ritual), release: Boolean(release),
+    // A STORED RELEASE (3.684.0, G5 — review), off the cast's facts.
+    stored: Boolean(castOf?.stored), storedForeign: Boolean(castOf?.storedForeign),
+    metamagic: castOf?.metamagic ?? [], castOptions: castOf?.castOptions ?? [], cast: castOf
+  });
+  const fumbleBiasPair = [];
+  let fumbleDrawn = 0;
+
   // Top open-ended percentile: 96-100 extends upward, no downward chain.
   const chain = await rollChain({
     // THE ZERO RULE IS NOT RESTATED HERE (3.420.0). This block used to
     // carry its own copy of `value === 0 ? 100 : value`, as did the
     // resonance roll below and, inverted and wrong, the critical-shift
     // path. percentileValue owns it now.
-    draw: async () => percentileValue(await draw(10), await draw(10)),
+    // WITH A BIAS (3.684.0, G5): the FIRST percentile twice, one kept —
+    // higher is worse here — and the open-ended continuation rolled once,
+    // as High Magic's Resonance is (EA-M20).
+    draw: async () => {
+      const first = percentileValue(await draw(10), await draw(10));
+      if (moduleFumble.bias === "normal" || fumbleDrawn++ > 0) return first;
+      const second = percentileValue(await draw(10), await draw(10));
+      fumbleBiasPair.push(first, second);
+      return keptPercentile(first, second, moduleFumble.bias);
+    },
     profile: CHAIN_PROFILES.d100,
     openEnded: OPEN_ENDED.TOP
   });
@@ -6823,10 +8455,12 @@ export async function rollSpellFumble(actor, { tradition, blunder = false, pp = 
   const featureFumbleMod = Array.from(actor?.appliedEffects ?? actor?.effects ?? [])
     .filter((e) => !e.disabled)
     .reduce((sum, e) => sum + (Number(e.getFlag?.(SYSTEM_ID, "spellFumbleModifier")) || 0), 0);
-  // HIGH MAGIC (3.633.0, F&F 3.0 R12): "All Spell Fumble checks gain a +50 modifier."
-  const highMagicMod = highMagicFumble(actor);
+  // HIGH MAGIC (3.633.0, F&F 3.0 R12): "All Spell Fumble checks gain a +50
+  // modifier." Eldritch Arts' +60 where its rules are in force, or for a
+  // High Magic cast (3.678.0, D1; M4: it adds to the tradition modifier).
+  const highMagicMod = highMagicFumble(actor, highMagic);
   const modifier = spellFumbleModifierTotal(fumbleModifierFor(tradition), { blunder, pp, focusPenalty: noFocus, ritual })
-    + featureFumbleMod + highMagicMod;
+    + featureFumbleMod + highMagicMod + moduleFumble.modifier;
   const result = chain.total + modifier;
 
   const parts = [
@@ -6836,11 +8470,16 @@ export async function rollSpellFumble(actor, { tradition, blunder = false, pp = 
     noFocus ? "no focus +10" : null,
     ritual ? "ritual +20" : null,
     featureFumbleMod ? `heritage +${featureFumbleMod}` : null,
-    highMagicMod ? `High Magic +${highMagicMod}` : null
+    highMagicMod ? `High Magic +${highMagicMod}` : null,
+    ...moduleFumble.parts.map((p) => `${esc(p.label)} ${p.value > 0 ? "+" : ""}${p.value}`)
   ].filter(Boolean);
   const lines = [
+    ...moduleFumble.lines.map((text) => line(`<em>${text}</em>`)),
+    ...(fumbleBiasPair.length
+      ? [line(`<em>Rolled with ${moduleFumble.bias} — ${fumbleBiasPair[0]} and ${fumbleBiasPair[1]}, the ${moduleFumble.bias === "disadvantage" ? "higher" : "lower"} kept.</em>`)]
+      : []),
     line(
-      `Rolled <strong>${chain.total}</strong>${modifier ? ` + ${modifier} (${parts.join(", ") || "modifiers"}) = <strong>${result}</strong>` : ""}.`
+      `Rolled <strong>${chain.total}</strong>${modifier ? ` ${modifier < 0 ? "−" : "+"} ${Math.abs(modifier)} (${parts.join(", ") || "modifiers"}) = <strong>${result}</strong>` : ""}.`
     )
   ];
 
@@ -6895,7 +8534,22 @@ export async function rollSpellFumble(actor, { tradition, blunder = false, pp = 
  * correct open-ended pattern exactly, plus the modifiers this was
  * missing entirely.
  */
-export async function rollResonanceEvent(actor, { reason = "", modifiers = {} } = {}) {
+export async function rollResonanceEvent(actor, { reason = "", modifiers = {}, disadvantage = false } = {}) {
+  // NO RESONANCE HERE (3.678.0; Eldritch Arts Block 2, D6): "Magical
+  // Resonance events simply do not exist in areas of suppression, so no
+  // rolls on this table should be made." Asked before anything is rolled,
+  // and said, so the table knows an event was due and why it is not.
+  {
+    const { resonanceSuppressedBy } = await import("./cast-hooks.mjs");
+    const suppressed = await resonanceSuppressedBy({ actor, reason });
+    if (suppressed) {
+      await postCard(actor, "Magical Resonance Event", [
+        ...(reason ? [line(`<em>${reason}</em>`)] : []),
+        line(`<strong>No Resonance event:</strong> ${suppressed}.`)
+      ]);
+      return null;
+    }
+  }
   const rolls = [];
   const draw = async (faces) => {
     const roll = await new Roll(`1d${faces}`).evaluate();
@@ -6903,24 +8557,64 @@ export async function rollResonanceEvent(actor, { reason = "", modifiers = {} } 
     return roll.total;
   };
 
+  /*
+   * WITH DISADVANTAGE (3.678.0, D1/D6): High Magic's Resonance — "make the
+   * roll with disadvantage. Be aware that higher is the more detrimental
+   * result and therefore must be taken if disadvantage is applied. Any
+   * subsequent rolls (such as from rolling open ended) are rolled only
+   * once." So the FIRST percentile is rolled twice and the higher kept; the
+   * chain's open-ended continuation, if any, is rolled once.
+   *
+   * AND A MODULE'S SAY (3.684.0; Eldritch Arts Block 6, G5): High Magic
+   * Resonance's "only roll on the resonance table once" (`single`, Q147)
+   * lifts the disadvantage High Magic brings and nothing else; Spell Surge's
+   * "at disadvantage" (a cast's `resonanceBias`, or a modifier's `bias`)
+   * stands beside it; an advantage keeps the lower. See
+   * magic/fumble-resonance-modifiers.mjs.
+   */
+  const { resonanceModifiersFrom, resonanceRollBias, keptPercentile } = await import("./fumble-resonance-modifiers.mjs");
+  const castOf = modifiers?.cast ?? null;
+  const moduleResonance = await resonanceModifiersFrom({
+    actor, reason, highMagic: modifiers?.highMagic === true, pp: Math.max(0, Math.floor(Number(modifiers?.pp) || 0)),
+    metamagic: castOf?.metamagic ?? [], castOptions: castOf?.castOptions ?? [], cast: castOf, modifiers
+  });
+  const rollBias = resonanceRollBias({
+    disadvantage, highMagic: modifiers?.highMagic === true, single: moduleResonance.single, biases: moduleResonance.biases
+  });
+  const worse = rollBias !== "normal";
+  const firstPair = [];
+  let drawn = 0;
   const chain = await rollChain({
     // THE ZERO RULE IS NOT RESTATED HERE (3.420.0). This block used to
     // carry its own copy of `value === 0 ? 100 : value`, as did the
     // resonance roll below and, inverted and wrong, the critical-shift
     // path. percentileValue owns it now.
-    draw: async () => percentileValue(await draw(10), await draw(10)),
+    draw: async () => {
+      const first = percentileValue(await draw(10), await draw(10));
+      if (!worse || drawn++ > 0) return first;
+      const second = percentileValue(await draw(10), await draw(10));
+      firstPair.push(first, second);
+      return keptPercentile(first, second, rollBias);
+    },
     profile: CHAIN_PROFILES.d100,
     openEnded: OPEN_ENDED.TOP
   });
 
-  const modifier = resonanceModifierTotal(modifiers);
+  const modifier = resonanceModifierTotal(modifiers) + moduleResonance.modifier;
   const result = chain.total + modifier;
 
   const lines = [];
   if (reason) lines.push(line(`<em>${reason}</em>`));
+  for (const text of moduleResonance.lines) lines.push(line(`<em>${text}</em>`));
+  if (firstPair.length) {
+    const highMagicOnly = rollBias === "disadvantage" && modifiers?.highMagic === true && !moduleResonance.single
+      && !disadvantage && !moduleResonance.biases.length;
+    lines.push(line(`<em>${highMagicOnly ? "High Magic: rolled" : "Rolled"} with ${rollBias} — ${firstPair[0]} and ${firstPair[1]}, the ${rollBias === "disadvantage" ? "higher" : "lower"} kept.</em>`));
+  }
+  const moduleParts = moduleResonance.parts.map((p) => `${esc(p.label)} ${p.value > 0 ? "+" : ""}${p.value}`);
   lines.push(
     line(
-      `Rolled <strong>${chain.total}</strong>${modifier ? ` + ${modifier} (modifiers) = <strong>${result}</strong>` : ""}.`
+      `Rolled <strong>${chain.total}</strong>${modifier ? ` ${modifier < 0 ? "−" : "+"} ${Math.abs(modifier)} (${moduleParts.length ? `modifiers, ${moduleParts.join(", ")}` : "modifiers"}) = <strong>${result}</strong>` : ""}.`
     )
   );
 
@@ -6935,8 +8629,8 @@ export async function rollResonanceEvent(actor, { reason = "", modifiers = {} } 
 
   if (special?.trigger === "um66") {
     // Absolute Chaos: roll twice more, carrying the same modifier context.
-    await rollResonanceEvent(actor, { reason: "Absolute Chaos — first roll", modifiers });
-    await rollResonanceEvent(actor, { reason: "Absolute Chaos — second roll", modifiers });
+    await rollResonanceEvent(actor, { reason: "Absolute Chaos — first roll", modifiers, disadvantage });
+    await rollResonanceEvent(actor, { reason: "Absolute Chaos — second roll", modifiers, disadvantage });
   }
   return row;
 }
@@ -6950,6 +8644,23 @@ export async function rollResonanceEvent(actor, { reason = "", modifiers = {} } 
  * subsystem), so the dialog asks for the original DC and any PP at stake
  * rather than reading them from an active cast automatically.
  */
+/** The casting zones this creature stands in, and their rise (3.685.0, H8). */
+async function castingZoneRiseFor(actor) {
+  const { CASTING_ZONE_FLAG, zoneConcentrationDC } = await import("./casting-zone.mjs");
+  const token = actor?.getActiveTokens?.()?.[0] ?? null;
+  if (!token) return { value: 0, label: "" };
+  const at = { x: token.center?.x ?? token.x, y: token.center?.y ?? token.y, elevation: token.document?.elevation ?? 0 };
+  const zones = [];
+  for (const region of globalThis.canvas?.scene?.regions ?? []) {
+    const raw = region.getFlag?.(SYSTEM_ID, CASTING_ZONE_FLAG);
+    if (!raw) continue;
+    let inside = false;
+    try { inside = region.testPoint(at); } catch { inside = false; }
+    if (inside) zones.push(raw);
+  }
+  return zoneConcentrationDC(zones, actor?.uuid ?? "");
+}
+
 export async function rollSpellConcentration(actor, { dc: knownDC = null, criticalSeverity: knownSeverity = "" } = {}) {
   /*
    * THE DC ARRIVES KNOWN WHEN A PENDING CAST WAS INTERRUPTED (3.584.0).
@@ -7014,7 +8725,11 @@ export async function rollSpellConcentration(actor, { dc: knownDC = null, critic
 
   if (!result || result === "cancel") return null;
 
-  const dc = Number(result.dc || 0);
+  // A CASTING ZONE'S RISE (3.685.0, H8; Zone Disruption: "Any Spell
+  // Concentration checks or sustain actions automatically increase their DC
+  // by +2"). From the Regions the caster stands in; see magic/casting-zone.mjs.
+  const zoneRise = await castingZoneRiseFor(actor);
+  const dc = Number(result.dc || 0) + zoneRise.value;
   const pp = Math.max(0, Number(result.pp || 0));
   const difficulty = concentrationDifficulty(result.criticalSeverity || null);
   const skillKey = result.skillKey === "powerManipulation" ? "powerManipulation" : "mentalFocus";
@@ -7032,7 +8747,7 @@ export async function rollSpellConcentration(actor, { dc: knownDC = null, critic
   const check = await TRGCheck.roll({
     actor,
     label: "Spell Concentration",
-    subtitle: `${skillLabel} — DC ${dc}${difficulty !== "medium" ? ` (${difficulty})` : ""}`,
+    subtitle: `${skillLabel} — DC ${dc}${zoneRise.value ? ` (+${zoneRise.value} ${zoneRise.label})` : ""}${difficulty !== "medium" ? ` (${difficulty})` : ""}`,
     type: "skill",
     dc,
     difficulty,
@@ -7076,7 +8791,9 @@ export async function rollSpellConcentration(actor, { dc: knownDC = null, critic
   await postCard(actor, "Spell Concentration — Result", lines);
 
   if (outcome.rollFumble) {
-    await rollSpellFumble(actor, { tradition: result.tradition, blunder: degree === "blunder", pp });
+    // A CONCENTRATION CHECK'S FUMBLE, SAID SO (3.684.0, G5): a module's
+    // fumble modifier keyed to a Spellcraft check (Mana Bound) is told.
+    await rollSpellFumble(actor, { tradition: result.tradition, blunder: degree === "blunder", pp, check: { type: "concentration" } });
   }
   if (outcome.rollResonance) {
     await rollResonanceEvent(actor, { reason: "Spell Concentration — Blunder" });
@@ -7283,6 +9000,31 @@ export async function rollMagicRitual(actor, spell) {
   const basePP = Math.max(0, Number(spellData.ppCost ?? 0));
 
   /*
+   * A RITUAL IS A CASTING, AND IS REFUSED AS ONE (3.679.0; Eldritch Arts Block
+   * 2b). An antimagic zone's "No spell or magical ability functions inside"
+   * stopped the spell a ritual cast but not the ritual: its check was rolled
+   * first and the refusal came after (0.3.0's reported gap). Asked here,
+   * before the dialog, so a refused ritual costs nothing.
+   */
+  {
+    const { castRefusalFrom } = await import("./cast-hooks.mjs");
+    const ritualRefused = await castRefusalFrom({ actor, spell, spellData, innate: false, itemCast: false, ritual: true });
+    if (ritualRefused) {
+      ui.notifications.warn(ritualRefused);
+      return null;
+    }
+  }
+  // WHETHER IT IS HIGH MAGIC (3.678.0, D1), for the ritual check's own DC
+  // (Graham's Q14: Hard applies to a ritual check too) and for the gates.
+  const hmCast = highMagicCast(actor, spellData);
+  // A SOURCEBOOK'S RITUAL RULES (3.679.0, D13): its other ways to pay the PP
+  // and its own fields (a Ritual Censor, Ritual Experts among the casters).
+  const { prepareRitual, ritualCapLifted, ritualCasts, ritualFieldsFor, ritualVariantsFor } = await import("./ritual-rules.mjs");
+  const ritualContext = { actor, spell, spellData, highMagic: hmCast.highMagic };
+  const ritualVariants = await ritualVariantsFor(ritualContext);
+  const ritualFields = await ritualFieldsFor(ritualContext);
+
+  /*
    * THE SECONDARIES ADD THEMSELVES UP (3.585.0, Graham's R5).
    *
    * This dialog used to print the four numbers in a hint and ask the GM
@@ -7335,6 +9077,14 @@ export async function rollMagicRitual(actor, spell) {
           <label for="trg-ritual-focus">Ritual Focus DC modifier</label>
           <input id="trg-ritual-focus" type="number" name="focusModifier" value="0">
         </div>
+        ${ritualVariants.length ? `<hr><div class="form-group">
+          <label for="trg-ritual-variant">How the PP is paid</label>
+          <select id="trg-ritual-variant" name="ritualVariant">
+            <option value="">Spellcraft, paying PP (the primary caster's)</option>
+            ${ritualVariants.map((v) => `<option value="${esc(v.key)}" title="${esc(v.hint)}">${esc(v.label)}</option>`).join("")}
+          </select>
+        </div>` : ""}
+        ${ritualFields}
       </div>`,
     buttons: [
       {
@@ -7361,11 +9111,44 @@ export async function rollMagicRitual(actor, spell) {
   // head for the headroom count and a modifier for the check.
   const degrees = Array.from({ length: MAX_SECONDARY_CASTERS }, (_, i) =>
     String(result[`secondary-${i}`] ?? "").trim()).filter(Boolean);
-  const secondaryCount = degrees.length;
   const secondaryModifier = degrees.reduce(
     (sum, key) => sum + magicRitualSecondaryModifier(key), 0);
   const ppOver = Number(result.ppOver || 0);
+  // WHAT THE SOURCEBOOKS MAKE OF IT (3.679.0, D13): the chosen way of paying,
+  // its check and DC, their DC rows, check rows and extra seats (a Ritual
+  // Expert counts as two casters, Graham's Q13). Asked BEFORE the seats are
+  // counted, because a seat is what the requirement and the headroom count.
+  const ritualPlan = await prepareRitual({
+    ...ritualContext, form: result, variant: String(result.ritualVariant ?? ""),
+    basePP, ppOver, secondaryCount: degrees.length
+  });
+  if (ritualPlan.refused) {
+    ui.notifications.warn(`${spell.name}: ${ritualPlan.refused}`);
+    return null;
+  }
+  const secondaryCount = degrees.length + ritualPlan.seats;
   const overcastLimit = magicRitualOvercastLimit(secondaryCount);
+  /*
+   * A VARIANT IS CHECKED BEFORE ITS ROLL (3.679.0, review), not refused after
+   * a Success: a caster leading one must have prepared the spell (Q10), and
+   * its PP must fit the cap per cast and the headroom (Q9) — Sacrifice cannot
+   * help, because its DC rise would land on a check already rolled.
+   */
+  if (ritualPlan.variant) {
+    const leaderCL = casterLevelOf(actor.system ?? {});
+    if (leaderCL > 0) {
+      const blocked = spellCastBlocked(spell);
+      if (blocked) {
+        ui.notifications.warn(blocked);
+        return null;
+      }
+    }
+    const capNow = (spellData.specialist ? specialistMaxPP(Number(actor.system?.identity?.level ?? 0)) : maxPPPerCast(leaderCL)) + ppOver;
+    if (basePP > capNow) {
+      ui.notifications.warn(`${spell.name} (${basePP} PP) is over this ritual's limit of ${capNow} (caster level ${leaderCL} + 1, plus ${ppOver} over): enter the PP over your maximum, with the secondaries to carry it.`);
+      return null;
+    }
+  }
 
   if (!secondaryCount) {
     ui.notifications.warn("A magic ritual needs at least one secondary caster.");
@@ -7387,7 +9170,16 @@ export async function rollMagicRitual(actor, spell) {
     ritualFocusModifier: Number(result.focusModifier || 0)
   });
 
-  const dc = castingDC(basePP) + dcModifiers;
+  // THE BASE: the casting DC by PP, or the variant's own — "Very Hard (DC +5)
+  // level-based DC equal to the wielder's level" — which the core's ritual
+  // modifiers still move (Graham's Q5). Then High Magic's Hard (Q14) and the
+  // sourcebook's rows, each named on the card.
+  const ritualBase = ritualPlan.dc ? ritualPlan.dc.value : castingDC(basePP);
+  const ritualDCRows = [
+    ...(highMagicCastingDCStep(hmCast) ? [{ label: "High Magic, Hard", value: highMagicCastingDCStep(hmCast) }] : []),
+    ...ritualPlan.dcRows
+  ];
+  const dc = ritualBase + dcModifiers + ritualDCRows.reduce((sum, row) => sum + row.value, 0);
 
   const system = actor.system ?? {};
   /*
@@ -7410,9 +9202,28 @@ export async function rollMagicRitual(actor, spell) {
    * working, which is the argument for driving a release rather than
    * reasoning about it.
    */
-  const modifiers = [...(system.magic?.spellcraft?.checkModifiers ?? [
-    { label: "Spellcraft", value: Number(system.magic?.spellcraft?.total ?? 0), type: "untyped" }
-  ])];
+  // THE VARIANT'S SKILL, or Spellcraft: "the Ritual Check uses the primary
+  // casters tradition skill (appropriate to the spell) instead of Spellcraft".
+  const ritualSkill = ritualPlan.skill ? system.skills?.[ritualPlan.skill.key] : null;
+  const modifiers = ritualPlan.skill
+    ? [...(ritualSkill?.checkModifiers ?? [{ label: ritualPlan.skill.label, value: Number(ritualSkill?.total ?? 0), type: "untyped" }])]
+    : [...(system.magic?.spellcraft?.checkModifiers ?? [
+      { label: "Spellcraft", value: Number(system.magic?.spellcraft?.total ?? 0), type: "untyped" }
+    ])];
+  modifiers.push(...ritualPlan.modifiers);
+  /*
+   * THE CASTING'S GATES REACH THE RITUAL CHECK (3.679.0). A Magic Suppression
+   * area's "penalty equal to the level" is a gate, and so is Null Aura; the
+   * ritual's check is this casting's check, and `castSpell` (handed it
+   * already rolled) asks its gates with `rollsCheck: false`. Asked once,
+   * here, so a row is never counted twice.
+   */
+  const { runSpellCheckGates } = await import("./spell-check-gates.mjs");
+  const ritualGated = await runSpellCheckGates({
+    actor, spell, spellData, innate: false, itemCast: false, attack: false,
+    highMagic: hmCast.highMagic, ritual: true, rollsCheck: true
+  });
+  modifiers.push(...ritualGated.modifiers);
   if (secondaryModifier) {
     modifiers.push({
       label: "Secondary Casters",
@@ -7421,11 +9232,14 @@ export async function rollMagicRitual(actor, spell) {
     });
   }
 
+  const capLifted = await ritualCapLifted(ritualContext);
+  const dcWords = [ritualPlan.dc ? `${ritualPlan.dc.label} ${ritualBase}` : null,
+    ...ritualDCRows.map((row) => `${row.label} ${row.value > 0 ? "+" : ""}${row.value}`)].filter(Boolean).join(", ");
   const check = await TRGCheck.roll({
     actor,
-    label: `${spell.name} — Magic Ritual`,
-    subtitle: `DC ${dc} — capped at Success (no Critical/Heroic possible)`,
-    type: "spellcraft",
+    label: `${spell.name} — Magic Ritual${ritualPlan.skill ? ` (${ritualPlan.skill.label})` : ""}`,
+    subtitle: `DC ${dc}${dcWords ? ` (${dcWords})` : ""} — ${capLifted ? "a Ritual spell: not capped at Success" : "capped at Success (no Critical/Heroic possible)"}`,
+    ...(ritualPlan.skill ? { type: "skill", subject: ritualPlan.skill.key } : { type: "spellcraft" }),
     // A ritual is still a cast of this spell (see castContext above); its
     // own function scope has no access to that object, so the same two
     // fields are read from the spell directly.
@@ -7436,13 +9250,15 @@ export async function rollMagicRitual(actor, spell) {
   });
 
   const rawDegree = check.outcome?.degree?.key ?? "failure";
-  const degree = capRitualDegree(rawDegree);
-  const cast = degree === "success";
+  // A RITUAL SPELL "IGNORES THE CORE CAP" (Eldritch Arts, Appendix; Graham's
+  // M30): when a sourcebook says so, the degree stands and casts.
+  const degree = capLifted ? rawDegree : capRitualDegree(rawDegree);
+  const cast = ritualCasts(degree);
   const consequences = degree === "failure" || degree === "fumble" || degree === "blunder";
 
-  const lines = [];
+  const lines = [...ritualPlan.lines.map((text) => line(text)), ...ritualGated.lines.map((text) => line(text))];
   if (cast) {
-    lines.push(line(`<strong>The ritual succeeds.</strong> The spell is cast at ${basePP + ppOver} PP.`));
+    lines.push(line(`<strong>The ritual succeeds${degree !== "success" ? ` (${degree})` : ""}.</strong> The spell is cast at ${basePP + ppOver} PP${ritualPlan.variant ? ", paid in its stead" : ""}.`));
   } else if (consequences) {
     lines.push(line("<strong>The ritual fails.</strong> All participants are subject to the consequences."));
     lines.push(line(
@@ -7480,10 +9296,17 @@ export async function rollMagicRitual(actor, spell) {
    * finally reaches the Spell Fumble Table's +20 Spell Ritual row.
    */
   if (cast || consequences) {
-    await castSpell(actor, spell, {
-      ritual: { degree, ppOver, secondaryCount, check }
+    const castResult = await castSpell(actor, spell, {
+      // The gates' answer, asked once above (3.679.0, review); their lines are
+      // on this card already.
+      ritual: { degree, ppOver, secondaryCount, check, variant: ritualPlan.variant, gated: { modifiers: ritualGated.modifiers, lines: [] } }
     });
+    // A FAILED RITUAL'S CAST STOPPED SHORT (a cancelled target or warp): its
+    // consequences were not applied, and the table should know.
+    if (castResult === null && consequences) {
+      await postCard(actor, `${spell.name} — Magic Ritual`, [line(`<strong>The ${degree} ritual's casting was stopped before it settled</strong>: its PP loss, its fumble roll${ritualPlan.variant ? " and its sacrifice" : ""} were not applied. The GM applies them.`)]);
+    }
   }
 
-  return { check, degree, ppOver, secondaryCount, secondaryModifier };
+  return { check, degree, ppOver, secondaryCount, secondaryModifier, variant: ritualPlan.variant, capLifted };
 }

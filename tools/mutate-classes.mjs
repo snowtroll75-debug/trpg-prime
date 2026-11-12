@@ -238,8 +238,10 @@ const MUTATIONS = [
   {
     file: MEMO,
     name: "A15 the memorisation budget loses its doubling",
-    from: "  return 2 + 2 * Math.max(0, Math.floor(Number(level) || 0));",
-    to: "  return 2 + Math.max(0, Math.floor(Number(level) || 0));",
+    // RE-ANCHORED AT 3.682.0: the budget is a rule in a table now ("2+2L",
+    // the core's, beside a class's "L+1").
+    from: "  \"2+2L\": (level) => 2 + 2 * level,",
+    to: "  \"2+2L\": (level) => 2 + level,",
     breaks: "E4 — '2 + (level x 2)', printed in both learned casters' entries"
   },
   {
@@ -297,14 +299,16 @@ const MUTATIONS = [
   {
     file: ATTACK,
     name: "B6 THE SILENT ONE: the bonus is computed and never added",
-    from: "      + trapFinderDB + (aidDefence?.amount ?? 0)",
-    to: "      + (aidDefence?.amount ?? 0)",
+    // RE-ANCHORED AT 3.684.3: the bonus is a row (strikeDefenceRows).
+    from: "aid: aidDefence, warden: wardenDB, trapFinder: trapFinderDB,",
+    to: "aid: aidDefence, warden: wardenDB,",
     breaks: "K13 — every unit test of the rule still passes and the attack still rolls against the old DB"
   },
   {
     file: ATTACK,
     name: "B7 the card stops naming the bonus it applied",
-    from: '        `<em>${targetActor?.name ?? "The target"} has Trap Finder and this attack carries the trap trait: +${trapFinderDB} DB (circumstance).</em>`',
+    // RE-ANCHORED AT 3.684.3: the line says when it did not count.
+    from: '        `<em>${targetActor?.name ?? "The target"} has Trap Finder and this attack carries the trap trait: +${trapFinderDB} DB (circumstance)${strikeRowLost("trapFinder")}.</em>`',
     to: '        `<em>${targetActor?.name ?? "The target"} defends.</em>`',
     breaks: "K14 — a number that moves with no line explaining it is how a player stops trusting the sheet"
   },
@@ -395,8 +399,8 @@ const MUTATIONS = [
   {
     file: SPELLBOOK,
     name: "B18 the Wizard's book gains two spells at 1st level as well",
-    from: "  return opening + 2 * (value - 1);",
-    to: "  return opening + 2 * value;",
+    from: "  return opening + per * (value - 1);",
+    to: "  return opening + per * value;",
     breaks: "M16/M17 — the six are the opening batch; the two arrive when you GAIN a level"
   },
   {
@@ -418,14 +422,14 @@ const MUTATIONS = [
   {
     file: PROG,
     name: "N1 THE TRADITION STOPS ADDING ITS ABILITY TO A NON-CASTER",
-    from: '  if (!String(tradition ?? "").trim()) return 0;\n  return Number(abilityTotal) || 0;',
+    from: '  if (!String(tradition ?? "").trim() && !highMagicClass) return 0;\n  return Number(abilityTotal) || 0;',
     to: "  return 0;",
     breaks: "N5/N5b — Graham, 16 Sept 2026: a Magical Tradition always adds it, caster or not"
   },
   {
     file: PROG,
     name: "N1b it adds the ability to everyone, tradition or not",
-    from: '  if (!String(tradition ?? "").trim()) return 0;',
+    from: '  if (!String(tradition ?? "").trim() && !highMagicClass) return 0;',
     to: "  if (false) return 0;",
     breaks: "N6 — a monster or a half-built sheet would collect the schema's default ability"
   },

@@ -134,10 +134,12 @@ const ACTION = read("module", "combat", "action-workflow.mjs");
 ok("F1 the targeted peril's bonuses reach the check dialog, offered", /extraConditionals: perilTarget\?\.bonuses \?\? \[\]/.test(ACTION)
   && /\.\.\.\(Array\.isArray\(extraConditionals\) \? extraConditionals : \[\]\)/.test(read("module", "apps", "check-dialog.mjs")));
 ok("F2 Dispel opens on a haunt's Counteract level and DC", /perilDispelDefaults\(firstTargetActor\(\)\) \?\? \{\}/.test(ACTION)
-  && /export async function promptDispel\(maxPP, poolPP, \{ level = 0, dc = 0 \} = \{\}\)/.test(read("module", "general-skill-options-workflow.mjs")));
+  // 3.683.0 (Eldritch Arts Block 5, C9): beside a module's Dispel modifiers.
+  && /export async function promptDispel\(maxPP, poolPP, \{ level = 0, dc = 0, offers = \[\] \} = \{\}\)/.test(read("module", "general-skill-options-workflow.mjs")));
 ok("F3 the bank is told a Counteract from a Disable", /perilDisableAttempt\(perilHit\.peril, disableDegree, \{ mode: perilHit\.mode \}\)/.test(ACTION)
   && /mode: action\.key === "dispel" \? "counteract" : "disable"/.test(WF));
-ok("F4 an action's resolution is announced for modules, after its card", /Hooks\.callAll\("trgPrimeActionResolved", \{ actor, action, degree: rawDegree \?\? degree, targetActor, invokedSkillKey, total: checkTotal \}\);/.test(ACTION));
+// 3.683.0 (Eldritch Arts Block 5, C10): with the card's degree beside the raw one.
+ok("F4 an action's resolution is announced for modules, after its card", /Hooks\.callAll\("trgPrimeActionResolved", \{ actor, action, degree: rawDegree \?\? degree, resolvedDegree: degree, targetActor, invokedSkillKey, total: checkTotal \}\);/.test(ACTION));
 ok("F5 a Strike at a bodiless peril is refused before anything is spent", /if \(targetActor && perilHasNoBody\(targetActor\)\) \{/.test(read("module", "combat", "attack-workflow.mjs"))
   && /if \(perilHasNoBody\(peril\)\) \{/.test(WF));
 ok("F6 a peril's routine action is rolled and applied from Use", /const routine = await usePerilRoutine\(actor, item\);\s*if \(routine !== null\) return routine;/.test(read("module", "creature-activation-workflow.mjs")));

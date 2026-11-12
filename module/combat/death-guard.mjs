@@ -37,8 +37,15 @@
  *     exceptWeakness: true,
  *     frequency: "daily",                 // optional
  *     offer: true,                        // optional: asked rather than automatic
- *     spell: "Gaseous Form"               // optional: applied to self on success
+ *     spell: "Gaseous Form",              // optional: applied to self on success
+ *     healTo: { level: true, ability: "wisdom" }, // optional (3.683.0): HP left = level + ability, not 1
+ *     heal: "half"                        // optional (3.684.0): HP left = half the maximum, not 1
  *   }
+ *
+ * A GUARD THAT HOLDS SAYS SO (3.684.0; Eldritch Arts Block 6, G7):
+ * `Hooks.callAll("trgPrimeDeathGuardHeld", { actor, label, hp, trigger })`,
+ * after its hit points are written and its card is posted — `trigger` "zeroHp"
+ * or "death". Pact Ascendant (Demonic)'s burst is run on it.
  *
  * Pure. The workflow rolls, asks and writes.
  */
@@ -51,6 +58,7 @@ export const DEATH_GUARD_ACTION = "deathGuard";
 export const DECLARED_USED_TODAY_FLAG = "declaredUsedToday";
 
 const SAVES = Object.freeze(["fortitude", "reflex", "will"]);
+const ABILITIES = Object.freeze(["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"]);
 const lower = (v) => String(v ?? "").trim().toLowerCase();
 
 /** One declaration, normalised; null when it is neither a save nor an offer. */
@@ -82,6 +90,25 @@ function normaliseDeathGuard(raw) {
   if (raw.once === true) out.once = true;
   // What a "death" guard leaves you on: 1 HP, or half your maximum.
   if (out.trigger === "death") out.heal = lower(raw.heal) === "half" ? "half" : "1";
+  // …AND A ZERO-HP GUARD MAY LEAVE HALF TOO (3.684.0; Eldritch Arts Block 6,
+  // G7). Pact Ascendant (Demonic): "when you would gain the dying condition,
+  // you instead explode … You then rise with HP equal to half your maximum."
+  // Graham's Q141: once a day, no Dying. Added only when declared, so every
+  // older zero-HP guard reads exactly as it did. What the guard's holding
+  // sets off (the burst) is the module's, on `trgPrimeDeathGuardHeld`.
+  else if (lower(raw.heal) === "half") out.heal = "half";
+  // OR YOUR LEVEL AND AN ABILITY (3.683.0; Eldritch Arts Block 5, C7).
+  // Tideweaver's Resilience: "once per day when reduced to less than 0 HP,
+  // you may immediately heal yourself of an amount of HP equal to your level
+  // + wisdom ability modifier. Be aware that this prevents you from gaining
+  // the dying condition." Graham's Q71: offered once a day when damage would
+  // take you to 0 HP; you stay conscious at level + Wisdom (min 1), with no
+  // Dying; not against a blow that kills outright, which is this guard's
+  // existing `notOutright: true`. `healTo: { level: true, ability: "wisdom" }`
+  // replaces the 1 HP (or a "death" guard's `heal`); the ability is its total
+  // (the system's ability bonus). Added only when it names something.
+  const healTo = normaliseHealTo(raw.healTo);
+  if (healTo) out.healTo = healTo;
   // Second Heart: "cannot prevent an effect that kills the target outright"
   // (massive damage) "or destruction of a creature that does not use the
   // normal Dying rules".
@@ -129,8 +156,34 @@ export function declaredDeathGuardSources(effects = [], { trigger = "zeroHp" } =
   return out.sort((a, b) => Number(Boolean(a.spec.offer)) - Number(Boolean(b.spec.offer)));
 }
 
-/** What a "death" guard restores: 1 HP, or half the maximum (at least 1). */
-export function deathGuardHealTo(spec, maxHP) {
+/** A guard's `healTo` (3.683.0, C7), normalised; null when it names neither a level nor an ability. */
+function normaliseHealTo(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const level = raw.level === true;
+  const ability = ABILITIES.includes(lower(raw.ability)) ? lower(raw.ability) : "";
+  if (!level && !ability) return null;
+  return { level, ability };
+}
+
+/**
+ * What a guard leaves the creature on. A "death" guard: 1 HP, or half the
+ * maximum (at least 1). A zero-HP guard: 1 HP, or half the maximum when it
+ * declares `heal: "half"` (3.684.0, G7). Either, with `healTo` (3.683.0,
+ * C7): the character level plus the ability's total, at least 1 and never
+ * above the maximum.
+ *
+ * @param {object} spec normalised
+ * @param {number} maxHP
+ * @param {{level?: number, attributes?: object}} [who] the creature's level and `system.attributes`
+ */
+export function deathGuardHealTo(spec, maxHP, { level = 0, attributes = {} } = {}) {
+  if (spec?.healTo) {
+    const lv = spec.healTo.level ? Math.max(0, Math.trunc(Number(level) || 0)) : 0;
+    const ab = spec.healTo.ability ? Math.trunc(Number(attributes?.[spec.healTo.ability]?.total ?? 0) || 0) : 0;
+    const hp = Math.max(1, lv + ab);
+    const max = Math.trunc(Number(maxHP) || 0);
+    return max > 0 ? Math.min(max, hp) : hp;
+  }
   if (spec?.heal === "half") return Math.max(1, Math.floor((Number(maxHP) || 0) / 2));
   return 1;
 }

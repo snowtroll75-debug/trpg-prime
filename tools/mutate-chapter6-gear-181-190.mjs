@@ -54,7 +54,8 @@ const MUTATIONS = [
   { file: BOMBWF, name: "D2 THE DEFECT: the throw adds nothing to the multiple attack penalty",
     from: "  await setAttackCount(actor, attackIndex + 1);", to: "", breaks: "E13" },
   { file: BOMBWF, name: "D3 THE DEFECT: recurring damage is a line, not a condition",
-    from: "      await targetActor.toggleStatusEffect(\"recurring\", { value: next.value, damageType: next.damageType });", to: "", breaks: "E16" },
+    // RE-ANCHORED AT 3.685.0: laid through `layRecurring`, by type (Q150).
+    from: "      const next = await layRecurring(targetActor, amount, damageType);", to: "      const next = { value: amount, damageType, before: 0, added: amount, stacked: false };", breaks: "E16" },
   { file: BOMBWF, name: "D4 THE DEFECT: the riders are never applied",
     from: "    await applyBombRiders(actor, item, targetActor, targetToken, extras, { critical: Boolean(critical), lines });", to: "", breaks: "E20" },
   { file: CONSUMEWF, name: "D7 THE DEFECT: a poison is spent to its description", from: "  if (poisonAfflictionOf(item)) return usePoison(actor, item);", to: "", breaks: "C4" },
@@ -106,9 +107,11 @@ const MUTATIONS = [
   { file: BOMBS, name: "Sulphur and Violet Haze apply both riders on a critical", from: "    if (rider.on === \"hitNotCritical\") return !critical;",
     to: "    if (rider.on === \"hitNotCritical\") return true;", breaks: "E5" },
   { file: BOMBS, name: "R7: an Interact removes nothing", from: "  const after = Math.max(0, before - 1);", to: "  const after = before;", breaks: "E8b" },
-  { file: BOMBS, name: "a second flask adds to the recurring damage",
-    from: "    return { value: Math.max(Number(existing.value) || 0, value), damageType, replaced: false };",
-    to: "    return { value: (Number(existing.value) || 0) + value, damageType, replaced: false };", breaks: "E11" },
+  // RE-ANCHORED AT 3.685.0, and turned round: the rule moved to conditions/recurring.mjs
+  // and now ADDS (Graham's Q150); the mutation is the old rule, the higher kept.
+  { file: path.join(SYSTEM_ROOT, "module", "conditions", "recurring.mjs"), name: "a second flask keeps the stronger again (the old rule)",
+    from: "  const value = combinedConditionValue(\"recurring\", before, added);",
+    to: "  const value = Math.max(before, added);", breaks: "E11" },
   { file: BOMBS, name: "R5: Holy Water does not reach an evil eternal", from: "    if (kind === \"evil eternal\") return isEvilEternal(targetSystem);",
     to: "", breaks: "E10b" },
   { file: BOMBS, name: "R6: the Thunderstone's DC is not its level's", from: "  return levelDC(Math.max(0, Math.floor(Number(itemLevel) || 0)));",

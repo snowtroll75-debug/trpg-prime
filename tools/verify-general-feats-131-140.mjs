@@ -150,7 +150,8 @@ const movementSource = read("module", "combat", "movement-workflow.mjs");
  * hook needs a live Foundry to run, and a scoped flag that is never
  * handed an action key is a feat that does nothing. */
 ok("K16 the movement workflow passes the armed key into the terrain relief",
-  /const easedBy = terrainReliefName\(actor, armedKey\);/.test(movementSource)
+  // A THIRD ARGUMENT SINCE 3.683.0 (seam C16): the path's magical-terrain test.
+  /const easedBy = terrainReliefName\(actor, armedKey(?:, \{[\s\S]*?\})?\);/.test(movementSource)
     && /eases: Boolean\(easedBy\)/.test(movementSource),
   "without the key every scoped carrier is inert");
 ok("K16g the relief is asked ONCE and its answer reused for both the cost and the card",
@@ -181,10 +182,14 @@ ok("K16e the movement notice no longer hard-codes a feat name",
 ok("K16f and prints the carrier it was handed",
   /\$\{easedBy \?\? "Your terrain training"\} eased the terrain\./.test(movementSource));
 
+// RE-POINTED AT 3.684.2 (Agile Display): the path is priced with `armedAs`,
+// the armed key as a Step leg counts it (movement.mjs `armedMovementKind`),
+// itself read from `armedNow`.
 ok("K17 and reads the armed flag BEFORE it prices the path",
   movementSource.indexOf("const armedNow = actor?.getFlag?.(SYSTEM_ID, ARMED_FLAG)")
-    < movementSource.indexOf("pathCost(movement, actor, armedNow)")
-    && movementSource.includes("pathCost(movement, actor, armedNow)"),
+    < movementSource.indexOf("const armedAs = armedMovementKind(armedNow,")
+    && movementSource.indexOf("const armedAs = armedMovementKind(armedNow,") < movementSource.indexOf("pathCost(movement, actor, armedAs)")
+    && movementSource.includes("pathCost(movement, actor, armedAs)"),
   "reading it after the cost is worked out would hand pathCost an undefined key");
 
 /* ------------------------------------------------------------------ */

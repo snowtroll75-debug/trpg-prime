@@ -32,8 +32,8 @@ const MUTATIONS = [
   { name: "an aquatic creature is caught", file: CA, from: "      if ((aura.exemptTraits ?? []).some((t) => (subject.traits ?? []).includes(t))) continue;", to: "", breaks: "A9" },
   { name: "a breath's second packet is dropped", file: AREA, from: "  if (extraDamage.length) area.extraDamage = extraDamage;", to: "", breaks: "A10" },
   { name: "malformed further packets are kept", file: PE, from: "    .filter((p) => /^\\d+d\\d+([+-]\\d+)?$/i.test(p.formula) && /^[a-z]+$/.test(p.type));", to: "    .filter((p) => p.formula);", breaks: "A11" },
-  { name: "High Magic raises a printed DC too", file: HM, from: "  return isHighMagic(actor) && !printed ? HIGH_MAGIC_SAVE_DC : 0;", to: "  return isHighMagic(actor) ? HIGH_MAGIC_SAVE_DC : 0;", breaks: "A12" },
-  { name: "High Magic's fumble is unchanged", file: HM, from: "  return isHighMagic(actor) ? HIGH_MAGIC_FUMBLE : 0;", to: "  return 0;", breaks: "A12" },
+  { name: "High Magic raises a printed DC too", file: HM, from: "  return isHighMagic(actor) && !printed && !supersededGuideline() ? HIGH_MAGIC_SAVE_DC : 0;", to: "  return isHighMagic(actor) && !supersededGuideline() ? HIGH_MAGIC_SAVE_DC : 0;", breaks: "A12" }, // re-anchored at 3.678.0 (D1b)
+  { name: "High Magic's fumble is unchanged", file: HM, from: "  if (!isHighMagic(actor)) return 0;\n  return supersededGuideline() ? ELDRITCH_HIGH_MAGIC_FUMBLE : HIGH_MAGIC_FUMBLE;", to: "  return 0;", breaks: "A12" }, // re-anchored at 3.678.0 (D1b)
   { name: "the EL adjustment misses DB", file: EL, from: "    \"system.combat.defence\",\n", to: "", breaks: "A13" },
   { name: "the EL adjustment is unbounded", file: EL, from: "  return Math.max(-EL_ADJUST_LIMIT, Math.min(EL_ADJUST_LIMIT, raw));", to: "  return raw;", breaks: "A13" },
   { name: "the setting does not turn Extraplanar death off", file: EP, from: "  if (!enabled || !isExtraplanar(actor?.system)) return \"\";", to: "  if (!isExtraplanar(actor?.system)) return \"\";", breaks: "A14" },

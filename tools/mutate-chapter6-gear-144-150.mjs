@@ -243,8 +243,9 @@ const MUTATIONS = [
   {
     file: ATTACK,
     name: "a weapon strike stops adding the shield's bonus",
-    from: "+ arrowCatchingDB + dragonhideDB + shieldedStrideDB",
-    to: "+ arrowCatchingDB + shieldedStrideDB",
+    // RE-ANCHORED AT 3.684.3: the Strike's DB bonuses are rows (strikeDefenceRows).
+    from: "arrowCatching: arrowCatchingDB, shieldedStride: shieldedStrideDB, dragonhide: dragonhideDB",
+    to: "arrowCatching: arrowCatchingDB, shieldedStride: shieldedStrideDB",
     breaks: "G27 — computed, printed on the card, and not added"
   },
   {
@@ -282,6 +283,13 @@ const MUTATIONS = [
     from: "      void syncEncumbranceImmobilised(actor, { quiet: true });",
     to: "      void actor;",
     breaks: "H5 — every existing overloaded character stays unconditioned until they move something"
+  },
+  {
+    file: WORKFLOW,
+    name: "3.686.2: the world-open sweep does not wait for the election, so a settling GM skips it",
+    from: "    if (!gmConnectionSettled()) await gmConnectionReady();\n    for (const actor of game.actors ?? []) {",
+    to: "    for (const actor of game.actors ?? []) {",
+    breaks: "H5"
   },
   {
     file: WORKFLOW,

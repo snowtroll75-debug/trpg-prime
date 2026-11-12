@@ -192,6 +192,51 @@ export function spendPlan(apValue, entries, cost, kinds = []) {
   return { newValue, entries: cappedEntries(remaining, newValue), fromRestricted };
 }
 
+/** One restricted entry's identity: its label and what it buys. */
+function entryKey(entry) {
+  return `${String(entry?.label ?? "")}|${(entry?.actions ?? []).join(",")}`;
+}
+
+/**
+ * WHAT A SPEND TOOK FROM THE RESTRICTED POINTS (3.684.7): the entries as they
+ * stood (`before`, capped against the pool) less what was left (`after`, a
+ * `spendPlan`'s entries), entry by entry — so a refund can give back exactly
+ * these, and no more.
+ *
+ * @returns {Array} entries, each with the points this spend took
+ */
+export function restrictedTaken(before = [], after = []) {
+  const left = new Map();
+  for (const e of after ?? []) left.set(entryKey(e), (left.get(entryKey(e)) ?? 0) + Math.max(0, Number(e.value) || 0));
+  const out = [];
+  for (const e of before ?? []) {
+    const v = Math.max(0, Number(e.value) || 0);
+    const have = left.get(entryKey(e)) ?? 0;
+    const kept = Math.min(have, v);
+    left.set(entryKey(e), have - kept);
+    if (v - kept > 0) out.push({ ...e, value: v - kept });
+  }
+  return out;
+}
+
+/**
+ * THE RESTRICTED POINTS GIVEN BACK (3.684.7; Graham, 6 November 2026: a
+ * cancelled spell gives back a Strike-only point as Strike-only, "Yes"). The
+ * entries as they stand now, with `taken` added back to its own entry (or
+ * that entry restored), then capped against the pool after the refund.
+ */
+export function restrictedGivenBack(current = [], taken = [], apValue = Infinity) {
+  const out = (current ?? []).map((e) => ({ ...e }));
+  for (const t of taken ?? []) {
+    const v = Math.max(0, Number(t.value) || 0);
+    if (!v) continue;
+    const at = out.findIndex((e) => entryKey(e) === entryKey(t));
+    if (at >= 0) out[at].value = Math.max(0, Number(out[at].value) || 0) + v;
+    else out.push({ ...t, value: v });
+  }
+  return cappedEntries(out, apValue);
+}
+
 /** "Strike or Stride". */
 export function actionsText(actions) {
   const words = (actions ?? []).map((a) => LABEL[a] ?? a);

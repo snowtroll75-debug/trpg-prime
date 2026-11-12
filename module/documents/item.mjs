@@ -2,7 +2,8 @@ import { isCompanion, resizedNaturalDamage } from "../companion.mjs";
 import { weaponUsage } from "../weapon-rune-usage.mjs";
 import { runeKindOf } from "../rune-bearing.mjs";
 import { companionCurrentSize } from "../companion-feats.mjs";
-import { computeRuneModifiers } from "../runes.mjs";
+import { computeRuneModifiers, parseRunes } from "../runes.mjs";
+import { infusionFor, mergedRuneField } from "../infused-runes.mjs";
 import { carriedWeightOf } from "../items.mjs";
 import { grantedInnateTakesFocus, withFocusTrait } from "../combat/refocus.mjs";
 import { wealthRollNeeded } from "../starting-wealth.mjs";
@@ -11,7 +12,8 @@ import { focusDefaultUses } from "../uses.mjs";
 import { focusExtraUses } from "../focus-declarations.mjs";
 import { declarationCarriers } from "../declaration-carriers.mjs";
 import { secondAspectRefusal } from "../aspect-rules.mjs";
-import { exclusiveFeatRefusal } from "../module-api.mjs";
+import { exclusiveFeatRefusal, featEligibilityRefusal } from "../module-api.mjs";
+import { archetypeTakenAtStamp } from "../archetype-progression.mjs";
 import { applyCodexInheritance } from "../codex-inheritance-workflow.mjs";
 import { formLosesOf, naturalAlwaysReady } from "../combat/natural-ready.mjs";
 import { RUNESTONE_TRAITS_FLAG, runestoneRefusal, runestoneTraitsUpdate } from "../runestone.mjs";
@@ -153,6 +155,39 @@ export class TRGItem extends Item {
   }
 
   /**
+   * A FEAT A MODULE SAYS THIS CHARACTER MAY NOT TAKE (3.684.0; Eldritch Arts
+   * Block 6, G9): High Magic Resonance, "a Sorcerer with the Wild Birthright
+   * cannot take this feat". The picker hides it; this holds for the other
+   * arrival paths, as the exclusive groups' refusal does.
+   * `options.trgAllowIneligibleFeat` lets a deliberate script through.
+   */
+  _refusedAsIneligibleFeat(options) {
+    if (this.type !== "feat") return false;
+    const actor = this.parent;
+    if (actor?.documentName !== "Actor" || !actor.items) return false;
+    const refusal = featEligibilityRefusal(this.name, actor, options);
+    if (!refusal) return false;
+    ui.notifications?.warn(refusal);
+    return true;
+  }
+
+  /**
+   * "+N LEVELS" GAINED SINCE (3.684.0; Eldritch Arts Block 6, G8, Graham's
+   * Q90): an archetype feat that opts in has the character's level stamped on
+   * it as it arrives, which its Progression Requirements are then read
+   * against. See archetype-progression.mjs.
+   */
+  _stampArchetypeTakenAt() {
+    const actor = this.parent;
+    if (actor?.documentName !== "Actor") return;
+    // THE OWNER'S UUID BESIDE THE LEVEL (3.684.0, G8 — review): a copy from
+    // another actor's sheet is stamped afresh. Blank for an actor not yet
+    // saved (an import), which keeps the stamp the feat arrived with.
+    const stamp = archetypeTakenAtStamp(this.toObject?.() ?? this, actor.system?.identity?.level, actor.id ? String(actor.uuid ?? "") : "");
+    if (stamp) this.updateSource(stamp);
+  }
+
+  /**
    * THE CLASS'S MINIMUM ABILITY SCORE — WARNED, NEVER REFUSED.
    *
    * Graham's ruling of 15 September 2026 (pages 41–50, R1). Page 43 gives
@@ -218,6 +253,8 @@ export class TRGItem extends Item {
     if (this._refusedAsDuplicateIdentity(options)) return false;
     if (this._refusedAsSecondAspect(options)) return false;
     if (this._refusedAsExclusiveFeat(options)) return false;
+    if (this._refusedAsIneligibleFeat(options)) return false;
+    this._stampArchetypeTakenAt();
     this._warnBelowClassMinimum();
     const traits = this._applyGrantedFocusTrait(this.system);
     if (traits !== null) this.updateSource({ "system.traits": traits });
@@ -464,11 +501,24 @@ export class TRGItem extends Item {
     // Read from the item's own flag because this method runs on the
     // ITEM and cannot see the actor's Divine Ally ability.
     const onLoan = this.flags?.["trg-prime"]?.bladeAllyRune;
+    // RUNES INFUSED FOR THEIR WIELDER (3.682.0; Eldritch Arts' Infuse
+    // Weapon): held on the owning actor, prepared here and never written to
+    // the weapon's own field. Spared the allowance and the potency
+    // prerequisite, as Blade Ally's is (Graham's Q45). See infused-runes.mjs.
+    const infusion = this.type === "weapon" ? infusionFor(this.actor, this) : null;
+    const infusedLabels = infusion ? parseRunes(infusion.runes).map((e) => e.label) : [];
+    // Set every preparation, infused or not: an embedded item is prepared
+    // again without being reset, so a cleared infusion must clear these.
+    if (this.type === "weapon") {
+      this.system.infused = Boolean(infusion?.magical);
+      this.system.infusedRunes = infusion ? infusion.runes : "";
+      this.system.effectiveRunes = infusion ? mergedRuneField(this.system.runes, infusion.runes) : undefined;
+    }
     const modifiers = computeRuneModifiers({
       kind,
-      runes: this.system.runes,
+      runes: infusion ? this.system.effectiveRunes : this.system.runes,
       quality: this.system.quality,
-      exempt: onLoan ? [onLoan] : [],
+      exempt: [...(onLoan ? [onLoan] : []), ...infusedLabels],
       // A RUNE THE WEAPON CANNOT TAKE (3.618.0, B10) is listed as suppressed.
       usage: this.type === "weapon" ? weaponUsage(this.system) : null
     });

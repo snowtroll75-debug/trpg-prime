@@ -42,6 +42,7 @@ import { fieldToRunes, perTierChoices } from "./rune-catalogue.mjs";
 // Roman tiers, same ruling as rune-damage.mjs.
 import { roman } from "./runes.mjs";
 import { CODEX_WEAPON_RUNES } from "./codex-rune-data.mjs";
+import { runeFieldOf } from "./infused-runes.mjs";
 
 /**
  * ONE COPY OF ANY FIGURE THAT MUST AGREE WITH ITSELF. A Codex rune's
@@ -188,12 +189,12 @@ export function runeBonusesFor(item) {
   // it reach, not the tier written — a Normal sword marked Potency III gives
   // +1 to attack, and so +1 against fear.
   const potencyTierOnItem = kind === "weapon"
-    ? Number(computeRuneModifiers({ kind, runes: item?.system?.runes ?? "", quality: item?.system?.quality }).attack) || 0
-    : fieldToRunes(kind, item?.system?.runes ?? "").find((r) => r.key === "potency")?.tier ?? 0;
+    ? Number(computeRuneModifiers({ kind, runes: runeFieldOf(item), quality: item?.system?.quality }).attack) || 0
+    : fieldToRunes(kind, runeFieldOf(item)).find((r) => r.key === "potency")?.tier ?? 0;
   // A rune this weapon cannot take is suppressed (B10): Razor without Keen.
   const usage = kind === "weapon" ? weaponUsage(item?.system) : null;
 
-  for (const chosen of fieldToRunes(kind, item?.system?.runes ?? "")) {
+  for (const chosen of fieldToRunes(kind, runeFieldOf(item))) {
     const rune = NUMERIC_RUNES[chosen.key];
     if (!rune) continue;
     if (usage && !runeUsageAllows(chosen.key, usage).ok) continue;

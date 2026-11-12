@@ -197,6 +197,28 @@ for (const [key, where] of [
 ]) {
   ok(`B3 ${key} is still dispatched`, dispatched(key), `should reach ${where}`);
 }
+/*
+ * B4 — THE THREE ARE ROUTED BY A POSITIVE COMPARISON THAT CALLS THEIR
+ * HANDLER (3.684.0). `dispatched` is a shade permissive by design, and
+ * 3.684.0 showed the cost: G10's `RAGE_CASTING_ACTIONS = ["sustainASpell"]`
+ * (combat/rage.mjs, the actions a raging caster may still take) names the
+ * key as a quoted literal, so B2/B3 passed with Sustain's dispatch line
+ * disabled (mutate-action-keys-dispatched, SURVIVED). The dispatch itself
+ * was intact; the check could no longer see it. So for these three the
+ * branch is pinned: `action.key === "<key>"` in the action workflow, followed
+ * by the import of the module that handles it.
+ */
+{
+  const aw = strip(fs.readFileSync(path.join(SYSTEM_ROOT, "module", "combat", "action-workflow.mjs"), "utf8"));
+  for (const [key, where] of [
+    ["sustainASpell", "../magic/sustain-workflow.mjs"],
+    ["attackOfOpportunity", "./opportunity.mjs"],
+    ["dismiss", "../magic/dismiss-workflow.mjs"]
+  ]) {
+    const at = aw.indexOf(`if (action.key === "${key}") {`);
+    ok(`B4 ${key} has its own branch, and it reaches ${where}`, at >= 0 && aw.slice(at, at + 600).includes(where));
+  }
+}
 
 // AND THE DECLARED EXEMPTIONS MUST STILL BE REAL. An entry for a key
 // that no longer exists, or that has since been wired, is a comment

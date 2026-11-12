@@ -43,7 +43,7 @@ import { mapPenalty, rangedAbilityAdjustment } from "./combat/attack.mjs";
 import { COVER_TYPES, ENGAGED_RANGED_PENALTY, FIRING_INTO_MELEE_COVER } from "./combat/ranged.mjs";
 import {
   BOMB_STRIKE_AP, TANGLEFOOT_INTERACTS, bombAttackResult, bombCriticalDice, bombEffectsOf, bombRange,
-  bombReaches, bombRidersFor, bombSaveDC, onlyVsText, recurringAfterHit, tanglefootInteract
+  bombReaches, bombRidersFor, bombSaveDC, onlyVsText, tanglefootInteract
 } from "./bombs.mjs";
 import { syntheticSpellData } from "./consumable-use-workflow.mjs";
 import { actorHandle, resolveActorHandle } from "./actor-handle.mjs";
@@ -227,16 +227,27 @@ export async function throwBomb(actor, item) {
   }
 
   let db = null;
+  let typedRows = null;
   if (targetActor) {
     const { defenceDCBonus } = await import("./combat/defence-dc.mjs");
     const { alignedTraitsOf, creatureTypesOf } = await import("./aligned.mjs");
     const { creatureTraits } = await import("./creature-traits.mjs");
+    // A BOMB SAYS SO (3.684.0, G20 — review): `attackKinds: ["bomb"]` rows.
     const typed = defenceDCBonus(
       targetActor, "defence", "", creatureTypesOf(actor.system ?? {}), actor.uuid ?? "", alignedTraitsOf(actor.system ?? {}),
-      creatureTraits(actor.system ?? {})
+      creatureTraits(actor.system ?? {}), { attackKind: "bomb" }
     );
     const base = Number(targetActor.system?.combat?.defence?.total ?? NaN);
-    db = Number.isFinite(base) ? base + coverBonus + Number(typed?.total ?? 0) : null;
+    // THE COVER, A CIRCUMSTANCE ROW AMONG THE REST (3.684.3; Graham, 5 November
+    // 2026: "Yes", the attack's other DB bonuses stack by type with the
+    // defence rows): "Standard Cover: +4 circumstance to DB", so it no longer
+    // adds over a Take Cover the sheet already carries. See defence-dc.mjs
+    // `strikeDefenceRows`; the card names it when it did not count.
+    const { stackDefenceRows, defenceStackBase, strikeDefenceRows } = await import("./combat/defence-dc.mjs");
+    const coverRows = strikeDefenceRows({ cover: coverBonus });
+    const stacked = stackDefenceRows([...(typed?.entries ?? []), ...coverRows], defenceStackBase(targetActor));
+    db = Number.isFinite(base) ? base + stacked.total : null;
+    typedRows = { ...typed, entries: [...(typed?.entries ?? []), ...coverRows], notCounted: stacked.notCounted };
   }
 
   // A BOMB IS AN ATTACK (3.622.0; block 39's A12 and R7). The Word aftermath
@@ -299,6 +310,13 @@ export async function throwBomb(actor, item) {
       "<em>Not proficient (-4)</em> — alchemical weapons form their own attack group, granted by the Alchemist archetype."
     )])
   ];
+  // THE DEFENDER'S DB ROWS, AND WHICH DID NOT COUNT (3.684.1, review), as
+  // the Strike, action and spell cards say them.
+  for (const entry of typedRows?.entries ?? []) {
+    const lost = typedRows.notCounted?.find((n) => n.entry === entry);
+    const esc = (text) => globalThis.foundry?.utils?.escapeHTML?.(String(text)) ?? String(text);
+    lines.push(line(`<em>${targetActor.name}'s ${esc(entry.label)}: ${entry.value > 0 ? "+" : ""}${entry.value} DB${entry.scope ? ` (${esc(entry.scope)})` : ""}${lost ? ` — not counted: ${esc(lost.reason.toLowerCase())}` : ""}.</em>`));
+  }
 
   const { applyTypedDamage } = await import("./combat/damage-workflow.mjs");
   let injury = null;
@@ -340,15 +358,12 @@ export async function throwBomb(actor, item) {
     // target's end phase by the engine that already deals them.
     if (String(profile.persistent) !== "0") {
       const amount = (await new Roll(String(profile.persistent)).evaluate()).total;
-      const existingEffect = Array.from(targetActor.effects ?? []).find((e) => e.statuses?.has?.("recurring"));
-      const existing = existingEffect ? {
-        value: Number(existingEffect.getFlag(SYSTEM_ID, "value") ?? 0),
-        damageType: existingEffect.getFlag(SYSTEM_ID, "damageType") ?? ""
-      } : null;
-      const next = recurringAfterHit(existing, amount, damageType);
-      await targetActor.toggleStatusEffect("recurring", { value: next.value, damageType: next.damageType });
-      lines.push(line(`<strong>Recurring ${next.value} ${damageType}</strong> on ${targetActor.name} — dealt in its end phase until a DC ${RECURRING_FLAT_CHECK_DC} flat check ends it${
-        next.replaced ? " (it replaces the recurring damage already there)" : ""}.`));
+      // STACKED BY TYPE (3.685.0; Graham's Q150): a second flask of acid adds
+      // to the acid already burning; fire beside it is its own total.
+      const { layRecurring } = await import("./conditions/recurring-workflow.mjs");
+      const { recurringStackLine } = await import("./conditions/recurring.mjs");
+      const next = await layRecurring(targetActor, amount, damageType);
+      lines.push(line(`<strong>${recurringStackLine(next)}</strong> on ${targetActor.name} — dealt in its end phase until a DC ${RECURRING_FLAT_CHECK_DC} flat check ends that type's total.`));
     }
     if (String(profile.bleed) !== "0") {
       const amount = (await new Roll(String(profile.bleed)).evaluate()).total;

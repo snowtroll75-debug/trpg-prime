@@ -12,10 +12,10 @@
 import { sourceEntryId } from "./items.mjs";
 import { SKILLS } from "./config.mjs";
 import { pickerSpecialistAllowed } from "./aspect-rules.mjs";
-import { meetsParseablePrerequisites, prerequisiteNameKey } from "./prerequisites.mjs";
-import { meetsProgressionRequirement } from "./archetype-progression.mjs";
+import { meetsParseablePrerequisites, prerequisiteNameKey, heritageNameKey } from "./prerequisites.mjs";
+import { meetsProgressionRequirement, parseProgressionClause, archetypeProgressionContext } from "./archetype-progression.mjs";
 import { CLASS_SKILL_GRANTS } from "./class-skills.mjs";
-import { registeredClassNames, registeredArchetypeNames, hasRegisteredFeatAccess, featGateBlock, exclusiveFeatConflict } from "./module-api.mjs";
+import { registeredClassNames, registeredArchetypeNames, hasRegisteredFeatAccess, featGateBlock, exclusiveFeatConflict, featEligibilityBlock } from "./module-api.mjs";
 import { contentPacksFor } from "./content-packs.mjs";
 import { actorSenses } from "./senses.mjs";
 import { resolveCasterStyle } from "./magic/caster-style.mjs";
@@ -141,7 +141,11 @@ export const PICKER_SLOTS = Object.freeze({
   racialFeat: {
     pack: "feats",
     title: "Add Racial Feat",
-    fields: ["system.category", "system.sourceRace", "system.prerequisites", "system.repeatable", "system.repeatLimit"],
+    // "flags.trg-prime.compoundSkillPrerequisites" (3.684.0, G9) in all four
+    // feat slots: a feat's opt-in to "A or B N ranks". Since 3.684.1 (Graham,
+    // 4 November 2026) every feat's "A or B N ranks" is read, so the flag is
+    // requested still but changes nothing — kept for modules that set it.
+    fields: ["system.category", "system.sourceRace", "system.prerequisites", "system.repeatable", "system.repeatLimit", "flags.trg-prime.compoundSkillPrerequisites"],
     excludeOwned: true
   },
   archetypeFeat: {
@@ -151,7 +155,7 @@ export const PICKER_SLOTS = Object.freeze({
     // actually reads (entry.system?.traits) — without it in the index
     // request, Foundry's default index (_id/name/img/type only) means every
     // entry's traits read back as undefined and the gate passes everyone.
-    fields: ["system.category", "system.prerequisites", "system.traits", "system.repeatable", "system.repeatLimit"],
+    fields: ["system.category", "system.prerequisites", "system.traits", "system.repeatable", "system.repeatLimit", "flags.trg-prime.compoundSkillPrerequisites"],
     excludeOwned: true
   },
   classFeat: {
@@ -159,7 +163,7 @@ export const PICKER_SLOTS = Object.freeze({
     title: "Add Class Feat",
     // Same reasoning as archetypeFeat above — the tier/archetype/class gate
     // needs system.traits requested, or it silently gates nobody.
-    fields: ["system.category", "system.sourceClass", "system.prerequisites", "system.traits", "system.repeatable", "system.repeatLimit"],
+    fields: ["system.category", "system.sourceClass", "system.prerequisites", "system.traits", "system.repeatable", "system.repeatLimit", "flags.trg-prime.compoundSkillPrerequisites"],
     excludeOwned: true
   },
   generalFeat: {
@@ -178,7 +182,7 @@ export const PICKER_SLOTS = Object.freeze({
     // "flags.trg-prime.companionKind" (3.674.0, C4): the kind a companion
     // feat belongs to, read by the gate below — unrequested it would read
     // undefined and every dragon feat would be offered to every wolf.
-    fields: ["system.category", "system.prerequisites", "system.traits", "system.repeatable", "system.repeatLimit", "flags.trg-prime.companionKind"],
+    fields: ["system.category", "system.prerequisites", "system.traits", "system.repeatable", "system.repeatLimit", "flags.trg-prime.companionKind", "flags.trg-prime.compoundSkillPrerequisites"],
     excludeOwned: true
   },
   // ONE table holds racial and Creature Codex abilities (Graham,
@@ -538,6 +542,28 @@ export function ownedCopies(actor, packName, entryId, packs = globalThis.game?.p
 const PREREQUISITE_GATED_SLOTS = new Set(["racialFeat", "archetypeFeat", "classFeat", "generalFeat"]);
 
 /**
+ * EVERY HERITAGE THAT EXISTS (3.683.0; Eldritch Arts Block 5, Q57), as
+ * `heritageNameKey`s, for the "<Name> Heritage" prerequisite clause: the
+ * federated heritages pack, the system's and every module's that extends it
+ * (Eldritch Arts' Wyrmdral and kin), read off the indexes Foundry has
+ * already loaded. Empty when none is loaded, and an empty set passes every
+ * heritage clause open, as an absent `knownNames` does for feats.
+ *
+ * @param {Iterable} [packs] game.packs by default; injectable for tests.
+ * @returns {Set<string>}
+ */
+export function knownHeritageNames(packs = globalThis.game?.packs) {
+  const names = new Set();
+  for (const pack of contentPacksFor("heritages", packs)) {
+    for (const entry of Array.from(pack?.index ?? [])) {
+      const key = heritageNameKey(entry?.name);
+      if (key) names.add(key);
+    }
+  }
+  return names;
+}
+
+/**
  * The actor stats module/prerequisites.mjs's meetsParseablePrerequisites
  * needs, read off the actor's OWN resolved data (post-bonus totals, not
  * base values) — level, BAB, BSB, all six ability totals, and every
@@ -573,9 +599,22 @@ function actorPrerequisiteStats(actor) {
       .map((sense) => String(sense.modality).toLowerCase())
   );
 
+  // THE HERITAGE IT HAS, AND EVERY ONE THAT EXISTS (3.683.0; Eldritch Arts
+  // Block 5, Graham's Q57): "Wyrmdral Heritage" is gated only when Wyrmdral
+  // is a heritage, and passes for an actor owning a heritage item of that
+  // name. More than one is kept: nothing forbids a second heritage item.
+  const heritageNames = new Set(
+    Array.from(actor?.items ?? [])
+      .filter((item) => item?.type === "heritage")
+      .map((item) => heritageNameKey(item.name))
+      .filter(Boolean)
+  );
+
   return {
     ownedNames,
     specialSenseModalities,
+    heritageNames,
+    knownHeritages: knownHeritageNames(),
     level: Number(system.identity?.level ?? 0),
     bab: Number(system.combat?.bab?.total ?? 0),
     // Same sum documents/actor.mjs's own spellcraft resolution already
@@ -609,10 +648,24 @@ export function withPrerequisitesGate(baseFilter, actor, slotKey, knownNames = n
   // named clauses go on passing open exactly as they always did, which
   // is why every existing caller keeps working unchanged.
   const stats = { ...actorPrerequisiteStats(actor), knownNames: knownNames ?? null };
+  // "A OR B N RANKS" FOR EVERY FEAT (3.684.1; Graham, 4 November 2026: "Yes
+  // for the skill rank prerequisites"). 3.684.0's G9 read it only for a feat
+  // flagged COMPOUND_PREREQUISITES_FLAG; meetsParseablePrerequisites now reads
+  // it unasked, so Scribe Scroll and Animal Affinity gate as Elemental
+  // Exhalation does. The flag is still requested below and changes nothing.
+  // The picker only HIDES: an owned feat is never removed, and _preCreate
+  // does not read these clauses at all.
   return (entry) =>
     (baseFilter ? baseFilter(entry) : true) &&
     meetsParseablePrerequisites(entry.system?.prerequisites, stats);
 }
+
+/**
+ * A feat's opt-in to "A or B N ranks" (3.684.0, G9); requested in each feat
+ * slot's index fields. Harmless since 3.684.1 (Graham, 4 November 2026):
+ * every feat is read, flagged or not.
+ */
+export const COMPOUND_PREREQUISITES_FLAG = "compoundSkillPrerequisites";
 
 /**
  * The Heritage trait: "the feat may be selected at 1st level only."
@@ -733,9 +786,14 @@ function blockingArchetype(actor) {
 export function archetypeGrantContext(actor, feat) {
   const name = String(feat?.name ?? "").trim().toLowerCase();
   const grant = CLASS_SKILL_GRANTS.find((g) => String(g?.name ?? "").trim().toLowerCase() === name);
-  if (!grant) return { hasGrant: false, grantedSkill: "" };
+  // "+N LEVELS" (3.684.0; Eldritch Arts Block 6, G8): for a feat that opts
+  // in, that it does and the level stamped on it when it was taken. Added
+  // only then, so every other archetype's context reads exactly as it did.
+  const ctx = archetypeProgressionContext(feat);
+  const since = ctx.sinceTaken ? ctx : {};
+  if (!grant) return { hasGrant: false, grantedSkill: "", ...since };
   const record = actor?.flags?.["trg-prime"]?.[grant.flag];
-  return { hasGrant: true, grantedSkill: String(record?.skill ?? "") };
+  return { hasGrant: true, grantedSkill: String(record?.skill ?? ""), ...since };
 }
 
 /**
@@ -770,6 +828,9 @@ export function withFeatGates(baseFilter, actor, slotKey) {
     if (baseFilter && !baseFilter(entry)) return false;
     if (featGateBlock(entry?.system?.traits, owned, entry?.name)) return false;
     if (exclusiveFeatConflict(entry?.name, owned)) return false;
+    // A MODULE'S ELIGIBILITY CHECK (3.684.0; Eldritch Arts Block 6, G9):
+    // "Arcanum Birthright", "cannot take with Wild". See module-api.mjs.
+    if (featEligibilityBlock(entry?.name, actor)) return false;
     return true;
   };
 }
@@ -790,6 +851,20 @@ export function withArchetypeProgressionGate(baseFilter, actor, slotKey) {
 export function archetypeProgressionBlockReason(actor) {
   const feat = blockingArchetype(actor);
   if (!feat) return null;
+  // THE TWO NEW SHAPES SAY WHAT THEY MEAN (3.684.0, G8): "cannot progress"
+  // is no wait at all, and "+N levels" names the level it opens at.
+  const parsed = parseProgressionClause(feat.system?.progressionRequirements);
+  if (parsed?.type === "never") {
+    return `${feat.name} cannot progress — no other archetype feat may be taken alongside it.`;
+  }
+  const { takenAt } = archetypeProgressionContext(feat);
+  if (parsed?.type === "levelsSince" && takenAt !== null) {
+    return (
+      `You're still progressing ${feat.name} — taken at level ${takenAt}, its Progression Requirements ` +
+      `("${feat.system?.progressionRequirements}") are met at level ${takenAt + parsed.min}, so no other archetype ` +
+      "feat is offered until then."
+    );
+  }
   return (
     `You're still progressing ${feat.name} — its Progression Requirements ` +
     `("${feat.system?.progressionRequirements}") aren't met yet, so no other archetype ` +

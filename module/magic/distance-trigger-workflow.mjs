@@ -27,6 +27,23 @@ const SYSTEM_ID = "trg-prime";
 /** The flag that marks an effect as an armed tether. */
 export const TETHER_FLAG = "distanceTether";
 
+// Foundry v14 animates both document and placeable coordinates. Geometry
+// must use the committed source for both endpoints while the move animates.
+function recordedToken(token) {
+  const document = token?.document ?? token;
+  if (document?.documentName !== "Token") return token?.object ?? token;
+  const source = document.toObject();
+  const gridSize = canvas?.dimensions?.size ?? 100;
+  return {
+    document: source,
+    actor: document.actor,
+    center: {
+      x: Number(source.x ?? 0) + Number(source.width ?? 1) * gridSize / 2,
+      y: Number(source.y ?? 0) + Number(source.height ?? 1) * gridSize / 2
+    }
+  };
+}
+
 /** The armed tethers on this creature. */
 export function tethersOn(actor) {
   return Array.from(actor?.appliedEffects ?? actor?.effects ?? [])
@@ -49,7 +66,7 @@ export async function checkTethers(tokenDocument) {
   const { distanceBetween } = await import("../combat/geometry.mjs");
   const { normaliseDistanceTrigger, distanceTriggerFires, distanceTriggerFiredLine } =
     await import("./distance-trigger.mjs");
-  const moved = tokenDocument.object ?? tokenDocument;
+  const moved = recordedToken(tokenDocument);
   const fired = [];
   let measured = null;
 
@@ -58,7 +75,7 @@ export async function checkTethers(tokenDocument) {
     if (!spec) continue;
     const anchorUuid = String(tether.getFlag(SYSTEM_ID, "tetherAnchor") ?? "");
     const anchorDoc = anchorUuid ? await fromUuid(anchorUuid).catch(() => null) : null;
-    const anchor = anchorDoc?.object ?? anchorDoc ?? null;
+    const anchor = anchorDoc ? recordedToken(anchorDoc) : null;
     if (!anchor) {
       /*
        * THE ANCHOR IS GONE — the caster's token was removed, or the scene

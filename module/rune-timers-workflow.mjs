@@ -3,6 +3,7 @@
  * (3.615.0, Graham's R5, R6 and R10 of block 36).
  */
 
+import { isActingClientFor } from "./acting-gm.mjs";
 import { RUNE_TIMER_FLAG, runeTimerFlags, runeCooldownLeft, cooldownWords } from "./rune-timers.mjs";
 
 const SYSTEM_ID = "trg-prime";
@@ -98,7 +99,7 @@ export function registerRuneTimers() {
     try {
       const timer = effect?.flags?.[SYSTEM_ID]?.[RUNE_TIMER_FLAG];
       if (!timer) return;
-      if (game.users?.activeGM && game.users.activeGM.id !== game.user?.id) return;
+      if (!isActingClientFor(effect.parent)) return; // one connection of the acting GM; with no GM, one owner (3.686.2)
       const how = options?.[MANUAL_OPTION];
       if (how === "replace") return;
       const actor = effect.parent;

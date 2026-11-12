@@ -40,8 +40,10 @@ const REGISTRY = new Map();
  * @param {object} spec
  * @param {string} [spec.label] what the button says (the name by default)
  * @param {string} spec.summary one line: what it does
- * @param {"attack"|"weapon"} [spec.against] which attacks it answers
- *   ("attack": any attack against DB; "weapon": a Strike only)
+ * @param {"attack"|"weapon"|"spell"} [spec.against] which attacks it answers
+ *   ("attack": any attack against DB; "weapon": a Strike only; "spell": a
+ *   spell attack only, 3.683.0, Eldritch Arts Block 5, C3: Glyph Unleashed's
+ *   "+2 racial bonus to your … DB against that spell")
  * @param {Function} [spec.find] (actor) => the item that grants it, or null;
  *   a feat of this name by default
  * @param {Function} [spec.requires] (actor) => a reason it cannot be taken
@@ -59,7 +61,8 @@ const REGISTRY = new Map();
 export function registerDefenceOffer(name, spec = {}, moduleId = "trg-prime") {
   const key = norm(name);
   if (!key || !spec || typeof spec !== "object") return false;
-  const against = norm(spec.against) === "weapon" ? "weapon" : "attack";
+  const declared = norm(spec.against);
+  const against = declared === "weapon" || declared === "spell" ? declared : "attack";
   REGISTRY.set(key, Object.freeze({
     key,
     name: String(name).trim(),
@@ -103,11 +106,14 @@ export function interceptorCandidates(tokens = [], { targetId = "", attackerId =
  * the attack will then spend: a "weapon" reaction is not offered against a
  * spell it would never last through.
  *
- * @param {"attack"|"weapon"} against
+ * A "spell" reaction (3.683.0, C3) is offered only before a spell attack,
+ * whose kind the cast's own offer names.
+ *
+ * @param {"attack"|"weapon"|"spell"} against
  * @param {{kind: string}} event
  */
 export function defenceAnswersAttack(against, event) {
-  return oneAttackUsedBy(oneAttackSpec(against === "weapon" ? { against: "weapon" } : true), {
+  return oneAttackUsedBy(oneAttackSpec(against === "weapon" || against === "spell" ? { against } : true), {
     kind: String(event?.kind ?? "")
   });
 }

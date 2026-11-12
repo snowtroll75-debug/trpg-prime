@@ -88,7 +88,8 @@ const onDegree = (n, d) => rowsOf(n).filter((r) => r.kind !== "note" && effectAp
   ok("C3c AND THE APPLIER ASKS THE TARGET, rather than rolling for both regardless",
     // RE-ANCHORED 3.613.0 (R14): the candidates come from counteractCandidates,
     // which asks the target the same question before adding traited effects.
-    /let held = counteractCandidates\(spec, \(c\) => Boolean\(target\.hasCondition\?\.\(c\)\), traitedRows\);/.test(applier));
+    // RE-PINNED 3.686.0 (H17): …and leaves out a condition a curse holds.
+    /let held = counteractCandidates\(spec, \(c\) => Boolean\(target\.hasCondition\?\.\(c\)\) && !actorConditionHeld\(target, c\), traitedRows\);/.test(applier));
   ok("C4 THE LINE SAYS SO RATHER THAN ROLLING AGAINST NOTHING",
     /not blinded or deafened/.test(nothingToCounteractLine("X", spec)),
     "a check against nothing reads as a failure that cost a spell");
@@ -115,7 +116,8 @@ const onDegree = (n, d) => rowsOf(n).filter((r) => r.kind !== "note" && effectAp
     /if \(!degree\) \{\s*lines\.push\(line\(`<em>\$\{target\.name\}'s \$\{condition\} — the counteract check was rolled `/.test(applier) && /with no DC/.test(applier),
     "the dialog allows a blank DC and says the GM adjudicates");
   ok("C7 THE CASTER ROLLS IT",
-    /rollCounteractCheck\(caster\)/.test(applier),
+    // RE-PINNED 3.686.0 (H17): with the effect's own level and DC when it carries them.
+    /rollCounteractCheck\(caster, knownAs \?/.test(applier),
     "this function's parameter is `caster`; `actor` is the attack path's name and is not in scope");
   ok("C9 BOTH ITS WARPS NOW HAVE SOMETHING TO DO",
     JSON.stringify(sysOf("Restore Senses")?.warps?.map((w) => w.mods))

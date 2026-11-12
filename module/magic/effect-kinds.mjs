@@ -164,6 +164,12 @@ export const HANDLED_EFFECT_KINDS = Object.freeze([
   // NEW at 3.612.0, R6. Web's check on moving through it, recorded on the
   // Region the cast placed — see magic/entry-check.mjs.
   "entryCheck",
+  // NEW at 3.685.0, H3. A save ladder rolled again on a turn boundary — an
+  // area's at its caster's turns, a target's at its own. See magic/turn-ladder.mjs.
+  "turnLadder",
+  // NEW at 3.686.0, H18. A table rolled at the start of each of the target's
+  // turns — core Insanity's d10. See magic/turn-table.mjs.
+  "turnTable",
   // NEW at 3.614.0, block 35's R2. Stasis's Failure and Fumble — see
   // magic/stasis.mjs.
   "stasis",

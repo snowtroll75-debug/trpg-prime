@@ -256,7 +256,7 @@ ok("I5 no row in the block reads a warp-unlock nobody sells", Object.entries(PLA
     /if \(!castChoices\.has\(effect\)\)/.test(effects) && /warpMods\?\.defenceField && effect\.field === "resistance"/.test(effects));
   ok("J7 a slot choice is asked once per cast", /castChoices\.set\(`slot:\$\{effects\.indexOf\(effect\)\}`/.test(effects));
   ok("J8 a flat temp HP warp reaches the formula", /const flatTemp = Math\.max\(0, Math\.trunc\(Number\(warpMods\?\.tempHPBonus\) \|\| 0\)\);/.test(effects));
-  ok("J9 an attack spell adds the caster's ability", /const damageFormula = withDamageAbility\(/.test(cast));
+  ok("J9 an attack spell adds the caster's ability", /const abilityFormula = withDamageAbility\(/.test(cast));
   ok("J10 the save damage asks about the bigger die before it rolls",
     cast.indexOf("const upgrade = damageDieUpgrade(effectiveDamage);") > 0
     && cast.indexOf("const upgrade = damageDieUpgrade(effectiveDamage);") < cast.indexOf("const dmgRoll = await new Roll(damageFormula).evaluate();"));
@@ -265,7 +265,7 @@ ok("I5 no row in the block reads a warp-unlock nobody sells", Object.entries(PLA
     && /const penalisedPools = drAfterPenalty\(/.test(attack) && /const dr = penalisedPools\.armourDr;/.test(attack));
   ok("J13 Death's Defiance's recovery costs no Fatigued, across the relay too",
     /healActor\(target, amount \+ conduit, \{ noDyingFatigue: effect\.noDyingFatigue === true, dyingHalf: riderPlan\.dyingHalf \}\)/.test(effects)
-    && /applyDyingRecovery\(actor, \{ noFatigue: noDyingFatigue \}\)/.test(effects)
+    && /applyDyingRecovery\(actor, \{ noFatigue: noDyingFatigue[ ,}]/.test(effects)
     && /const state = noFatigue \? \{ \.\.\.recovered, fatigued: current \} : recovered;/.test(death)
     && /noDyingFatigue: payload\.noDyingFatigue === true/.test(relay)
     && /noDyingFatigue: options\?\.noDyingFatigue === true/.test(relayFlow)

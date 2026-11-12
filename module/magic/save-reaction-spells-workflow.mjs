@@ -33,7 +33,7 @@ async function inCombat(actor) {
  * for the length of the cast, then put the user's own targets back — the
  * cast that forced the save is still running and has its own.
  */
-async function castAsReaction(caster, spell, targetTokenIds = []) {
+export async function castAsReaction(caster, spell, targetTokenIds = []) {
   const tokens = canvas?.tokens?.placeables ?? [];
   const previous = Array.from(game.user?.targets ?? []).map((t) => t.id);
   const setTargets = (ids) => {

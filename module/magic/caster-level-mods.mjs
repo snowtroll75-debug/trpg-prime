@@ -153,9 +153,30 @@ export function warpedHealFormula(formula, warpMods = {}) {
   return withDice ? `${withDice} + ${flat}` : String(flat);
 }
 
+const DIE_LADDER = [4, 6, 8, 10, 12];
+
+/**
+ * EVERY DIE A STEP UP (3.684.0; Eldritch Arts Block 6, G1 — Spell Weaver's
+ * Magical Reservoir: "damage/healing dice +1 step"). Each die of a formula
+ * `steps` sizes up d4→d6→d8→d10→d12; a d12 stays a d12 ("a d12 staying d12
+ * unless ruled", the audit's Appendix B, n8) and a die off the ladder is left
+ * alone. 0 steps: the formula as it came. Pure.
+ */
+export function steppedDiceFormula(formula, steps = 1) {
+  const n = Math.trunc(Number(steps) || 0);
+  if (!n) return String(formula ?? "");
+  return String(formula ?? "").replace(/(\d+)d(\d+)\b/g, (term, count, faces) => {
+    const i = DIE_LADDER.indexOf(Number(faces));
+    if (i < 0) return term;
+    return `${count}d${DIE_LADDER[Math.max(0, Math.min(DIE_LADDER.length - 1, i + n))]}`;
+  });
+}
+
 export function warpedRowExtra(formula, warpMods = {}) {
   const repeats = Math.max(0, Math.trunc(Number(warpMods?.rowExtra) || 0));
-  const text = String(formula ?? "");
+  // A METAMAGIC'S DIE STEP (3.684.0, G1) on the row's own dice — here, because
+  // both damage paths and the heal rows read the row through this function.
+  const text = steppedDiceFormula(String(formula ?? ""), Number(warpMods?.dieStep) || 0);
   if (!repeats || !text) return text;
   // THE LAST TRAILING CONSTANT, and only a trailing one. "1d8 + 8" has an
   // extra; "8 + 1d8" is a formula whose author put the constant first and
@@ -191,7 +212,21 @@ export function applyCasterLevelMods(mods, casterLevel) {
    * Daze were the two that did not, and neither would ever have been
    * reported — a rider one point light looks exactly like a rider.
    */
-  const out = { steps: 0, damageDice: "", saveDC: 0, attack: 0, persistent: 0, applied: [] };
+  /*
+   * AND `secondary` (3.675.0; Eldritch Arts' Orb of Water: "CL 4+: The damage
+   * increases by 1d6 & the secondary by 1"). A flat amount per step, added
+   * to the spell's secondary packet (`secondaryDamage`) on the attack path.
+   */
+  /*
+   * AND EFFECT ROWS, A DURATION AND AN AREA (3.685.0, H2; Eldritch Arts'
+   * Brittleskin: "CL 4+: the DR increases by 1 and the damage increases by
+   * 1d4"). An entry's `rows: [{ match: { kind, slot?, label?, index? }, add:
+   * { field: number | "NdM" } }]` adds to the named field of each matching
+   * row, once per step; `duration: { amount, unit }` lengthens the spell's
+   * duration and `areaFeet` grows its area, once per step. Absent, nothing
+   * here moves, so every spell before this release reads as it did.
+   */
+  const out = { steps: 0, damageDice: "", saveDC: 0, attack: 0, persistent: 0, secondary: 0, applied: [], rows: [], duration: null, areaFeet: 0 };
   for (const mod of Array.isArray(mods) ? mods : []) {
     const threshold = Math.floor(Number(mod?.threshold) || 0);
     if (threshold < 1) continue;
@@ -207,11 +242,85 @@ export function applyCasterLevelMods(mods, casterLevel) {
       out.damageDice = addDice(out.damageDice, `${Number(diceTerm[1]) * steps}d${diceTerm[2]}`);
     }
     if (mod?.persistent) out.persistent += Number(mod.persistent) * steps;
+    if (mod?.secondary) out.secondary += Number(mod.secondary) * steps;
     if (mod?.saveDC) out.saveDC += Number(mod.saveDC) * steps;
     if (mod?.attack) out.attack += Number(mod.attack) * steps;
+    for (const row of Array.isArray(mod?.rows) ? mod.rows : []) {
+      if (!row?.match || typeof row.match !== "object" || !row.add || typeof row.add !== "object") continue;
+      const add = {};
+      for (const [field, by] of Object.entries(row.add)) {
+        const dice = String(by ?? "").trim().match(/^(\d+)d(\d+)$/i);
+        if (dice) add[field] = `${Number(dice[1]) * steps}d${dice[2]}`;
+        else if (Number.isFinite(Number(by)) && Number(by) !== 0) add[field] = Number(by) * steps;
+      }
+      if (Object.keys(add).length) out.rows.push({ match: { ...row.match }, add });
+    }
+    const durationAmount = Math.trunc(Number(mod?.duration?.amount) || 0);
+    if (durationAmount > 0 && DURATION_UNITS[String(mod.duration.unit ?? "").toLowerCase().replace(/s$/, "")]) {
+      const unit = String(mod.duration.unit).toLowerCase().replace(/s$/, "");
+      out.duration = { unit, amount: (out.duration?.unit === unit ? out.duration.amount : 0) + durationAmount * steps };
+    }
+    if (Number(mod?.areaFeet) > 0) out.areaFeet += Math.trunc(Number(mod.areaFeet)) * steps;
     if (mod?.text) out.applied.push(String(mod.text));
   }
   return out;
+}
+
+/** The duration units a caster-level step may add (3.685.0, H2). */
+const DURATION_UNITS = Object.freeze({ round: "rounds", minute: "minutes", hour: "hours", day: "days" });
+
+/** Does an effect row answer a caster-level row's `match`? (3.685.0, H2) */
+function casterLevelRowMatches(row, match, index) {
+  if (!row || typeof row !== "object") return false;
+  const low = (v) => String(v ?? "").trim().toLowerCase();
+  if (match.kind !== undefined && low(row.kind) !== low(match.kind)) return false;
+  if (match.slot !== undefined && low(row.slot) !== low(match.slot)) return false;
+  if (match.label !== undefined && low(row.label) !== low(match.label)) return false;
+  if (match.condition !== undefined && low(row.condition) !== low(match.condition)) return false;
+  if (match.index !== undefined && Number(match.index) !== index) return false;
+  return true;
+}
+
+/**
+ * THE SPELL'S EFFECT ROWS AFTER ITS CASTER-LEVEL STEPS (3.685.0, H2). A number
+ * adds to a numeric field (a bonus's `value`, a DR); dice add to a formula
+ * field (a thorns row's `damage`) through `addDice`. Rows are copied, never
+ * written. A step that matches nothing changes nothing.
+ *
+ * @param {object[]} effects the spell's rows
+ * @param {object} resolved `applyCasterLevelMods`'s answer
+ * @returns {object[]}
+ */
+export function casterLevelRows(effects, resolved) {
+  const list = Array.isArray(effects) ? effects : [];
+  const steps = Array.isArray(resolved?.rows) ? resolved.rows : [];
+  if (!steps.length) return list;
+  return list.map((row, index) => {
+    let next = row;
+    for (const step of steps) {
+      if (!casterLevelRowMatches(row, step.match, index)) continue;
+      next = next === row ? { ...row } : next;
+      for (const [field, by] of Object.entries(step.add)) {
+        if (typeof by === "number") next[field] = (Number(next[field]) || 0) + (Number(next[field]) < 0 ? -by : by);
+        else next[field] = addDice(String(next[field] ?? ""), by);
+      }
+    }
+    return next;
+  });
+}
+
+/**
+ * A printed duration lengthened by caster-level steps (3.685.0, H2; Feltwarp,
+ * "CL 4+: +1 hour"). "1 hour" + 2 hours is "3 hours". A printed duration in
+ * another unit, or one that is not "N unit", is returned as printed.
+ */
+export function casterLevelDuration(printed, duration) {
+  const base = String(printed ?? "");
+  if (!duration?.amount) return base;
+  const m = base.trim().match(/^(\d+)\s+(round|minute|hour|day)s?\b(.*)$/i);
+  if (!m || m[2].toLowerCase() !== duration.unit) return base;
+  const n = Number(m[1]) + Number(duration.amount);
+  return `${n} ${n === 1 ? duration.unit : DURATION_UNITS[duration.unit]}${m[3]}`;
 }
 
 /**
@@ -224,7 +333,14 @@ export function describeCasterLevelMods(resolved) {
   const bits = [];
   if (resolved.damageDice) bits.push(`+${resolved.damageDice} damage`);
   if (resolved.persistent) bits.push(`+${resolved.persistent} recurring`);
+  if (resolved.secondary) bits.push(`+${resolved.secondary} secondary`);
   if (resolved.saveDC) bits.push(`+${resolved.saveDC} Save DC`);
   if (resolved.attack) bits.push(`+${resolved.attack} attack`);
+  for (const row of resolved.rows ?? []) {
+    const what = [row.match.label, row.match.slot, row.match.kind].find((v) => v !== undefined) ?? "a row";
+    bits.push(Object.entries(row.add).map(([field, by]) => `${typeof by === "number" && by > 0 ? "+" : typeof by === "string" ? "+" : ""}${by} ${what} ${field}`).join(", "));
+  }
+  if (resolved.duration?.amount) bits.push(`+${resolved.duration.amount} ${resolved.duration.amount === 1 ? resolved.duration.unit : DURATION_UNITS[resolved.duration.unit]} duration`);
+  if (resolved.areaFeet) bits.push(`+${resolved.areaFeet} ft area`);
   return bits.join(", ");
 }

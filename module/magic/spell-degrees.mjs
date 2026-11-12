@@ -335,17 +335,45 @@ export function effectiveSaveDegree(effects, rolled, { basicSave = false } = {})
  * @param {object} warpMods aggregated warp mods
  * @returns {Array} the row's recipients
  */
-export function selfRowRecipients(caster, reached, warpMods = {}) {
+export function selfRowRecipients(caster, reached, warpMods = {}, also = selfRowAlsoOf(warpMods)) {
   const others = (Array.isArray(reached) ? reached : []).filter(Boolean);
   // THE TARGET CHANGES. If the warp moved the effect and the cast reached
   // nobody, that is a cast with no recipient — NOT a silent fallback to
   // the caster, which would hand somebody a buff they had spent PP to
   // give away.
   if (warpMods?.retargetSelfRows) return others;
+  /*
+   * A RECIPIENT A METAMAGIC ADDS (3.684.0; Eldritch Arts Block 6, G1 —
+   * Resonant Harmony, Block 5's S-8: a spell "that targets yourself" may also
+   * target "one adjacent ally with the same effect (if valid)"). The cast
+   * names the creature (`warpMods.selfRowAlso`, token or actor uuids, resolved
+   * by `selfRowAlsoOf`), because a self-only spell has reached nobody else for
+   * the two mods above to work from. Shared, never moved: the caster keeps it.
+   */
+  const added = (Array.isArray(also) ? also : []).filter((t) => t && t !== caster);
+  if (added.length && !warpMods?.shareSelfRows) return caster ? [caster, ...added] : added;
   if (!warpMods?.shareSelfRows) return caster ? [caster] : [];
+  if (added.length) {
+    const shared = caster ? [caster, ...others.filter((t) => t !== caster)] : [...others];
+    return [...shared, ...added.filter((t) => !shared.includes(t))];
+  }
   // SHARED, AND THE CASTER IS NOT COUNTED TWICE. An area with no range
   // centres on the caster, so they are usually already in `reached`.
   return caster ? [caster, ...others.filter((t) => t !== caster)] : others;
+}
+
+/**
+ * The creatures `warpMods.selfRowAlso` names (3.684.0, G1): each uuid resolved
+ * through Foundry's `fromUuidSync` (a token's to its actor). Outside Foundry,
+ * or with none named, nobody. An actor handed in directly is kept as it is.
+ */
+function selfRowAlsoOf(warpMods = {}) {
+  const named = Array.isArray(warpMods?.selfRowAlso) ? warpMods.selfRowAlso : [];
+  return named.map((u) => {
+    if (u && typeof u === "object") return u;
+    const doc = globalThis.fromUuidSync?.(String(u ?? "")) ?? null;
+    return doc?.actor ?? doc ?? null;
+  }).filter(Boolean);
 }
 
 export function recipientsForEffect(effect, saveResults, fallbackTargets = []) {

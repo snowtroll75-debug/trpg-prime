@@ -81,7 +81,7 @@ const ladder = gso.declaredTimeLadder(CB);
 equal("E1 a declared ladder normalises, with its title from the action", ladder && [ladder.options.map((o) => o.modifier), ladder.defaultKey, ladder.title], [[0, -2, -10], "ten", "Centred Balance — time spent"]);
 equal("E2 a rung missing its cost, a fractional modifier or a default outside the rungs is refused", [gso.declaredTimeLadder({ timeLadder: { options: [{ key: "a", label: "A", modifier: 0 }] } }), gso.declaredTimeLadder({ timeLadder: { options: [{ key: "a", label: "A", modifier: 0.5, apCost: "1" }] } }), gso.declaredTimeLadder({ timeLadder: { options: [{ key: "a", label: "A", modifier: 0, apCost: "1" }], defaultKey: "b" } })], [null, null, null]);
 equal("E3 a core ladder of the same key still wins; an action with none has none", [gso.timeLadder("identifyPower", CB)?.actionKey, gso.timeLadder("centredBalance", CB)?.actionKey, gso.timeLadder("search", { key: "search" })], ["identifyPower", "centredBalance", null]);
-ok("E4 the workflow asks the action for its own", /const baseLadder = skipDialog\(event\) \? null : timeLadder\(action\.key, action\);/.test(read("module", "combat", "action-workflow.mjs")));
+ok("E4 the workflow asks the action for its own", /const baseLadder = skipDialog\(event\) \? null : \(featTimeLadder\(action, actorFeatNames\) \?\? timeLadder\(action\.key, action\)\);/.test(read("module", "combat", "action-workflow.mjs")));
 
 /* F ------------------------------------------------------------------ */
 const cc = await mod("create-crafting.mjs");

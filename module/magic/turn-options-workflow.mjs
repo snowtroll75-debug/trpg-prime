@@ -36,6 +36,22 @@ export async function offerTurnOptions(actor, combat) {
   return posted;
 }
 
+/** The condition an option lowers, or "" (heal, recovery). */
+function optionCondition(option) {
+  return option === "bleed" ? "bleeding" : String(option ?? "").startsWith("reduce:") ? String(option).slice(7) : "";
+}
+
+/**
+ * A CONDITION HELD BY A CURSE IS NOT LOWERED (3.686.0, H17; Block 8a review):
+ * the refusal said, or "" when the option may go ahead.
+ */
+async function heldRefusal(actor, option) {
+  const condition = optionCondition(option);
+  if (!condition) return "";
+  const { actorConditionHeld, holdsOn, heldRefusedLine } = await import("../conditions/held-conditions.mjs");
+  return actorConditionHeld(actor, condition) ? heldRefusedLine(actor.name, condition, holdsOn(actor.effects, condition)[0]?.label) : "";
+}
+
 /** Apply one chosen option. @returns {Promise<string>} the line said */
 async function applyTurnOption(actor, spec, option) {
   if (option === "heal") {
@@ -49,9 +65,17 @@ async function applyTurnOption(actor, spec, option) {
   if (option === "recovery") {
     return `${actor.name} ignores Fumble and Blunder results on its next recovery check this turn — apply it at the table.`;
   }
-  const condition = option === "bleed" ? "bleeding" : option.startsWith("reduce:") ? option.slice(7) : "";
+  const condition = optionCondition(option);
   const amount = option === "bleed" ? spec.bleed : Number(spec.reduce?.[condition] ?? 0);
   if (!condition || !amount) return "Nothing to apply.";
+  const refused = await heldRefusal(actor, option);
+  if (refused) return refused;
+  // RECURRING DAMAGE, ONE TYPE AT A TIME (3.685.0, review): the largest total.
+  if (condition === "recurring") {
+    const { reduceRecurring } = await import("../conditions/recurring-workflow.mjs");
+    const r = await reduceRecurring(actor, amount);
+    return r.from ? `${actor.name}'s recurring ${r.damageType} ${r.from} → ${r.to}.` : `${actor.name} has no recurring to reduce.`;
+  }
   const had = Math.max(0, Number(actor.conditions?.rawValues?.get?.(condition) ?? actor.getConditionValue?.(condition) ?? 0));
   if (!had) return `${actor.name} has no ${condition} to reduce.`;
   const left = Math.max(0, had - amount);
@@ -92,6 +116,13 @@ async function wire(btn, message, card) {
     const ap = generalAP(actor);
     if (ap < spec.apCost) {
       ui.notifications.warn(`${spec.label} costs ${spec.apCost} AP; ${actor.name} has ${ap}.`);
+      btn.disabled = false;
+      return;
+    }
+    // REFUSED BEFORE THE AP ARE SPENT: a held condition costs nothing to ask about.
+    const refused = await heldRefusal(actor, btn.dataset.option);
+    if (refused) {
+      ui.notifications.warn(refused.replace(/<[^>]+>/g, ""));
       btn.disabled = false;
       return;
     }

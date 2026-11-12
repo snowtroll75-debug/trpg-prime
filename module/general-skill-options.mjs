@@ -334,6 +334,32 @@ export function declaredTimeLadder(action) {
 }
 
 /**
+ * A LADDER A FEAT GIVES A MODULE ACTION (3.675.0; Eldritch Arts Block 1, C5).
+ * Focused Ley Sense: "When using the Ley Sense action, you apply the
+ * following modifiers; 10 minutes (+2), 1 minute (+0), 1 round (-2), 1 AP
+ * (-5), 0 AP (-10)." The action carries
+ * `timeLadderByFeat: { "Focused Ley Sense": { options, defaultKey, … } }`;
+ * an actor owning the named feat is offered that ladder instead of the
+ * action's own. Normalised exactly as `declaredTimeLadder` normalises, so a
+ * malformed variant falls back to the ordinary ladder rather than to none.
+ *
+ * @param {object|null} action
+ * @param {string[]} featNames the actor's feat and ability names, lowercased
+ * @returns {object|null} the variant ladder, or null when none applies
+ */
+export function featTimeLadder(action, featNames = []) {
+  const variants = action?.timeLadderByFeat;
+  if (!variants || typeof variants !== "object") return null;
+  const owned = new Set((featNames ?? []).map((n) => String(n ?? "").trim().toLowerCase()));
+  for (const [feat, ladder] of Object.entries(variants)) {
+    if (!owned.has(String(feat).trim().toLowerCase())) continue;
+    const built = declaredTimeLadder({ ...action, timeLadder: ladder });
+    if (built) return built;
+  }
+  return null;
+}
+
+/**
  * A rung by key, falling back to the ladder's default rather than null —
  * a dialog that somehow returns an unknown value should still roll at the
  * modifier the player was shown, not silently at none.

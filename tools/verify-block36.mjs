@@ -245,7 +245,8 @@ async function packRows(pack) {
   ok("F8 a flexible wand starts from the spell's own base cost", choose.includes("const base = flexible && spell ? Math.max(0, Math.floor(Number(spell.system?.ppCost ?? listed) || 0)) : listed;"));
   ok("F9 R17 — a held rod, staff or wand stands in for the somatic hand",
     GATE.includes('["rod", "staff", "wand"].includes(String(i.flags?.["trg-prime"]?.chargedItem?.kind ?? "").toLowerCase())')
-    && GATE.includes("!(implementHand && focusSatisfiesHand(components)) &&"));
+    // RE-ANCHORED AT 3.684.0 (G22, G25): the hand test reads the components a sigil or shards leave.
+    && GATE.includes("!(implementHand && focusSatisfiesHand(handComponents)) &&"));
   const hc = CAST.indexOf("if (healingChannelApplies(spell.name, hasHealingChannel) && Array.isArray(effEffects)) {");
   const cure = CAST.indexOf("const cureBonus = Math.max(0, ...Array.from(actor.items ?? [])");
   ok("F10 B9 — a Staff of Cure's +1 to Cure, after Healing Channel", hc > -1 && cure > hc);

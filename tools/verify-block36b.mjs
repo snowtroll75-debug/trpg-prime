@@ -233,7 +233,7 @@ async function packRows(pack) {
   const grants = spellEffectGrants([{ id: "ad", name: "Air Drake Armour", type: "armour", system: { equipped: true, runes: "Potency II, Spell Effect (Fly, At Will)" }, flags: armour.flags }]);
   ok("D2b granted at the armour's Command (1 AP), unlimited", grants[0]?.castAP === 1 && grants[0]?.usesPerDay === "unlimited");
   const refuse = CAST.indexOf("const left = runeCooldownLeft(grantSource, GRANT_COOLDOWN_KEY, Number(game.time?.worldTime ?? 0));");
-  const commit = CAST.indexOf("if (totalPP > ppPool + rodDraw) {");
+  const commit = CAST.indexOf("if ((ritualSubstitutes ? 0 : totalPP) + surcharge.pp > ppPool + rodDraw) {");
   ok("D3 R11 — refused while it rests, before anything is spent", refuse > -1 && commit > refuse
     && /const left = runeCooldownLeft\(grantSource, GRANT_COOLDOWN_KEY, [^\n]*\n\s*if \(left > 0\) \{\n\s*ui\.notifications\.warn\([^\n]*\n\s*return null;/.test(CAST));
   ok("D3b and the rest starts when it is cast",
@@ -266,7 +266,8 @@ async function packRows(pack) {
   ok("E2c a feat's Quicken and a rod's are one Quicken", agg.apDelta === -1);
   ok("E2d the cast offers them", CAST.includes("rods: metamagicRodsOf(Array.from(actor.items ?? [])),"));
   ok("E2e and takes each rod's spend once the cast is settled",
-    CAST.includes("for (const spend of mm.rodSpends ?? []) {") && CAST.includes("rodLines.push(await spendFromRod(actor, rodItem, spend.pp));"));
+    // RE-POINTED AT 3.684.0 (Block 6, G6): each spend now names what it is for.
+    CAST.includes("for (const spend of mm.rodSpends ?? []) {") && CAST.includes("rodLines.push(await spendFromRod(actor, rodItem, spend.pp, { reason: \"metamagic\" }));"));
 
   const magi = rod("Rod of the Magi", { ppSource: { tradition: "arcane" } });
   const sceptre = rod("Sceptre of the Clergy", { ppSource: { tradition: "divinity" } });
@@ -277,18 +278,21 @@ async function packRows(pack) {
   ok("E3b the rod pays what was drawn, up to the spend, the caster the rest",
     JSON.stringify(rodDrawSplit(6, 4)) === JSON.stringify({ rod: 4, caster: 2 })
     && JSON.stringify(rodDrawSplit(3, 4)) === JSON.stringify({ rod: 3, caster: 0 }));
-  ok("E3c the pool test counts the draw", CAST.includes("if (totalPP > ppPool + rodDraw) {"));
+  ok("E3c the pool test counts the draw", CAST.includes("if ((ritualSubstitutes ? 0 : totalPP) + surcharge.pp > ppPool + rodDraw) {"));
   ok("E3d the caster is charged only their share",
     CAST.includes('"system.resources.pp.value": Math.max(0, ppPool - casterPPSpent)')
     && CAST.includes("rodPaid = rodDraw > 0 ? rodDrawSplit(ppSpent, rodDraw).rod : 0;"));
   ok("E3e nothing to draw for a spell nobody pays for",
-    CAST.includes("const rodSource = (isCantrip || isInnate || isItemCast || stored || totalPP <= 0)"));
+    // 3.679.0: nor for a ritual variant, whose PP are substituted.
+    CAST.includes("const rodSource = (isCantrip || isInnate || isItemCast || stored || totalPP <= 0 || ritualSubstitutes)"));
 
   const acc = accuracyRodOf([rod("Rod of Accuracy", { spellAttack: { maxPP: 2 } })]);
   ok("E4 R14 — the Rod of Accuracy buys +1 per PP, at most +2, as an item bonus",
     accuracyRow(acc, 1)?.value === 1 && accuracyRow(acc, 5)?.value === 2 && accuracyRow(acc, 2)?.type === "item" && accuracyRow(acc, 0) === null);
   ok("E4b to the attack comparison, through the stacking pool",
-    CAST.includes("extraAttackRows: accuracyAttackRow ? [accuracyAttackRow] : []")
+    // RE-POINTED AT 3.684.0 (Eldritch Arts Block 6, G14): the list also takes
+    // a cast option's attack-only rows and the gate's attack-only rows.
+    CAST.includes("extraAttackRows: [...(accuracyAttackRow ? [accuracyAttackRow] : []), ...(castOptionsApplied.attackRows ?? []), ...gateAttackOnlyRows],")
     && CAST.includes(".concat(Array.isArray(extraAttackRows) ? extraAttackRows : []), {});"));
   const alert = rod("Rod of Alertness", { checkAdvantage: { subjects: ["perception", "senseMotive"], cost: 2 } });
   ok("E5 R14 — the Rod of Alertness on Perception and Sense Motive only",

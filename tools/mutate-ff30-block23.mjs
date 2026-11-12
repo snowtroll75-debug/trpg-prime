@@ -16,7 +16,8 @@ const MUTATIONS = [
   { name: "the tradition is not read", file: CR, from: "&& (!want || ", to: "&& (true || ", breaks: "B3" },
   { name: "the Fiery Slam lays nothing (what 3.655.1 did)", file: AW, from: "      if (recurring > 0) lines.push(", to: "      if (false) lines.push(", breaks: "S1" },
   { name: "an immune target burns anyway", file: AW, from: "  if (immune) return `<em>No recurring", to: "  if (false) return `<em>No recurring", breaks: "S1" },
-  { name: "two recurrings add instead of keeping the stronger", file: AW, from: "  const next = recurringAfterHit(existing, amount, damageType);\n  await targetActor.toggleStatusEffect(\"recurring\"", to: "  const next = { value: amount + (existing?.value ?? 0), damageType };\n  await targetActor.toggleStatusEffect(\"recurring\"", breaks: "S1" },
+  // RE-ANCHORED AT 3.685.0 (Q150): two recurrings of a type now add, through `layRecurring`.
+  { name: "a weapon's recurring skips the stacking rule", file: AW, from: "  const next = await layRecurring(targetActor, amount, damageType);\n  return `Plus", to: "  const next = { value: amount, damageType };\n  return `Plus", breaks: "S1" },
   { name: "the AP is spent before the spell is chosen", file: CW, from: "  const spell = spells[Number(index)];\n  if (!(await spendAp(actor, spec.ap ?? 2, item.name))) return false;", to: "  const spell = spells[Number(index)];\n  if (!(await spendAp(actor, 0, item.name))) return false;", breaks: "S2" },
   { name: "the innate is never cast", file: CW, from: "  await castSpell(actor, spell, { presetTargets: true, apPaid: true, carried: { label: weapon.name, attackBonus:", to: "  void (castSpell, spell, { presetTargets: true, apPaid: true, carried: { label: weapon.name, attackBonus:", breaks: "S2" },
   { name: "the kind is not registered", file: CW, from: "const KINDS = Object.freeze({ strikeWithInnate, constrict,", to: "const KINDS = Object.freeze({ constrict,", breaks: "S2" },

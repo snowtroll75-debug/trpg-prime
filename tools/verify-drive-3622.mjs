@@ -65,7 +65,7 @@ const CHECK = strip(read("module", "dice", "check.mjs"));
     STI.partitionTraitImmune([{ name: "Golem", system: { details: { traits: "Construct" } } }], "Essence, Soul").skipped[0]?.trait === "essence"
     && STI.partitionTraitImmune([{ name: "Wight", system: { combat: { immunities: "poison" }, details: {} } }], "Poison").skipped[0]?.trait === "poison");
   ok("A4 a targeted spell prunes the immune and refuses a cast with nobody left, before anything is spent",
-    /if \(!isAreaSpell\(spellData\) && spellNeedsTarget\(spellData\) && !storingNow\) \{/.test(CAST)
+    /if \(!isAreaSpell\(spellData\) && spellNeedsTarget\(spellData, spell\) && !storingNow\) \{/.test(CAST)
     && /const immunity = partitionTraitImmune\(targeted\.map\(\(t\) => t\.actor\), spellData\.traits \?\? "", ownedCreatureTypeSystem\);/.test(CAST)
     && /if \(!immunity\.kept\.length\) \{[\s\S]{0,160}return null;/.test(CAST)
     && /if \(!immunity\.kept\.includes\(token\.actor\)\) token\.setTarget\(false/.test(CAST)

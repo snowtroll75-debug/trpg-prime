@@ -49,6 +49,7 @@
  * actor or a token's own, and it is handed over by Foundry rather than
  * looked up by name.
  */
+import { isActingClientFor } from "../acting-gm.mjs";
 import {
   applyConditionTags, ENDS_WITH_FLAG, END_TIME_FLAG, FOLLOW_ON_FLAG
 } from "./effect-application-workflow.mjs";
@@ -336,7 +337,7 @@ export function registerLinkedConditionHooks() {
       // ONE CLIENT DOES THE DELETES, the same active-GM rule the world
       // clock uses — every connected client sees this hook fire.
       const game = globalThis.game;
-      if (game?.users?.activeGM && game.users.activeGM.id !== game.user?.id) return;
+      if (!isActingClientFor(actor)) return; // one connection of the acting GM; with no GM, one owner (3.686.2)
 
       const guard = actor.id ?? actor.uuid ?? "";
       if (cascading.has(guard)) return;

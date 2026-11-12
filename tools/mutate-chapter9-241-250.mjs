@@ -181,7 +181,7 @@ const MUTATIONS = [
     from: "    (sum, key) => sum + magicRitualSecondaryModifier(key), 0);",
     to: "    (sum) => sum + 0, 0);", breaks: "I11" },
   { file: CASTWF, name: "I THE SHIPPED DEFECT: a successful ritual posts a card and casts nothing",
-    from: "      ritual: { degree, ppOver, secondaryCount, check }",
+    from: "      ritual: { degree, ppOver, secondaryCount, check, variant: ritualPlan.variant, gated: { modifiers: ritualGated.modifiers, lines: [] } }",
     to: "      stored: null", breaks: "I13" },
   { file: CASTWF, name: "I: the cast re-rolls its own check instead of taking the ritual's degree",
     from: "  if (ritual) degree = String(ritual.degree ?? degree);", to: "", breaks: "I14" },
@@ -233,11 +233,13 @@ const MUTATIONS = [
 
   /* ── M: recurring damage (R10, R11) ────────────────────────────── */
   { file: CASTWF, name: "M THE SHIPPED DEFECT: recurring damage is printed, not applied",
-    from: '      await targetActor.toggleStatusEffect("recurring", {', to: "      await (async () => ({}))({",
+    // RE-ANCHORED AT 3.685.0: laid through `layRecurring` (Q150).
+    from: "      const next = await layRecurring(targetActor, amount, damageType);", to: "      const next = { value: amount, damageType, before: 0, added: amount, stacked: false };",
     breaks: "M1" },
-  { file: CASTWF, name: "M: the stacking rule is written a second time",
-    from: "      const next = recurringAfterHit(existing, amount, damageType);",
-    to: "      const next = { value: amount, damageType, replaced: false };", breaks: "M2" },
+  // RE-ANCHORED AT 3.685.0: the one rule is `layRecurring`'s call of `recurringAfterHit`.
+  { file: path.join(SYSTEM_ROOT, "module", "conditions", "recurring-workflow.mjs"), name: "M: the stacking rule is written a second time",
+    from: "  const next = recurringAfterHit(before, amount, type);",
+    to: "  const next = { value: Math.trunc(Number(amount) || 0), damageType: type, before: 0, added: Math.trunc(Number(amount) || 0), stacked: false, replaced: false };", breaks: "M2" },
   { file: CASTWF, name: "M: a critical-only rider fires on every hit",
     from: '    const criticalOnly = String(dmg.persistentOn ?? "").trim().toLowerCase() === "critical";',
     to: "    const criticalOnly = false;", breaks: "M3" },
@@ -302,8 +304,8 @@ const MUTATIONS = [
 
   /* ── R: the live-test fixes and the critical ruling ────────────── */
   { file: CASTWF, name: "R THE LIVE DEFECT: the ritual writes into the caster's own modifier array",
-    from: "  const modifiers = [...(system.magic?.spellcraft?.checkModifiers ?? [",
-    to: "  const modifiers = (system.magic?.spellcraft?.checkModifiers ?? [", breaks: "R1" },
+    from: "    : [...(system.magic?.spellcraft?.checkModifiers ?? [",
+    to: "    : (system.magic?.spellcraft?.checkModifiers ?? [", breaks: "R1" },
   { file: CASTWF, name: "R THE LIVE DEFECT: a ritual's cast rolls a second check of its own",
     from: "    : ritual?.check\n    ? ritual.check", to: "    : false\n    ? null", breaks: "R2" },
   { file: DAMAGE, name: "R: a spell critical goes back to adding nothing",

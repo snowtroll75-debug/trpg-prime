@@ -62,6 +62,7 @@ import { roman } from "./runes.mjs";
 import { baneMatches, runeUsageAllows, weaponUsage } from "./weapon-rune-usage.mjs";
 import { alignedDamageAffects } from "./creature-traits.mjs";
 import { registeredEnergyRune } from "./rune-declarations.mjs";
+import { runeFieldOf } from "./infused-runes.mjs";
 
 /** The elemental runes and the energy each one deals. */
 export const ENERGY_RUNES = Object.freeze({
@@ -158,7 +159,7 @@ export function runeDamageFor(item, { target = null } = {}) {
   if (item?.type !== "weapon" && !isAmmunition) return [];
   const usage = weaponUsage(item?.system, { ammunition: isAmmunition });
   const out = [];
-  for (const chosen of fieldToRunes("weapon", item?.system?.runes ?? "")) {
+  for (const chosen of fieldToRunes("weapon", runeFieldOf(item))) {
     // A MODULE'S ENERGY RUNE (3.673.0, C6): Inner Tempest's Soulful Strike,
     // declared in the five's shape and switched on the same way.
     const registered = DAMAGE_RUNES[chosen.key] ? null : registeredEnergyRune(chosen.key);

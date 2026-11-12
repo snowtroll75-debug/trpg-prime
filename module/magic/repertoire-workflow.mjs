@@ -29,7 +29,7 @@ import {
 } from "./repertoire.mjs";
 import {
   cantripPickEligible,
-  knownCantripCount,
+  knownCantripAllowance,
   knownCantripState,
   knownCantrips
 } from "./known-cantrips.mjs";
@@ -38,6 +38,7 @@ import { contentPack } from "../content-packs.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 import { castingDerives } from "../creature-ability-rules.mjs";
+import { actorPickRule, learnTraditionsRule, nextCantripSlot, pickAllowed, trackNextPickLevel, trackPickCount, traditionAllowed, traditionRuleLabel } from "./class-magic.mjs";
 const SYSTEM_ID = "trg-prime";
 
 function line(text) {
@@ -52,22 +53,75 @@ async function postCard(actor, title, lines) {
 }
 
 /** The card's own view of where the schedule stands. */
+/** A pick's track key, or "" for the class's own schedule. */
+const trackOf = (spell) => String(spell?.flags?.[SYSTEM_ID]?.repertoireTrack ?? "").trim().toLowerCase();
+
+/**
+ * The class's further tracks, each with its picks and allowance (3.680.0;
+ * Eldritch Arts D4d): the Sorcerer's "at 2nd level and every two levels,
+ * thereafter, you may select a new spell from the tradition of magic granted
+ * by your Birthright", beside its own "any tradition" schedule.
+ */
+export function repertoireTracks(actor) {
+  const tracks = actor.system?.progression?.classMagic?.tracks ?? [];
+  if (!tracks.length) return [];
+  const level = Number(actor.system?.identity?.level ?? 0);
+  const spells = repertoireSpells(actor);
+  return tracks.map((track) => {
+    const picked = spells.filter((s) => trackOf(s) === track.key).length;
+    const allowed = trackPickCount(track, level);
+    return {
+      ...track,
+      picked,
+      allowed,
+      remaining: Math.max(0, allowed - picked),
+      firstPicksOutstanding: track.firstPickExact && picked < Math.min(track.firstPicks, allowed),
+      nextPickLevel: trackNextPickLevel(track, level),
+      restriction: track.traditions === "any" ? "any tradition" : (Array.isArray(track.traditions) ? traditionRuleLabel(track.traditions) : "choose your subclass first")
+    };
+  });
+}
+
 export function repertoireContext(actor) {
   const classItem = classItemOf(actor);
   if (!classItem) return null;
   const bonus = magicalDiscoveryBonus(actor, "instinctive");
+  const tracks = repertoireTracks(actor);
   const state = repertoireState({
     level: Number(actor.system?.identity?.level ?? 0),
-    picked: repertoireSpells(actor).length,
+    // THE CLASS'S OWN SCHEDULE COUNTS ITS OWN PICKS (3.680.0, D4d): a further
+    // track's are counted against that track.
+    picked: tracks.length ? repertoireSpells(actor).filter((s) => !trackOf(s)).length : repertoireSpells(actor).length,
     swapsUsed: Number(classItem.flags?.[SYSTEM_ID]?.repertoireSwapsUsed ?? 0),
     bonus,
     schedule: repertoireSchedule(classItem, actor)
   });
+  const ownRule = actor.system?.progression?.learnTraditions ? actorPickRule(actor) : null;
+  const ownWords = ownRule === "any" ? "any tradition" : (ownRule ? traditionRuleLabel(ownRule) : String(actor.system?.magic?.tradition ?? ""));
+  if (!tracks.length) {
+    return {
+      ...state,
+      bonus,
+      category: String(classItem.system?.repertoireCategory ?? "").trim().toLowerCase(),
+      tradition: ownWords
+    };
+  }
+  // The card shows one set of numbers: the schedules summed, the next level
+  // that grows any of them, and each one's restriction.
+  const nexts = [state.nextPickLevel, ...tracks.map((t) => t.nextPickLevel)].filter((n) => Number.isFinite(n));
   return {
     ...state,
+    ownAllowed: state.allowed,
+    ownPicked: state.picked,
+    ownRemaining: state.remaining,
+    allowed: state.allowed + tracks.reduce((n, t) => n + t.allowed, 0),
+    picked: state.picked + tracks.reduce((n, t) => n + t.picked, 0),
+    remaining: state.remaining + tracks.reduce((n, t) => n + t.remaining, 0),
+    nextPickLevel: nexts.length ? Math.min(...nexts) : null,
+    tracks,
     bonus,
     category: String(classItem.system?.repertoireCategory ?? "").trim().toLowerCase(),
-    tradition: String(actor.system?.magic?.tradition ?? "")
+    tradition: [ownWords, ...tracks.map((t) => `${t.label}: ${t.restriction}`)].filter(Boolean).join("; ")
   };
 }
 
@@ -90,12 +144,17 @@ export function eligibilityFor(actor, classItem, { firstPick }) {
   // may learn from more traditions than its own — "any" (True Caster), or
   // arcane and ethereal (Arcadian) — and casts them as its own. The
   // eligibility test is widened; the spell's tradition is left as printed.
-  const learnTraditions = castingDerives(Array.from(actor.items ?? [])).traditions;
+  // …AND A CLASS'S OWN (3.680.0; Eldritch Arts D4): the Archmage's "all
+  // traditions", the Witch's Ethereal and Verdant. Every tradition a spell
+  // names is tried, not only its first (an "arcane, verdant" spell is a
+  // verdant spell to a Witch). See magic/class-magic.mjs.
+  const pickRule = actorPickRule(actor, castingDerives(Array.from(actor.items ?? [])).traditions);
   const category = String(classItem.system?.repertoireCategory ?? "");
   const casterLevel = Number(actor.system?.magic?.casterLevelValue ?? 0);
   const known = knownSpellKeys(actor.items ?? []);
   return (entry) =>
     !alreadyKnownSpell(known, entry) &&
+    pickAllowed(pickRule, entry.system?.tradition) &&
     repertoirePickEligible(
       {
         tradition: entry.system?.tradition,
@@ -103,22 +162,85 @@ export function eligibilityFor(actor, classItem, { firstPick }) {
         ppCost: entry.system?.ppCost,
         specialist: entry.system?.specialist
       },
-      { tradition: learnTraditions === "any" || (Array.isArray(learnTraditions) && learnTraditions.includes(String(entry.system?.tradition ?? "").split(",")[0].trim().toLowerCase())) ? "" : tradition, category, firstPick, casterLevel }
+      { tradition: "", category, firstPick, casterLevel }
     );
 }
 
 function describeFilter(actor, classItem, { firstPick }) {
-  const tradition = String(actor.system?.magic?.tradition ?? "spell");
+  // A widened rule in words (3.680.0, D4a): "any spell of any tradition", "any
+  // ethereal or verdant spell".
+  const rule = actor.system?.progression?.learnTraditions ? actorPickRule(actor) : null;
+  const tradition = rule ? (rule === "any" ? "" : traditionRuleLabel(rule)) : String(actor.system?.magic?.tradition ?? "spell");
   const category = String(classItem.system?.repertoireCategory ?? "").trim();
   const cap = Number(actor.system?.magic?.casterLevelValue ?? 0) + 1;
-  const kind = `${tradition}${category ? ` ${category}` : ""}`;
+  const kind = [tradition, category].filter(Boolean).join(" ");
+  const spell = `${kind ? `${kind} ` : ""}spell${rule === "any" ? " of any tradition" : ""}`;
   return firstPick
-    ? `any PP 2 ${kind} spell (1st-level pick)`
-    : `any ${kind} spell of PP ${cap} or less (your castable maximum)`;
+    ? `any PP 2 ${spell} (1st-level pick)`
+    : `any ${spell} of PP ${cap} or less (your castable maximum)`;
+}
+
+/**
+ * The schedule a pick is made on: "" (an object-less false) for the class's
+ * own, a track, or null when the player cancelled. Only schedules that owe a
+ * pick are offered; one alone is taken without asking.
+ */
+async function chooseOwedTrack(actor, context) {
+  const tracks = (context.tracks ?? []).filter((t) => t.remaining > 0);
+  const ownOwes = (context.tracks ? context.ownRemaining : context.remaining) > 0;
+  const options = [...(ownOwes ? [{ key: "", label: `Class pick (${context.tracks ? context.tradition.split(";")[0] : context.tradition || "your tradition"})` }] : []),
+    ...tracks.map((t) => ({ key: t.key, label: `${t.label} (${t.restriction})` }))];
+  if (options.length <= 1) return options[0]?.key ? tracks.find((t) => t.key === options[0].key) : "";
+  const chosen = await DialogV2.wait({
+    window: { title: "Repertoire Pick", icon: "fa-solid fa-book-medical" },
+    classes: ["trg-prime"],
+    position: { width: 400 },
+    content: `<div class="trg-prime trg-check-dialog"><div class="form-group stacked"><label>Which pick?</label>
+      <select name="track">${options.map((o) => `<option value="${o.key}">${o.label}</option>`).join("")}</select></div></div>`,
+    buttons: [
+      {
+        action: "ok", label: "Choose", icon: "fa-solid fa-check", default: true,
+        callback: (event, button) =>
+          new (foundry.applications?.ux?.FormDataExtended ?? globalThis.FormDataExtended)(button.form ?? button.closest("form")).object
+      },
+      { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark" }
+    ],
+    rejectClose: false
+  });
+  if (!chosen || chosen === "cancel") return null;
+  const key = String(chosen.track ?? "");
+  return key ? (tracks.find((t) => t.key === key) ?? null) : "";
+}
+
+/** A track's own filter: its traditions, the class's category, the PP bands. */
+export function trackEligibilityFor(actor, classItem, track, { firstPick }) {
+  const category = String(classItem.system?.repertoireCategory ?? "");
+  const casterLevel = Number(actor.system?.magic?.casterLevelValue ?? 0);
+  const known = knownSpellKeys(actor.items ?? []);
+  return (entry) =>
+    !alreadyKnownSpell(known, entry) &&
+    traditionAllowed(track.traditions, entry.system?.tradition) &&
+    repertoirePickEligible(
+      {
+        tradition: entry.system?.tradition,
+        category: entry.system?.category,
+        ppCost: entry.system?.ppCost,
+        specialist: entry.system?.specialist
+      },
+      { tradition: "", category, firstPick, casterLevel }
+    );
+}
+
+function describeTrackFilter(actor, classItem, track, { firstPick }) {
+  const cap = Number(actor.system?.magic?.casterLevelValue ?? 0) + 1;
+  const kind = track.traditions === "any" ? "spell of any tradition" : `${traditionRuleLabel(track.traditions)} spell`;
+  return firstPick
+    ? `${track.label}: any PP 2 ${kind}`
+    : `${track.label}: any ${kind} of PP ${cap} or less (your castable maximum)`;
 }
 
 /** Create the chosen pack spell on the actor as a recorded pick. */
-async function createRepertoireSpell(actor, classItem, itemId) {
+async function createRepertoireSpell(actor, classItem, itemId, trackKey = "") {
   const pack = contentPack("spells");
   const document = await pack?.getDocument(itemId);
   if (!document) return null;
@@ -128,6 +250,7 @@ async function createRepertoireSpell(actor, classItem, itemId) {
     [SYSTEM_ID]: {
       ...data.flags?.[SYSTEM_ID],
       repertoirePick: true,
+      ...(trackKey ? { repertoireTrack: trackKey } : {}),
       grantedBy: {
         sourceId: classItem.id,
         sourceName: classItem.name,
@@ -157,19 +280,28 @@ export async function openRepertoirePick(actor) {
     );
     return null;
   }
-  const firstPick = context.firstPicksOutstanding;
+  // WHICH SCHEDULE (3.680.0, D4d): with further tracks, the pick is made on a
+  // schedule that owes one — asked when more than one does.
+  const track = await chooseOwedTrack(actor, context);
+  if (track === null) return null;
+  if (track && !Array.isArray(track.traditions) && track.traditions !== "any") {
+    ui.notifications.warn(`Spell repertoire: the ${track.label} pick's tradition comes from your subclass — choose that first.`);
+    return null;
+  }
+  const firstPick = track ? track.firstPicksOutstanding : context.firstPicksOutstanding;
+  const words = track ? describeTrackFilter(actor, classItem, track, { firstPick }) : describeFilter(actor, classItem, { firstPick });
   const picked = await pickFromPack("spells", {
-    title: `Repertoire pick ${context.picked + 1} of ${context.allowed} — ${describeFilter(actor, classItem, { firstPick })}`,
+    title: `Repertoire pick ${context.picked + 1} of ${context.allowed} — ${words}`,
     fields: ["system.tradition", "system.category", "system.ppCost", "system.specialist"],
-    filter: eligibilityFor(actor, classItem, { firstPick }),
+    filter: track ? trackEligibilityFor(actor, classItem, track, { firstPick }) : eligibilityFor(actor, classItem, { firstPick }),
     emptyMessage: "No spells in the pack match this pick's restrictions — spells already on your sheet are not listed."
   });
   if (!picked) return null;
-  const created = await createRepertoireSpell(actor, classItem, picked.itemId);
+  const created = await createRepertoireSpell(actor, classItem, picked.itemId, track?.key ?? "");
   if (!created) return null;
   const after = repertoireContext(actor);
   await postCard(actor, "Spell Repertoire", [
-    line(`<strong>${created.name}</strong> added to the repertoire (${describeFilter(actor, classItem, { firstPick })}).`),
+    line(`<strong>${created.name}</strong> added to the repertoire (${words}).`),
     line(
       after.remaining
         ? `<em>${after.remaining} pick${after.remaining === 1 ? "" : "s"} still owed — pick again from the Magic tab.</em>`
@@ -233,17 +365,19 @@ export async function openRepertoireSwap(actor) {
   const outgoing = actor.items.get(chosen.spellId);
   if (!outgoing) return null;
 
+  // A TRACK'S PICK IS SWAPPED WITHIN ITS TRACK (3.680.0, D4d).
+  const outgoingTrack = (context.tracks ?? []).find((t) => t.key === trackOf(outgoing)) ?? null;
   const picked = await pickFromPack("spells", {
-    title: `Swap ${outgoing.name} for — ${describeFilter(actor, classItem, { firstPick: false })}`,
+    title: `Swap ${outgoing.name} for — ${outgoingTrack ? describeTrackFilter(actor, classItem, outgoingTrack, { firstPick: false }) : describeFilter(actor, classItem, { firstPick: false })}`,
     fields: ["system.tradition", "system.category", "system.ppCost", "system.specialist"],
-    filter: eligibilityFor(actor, classItem, { firstPick: false }),
+    filter: outgoingTrack ? trackEligibilityFor(actor, classItem, outgoingTrack, { firstPick: false }) : eligibilityFor(actor, classItem, { firstPick: false }),
     emptyMessage: "No spells in the pack match the repertoire's restrictions — spells already on your sheet are not listed."
   });
   if (!picked) return null;
 
   const outgoingName = outgoing.name;
   await outgoing.delete();
-  const created = await createRepertoireSpell(actor, classItem, picked.itemId);
+  const created = await createRepertoireSpell(actor, classItem, picked.itemId, outgoingTrack?.key ?? "");
   if (!created) return null;
   const spent = Number(classItem.flags?.[SYSTEM_ID]?.repertoireSwapsUsed ?? 0) + 1;
   await classItem.setFlag(SYSTEM_ID, "repertoireSwapsUsed", spent);
@@ -279,16 +413,58 @@ export async function openRepertoireSwap(actor) {
 export function cantripContext(actor) {
   const classItem = classItemOf(actor);
   if (!classItem) return null;
-  const allowed = knownCantripCount(classItem);
+  // AND A FEAT'S DECLARED BONUS (3.684.0; Extra Cantrip), on a class that has the pool.
+  const allowed = knownCantripAllowance(classItem, Array.from(actor.items ?? []));
   if (!allowed) return null;
+  const known = knownCantrips(actor);
+  const rule = cantripRuleFor(actor, known);
+  const magic = actor.system?.progression?.classMagic ?? null;
   return {
-    ...knownCantripState({ allowed, picked: knownCantrips(actor).length }),
-    tradition: String(actor.system?.magic?.tradition ?? "")
+    ...knownCantripState({ allowed, picked: known.length }),
+    tradition: String(actor.system?.magic?.tradition ?? ""),
+    // A CLASS'S OWN CANTRIP RULES (3.680.0; Eldritch Arts D4c, D4d). `rule` is
+    // what the next pick may be, or null for the core's own-tradition test;
+    // `fromBook` says the cantrips go in the spell book and are memorised.
+    rule: rule?.rule ?? null,
+    slotLabel: rule?.label ?? "",
+    restriction: rule ? cantripRuleWords(rule.rule) : String(actor.system?.magic?.tradition ?? ""),
+    fromBook: Boolean(magic?.cantripBook)
   };
 }
 
+/**
+ * What the next known cantrip may be (3.680.0; Eldritch Arts D4d).
+ *
+ * - The class's own slots, filled most restrictive first: the Sorcerer's "One
+ *   of these cantrips must be selected from the tradition granted by your
+ *   birthright, the other can be selected from any tradition".
+ * - Otherwise the widened pick rule (the Witch's Ethereal or Verdant; the
+ *   Archmage's any), when the class or a creature widens it.
+ * - Otherwise null: the core's own-tradition test, exactly as before.
+ *
+ * `rule` null inside an answer means a slot waits on a subclass not chosen.
+ */
+export function cantripRuleFor(actor, known = knownCantrips(actor)) {
+  const magic = actor.system?.progression?.classMagic ?? null;
+  const slots = magic?.cantrips ?? [];
+  if (slots.length) {
+    const index = nextCantripSlot(slots, known.map((c) => c.system?.tradition ?? ""));
+    if (index < 0) return null;
+    return { rule: slots[index].traditions ?? null, label: slots[index].label, slot: index };
+  }
+  const widened = learnTraditionsRule(actor.system?.progression?.learnTraditions ?? null, castingDerives(Array.from(actor.items ?? [])).traditions);
+  if (!widened) return null;
+  return { rule: actorPickRule(actor, castingDerives(Array.from(actor.items ?? [])).traditions), label: "", slot: -1 };
+}
+
+function cantripRuleWords(rule) {
+  if (rule === "any") return "any tradition";
+  if (Array.isArray(rule)) return traditionRuleLabel(rule);
+  return "your birthright's tradition (choose it first)";
+}
+
 /** Create the chosen pack spell as a recorded cantrip pick. */
-async function createKnownCantrip(actor, classItem, itemId) {
+async function createKnownCantrip(actor, classItem, itemId, { fromBook = false } = {}) {
   const pack = contentPack("spells");
   const document = await pack?.getDocument(itemId);
   if (!document) return null;
@@ -301,6 +477,9 @@ async function createKnownCantrip(actor, classItem, itemId) {
       // so reusing it would make each cantrip eat a repertoire slot —
       // two picks the Bard would never get back.
       cantripPick: true,
+      // INTO THE BOOK (3.680.0, D4c): the Archmage's cantrips are book
+      // entries, castable once memorised, not at will.
+      ...(fromBook ? { spellBookPick: true, cantripBook: true } : {}),
       grantedBy: {
         sourceId: classItem.id,
         sourceName: classItem.name,
@@ -308,6 +487,7 @@ async function createKnownCantrip(actor, classItem, itemId) {
       }
     }
   };
+  if (fromBook) data.system = { ...(data.system ?? {}), prepared: false };
   const [created] = await actor.createEmbeddedDocuments("Item", [data]);
   return created;
 }
@@ -324,7 +504,14 @@ export async function openCantripPick(actor) {
     ui.notifications.info(`Cantrips: all ${context.allowed} are known.`);
     return null;
   }
-  const tradition = context.tradition || "spell";
+  // A SLOT WAITING ON A SUBCLASS (3.680.0, D4d): the Sorcerer's birthright
+  // cantrip cannot be chosen before the birthright is.
+  const declared = cantripRuleFor(actor);
+  if (declared && declared.rule === null) {
+    ui.notifications.warn(`Cantrips: the next cantrip must come from ${declared.label || "your subclass's tradition"} — choose that first.`);
+    return null;
+  }
+  const tradition = declared ? (declared.rule === "any" ? "" : traditionRuleLabel(declared.rule)) : (context.tradition || "spell");
   // Already-known cantrips excluded, for the same reason repertoire
   // picks are (3.328.0) — the Bard's pool is two, and spending one of
   // them on a second copy of Mage Hand is not a choice anyone means to
@@ -332,28 +519,32 @@ export async function openCantripPick(actor) {
   // Bard already knew.
   const known = knownSpellKeys(actor.items ?? []);
   const picked = await pickFromPack("spells", {
-    title: `Cantrip ${context.picked + 1} of ${context.allowed} — any ${tradition} cantrip (PP 0)`,
+    title: `Cantrip ${context.picked + 1} of ${context.allowed} — any ${tradition ? `${tradition} ` : ""}cantrip${declared?.rule === "any" ? " of any tradition" : ""} (PP 0)${declared?.label ? ` — ${declared.label}` : ""}`,
     fields: ["system.tradition", "system.ppCost", "system.specialist"],
-    filter: (entry) => !alreadyKnownSpell(known, entry) && cantripPickEligible(
-      {
-        tradition: entry.system?.tradition,
-        ppCost: entry.system?.ppCost,
-        specialist: entry.system?.specialist
-      },
-      { tradition: context.tradition }
-    ),
+    filter: (entry) => !alreadyKnownSpell(known, entry) && (declared
+      ? Number(entry.system?.ppCost ?? -1) === 0 && !entry.system?.specialist && traditionAllowed(declared.rule, entry.system?.tradition)
+      : cantripPickEligible(
+        {
+          tradition: entry.system?.tradition,
+          ppCost: entry.system?.ppCost,
+          specialist: entry.system?.specialist
+        },
+        { tradition: context.tradition }
+      )),
     emptyMessage: "No cantrips in the pack match this class's tradition — cantrips you already know are not listed."
   });
   if (!picked) return null;
-  const created = await createKnownCantrip(actor, classItem, picked.itemId);
+  const created = await createKnownCantrip(actor, classItem, picked.itemId, { fromBook: context.fromBook });
   if (!created) return null;
   const after = cantripContext(actor);
   await postCard(actor, "Cantrips", [
-    line(`<strong>${created.name}</strong> learned (${tradition} cantrip, PP 0).`),
+    line(`<strong>${created.name}</strong> ${context.fromBook ? "added to your spell book" : "learned"} (${tradition ? `${tradition} ` : ""}cantrip, PP 0).`),
     line(
       after.remaining
         ? `<em>${after.remaining} cantrip${after.remaining === 1 ? "" : "s"} still to choose — pick again from the Magic tab.</em>`
-        : `<em>All ${after.allowed} cantrips known. They may be cast at any time and need no memorisation.</em>`
+        : context.fromBook
+          ? `<em>All ${after.allowed} cantrips are in your spell book. Memorise today's at daily preparation before you can cast them.</em>`
+          : `<em>All ${after.allowed} cantrips known. They may be cast at any time and need no memorisation.</em>`
     )
   ]);
   return created;

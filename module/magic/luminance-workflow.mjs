@@ -191,6 +191,11 @@ export async function applyPerTurnEmanations(actor, token) {
       const { applyDamageAndCheckDying } = await import("../combat/dying-workflow.mjs");
       const { resolveAgainstDefences } = await import("../combat/damage-workflow.mjs");
       const { ownedCreatureTypeSystem } = await import("../creature-type-rules.mjs");
+      // A DAMAGE REACTION, BEFORE THE DEFENCES (3.681.0; found in review).
+      {
+        const { spellDamageReactionsFor } = await import("../reactions/reactions-workflow.mjs");
+        lines.push(...await spellDamageReactionsFor(actor, effect.damageType, { spellName: record?.emanation?.name ?? "", source: null }));
+      }
       const packet = resolveAgainstDefences(actor.system ?? {}, {
         amount, type: effect.damageType, creatureTypeSystem: ownedCreatureTypeSystem(actor),
         // A SPELL IS A MAGICAL SOURCE (3.548.0) — see magic/spell-source.mjs.

@@ -1,3 +1,6 @@
+import { isGMConnectionWriter } from './gm-connection.mjs';
+export { waitForGMConnection, gmConnectionState } from './gm-connection.mjs';
+
 /**
  * "Am I the client that should do this?"
  *
@@ -34,6 +37,49 @@
  */
 export function isActingGM() {
   const activeGM = game?.users?.activeGM;
+  if (activeGM && activeGM.id !== game.user?.id) return false;
+  return Boolean(game?.user?.isGM) && isGMConnectionWriter();
+}
+
+/**
+ * Is this USER the active GM — on any of its tabs? (3.686.2)
+ *
+ * For a question put to the GM, not for a write: every tab of the active
+ * GM account shows the dialog and the first answer wins, as defence offers
+ * and `askOwner` already do. The elected writer (`isActingGM`) may be a
+ * tab out of sight, and a player would wait out the timeout for it. This
+ * is 3.686.0's `isActingGM`, without the connection election.
+ *
+ * @returns {boolean}
+ */
+export function isActiveGMAccount() {
+  const activeGM = game?.users?.activeGM;
   if (activeGM) return activeGM.id === game.user?.id;
   return Boolean(game?.user?.isGM);
+}
+
+/**
+ * Is this client the one that should do world-changing work FOR THIS
+ * DOCUMENT? (3.685.3)
+ *
+ * The acting GM when there is one, exactly as `isActingGM`. With NO GM
+ * connected, `isActingGM` answers false on every client, so a hook guarded
+ * by it does nothing at all — a player alone in the world went under water
+ * with no Submerged effect. So, with no GM: exactly one of the connected
+ * users who own the document, the one with the lowest user id, so every
+ * client reaches the same answer without asking each other.
+ *
+ * @param {object} document anything with `testUserPermission` (an Actor)
+ * @returns {boolean}
+ */
+export function isActingClientFor(document) {
+  // A GM IS CONNECTED (or this client is one): exactly `isActingGM`'s answer.
+  if (game?.users?.activeGM || game?.user?.isGM) return isActingGM();
+  const me = game?.user?.id;
+  if (!me || typeof document?.testUserPermission !== "function") return false;
+  const owners = Array.from(game?.users ?? [])
+    .filter((u) => u?.active && document.testUserPermission(u, "OWNER"))
+    .map((u) => String(u.id))
+    .sort();
+  return owners[0] === me;
 }

@@ -265,7 +265,14 @@ export async function releaseItemSpell(actor, item, ref, {
   drunk = false,
   presetTargets = false,
   // A DC THE ITEM PRINTS (3.618.0, R15): Da Big Itter's "Fear (DC 20)".
-  fixedDC = null
+  fixedDC = null,
+  // METAMAGIC ON A CHARGED ITEM'S CAST (3.684.0; Eldritch Arts Block 6, G6):
+  // Metamagic Conduit. Handed to castSpell as `itemMetamagic: true` and the
+  // most PP the cast may total, so its Warp? dialog offers metamagic (Q94:
+  // never a scroll, a potion or a stored spell — only a charged item's rule
+  // sets it). See charged-item-rules.mjs.
+  itemMetamagic = false,
+  itemMetamagicCeiling = 0
 } = {}) {
   const source = data ?? await resolveSpellSource(actor, ref);
   if (!source) return { cast: false, missing: true, result: null, saveDC: null };
@@ -285,7 +292,10 @@ export async function releaseItemSpell(actor, item, ref, {
 
   const spell = buildItemSpell(actor, item, source, ref, saveDC, { apPaid, drunk });
   const { castSpell } = await import("./magic/cast-workflow.mjs");
-  const result = await castSpell(actor, spell, { itemCheck, presetTargets });
+  const result = await castSpell(actor, spell, {
+    itemCheck, presetTargets,
+    ...(itemMetamagic === true ? { itemMetamagic: true, itemMetamagicCeiling: Math.max(0, Math.floor(Number(itemMetamagicCeiling) || 0)) } : {})
+  });
   return { cast: Boolean(result), missing: false, result, saveDC };
 }
 
@@ -316,10 +326,14 @@ async function readScrollCheck(actor, item, ref) {
   // drift, so both go through `rollReleaseCheck`.
   const release = await rollReleaseCheck(actor, {
     itemName: item.name,
+    // THE ITEM ITSELF ON THE HOOK (3.684.0, G6), as a wand's is.
+    itemUuid: item.uuid ?? "",
     spellName: ref.name,
     pp: ref.pp,
     title: `${item.name} — Read the Scroll`,
     icon: "fa-solid fa-scroll",
+    // A SCROLL, SO A MODULE'S WAY TO READ ONE IS OFFERED TOO (3.675.0, C6).
+    kind: "scroll",
     hint: "An unavailable path is still offered — the GM may allow the attempt. A Partial leaves the scroll intact; anything worse spends it."
   });
   if (!release) return null;

@@ -10,7 +10,7 @@ import { shieldDefenceWithPotency } from "../runes.mjs";
 import { ATTRIBUTE_KEYS, ATTRIBUTE_LABELS, SIZE_TABLE, TRADITIONS, classBonusForLevel, deriveLevelFromXP, hitPointMax, levelForXP } from "../config.mjs";
 import { abilityBaseRange, abilityPointSummary, clampSkillRanks } from "../attributes.mjs";
 import { investmentSlots } from "../magic-items.mjs";
-import { controlBonusPerLevelFor, controlLevelCap } from "../magic/casting.mjs";
+import { controlBonusPerLevelFor, controlLevelCap, declaredControlLevelBonus } from "../magic/casting.mjs";
 import { archetypeCastingSources } from "../magic/archetype-casting.mjs";
 import { featSheetTradition, knightCastingSources, resolvedCasterLevel } from "../magic/feat-casting.mjs";
 import { alignedControlAccess, alignedTraitsOf } from "../aligned.mjs";
@@ -55,6 +55,7 @@ import {
   familiarSaveEntries, prepareFamiliarHitPoints, prepareFamiliarProgression,
   prepareFamiliarSkills
 } from "../familiar-derive.mjs";
+import { familiarModifierHP, familiarModifierResults, familiarModifierSaveEntries } from "../familiar-modifiers.mjs";
 
 /** Every ability name on an actor, for the familiar-ability gates. */
 function abilityNamesOf(actor) {
@@ -127,6 +128,7 @@ import {
   conditionModifiers,
   resolveConditions
 } from "../conditions/registry.mjs";
+import { recurringType } from "../conditions/recurring.mjs";
 import {
   SUPPRESSION_FLAG, normaliseSuppression, suppressedConditionValues
 } from "../conditions/suppression.mjs";
@@ -1098,6 +1100,13 @@ function prepareCombat(system, actor) {
     for (const [target, entries] of Object.entries(familiarSaveEntries(ownedAbilityNames))) {
       for (const entry of entries) actor.addBonus(target, entry);
     }
+    // A SOURCEBOOK'S FAMILIAR (3.680.0; Eldritch Arts D8): the Soulbound
+    // Familiar's "your Charisma ability score as a class bonus to all saving
+    // throws". See familiar-modifiers.mjs.
+    const modified = familiarModifierResults(actor, system.familiar?.mirror);
+    for (const [target, entries] of Object.entries(familiarModifierSaveEntries(modified))) {
+      for (const entry of entries) actor.addBonus(target, entry);
+    }
   }
 
   const sizeEntry = SIZE_TABLE[system.identity?.size] ?? null;
@@ -1575,20 +1584,24 @@ function prepareCombat(system, actor) {
     // magic or armour." Petrified: "an object with … DB 0". Penalties still
     // apply to what is left. See conditions/condition-rules.mjs.
     const restriction = defenceRestriction(actor.conditions?.effective);
+    //
+    // WHAT IS KEPT IS RECORDED (3.684.1, review): `restrictedEntries` is the
+    // part of the breakdown the restricted DB was rebuilt from, so a defence
+    // row stacks against that and not the whole breakdown — see
+    // defenceStackBase in combat/defence-dc.mjs. A statue keeps none.
     if (restriction === "zero") {
       combat.defence.total = 0;
       combat.defence.tooltip = `Petrified — an object, DB 0`;
       combat.defence.restricted = "Petrified";
+      combat.defence.restrictedEntries = [];
     } else if (restriction === "magicArmour") {
       const magic = new Set(Array.from(actor.appliedEffects ?? actor.effects ?? [])
         .filter((e) => e?.getFlag?.("trg-prime", "castId"))
         .map((e) => e.uuid));
-      const kept = (combat.defence.breakdown?.entries ?? []).filter((entry) => entry.applied !== false)
-        .reduce((sum, entry) => {
-          const value = Number(entry.value) || 0;
-          if (value < 0) return sum + value;
-          return keepsMagicOrArmour(entry) || magic.has(entry.source) ? sum + value : sum;
-        }, 0);
+      const keptEntries = (combat.defence.breakdown?.entries ?? []).filter((entry) => entry.applied !== false
+        && ((Number(entry.value) || 0) < 0 || keepsMagicOrArmour(entry) || magic.has(entry.source)));
+      const kept = keptEntries.reduce((sum, entry) => sum + (Number(entry.value) || 0), 0);
+      combat.defence.restrictedEntries = keptEntries;
       const which = actor.hasCondition("paralyzed") ? "Paralyzed" : "Unconscious";
       combat.defence.total = kept + Math.min(0, woundPenalty);
       combat.defence.tooltip = `${which} — only DB from magic or armour remains: ${combat.defence.total}`;
@@ -1930,7 +1943,8 @@ function prepareCombat(system, actor) {
       // Fighter added Intelligence to Spellcraft and was refused it here.
       const abilityBonus = powerPointAbilityBonus({
         tradition: system.magic?.tradition,
-        abilityTotal: system.attributes?.[system.magic.castingAbility]?.total
+        abilityTotal: system.attributes?.[system.magic.castingAbility]?.total,
+        highMagicClass: Boolean(system.progression?.learnTraditions)
       });
       pp.classTable = tablePP ?? 0;
       pp.abilityBonus = abilityBonus;
@@ -2048,6 +2062,15 @@ function prepareCombat(system, actor) {
       spellcraft.ability,
       system.magic.controlBonusPerLevel
     );
+    // AND WHAT A FEAT, ABILITY, EQUIPPED ITEM OR LIVE EFFECT DECLARES (3.683.0;
+    // Eldritch Arts Block 5, C12): Master Binder's "You increase your control
+    // levels by 2". Added after the cap, because an effect's change cannot
+    // reach a figure derived after effects apply. See magic/casting.mjs.
+    system.magic.controlLevelBonus = declaredControlLevelBonus(
+      Array.from(actor.items ?? []),
+      Array.from(actor.appliedEffects ?? [])
+    );
+    system.magic.controlLevels += system.magic.controlLevelBonus;
   }
 }
 
@@ -2564,6 +2587,19 @@ export class TRGActor extends Actor {
   prepareBaseData() {
     super.prepareBaseData();
 
+    // THE CREATURE ITS SYSTEM DATA BELONGS TO (3.681.0; Eldritch Arts Block
+    // 3b, found in review). The system registers no Actor data model, so
+    // `actor.system` is a plain object with no `parent`, and a function
+    // handed only the system data cannot tell whose it is. A reaction's
+    // granted defence is held for the actor (combat/granted-defences.mjs)
+    // and read by `actorDefences(system)`, so the system data points back.
+    // Not enumerable: nothing that walks, copies or serialises the data
+    // sees it. Set again each cycle, since an update rebuilds the object; a
+    // data model's own `parent` is left alone.
+    if (this.system && typeof this.system === "object" && !("parent" in this.system)) {
+      Object.defineProperty(this.system, "parent", { value: this, enumerable: false, configurable: true, writable: true });
+    }
+
     // Conviction pool maximum: 1, +1 at 5th level and every 5 thereafter
     // (Chapter 12). Set in base data so Active Effects from feats such as
     // Hero's Fortune add on top.
@@ -2688,6 +2724,20 @@ export class TRGActor extends Actor {
     );
   }
 
+  /*
+   * RECURRING DAMAGE IS ONE CONDITION PER TYPE (3.685.0; Graham, 7 November
+   * 2026, Q150: "recurring damage stacks with a flat check made for totals of
+   * the same damage type"). The effect of THIS type, or null — an untyped
+   * one reads as fire, as the manager has always typed it.
+   */
+  #findRecurringEffect(damageType) {
+    const want = recurringType(damageType);
+    return this.effects.find(
+      (effect) => !effect.disabled && effect.statuses?.has?.("recurring")
+        && recurringType(effect.getFlag?.("trg-prime", "damageType")) === want
+    ) ?? null;
+  }
+
   /**
    * The damage types, conditions and traits this actor is immune to —
    * what a GM typed into the field, plus what the creature is.
@@ -2772,7 +2822,12 @@ export class TRGActor extends Actor {
 
     if (!condition?.valued) return super.toggleStatusEffect(statusId, options);
 
-    const existing = this.#findConditionEffect(statusId);
+    // RECURRING DAMAGE, BY TYPE (3.685.0, Q150): a value given with a type
+    // sets THAT type's total and leaves the others alone; the dialog edits
+    // the one it opened on.
+    const existing = statusId === "recurring" && options.damageType !== undefined && options.damageType !== null
+      ? this.#findRecurringEffect(options.damageType)
+      : this.#findConditionEffect(statusId);
 
     // SOUL DRAIN HELD BY A SOURCE (3.674.0, C8; Inner Tempest's lost dragon).
     // Here, beside Bravery, for Bravery's reason: every route that changes a
@@ -2828,6 +2883,13 @@ export class TRGActor extends Actor {
 
     // Explicit removal request.
     if (options.active === false) {
+      // ONE TYPE, OR EVERY TYPE (3.685.0): "remove Recurring Damage" with no
+      // type ends all of it, as it did when there could only be one.
+      if (statusId === "recurring" && (options.damageType === undefined || options.damageType === null)) {
+        const all = this.effects.filter((e) => !e.disabled && e.statuses?.has?.("recurring"));
+        for (const e of all) await e.delete();
+        return false;
+      }
       if (existing) await existing.delete();
       return false;
     }
@@ -2863,23 +2925,35 @@ export class TRGActor extends Actor {
       return false;
     }
 
+    // A RECURRING TYPE CHANGED IN THE DIALOG (3.685.0, Q150) sets that type's
+    // own total; the type it was opened on is left as it was.
+    const target = statusId === "recurring" && result.damageType
+      && recurringType(result.damageType) !== recurringType(currentType ?? result.damageType)
+      ? this.#findRecurringEffect(result.damageType)
+      : existing;
     return this.#applyValuedCondition(
       statusId,
       result.value,
-      existing,
+      target,
       result.damageType ?? null,
       result.flatCheckReduction ?? 0
     );
   }
 
   /** Create or update the effect backing a valued condition. */
-  async #applyValuedCondition(id, value, existing, damageType = null, flatCheckReduction = 0) {
+  async #applyValuedCondition(id, value, existing, damageType = null, flatCheckReduction = undefined) {
     // Recurring damage always has a damage type (ruled). Automation that
     // omits one gets fire, the most common source, rather than an untyped
-    // effect that the rules do not recognise.
-    if (id === "recurring" && !damageType) damageType = "fire";
+    // effect that the rules do not recognise — and since 3.685.0 (review)
+    // a write onto an effect already standing keeps THAT effect's type, so a
+    // value set without one never re-types acid as fire.
+    if (id === "recurring" && !damageType) damageType = recurringType(existing?.getFlag?.("trg-prime", "damageType"));
 
-    const data = conditionEffectData(id, value, damageType, flatCheckReduction);
+    // THE GM'S LEVER IS KEPT unless this write sets it (3.685.0, review): an
+    // automated write (a second flask, a critical) passes none, and used to
+    // put it back to 0 on every stack.
+    const leverGiven = flatCheckReduction !== undefined && flatCheckReduction !== null;
+    const data = conditionEffectData(id, value, damageType, leverGiven ? flatCheckReduction : 0);
     // WHAT IT WAS, for the consequences of the change (3.621.0; block 39).
     const before = existing ? Number(existing.getFlag?.("trg-prime", "value") ?? 1) : 0;
     const settle = async () => {
@@ -2893,7 +2967,7 @@ export class TRGActor extends Actor {
         name: data.name,
         [`flags.trg-prime.value`]: value,
         [`flags.trg-prime.damageType`]: id === "recurring" ? damageType : null,
-        ...(leverKey
+        ...(leverKey && leverGiven
           ? { [`flags.trg-prime.${leverKey}`]: Math.max(0, Math.round(Number(flatCheckReduction) || 0)) }
           : {})
       });
@@ -3023,6 +3097,10 @@ export class TRGActor extends Actor {
     // prepareResources just computed rather than adjusting it.
     if (isFamiliar(this)) {
       prepareFamiliarHitPoints(system, abilityNamesOf(this));
+      // …and a sourcebook's additional HP on top (3.680.0, D8): the Soulbound
+      // Familiar's "gains additional HP equal to your level".
+      const extraHP = familiarModifierHP(familiarModifierResults(this, system.familiar?.mirror));
+      if (extraHP && system.resources?.hp) system.resources.hp.max = Math.max(0, Number(system.resources.hp.max ?? 0) + extraHP);
     }
     // Locked PP (Chapter 9 extended durations): PP held aside from recovery by
     // "until daily preparations" / "unlimited" spells still running.

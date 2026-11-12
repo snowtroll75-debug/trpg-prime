@@ -40,7 +40,7 @@ import {
 } from "./creature-auras.mjs";
 import { creatureTraits } from "./creature-traits.mjs";
 import { isActingGM } from "./acting-gm.mjs";
-import { terrainKindLabel } from "./magic/difficult-terrain.mjs";
+import { MAGICAL_TERRAIN_FLAG, terrainKindLabel } from "./magic/difficult-terrain.mjs";
 import { allyConditionalsInForce } from "./aura-conditionals.mjs";
 
 const SYSTEM_ID = "trg-prime";
@@ -301,7 +301,11 @@ export function terrainBehaviours(aura) {
   return [{
     type: "modifyMovementCost",
     name: `${aura.name} (${kind}${exempt.length ? `, ${exempt.join(", ")}` : ""})`,
-    system: { difficulties }
+    system: { difficulties },
+    // GROUND A SPELL MADE (3.683.0; seam C16): marked, so a creature that
+    // ignores only magical difficult terrain can tell it apart. A creature's
+    // own aura passes no `magical` and is unmarked, as before.
+    ...(aura.magical === true ? { flags: { [SYSTEM_ID]: { [MAGICAL_TERRAIN_FLAG]: true } } } : {})
   }];
 }
 

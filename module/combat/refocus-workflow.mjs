@@ -28,7 +28,7 @@ import {
   refocusTiming,
   restoredUses
 } from "./refocus.mjs";
-import { itemUsesMax, itemUsesRemaining } from "../uses-workflow.mjs";
+import { itemUsesMax, itemUsesRemaining, usesPoolItem } from "../uses-workflow.mjs";
 import { refocusRestoredUses, refocusRestoresAll } from "../focus-declarations.mjs";
 import { declarationCarriers } from "../declaration-carriers.mjs";
 import { refocusCompanionCandidates, refocusCompanions, refocusSucceeded } from "./refocus.mjs";
@@ -47,7 +47,7 @@ function worldNow() {
 
 /** An ability's stored Refocus state, or null. */
 export function refocusStateOf(item) {
-  return item?.getFlag?.(SYSTEM_ID, REFOCUS_FLAG) ?? null;
+  return usesPoolItem(item)?.getFlag?.(SYSTEM_ID, REFOCUS_FLAG) ?? null;
 }
 
 /**
@@ -196,7 +196,8 @@ export async function chooseRefocusTarget(actor, { event = null } = {}) {
  */
 export async function chooseRefocusSecond(actor, first, { event = null } = {}) {
   if (!refocusExtraDeclared(Array.from(actor?.items ?? []), Array.from(actor?.appliedEffects ?? actor?.effects ?? []))) return null;
-  const rest = refocusSecondCandidates(refocusCandidates(actor).offered, first?.id ?? "");
+  const rest = refocusSecondCandidates(refocusCandidates(actor).offered, first?.id ?? "")
+    .filter(item => usesPoolItem(item) !== usesPoolItem(first));
   if (!rest.length) return null;
   // A SKIPPED DIALOG TAKES THE FIRST OF THEM: choosing costs nothing, and
   // only a success restores it.
@@ -247,7 +248,9 @@ export async function restoreRefocusCompanion(actor, chosen, degree, { inCombat 
   if (!refocusSucceeded(degree)) return "";
   const companions = refocusCompanions(Array.from(actor?.appliedEffects ?? actor?.effects ?? []));
   if (!companions.length) return "";
-  const candidates = refocusCompanionCandidates(companions, focusRestorableItems(actor).map((i) => ({ id: i.id, name: i.name, spent: true, item: i })), chosen?.id ?? "");
+  const candidates = refocusCompanionCandidates(companions, focusRestorableItems(actor)
+    .filter(item => usesPoolItem(item) !== usesPoolItem(chosen))
+    .map((i) => ({ id: i.id, name: i.name, spent: true, item: i })), chosen?.id ?? "");
   if (!candidates.length) return "";
   let pick = candidates[0];
   if (candidates.length > 1) {
@@ -277,16 +280,17 @@ async function returnOneUse(item) {
     await item.update(updates);
     return { name: item.name, next: 1, max: 1 };
   }
-  const max = itemUsesMax(item);
+  const owner = usesPoolItem(item);
+  const max = itemUsesMax(owner);
   // ALL USES, WHERE A DECLARATION SAYS SO (3.664.0; Graham, 20 Oct 2026):
   // only an ability with extra uses from Deep Focus or Ghost Art Mastery
   // gets every use back. Anything else keeps the one use `restoredUses`
   // has always handed back.
-  const all = item.actor ? refocusRestoresAll(item, declarationCarriers(item.actor)) : false;
+  const all = owner.actor ? refocusRestoresAll(owner, declarationCarriers(owner.actor)) : false;
   const next = all
-    ? refocusRestoredUses(itemUsesRemaining(item), max, true)
-    : restoredUses(itemUsesRemaining(item), max);
-  await item.update({ "system.usesValue": next });
+    ? refocusRestoredUses(itemUsesRemaining(owner), max, true)
+    : restoredUses(itemUsesRemaining(owner), max);
+  await owner.update({ "system.usesValue": next });
   return { name: item.name, next, max };
 }
 
@@ -303,12 +307,13 @@ export async function applyRefocusOutcome(item, degree, { inCombat = false, worl
   const now = worldTime === null ? worldNow() : Number(worldTime) || 0;
   const plan = refocusTiming(refocusPlan(degree, { worldTime: now }), { inCombat });
   const state = refocusState(plan);
+  const owner = usesPoolItem(item);
 
   // WRITTEN WHOLE OR NOT AT ALL. Foundry merges object flags on update, so a
   // partial write would leave the previous attempt's fields underneath —
   // a ten-minute block quietly surviving the restore meant to end it.
-  if (state) await item.setFlag(SYSTEM_ID, REFOCUS_FLAG, state);
-  else await item.unsetFlag(SYSTEM_ID, REFOCUS_FLAG);
+  if (state) await owner.setFlag(SYSTEM_ID, REFOCUS_FLAG, state);
+  else await owner.unsetFlag(SYSTEM_ID, REFOCUS_FLAG);
 
   if (plan.restoreNow) {
     const done = await returnOneUse(item);
@@ -356,7 +361,32 @@ export async function sweepRefocusRestores(actor, { ownTurnStarted = false } = {
   try {
     const now = worldNow();
     const restored = [];
+    // A RESTORE WRITTEN ON A MEMBER BEFORE 3.686.1 (3.686.2, the review's
+    // finding 10). Pending state now lives on the pool's owner, and the loop
+    // below skips members, so a member's legacy flag would never be applied.
+    // A pool has ONE Refocus state (a new attempt rewrites it whole), so
+    // every legacy flag in the pool and the owner's own are MERGED into it:
+    // the earliest restore (the soonest a use was due back), a next-turn
+    // restore if any had one, and the longest block. Nothing pending is
+    // dropped for being on the wrong item; the members' flags are cleared.
+    const pools = new Map();
     for (const item of Array.from(actor?.items ?? [])) {
+      const owner = usesPoolItem(item);
+      if (owner === item) continue;
+      const legacy = item.getFlag?.(SYSTEM_ID, REFOCUS_FLAG);
+      if (!legacy) continue;
+      if (!pools.has(owner)) pools.set(owner, []);
+      pools.get(owner).push({ item, legacy });
+    }
+    for (const [owner, members] of pools) {
+      const merged = mergeRefocusStates([owner.getFlag?.(SYSTEM_ID, REFOCUS_FLAG), ...members.map((m) => m.legacy)]);
+      if (merged) await owner.setFlag(SYSTEM_ID, REFOCUS_FLAG, merged);
+      for (const { item } of members) await item.unsetFlag(SYSTEM_ID, REFOCUS_FLAG);
+    }
+    for (const item of Array.from(actor?.items ?? [])) {
+      // Shared members own neither a counter nor a pending restore. Sweep
+      // the owner once, rather than restoring once for every form alias.
+      if (usesPoolItem(item) !== item) continue;
       const state = refocusStateOf(item);
       if (!refocusRestoreDue(state, { worldTime: now, ownTurnStarted })) continue;
       restored.push(await returnOneUse(item));
@@ -366,6 +396,24 @@ export async function sweepRefocusRestores(actor, { ownTurnStarted = false } = {
   } finally {
     if (key !== null) sweeping.delete(key);
   }
+}
+
+/**
+ * Several Refocus states for one pool, as one (3.686.2). Pure.
+ * The earliest `restoreAt`, `nextTurn` if any, the latest `blockedUntil`,
+ * `dailyPrep` if any. Null when none is given.
+ */
+export function mergeRefocusStates(states = []) {
+  const list = (states ?? []).filter((x) => x && typeof x === "object");
+  if (!list.length) return null;
+  const nums = (key) => list.map((x) => x[key]).filter((v) => v !== null && v !== undefined && Number.isFinite(Number(v))).map(Number);
+  const restores = nums("restoreAt"), blocks = nums("blockedUntil");
+  return {
+    restoreAt: restores.length ? Math.min(...restores) : null,
+    nextTurn: list.some((x) => Boolean(x.nextTurn)),
+    blockedUntil: blocks.length ? Math.max(...blocks) : null,
+    dailyPrep: list.some((x) => Boolean(x.dailyPrep))
+  };
 }
 
 /** Actors with a sweep in flight — see `sweepRefocusRestores`. */
@@ -383,7 +431,8 @@ const sweeping = new Set();
  * @returns {Promise<number>} how many abilities were cleared.
  */
 export async function clearRefocusState(actor) {
-  const stale = Array.from(actor?.items ?? []).filter((i) => refocusStateOf(i));
+  // Include raw legacy member flags as well as the canonical owner state.
+  const stale = Array.from(actor?.items ?? []).filter((i) => i.getFlag?.(SYSTEM_ID, REFOCUS_FLAG));
   for (const item of stale) await item.unsetFlag(SYSTEM_ID, REFOCUS_FLAG);
   return stale.length;
 }

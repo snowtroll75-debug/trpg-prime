@@ -8,7 +8,7 @@
 import { actorHandle, resolveActorHandle } from "../actor-handle.mjs";
 import { TRGCheck } from "../dice/check.mjs";
 import {
-  CONTROL_RELEASE_DC, CONTROL_SOURCES, addControlled, controlOverflow,
+  CONTROL_RELEASE_DC, CONTROL_RELEASED_HOOK, CONTROL_SOURCES, addControlled, controlOverflow,
   controlledLevels, entryLevel, overflowLine, releasesItself, removeControlled
 } from "./control-register.mjs";
 
@@ -43,25 +43,55 @@ export function controlledLevelsOf(actor) {
  * @param {string} [options.source] a key of CONTROL_SOURCES
  * @returns {Promise<object>} the entry
  */
-export async function recordControlled(actor, { target = null, token = null, level = 0, name = "", source = "other" } = {}) {
+export async function recordControlled(actor, { target = null, token = null, level = 0, name = "", source = "other", castId = "", data = null } = {}) {
   const handle = target ? actorHandle(target, token) : null;
   const entry = {
     id: foundry.utils.randomID(),
     handle,
     name: target?.name ?? String(name || "Controlled creature"),
     level: Math.max(0, Math.floor(Number(level) || 0)),
-    source: CONTROL_SOURCES[source] ? source : "other"
+    source: CONTROL_SOURCES[source] ? source : "other",
+    // FOR A MODULE (3.686.0, H12): the cast that holds it, and the module's
+    // own facts (a plain object, copied). Written only when given, so an
+    // entry that names neither is the shape it always was.
+    ...(castId ? { castId: String(castId) } : {}),
+    ...(data && typeof data === "object" ? { data: JSON.parse(JSON.stringify(data)) } : {})
   };
   await actor.setFlag(SYSTEM_ID, FLAG, addControlled(controlledOf(actor), entry));
   return entry;
 }
 
-/** Let one creature go. */
-export async function releaseControlled(actor, id) {
+/**
+ * Let one creature go.
+ *
+ * AND SAY SO (3.686.0, H12). A release by the overflow sweep told nobody, so
+ * a module's bound creature broke free while its spell ran on. Every release
+ * that removes an entry fires `trgPrimeControlReleased` on this client, with
+ * the entry as it was. Nothing listens unless a module does.
+ *
+ * @param {Actor} actor the controller
+ * @param {string} id the entry's id
+ * @param {object} [options]
+ * @param {string} [options.reason] "overflow" (the DC 20 Will save), else "released"
+ * @param {string|null} [options.degree] the save's degree, for "overflow"
+ * @param {Actor|null} [options.creature] the creature, when known
+ */
+export async function releaseControlled(actor, id, { reason = "released", degree = null, creature = null } = {}) {
   const before = controlledOf(actor);
   const gone = before.find((e) => String(e?.id) === String(id)) ?? null;
   await actor.setFlag(SYSTEM_ID, FLAG, removeControlled(before, id));
+  if (gone) {
+    globalThis.Hooks?.callAll?.(CONTROL_RELEASED_HOOK, {
+      controller: actor, entry: gone, creature: creature ?? null,
+      degree: degree ?? null, reason: String(reason)
+    });
+  }
   return gone;
+}
+
+/** The creature an entry names, or null for a level-only entry (3.686.0, H12). */
+export async function controlledCreature(entry) {
+  return entry?.handle ? resolveActorHandle(entry.handle) : null;
 }
 
 /**
@@ -123,7 +153,7 @@ export async function sweepControlOverflow(actor) {
 
   const degree = check.outcome?.degree?.key ?? "failure";
   const freed = releasesItself(degree);
-  if (freed) await releaseControlled(actor, overflow.highest.id);
+  if (freed) await releaseControlled(actor, overflow.highest.id, { reason: "overflow", degree, creature });
 
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),

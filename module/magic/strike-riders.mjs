@@ -171,7 +171,11 @@ export function normaliseStrikeRider(raw) {
   // secondary fire damage to the second" — a whole number, not a die.
   // DECLARED with `flat: true`, as the weapon's own die is, so a bare "3"
   // typed where a die was meant is still refused.
-  const flat = raw.flat === true && !weaponDie;
+  // `flat` ON A RIDER IN PLACE OF THE WEAPON'S DAMAGE (3.685.0, H10; Graham,
+  // 7 November 2026, on Spirit Arrow: "Flat 6d6") means exactly that damage,
+  // nothing added; it is not the flat amount below, and its dice are dice.
+  const replaceFlat = raw.replacesDamage === true && raw.flat === true && !weaponDie;
+  const flat = raw.flat === true && !weaponDie && !replaceFlat;
   const dice = weaponDie ? "" : text(raw.dice);
   // A CONDITION-ONLY RIDER (3.630.0): Pillars of Faith's Rose of Thorns —
   // "the first creature damaged by the treated weapon takes 2 bleed
@@ -226,6 +230,12 @@ export function normaliseStrikeRider(raw) {
     .map((t) => text(t).toLowerCase()).filter(Boolean);
   const weaponNames = (Array.isArray(raw.weaponNames) ? raw.weaponNames : [])
     .map((t) => text(t).toLowerCase()).filter(Boolean);
+  // ONE NAMED CREATURE (3.684.0; Eldritch Arts Block 6, G25): Spellblade's
+  // Mark — "Your attacks against your Mark deal 1d6 secondary force damage"
+  // (EA-M26). Case-sensitive uuids, as every creature axis is; a Strike with
+  // no target, or at anyone else, meets nothing.
+  const targetUuids = (Array.isArray(raw.targetUuids) ? raw.targetUuids : [])
+    .map((u) => text(u)).filter(Boolean);
   const onCritical = raw.onCritical === true;
   const lowHalfHp = raw.lowHalfHp === true;
   // ON A STRIKE OF A GIVEN DAMAGE TYPE (3.627.0): Pillars of Faith's
@@ -296,7 +306,8 @@ export function normaliseStrikeRider(raw) {
     onCritical,
     lowHalfHp,
     whenDamageTypes,
-    oncePerRound
+    oncePerRound,
+    ...(targetUuids.length ? { targetUuids } : {})
   };
   // Added only when they differ from 3.629's shape, so an older rider reads as it did.
   if (conditionOnly) out.conditionOnly = true;
@@ -313,7 +324,34 @@ export function normaliseStrikeRider(raw) {
   // immune to precision does not take and one resisting it takes half the
   // dice of (page 203, R4), as the critical's bonus dice.
   if (raw.precision === true) out.precision = true;
+  // IN PLACE OF THE WEAPON'S DAMAGE (3.685.0, H10; Eldritch Arts' Spirit Arrow:
+  // "The arrow deals 6d6 piercing damage (in place of the arrows normal
+  // damage)"; Q161: it "doubles on a critical as weapon damage does"). Only a
+  // rider with its own dice and type: its dice become the Strike's base
+  // damage, and it is no secondary packet.
+  if (raw.replacesDamage === true && !weaponDie && !flat && !conditionOnly && dice && damageType) {
+    out.replacesDamage = true;
+    // AND NOTHING ADDED TO IT (Graham: "Flat 6d6"): no BAB, attribute, feat or
+    // other flat or dice addition, and no secondary packet; a critical's bonus
+    // dice still add, as to weapon damage.
+    if (replaceFlat) out.flat = true;
+  }
   return out;
+}
+
+/**
+ * THE DAMAGE A RIDER PUTS IN PLACE OF THE WEAPON'S (3.685.0, H10). The first
+ * `replacesDamage` rider that reaches this weapon and whose gates hold, as
+ * `{ dice, damageType, label, id }`, or null. Pure.
+ */
+export function damageReplacement(specs, weapon = {}, ctx = {}) {
+  for (const spec of Array.isArray(specs) ? specs : []) {
+    if (!spec?.replacesDamage || !riderAppliesTo(spec, weapon)) continue;
+    if (spec.oncePerRound && ctx?.used?.[spec.id ?? spec.label]) continue;
+    if (riderIsGated(spec) && !riderGatesHold(spec, ctx)) continue;
+    return { dice: spec.dice, damageType: spec.damageType, label: spec.label, id: spec.id ?? "", ...(spec.flat ? { flat: true } : {}) };
+  }
+  return null;
 }
 
 /*
@@ -368,7 +406,7 @@ export function riderLadderText(spec) {
 
 /** Does the rider declare a gate the strike resolves itself? */
 export function riderIsGated(spec) {
-  return Boolean(spec && (spec.targetTypes?.length || spec.targetTraits?.length || spec.onCritical || spec.lowHalfHp || spec.whenDamageTypes?.length));
+  return Boolean(spec && (spec.targetTypes?.length || spec.targetTraits?.length || spec.onCritical || spec.lowHalfHp || spec.whenDamageTypes?.length || spec.targetUuids?.length));
 }
 
 /**
@@ -385,6 +423,7 @@ export function riderGatesHold(spec, ctx = {}) {
     const byTrait = (spec.targetTraits ?? []).some((t) => traits.includes(t));
     if (!byType && !byTrait) return false;
   }
+  if (spec.targetUuids?.length && !spec.targetUuids.includes(String(ctx.targetUuid ?? "").trim())) return false;
   if (spec.onCritical && !ctx.critical) return false;
   if (spec.whenDamageTypes?.length && !spec.whenDamageTypes.includes(String(ctx.damageType ?? "").trim().toLowerCase())) return false;
   if (spec.lowHalfHp) {
@@ -569,6 +608,8 @@ export function weaponOwnDie(weapon = {}) {
  */
 export function riderPacketsFor(specs, weapon = {}, ctx = {}) {
   return (Array.isArray(specs) ? specs : [])
+    // A RIDER IN PLACE OF THE WEAPON'S DAMAGE IS NO PACKET (3.685.0, H10).
+    .filter((spec) => !spec?.replacesDamage)
     .filter((spec) => riderAppliesTo(spec, weapon))
     // A once-per-round rider whose marker is burnt sits this strike out.
     .filter((spec) => !(spec.oncePerRound && ctx?.used?.[spec.id ?? spec.label]))
@@ -645,6 +686,7 @@ export function riderGateText(spec) {
   if (spec?.onCritical) parts.push("a Critical hit");
   if (spec?.lowHalfHp) parts.push("a target at half HP or fewer");
   if (spec?.whenDamageTypes?.length) parts.push(`a Strike dealing ${spec.whenDamageTypes.join(" or ")} damage`);
+  if (spec?.targetUuids?.length) parts.push("the named creature");
   return parts.join(", ");
 }
 
@@ -711,10 +753,17 @@ export function riderCastLine(spec) {
   // `conditional` would have dropped the condition off the card — the
   // spell would apply it and never say so, which is the anti-silence
   // rule with the halves the wrong way round.
-  const rider = spec.conditional
-    ? `<strong>${spec.dice} ${spec.damageType}</strong> on ${when}`
-      + ` <em>against ${spec.against}</em> — printed on the strike card for you to apply`
-    : `<strong>+${spec.dice} ${spec.damageType}</strong> on ${when}`;
+  // IN PLACE OF THE WEAPON'S DAMAGE (3.685.1; Eldritch Arts 0.10.0's live
+  // test, finding 2): Spirit Arrow's card read "+6d6 piercing on your next
+  // ranged Strike" for a rider that is the Strike's damage, not an addition
+  // to it. A `flat` one (Graham: "Flat 6d6") has nothing added at all.
+  const rider = spec.replacesDamage
+    ? `${when} deals <strong>${spec.dice} ${spec.damageType}</strong> in place of its damage`
+      + (spec.flat ? ", with nothing added" : " (its other additions still apply)")
+    : spec.conditional
+      ? `<strong>${spec.dice} ${spec.damageType}</strong> on ${when}`
+        + ` <em>against ${spec.against}</em> — printed on the strike card for you to apply`
+      : `<strong>+${spec.dice} ${spec.damageType}</strong> on ${when}`;
   if (!spec.condition) return rider;
   return `${rider}, and <strong>${spec.condition} ${spec.conditionValue}</strong> on a hit`;
 }

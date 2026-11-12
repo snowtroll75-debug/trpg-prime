@@ -49,6 +49,17 @@ import {
   registerSpellWarps,
   registerRunes, registeredRunes, registerLightSources, registerItemAutomation, registerPerilAutomation, registerFeatPickBonus, registerDamageShare,
   registerSpellCheckGate,
+  registerCastSurcharge, registerReleasePath, registerWeaponTraitRule,
+  registerCastRefusal, registerDeferredTeleport, registerCastDegreeRemap, registerResonanceSuppressor, registerEffectSuppressor, registerHighMagicRules,
+  registerRitualRules, registerCastOption, registerDispelModifier,
+  registerCastCapModifier, registerSpecialistAccess, registerFamiliarModifier, registerPPGrant,
+  registerCheckReaction, registerDamageReaction, registerCastReaction, registerCriticalReaction, registerReactionStep,
+  registerInnateLevelBonus,
+  registerCastPrelude,
+  registerDyingRecoveryModifier,
+  registerFumbleModifier, registerResonanceModifier, registerChargedItemRule, registerPendingCastStep,
+  registerUnconsciousOffer, registerFeatEligibility, registerExtraUses,
+  registerMetamagic, registerCastPPSource, registerMetamagicPayment, registerCastCostModifier,
   registerCreateRoute,
   registerCompanionKind,
   queueSkillActions,
@@ -156,6 +167,79 @@ export function buildModuleApi() {
     registerDamageShare: (key, share, moduleId) => registerDamageShare(key, share, moduleId),
     // An answer to a casting before its check is rolled (3.672.0): rows and card lines.
     registerSpellCheckGate: (key, gate, moduleId) => registerSpellCheckGate(key, gate, moduleId),
+    // ELDRITCH ARTS BLOCK 1 (3.675.0): a casting's surcharge (C3), another way
+    // to read a scroll (C6), a weapon trait's category for a class type (C8).
+    registerCastSurcharge: (key, surcharge, moduleId) => registerCastSurcharge(key, surcharge, moduleId),
+    registerReleasePath: (key, path, moduleId) => registerReleasePath(key, path, moduleId),
+    registerWeaponTraitRule: (trait, spec, moduleId) => registerWeaponTraitRule(trait, spec, moduleId),
+    // ELDRITCH ARTS BLOCK 2 (3.678.0): a casting refused (D7), its degree read
+    // differently (D7), no Resonance here (D6), an effect switched off (D14),
+    // and whose High Magic rules are in force (D1b).
+    registerCastRefusal: (key, refuse, moduleId) => registerCastRefusal(key, refuse, moduleId),
+    // A TELEPORT LATER THAN ITS CAST (3.685.1): no Spatial Awareness card at
+    // the cast; the module calls `helpers.teleportationArrives` when it moves.
+    registerDeferredTeleport: (key, defers, moduleId) => registerDeferredTeleport(key, defers, moduleId),
+    registerCastDegreeRemap: (key, remap, moduleId) => registerCastDegreeRemap(key, remap, moduleId),
+    registerResonanceSuppressor: (key, suppress, moduleId) => registerResonanceSuppressor(key, suppress, moduleId),
+    registerEffectSuppressor: (key, suppressed, moduleId) => registerEffectSuppressor(key, suppressed, moduleId),
+    registerHighMagicRules: (moduleId) => registerHighMagicRules(moduleId),
+    // A RITUAL'S RULES AND A CASTING OPTION (3.679.0; Eldritch Arts Block 2b).
+    registerRitualRules: (key, spec, moduleId) => registerRitualRules(key, spec, moduleId),
+    registerCastOption: (key, spec, moduleId) => registerCastOption(key, spec, moduleId),
+    // A DISPEL MODIFIER (3.683.0; Eldritch Arts Block 5, D10, C9): Dispel Power,
+    // Resonant Ascendance, Threadbreaker's Precision, Mirrored Rebuke; Block 6's
+    // Runebreaker and Glyph Shatter. See module-api.mjs for the contract.
+    registerDispelModifier: (key, spec, moduleId) => registerDispelModifier(key, spec, moduleId),
+    // THE CLASSES' SEAMS (3.680.0; Eldritch Arts Block 3a): a raise of the PP
+    // cap per cast (Raw Power), a specialist spell opened to a character (a
+    // birthright's list), a familiar's modifier (the Soulbound Familiar), and a
+    // PP grant by feature name (Wild Power).
+    registerCastCapModifier: (key, raise, moduleId) => registerCastCapModifier(key, raise, moduleId),
+    registerSpecialistAccess: (key, allows, moduleId) => registerSpecialistAccess(key, allows, moduleId),
+    registerFamiliarModifier: (key, modify, moduleId) => registerFamiliarModifier(key, modify, moduleId),
+    registerPPGrant: (name, spec, moduleId) => registerPPGrant(name, spec, moduleId),
+    // THE REACTIONS (3.681.0; Eldritch Arts Block 3b): before and after a d20
+    // check, before damage meets the defences, after a cast's check, before a
+    // critical's roll; and a reaction's own work on the reactor's client.
+    registerCheckReaction: (key, spec, moduleId) => registerCheckReaction(key, spec, moduleId),
+    registerDamageReaction: (key, offer, moduleId) => registerDamageReaction(key, offer, moduleId),
+    registerCastReaction: (key, offer, moduleId) => registerCastReaction(key, offer, moduleId),
+    registerCriticalReaction: (key, offer, moduleId) => registerCriticalReaction(key, offer, moduleId),
+    registerReactionStep: (name, run, moduleId) => registerReactionStep(name, run, moduleId),
+    // LEVELS ON AN INNATE CAST (3.682.0; Block 4, D9): the bonded souls' "+1".
+    registerInnateLevelBonus: (key, bonus, moduleId) => registerInnateLevelBonus(key, bonus, moduleId),
+    registerCastPrelude: (key, prelude, moduleId) => registerCastPrelude(key, prelude, moduleId),
+    // THE FATIGUE FOR LEAVING DYING, WAIVED (3.683.0; Block 5, C8): Relentless Will.
+    registerDyingRecoveryModifier: (key, modify, moduleId) => registerDyingRecoveryModifier(key, modify, moduleId),
+    // ELDRITCH ARTS BLOCK 6, GROUP B (3.684.0). The fumble and Resonance rolls
+    // (G5: Mana Bound, Spell Surge, High Magic Resonance, Resonance Surge);
+    // one spend path for every charged item (G6: the Adept's Conduit feats,
+    // Weave Infusion); a step before a pending cast's interruption settles
+    // (G26: Magical Retribution). Contracts in module-api.mjs; the cast
+    // reaction's new answers (G17) and the spell store's host (G16) need no
+    // registration — see registerCastReaction and helpers.storeForeignSpell.
+    registerFumbleModifier: (key, modify, moduleId) => registerFumbleModifier(key, modify, moduleId),
+    registerResonanceModifier: (key, spec, moduleId) => registerResonanceModifier(key, spec, moduleId),
+    registerChargedItemRule: (key, spec, moduleId) => registerChargedItemRule(key, spec, moduleId),
+    registerPendingCastStep: (key, step, moduleId) => registerPendingCastStep(key, step, moduleId),
+    // ELDRITCH ARTS BLOCK 6, GROUP C (3.684.0). "When you would fall
+    // unconscious" (G7: Subconscious Casting, Eternal Vigil); a feat's
+    // eligibility the prerequisite line cannot say (G9: Arcane Study, High
+    // Magic Resonance, Resonance Surge); extra daily uses by feat (G21: Extra
+    // Communion, Deep Weave, Extra Reservoir). Contracts in module-api.mjs.
+    registerUnconsciousOffer: (key, spec, moduleId) => registerUnconsciousOffer(key, spec, moduleId),
+    registerFeatEligibility: (name, check, moduleId) => registerFeatEligibility(name, check, moduleId),
+    registerExtraUses: (name, spec, moduleId) => registerExtraUses(name, spec, moduleId),
+    // ELDRITCH ARTS BLOCK 6, GROUP A (3.684.0). The metamagic family: a module's
+    // metamagic in the Warp? dialog (G1: the 13 Metamagic feats, Echo, Pulse,
+    // Harmony, Spell Surge, Spell Weaver…); another way to pay a cast's PP (G2:
+    // Bloodmage's Bleed); an option paid in AP (G3: Metamagic Adept); PP off
+    // what is paid (G4: Hex Mastery, Storm Bolt). Contracts in module-api.mjs;
+    // `helpers.metamagicCatalogue` lists what a character has.
+    registerMetamagic: (key, spec, moduleId) => registerMetamagic(key, spec, moduleId),
+    registerCastPPSource: (key, spec, moduleId) => registerCastPPSource(key, spec, moduleId),
+    registerMetamagicPayment: (key, spec, moduleId) => registerMetamagicPayment(key, spec, moduleId),
+    registerCastCostModifier: (key, modify, moduleId) => registerCastCostModifier(key, modify, moduleId),
     registerSkillActions: (actions, moduleId) => queueSkillActions(actions, moduleId),
     registerFeatAutomation: (name, entry, moduleId) => queueFeatAutomation(name, entry, moduleId),
     registerPassiveAutomation: (name, hint, moduleId) => queuePassiveAutomation(name, hint, moduleId),
@@ -181,6 +265,9 @@ export function buildModuleApi() {
       // A CASTER'S SPELL ENDED BY ITS TARGET'S ROLL (3.672.0): Inner Tempest's
       // Spiritual Distraction and Disrupt Soul, "the spell ends". Through the
       // GM when this client does not own the caster.
+      // WHY AN ITEM CANNOT BE INVESTED NOW, or "" (3.675.0; Eldritch Arts'
+      // Quickbind): Invest Item's own rules — one Staff, the slot limit.
+      investRefusal: async (actor, item) => (await import("./magic-items-workflow.mjs")).investRefusal(actor, item),
       endSpellOf: async (caster, castId) => (await import("./combat/target-relay-workflow.mjs")).relayEndSpell(caster, castId),
       get skillActions() { return SKILL_ACTIONS; },
       // THE ONE DEATH QUESTION (3.674.0, C12; Inner Tempest's dragon bond:
@@ -188,6 +275,19 @@ export function buildModuleApi() {
       // past the Death State, an instant death, or Constitution −5, as the
       // system itself asks it (combat/death-state.mjs).
       isDead: async (actor) => (await import("./combat/death-state.mjs")).isDead(actor),
+      // THE PER-DIE SPELL DAMAGE BONUS FOR A POOL THE MODULE ROLLS ITSELF
+      // (3.683.0; Eldritch Arts Block 5, C6; Graham's Q70): "your magical
+      // abilities' damage" (Elemental Reprisal, a breath) takes Emberborn
+      // Fury's "+1 damage per die rolled" as a spell's pools do. `dice` is the
+      // pool's formula (its dice are counted) or a number of dice; `type` the
+      // pool's damage type. Resolves `{ dice, perDie, total, text }` from the
+      // actor's per-die `spellDamageBonus` rows (magic/spell-damage-bonus.mjs);
+      // the module adds `total` to its roll and says `text` on its card.
+      spellDamagePerDieBonus: async (actor, { type = "", dice = 0, traits = [] } = {}) => {
+        const { declaredSpellDamagePerDie, spellDamagePerDie } = await import("./magic/spell-damage-bonus.mjs");
+        return spellDamagePerDie(dice, declaredSpellDamagePerDie(
+          Array.from(actor?.appliedEffects ?? actor?.effects ?? []), { damageType: String(type ?? ""), traits }));
+      },
       resolveAction: async (...args) => (await import("./combat/action-workflow.mjs")).resolveAction(...args),
       // HEALING AND A ROLL (3.627.0), for a module Use that heals its owner or
       // makes others save — Pillars of Faith's Carrion Feast and the lich's
@@ -209,6 +309,67 @@ export function buildModuleApi() {
       // relay — and its card line (3.629.0; the Hungry Reliquary's essence).
       applyTypedDamage: async (...args) => (await import("./combat/damage-workflow.mjs")).applyTypedDamage(...args),
       describeDamage: async (...args) => (await import("./combat/damage-workflow.mjs")).describeDamage(...args),
+      // ELDRITCH ARTS BLOCK 2 (3.678.0): what Chapter 7's tables and Tap
+      // Magical Energy call that only the system has — a Resonance event (a
+      // ley line's Chaos Backlash, a wild surge's 66), a charged item's level
+      // and its Charge Depletion roll, and whether a point is inside a Region
+      // (the placeable's own test first; see combat/surfaces.mjs).
+      rollResonanceEvent: async (...args) => (await import("./magic/cast-workflow.mjs")).rollResonanceEvent(...args),
+      chargedItemLevelOf: async (...args) => (await import("./charged-items.mjs")).chargedItemLevelOf(...args),
+      rollItemDepletion: async (...args) => (await import("./magic-items-workflow.mjs")).rollItemDepletion(...args),
+      // FOR BLOCK 2b (3.679.0): a material sacrifice's gold, from the purse
+      // as Learn a Spell takes it; Borrow Spell's "normal DC to learn the
+      // spell"; and a book caster, who alone may borrow.
+      deductGold: async (actor, gp) => {
+        const { deductCurrency } = await import("./items.mjs");
+        const out = deductCurrency(actor?.system?.currency, gp);
+        if (out.success) await actor.update({ "system.currency": out.purse });
+        return { paid: Boolean(out.success), shortfallGP: Number(out.shortfallGP ?? 0) };
+      },
+      goldOf: async (actor) => (await import("./items.mjs")).coinValueInGP(actor?.system?.currency),
+      learnSpellDC: async (spell) => {
+        const { learnSpellCost } = await import("./magic/learn-spell.mjs");
+        const { rarityDCIncrease } = await import("./traits.mjs");
+        return learnSpellCost(spell?.system?.ppCost).dc + rarityDCIncrease(spell?.system ?? {});
+      },
+      // LEARN A SPELL'S TERMS FOR A PP (3.682.0; Eldritch Arts' Book of
+      // Infusions, Q46: a rune is learned "using rules for learning spells",
+      // its level as the PP): the materials' price, the DC and the hours.
+      learnSpellTerms: async (pp) => {
+        const { learnSpellCost, learnSpellHours } = await import("./magic/learn-spell.mjs");
+        const cost = learnSpellCost(pp);
+        return { gp: Number(cost.gp ?? 0), dc: Number(cost.dc ?? 0), hours: Number(learnSpellHours(pp) ?? 0) };
+      },
+      // …AND WHAT A DEGREE OF ITS CHECK MEANS (review): learned or not, and
+      // the materials it consumes ("none", "half", "full"). See learnSpellOutcome.
+      learnSpellOutcome: async (degreeKey) => (await import("./magic/learn-spell.mjs")).learnSpellOutcome(String(degreeKey ?? "")),
+      // RECURRING DAMAGE ON A CREATURE (3.682.0; Eldritch Arts' Emberlord,
+      // "it causes a target to erupt into flames inflicting 1d6 recurring fire
+      // damage"): the core's own rule for a second source (`layRecurring`, as
+      // a metal rider's and a bomb's), on the Recurring condition. Since
+      // 3.685.0 (Q150) the same type adds to that type's total and another
+      // type is its own. Resolves `{ value, damageType, before, added,
+      // stacked, replaced: false }` — `value` is that type's new total.
+      addRecurringDamage: async (target, amount, damageType) => {
+        if (!target) return null;
+        const { layRecurring } = await import("./conditions/recurring-workflow.mjs");
+        // Through the GM when this client does not own the creature (a player's Xithra on a GM's monster).
+        const { relayStatus } = await import("./combat/target-relay-workflow.mjs");
+        return layRecurring(target, Math.max(0, Math.trunc(Number(amount) || 0)), String(damageType ?? ""), {
+          apply: (options) => relayStatus(target, "recurring", options, () => target.toggleStatusEffect("recurring", options))
+        });
+      },
+      // THE RUNES THAT GO ON A KIND OF ITEM, with their tiers and levels, and a
+      // selection written back as a rune field (3.682.0; Eldritch Arts' Book of
+      // Infusions and Infuse Weapon). See rune-catalogue.mjs.
+      runesFor: async (kind) => (await import("./rune-catalogue.mjs")).runesFor(kind),
+      runesToField: async (kind, selection = []) => (await import("./rune-catalogue.mjs")).runesToField(kind, selection),
+      keepsSpellbook: async (actor) => (await import("./magic/learn-spell-workflow.mjs")).learnSpellEligible(actor),
+      // FOR BLOCK 3a (3.680.0): the Soulbound Familiar is "treated as a
+      // familiar", made as the core's Familiar feat makes one, and found again.
+      createFamiliarFor: async (master, sourceItem) => (await import("./familiar-workflow.mjs")).createFamiliarFor(master, sourceItem),
+      familiarsOf: async (master) => (await import("./familiar-workflow.mjs")).familiarsOf(master),
+      regionContains: async (...args) => (await import("./combat/surfaces.mjs")).regionContains(...args),
       // THE AUTOMATION PASS (3.630.0) — Pillars of Faith's Martyr's Aegis,
       // Soul Mirror and Grace beyond Need: temporary HP that keeps the larger
       // pool, the runes that count on an item and their once-a-minute
@@ -414,8 +575,153 @@ export function buildModuleApi() {
       // reaction feat should spend through these, not write the pool itself.
       spendReaction: async (...args) => { const { spendReaction } = await import("./combat/action-points-workflow.mjs"); return spendReaction(...args); },
       reactionRefusal: async (...args) => { const { reactionRefusal } = await import("./combat/action-points-workflow.mjs"); return reactionRefusal(...args); },
+      // ASK THE REACTOR, WHEREVER THEY ARE (3.681.0; Block 3b): their player
+      // if online, else the GM, 30 seconds, and the named reaction step run on
+      // their client. Resolves `{ answer, result }`. See reactions/reaction-ask-workflow.mjs.
+      askReactor: async (...args) => (await import("./reactions/reaction-ask-workflow.mjs")).askReactor(...args),
+      // A SPELL CAST AS A REACTION (3.681.0), with the user's targets set to
+      // these token ids for the length of the cast. Resolves what castSpell does.
+      castAsReaction: async (...args) => (await import("./magic/save-reaction-spells-workflow.mjs")).castAsReaction(...args),
+      // CAST A SPELL, WITH THE CORE'S OWN OPTIONS (3.682.0; Block 4): among
+      // them `strikeCheck`, a Strike's TRGCheck whose roll is the casting check
+      // (Thunderous Strike), and `apPaid`. Resolves what castSpell does.
+      // 3.684.0 (G1): also `metamagic: { preset: [{ key, choice, times }] }`
+      // (options applied without a tick: Subconscious Casting), and `thread: {
+      // check, degree, primaryUuid }` — a spell woven into another, resolved
+      // under that spell's check at its degree, paying nothing (Spellthread).
+      castSpell: async (actor, spell, options = {}) => (await import("./magic/cast-workflow.mjs")).castSpell(actor, spell, options ?? {}),
+      // WHAT METAMAGIC A CHARACTER HAS (3.684.0; Eldritch Arts Block 6, G1):
+      // every owned or granted option, core and module, as `{ key, label,
+      // ppCost, focus, needsSpell, source }` — gated on `spell` when one is
+      // given, as the Warp? dialog gates. Piercing Insight lists it for Sense
+      // Magic; Metamagic Resonance reads it. See magic/module-metamagic-workflow.mjs.
+      metamagicCatalogue: async (actor, options = {}) => (await import("./magic/module-metamagic-workflow.mjs")).metamagicCatalogue(actor, options ?? {}),
+      // WOULD A CAST BE REFUSED (3.681.0): the reason castSpell would give
+      // before spending anything, or "". See magic/cast-workflow.mjs.
+      castRefusal: async (...args) => (await import("./magic/cast-workflow.mjs")).castRefusalReason(...args),
+      // THE TELEPORT, WHEN IT HAPPENS (3.685.1; Eldritch Arts 0.10.0's live
+      // test). `teleportationArrives(caster, spell, movedActors)` is what a
+      // Teleportation cast does at its cast: in combat, it stamps each moved
+      // creature's `teleportedTurn` and posts its "Teleported — Spatial
+      // Awareness" card, and resolves the lines for a second teleport this
+      // turn (which fails). `teleportationFails(actor)` resolves whether a
+      // teleport of this creature now would be that second one. For a spell
+      // registered with `registerDeferredTeleport`.
+      teleportationArrives: async (...args) => (await import("./trait-rules-workflow.mjs")).teleportationArrives(...args),
+      teleportationFails: async (...args) => { const { teleportationFails } = await import("./trait-rules-workflow.mjs"); return teleportationFails(...args); },
+      // CONVICTION, BY THE CORE'S RULE (3.681.0): `convictionState` resolves
+      // `{ value, max, ok, reason }` (one point a round in combat);
+      // `spendConviction` spends one and stamps the round, resolving whether it could.
+      convictionState: async (actor) => (await import("./conviction.mjs")).getConvictionState(actor),
+      spendConviction: async (actor) => {
+        const { getConvictionState, markConvictionSpent } = await import("./conviction.mjs");
+        if (!getConvictionState(actor).ok) return false;
+        await markConvictionSpent(actor);
+        return true;
+      },
+      // ELDRITCH ARTS BLOCK 5, GROUP B (3.683.0; seams C4, C5, C17).
+      // THE AMBIENT LIGHT LEVEL AT A TOKEN (C4; Graham's Q61): 1–10, where it
+      // stands — sources, Darkness, regions and weather — not raised by its
+      // own Darkvision or Nightvision. A Token or TokenDocument; null with
+      // none. Veil of Silence, Moonlight Precision, Shadow Initiate, Silent
+      // Veil, Veilstride, Ghostscale. (Rolls read it through the
+      // conditionals' `lightLevels` axis; this is for everything else.)
+      lightLevelAt: async (token) => {
+        const { ambientLightLevelAt } = await import("./light-workflow.mjs");
+        return ambientLightLevelAt(token);
+      },
+      // IS THIS TOKEN UNDERWATER (C5): in a Region the core counts as water,
+      // as the attack and cast workflows ask it. Tideweaver's Resilience.
+      isUnderwater: async (token) => (await import("./combat/underwater-workflow.mjs")).tokenIsUnderwater(token),
+      // FALLING FROM HEIGHT (C5): the core's own roll and card. With a
+      // `distance` (feet, already the final distance) it is rolled with no
+      // dialog; the declared reductions and Skyfeather still apply. `onto`
+      // (an actor landed on) defaults to nobody; `note` is a card line.
+      // Resolves what the core's rollFalling does. Voidborn Wings,
+      // Stormrunner's Zeal, Voidborn Grace (whose flight ends: lower the
+      // token, then call this).
+      rollFalling: async (actor, { distance = null, onto = null, note = "" } = {}) => {
+        const { rollFalling } = await import("./combat/falling-workflow.mjs");
+        const given = distance !== null && distance !== undefined && Number.isFinite(Number(distance));
+        return rollFalling(actor, { distance: given ? Math.max(0, Number(distance)) : 0, onto, note: String(note ?? ""), ask: !given });
+      },
+      // HOW FAR THIS CREATURE HAS MOVED THIS TURN (C17): `{ feet,
+      // apOnMovement }` — the measured feet of its own moves (a teleport is
+      // not one), and the AP its moves and Movement-trait actions cost. Reset
+      // with its turn. See combat/movement.mjs `movementThisTurnFrom`.
+      movementThisTurn: async (actor) => {
+        const { movementThisTurn } = await import("./combat/movement-workflow.mjs");
+        return movementThisTurn(actor);
+      },
+      // ELDRITCH ARTS BLOCK 6, GROUP D (3.684.0; G24, G25).
+      // THE INNATE SAVE DC (G25; Graham's Q136): `innateSaveDCFor(actor, spell)`
+      // resolves `{ value, printed, level, ability }` — 10 + magical ability +
+      // the level an innate cast of that spell is made at (a registered innate
+      // level bonus included: the bonded soul's +1), or its printed DC. Xithra
+      // Cone's basic Reflex, Malevolent Blast's Will. See magic/innate-save-dc.mjs.
+      innateSaveDCFor: async (actor, spell) => (await import("./magic/innate-save-dc.mjs")).innateSaveDCFor(actor, spell),
+      // CAN THIS SPELL BE CAST TODAY (G25; Prepared Sigil's "a spell that you
+      // are able to cast that day"): true when the core's availability says so
+      // — prepared, memorised, in the repertoire, specialist, innate — and no
+      // daily-study refusal stands. An item the actor does not own is false.
+      // See magic/spell-availability.mjs `spellCastBlocked`.
+      spellCastable: async (actor, spell) => {
+        if (!actor || spell?.type !== "spell" || (spell.parent && spell.parent !== actor)) return false;
+        const { spellCastBlocked } = await import("./magic/spell-availability.mjs");
+        return spellCastBlocked(spell) === null;
+      },
+      // A SPELL SUSTAINED BY ANOTHER CREATURE (G24; Symbiotic Witch, Q137):
+      // `setSpellSustainer(caster, entryId, { uuid, label } | null)` hands one
+      // sustained active-spell entry to that creature (one spell a creature;
+      // null hands it back). While it holds it: no Sustain is owed, the caster
+      // may recover PP, damage to the SUSTAINER asks the caster's Spell
+      // Concentration check, and its death ends the spell at the caster's next
+      // turn start. Resolves the entry, or null. See magic/active-spells.mjs.
+      // (A cast measured from another token is `castSpell(actor, spell,
+      // { rangeFrom: <token uuid> })`; a Prepared Sigil's is `castSpell(actor,
+      // spell, { preparedSymbol: { label } })`.)
+      setSpellSustainer: async (caster, entryId, sustainer = null) => (await import("./magic/active-spells.mjs")).setSpellSustainer(caster, entryId, sustainer),
       activeToken: async (...args) => (await import("./combat/geometry.mjs")).activeToken(...args),
-      distanceBetween: async (...args) => (await import("./combat/geometry.mjs")).distanceBetween(...args)
+      distanceBetween: async (...args) => (await import("./combat/geometry.mjs")).distanceBetween(...args),
+      // ELDRITCH ARTS BLOCK 6, GROUP B (3.684.0; G16): A SPELL STORE.
+      // `storeForeignSpell(actor, spell, { ppPaid, mods, notes, releaseCost,
+      // host, from: { name, uuid } })` — Runebreaker's absorb (Q115): the
+      // incoming spell is copied onto the storer (flagged `storedForeign`, cast
+      // only by its release), stored "at the PP its caster paid", and released
+      // through the core's Release as the storer's own casting, settling no PP.
+      // `host` is the item to hold it (`spellStoreHost`), else the bond.
+      // `spellStoreHost(actor, { host: "arcaneBond"|"spell"|"spellStore",
+      // spellId })` — the item a store lives in (Storing Rune's own rune is
+      // `host: "spell"` with its id). `readStoredSpell(actor)` — `{ item,
+      // record }` of the store held, or null.
+      storeForeignSpell: async (...args) => (await import("./magic/spell-storing-workflow.mjs")).storeForeignSpell(...args),
+      spellStoreHost: async (actor, opts = {}) => (await import("./magic/spell-storing-workflow.mjs")).spellStoreHostFor(actor, opts),
+      readStoredSpell: async (actor) => (await import("./magic/spell-storing-workflow.mjs")).readStored(actor),
+      // THE CONTROL REGISTER (3.686.0, H12; Eldritch Arts' Bindings, Army of
+      // the Grave, Versatile Binder, Ley Line Effects 25–27). Page 242's
+      // register, as Aligned Control uses it: `recordControlled(controller,
+      // { target, token, level, name, source, castId, data })` — `source` a
+      // key of CONTROL_SOURCES ("bound" for a creature a spell binds), `castId`
+      // the cast that holds it, `data` the module's own facts; `releaseControlled
+      // (controller, id, { reason })`; `controlledOf(controller)` the entries;
+      // `controlledCreature(entry)` the creature an entry names, or null. Every
+      // release fires `trgPrimeControlReleased({ controller, entry, creature,
+      // degree, reason })` — "overflow" when the DC 20 Will save freed it.
+      recordControlled: async (...args) => (await import("./magic/control-register-workflow.mjs")).recordControlled(...args),
+      releaseControlled: async (...args) => (await import("./magic/control-register-workflow.mjs")).releaseControlled(...args),
+      controlledOf: async (actor) => (await import("./magic/control-register-workflow.mjs")).controlledOf(actor),
+      controlledCreature: async (entry) => { const { controlledCreature } = await import("./magic/control-register-workflow.mjs"); return controlledCreature(entry); },
+      // CONDITIONS HELD BY A CURSE (3.686.0, H17): is this condition held on
+      // this creature (an effect carrying `flags.trg-prime.heldConditions`)?
+      // See conditions/held-conditions.mjs for the flag a module lays.
+      conditionHeld: async (actor, key) => (await import("./conditions/held-conditions.mjs")).actorConditionHeld(actor, key),
+      // A TABLE ROLLED AT EACH OF A CREATURE'S TURNS (3.686.0, H18):
+      // `markTurnTable(target, row | "insanity", { margin, per, dc, castId,
+      // casterUuid, spellName, img })` — core Insanity's d10 for a creature
+      // that failed its save by `margin` (Eldritch Arts' Symbol of Insanity:
+      // "targeted with an Insanity spell using this symbol's Spell Save DC").
+      // Resolves `{ marked, rounds, line }`, or null for a malformed row.
+      markTurnTable: async (...args) => (await import("./magic/turn-table-workflow.mjs")).markTurnTable(...args)
     }),
     contentPack,
     contentPacksFor,

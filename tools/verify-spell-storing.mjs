@@ -178,7 +178,8 @@ ok("S7b and never both at once",
 const cast = read("module", "magic", "cast-workflow.mjs");
 
 ok("G1 ONE GATE, at the top of the one function every cast crosses",
-  cast.includes("const storingNow = !stored && !isStoringSpell && Boolean(readArmed(actor));"),
+  // 3.679.0: never a ritual's casting (its check is rolled already).
+  cast.includes("const storingNow = !stored && !isStoringSpell && !ritual && Boolean(readArmed(actor));"),
   "a spell that asked each caller to remember would work for one route and not another");
 // G2 CASTING SPELL STORING NEVER STORES ITSELF — the second casting
 // dismisses what is held, which is the book's own sentence and is
@@ -190,11 +191,14 @@ ok("G2 Spell Storing itself is never stored",
 // chosen at the release; a target picked now has had a round to move.
 ok("G3 NO TARGET PROMPT WHILE STORING",
   // RE-ANCHORED 3.612.0: the line also skips a reaction cast's preset target.
-  cast.includes("if (spellNeedsTarget(spellData) && !storingNow && !reaction?.presetTargets && !presetTargets) {"),
+  cast.includes("if (spellNeedsTarget(spellData, spell) && !storingNow && !reaction?.presetTargets && !presetTargets) {"),
   "the ruling puts the targets at the release");
 // G4 NO SECOND WARP CHOOSER AT RELEASE.
 ok("G4 the chooser is skipped for a released spell",
-  cast.includes("if (!isCantrip && !isItemCast && !stored && (!isInnate || innateBudget > 0)) {"),
+  // RE-POINTED AT 3.684.0 (G1): the chooser's own gate is a name now, since a
+  // module's metamagic may open the dialog without it.
+  cast.includes("const warpChooserOpen = !isCantrip && !isItemCast && !stored && (!isInnate || innateBudget > 0) && !threaded;")
+  && cast.includes("+ (warpChooserOpen ? buildWarpChooser(warpSpell, basePP, { casterLevel }) : \"\")"),
   "re-offering it would let a 1 PP spell be released as a 20 PP one");
 ok("G4b and the stored warp is used instead",
   cast.includes("if (stored?.mods) {")
@@ -206,7 +210,8 @@ const exitAt = cast.indexOf("  if (storingNow) {");
 ok("G5 the exit exists", exitAt > 0);
 ok("G5b AFTER the affordability guard, so a caster who cannot pay is refused first",
   // 3.616.0: the pool test counts a rod's draw (R13 of block 36).
-  cast.indexOf("if (totalPP > ppPool + rodDraw) {") > 0 && cast.indexOf("if (totalPP > ppPool + rodDraw) {") < exitAt);
+  // 3.679.0: a ritual variant's PP are substituted, not drawn (D13).
+  cast.indexOf("if ((ritualSubstitutes ? 0 : totalPP) + surcharge.pp > ppPool + rodDraw) {") > 0 && cast.indexOf("if ((ritualSubstitutes ? 0 : totalPP) + surcharge.pp > ppPool + rodDraw) {") < exitAt);
 ok("G5c and BEFORE the check is rolled",
   exitAt < cast.indexOf("const check = noCheckCantrip"),
   "a degree rolled at storage would be fixed before any target existed");
@@ -287,8 +292,10 @@ ok("E2 it opens the window with the warped release cost",
 // E3 "IF YOU CAST THE SPELL AGAIN THE LAST SPELL YOU STORED IS
 // DISMISSED" — the book's own sentence, said out loud because the PP for
 // the displaced spell is already gone.
+// RE-POINTED AT 3.684.0 (G16 review): the case empties its own host's store
+// (`clearStoredIn(target, bond)`), not whichever store `clearStored` finds.
 ok("E3 casting it again dismisses what was held",
-  se.includes("if (already?.record?.spellName) {") && se.includes("await clearStored(target);"));
+  se.includes("if (already?.record?.spellName) {") && se.includes("await clearStoredIn(target, bond);"));
 ok("E3b and says so", se.includes("displacedLine(already.record.spellName)"));
 // E4 ANCHORED ON THE BRANCH, NOT THE SENTENCE IT PRINTS. The first
 // version asserted the line appeared — which it still does when the `if`

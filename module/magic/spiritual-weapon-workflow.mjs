@@ -142,6 +142,11 @@ export async function spiritualStrike(caster, record, targetActor) {
   }
   const { resolveAgainstDefences } = await import("../combat/damage-workflow.mjs");
   const { ownedCreatureTypeSystem } = await import("../creature-type-rules.mjs");
+  // A DAMAGE REACTION, BEFORE THE DEFENCES (3.681.0; found in review).
+  {
+    const { spellDamageReactionsFor } = await import("../reactions/reactions-workflow.mjs");
+    for (const said of await spellDamageReactionsFor(targetActor, record.damageType, { spellName: record?.label ?? "", source: caster })) lines.push(line(said));
+  }
   const packet = resolveAgainstDefences(targetActor.system ?? {}, {
     amount: dealt,
     type: record.damageType,

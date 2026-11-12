@@ -155,17 +155,12 @@ async function applyEntryChecks(tokenDocument, movement) {
         if (startedInside || !enteredInside) continue;
       } else if (!entryCheckCalled(startedInside, enteredInside, entered.length)) continue;
 
-      const cleared = mover.getFlag?.(SYSTEM_ID, CLEARED_FLAG) ?? null;
-      if (turnKey && cleared?.region === region.id && cleared?.turn === turnKey) continue;
+      if (entryClearedThisTurn(mover, region, turnKey)) continue;
 
       // WHO IT STOPS (3.630.0): the gate, and "hostile" — the opposite side
       // from the caster's token, read from dispositions.
       if (spec.gate?.length && !entryGateHolds(spec, await gateFacts(mover))) continue;
-      if (spec.hostileOnly) {
-        const caster = raw.casterUuid ? await fromUuid(raw.casterUuid).catch(() => null) : null;
-        const casterSide = Number(caster?.getActiveTokens?.()?.[0]?.document?.disposition ?? caster?.prototypeToken?.disposition ?? 1);
-        if (Number(tokenDocument.disposition ?? 0) === casterSide) continue;
-      }
+      if (spec.hostileOnly && !(await entryHostileHolds(raw, tokenDocument))) continue;
       const now = Number(game.time?.worldTime ?? 0);
       const bars = mover.getFlag?.(SYSTEM_ID, BAR_FLAG) ?? {};
       if (entryBarred(bars, region.id, { now, turnKey })) {
@@ -178,81 +173,151 @@ async function applyEntryChecks(tokenDocument, movement) {
       }
       // "ONLY THE FIRST TIME IT TRIES TO CROSS DURING EACH ROUND."
       const roundKey = combat ? `${combat.id}:${combat.round}` : null;
-      if (spec.oncePerRound && roundKey) {
-        const rolled = mover.getFlag?.(SYSTEM_ID, ROLLED_FLAG) ?? {};
-        if (rolled[region.id] === roundKey) continue;
-        await mover.setFlag(SYSTEM_ID, ROLLED_FLAG, { ...rolled, [region.id]: roundKey });
-      }
+      if (spec.oncePerRound && roundKey && !(await entryFirstThisRound(mover, region, roundKey))) continue;
 
-      const dc = Number(raw.dc);
-      const { TRGCheck } = await import("../dice/check.mjs");
-      let check;
-      let skill = "";
-      let rollLabel;
-      if (spec.save) {
-        rollLabel = `${spec.save.charAt(0).toUpperCase()}${spec.save.slice(1)} save`;
-        check = await TRGCheck.roll({
-          actor: mover,
-          label: `${mover.name} — ${rollLabel}`,
-          subtitle: `${spec.label} — crossing it`,
-          type: "save",
-          save: spec.save,
-          dc,
-          sourceUuid: raw.casterUuid ?? ""
-        });
-      } else {
-        const totals = Object.fromEntries(spec.skills.map((k) => [k, Number(mover.system?.skills?.[k]?.total ?? 0)]));
-        skill = entryCheckSkill(spec, totals);
-        const skillData = mover.system?.skills?.[skill] ?? null;
-        rollLabel = SKILLS[skill]?.label ?? skill;
-        check = await TRGCheck.roll({
-          actor: mover,
-          label: `${rollLabel} Check`,
-          subtitle: `${spec.label} — moving through it`,
-          type: "skill",
-          subject: skill,
-          dc,
-          modifiers: skillData?.checkModifiers ?? [
-            { label: `${rollLabel} bonus`, value: Number(skillData?.total ?? 0), type: "untyped" }
-          ]
-        });
-      }
-      const outcome = entryCheckOutcome(spec, check?.outcome?.degree?.key ?? "failure", skill);
-
-      const lines = [entryCheckLine(mover.name, spec, outcome, rollLabel, check?.outcome?.total ?? "—", dc)];
-      if (outcome.endsChecksThisTurn && turnKey) {
-        await mover.setFlag(SYSTEM_ID, CLEARED_FLAG, { region: region.id, turn: turnKey });
-      }
-      // STOPPED AT THE LINE (3.630.0): put back outside, and barred for as
-      // long as the rung says.
-      if (outcome.pushBack) {
-        const moved = await pushBackOutside(tokenDocument, points, entered, (p) => inside(region, p), centre);
-        lines.push(moved ? `${mover.name} is put back outside the boundary; the movement is still spent.`
-          : `<em>Move ${mover.name} back outside the boundary by hand.</em>`);
-      }
-      const bar = entryBarFor({ bar: outcome.bar }, { now, turnKey });
-      if (bar) await mover.setFlag(SYSTEM_ID, BAR_FLAG, { ...bars, [region.id]: bar });
-      if (outcome.rows.length) {
-        // THE SPELL ENGINE APPLIES THE RUNG — see entry-check.mjs.
-        const caster = raw.casterUuid ? await fromUuid(raw.casterUuid).catch(() => null) : null;
-        const item = raw.spellUuid ? await fromUuid(raw.spellUuid).catch(() => null) : null;
-        const spell = item ?? { name: raw.spellName || spec.label, img: "", uuid: null, system: { duration: "", effects: outcome.rows } };
-        const { applySpellEffects } = await import("./spell-effects.mjs");
-        const applied = [];
-        await applySpellEffects(caster ?? mover, spell, {
-          targets: [mover], effects: outcome.rows, lines: applied, saveDC: dc
-        });
-        lines.push(...applied);
-      }
-      await ChatMessage.create({
-        speaker: ChatMessage.getSpeaker({ actor: mover }),
-        content: `<div class="trg-prime trg-card"><header class="trg-card-header"><h3>${spec.label}</h3></header>`
-          + lines.map((l) => (String(l).startsWith("<p") ? l : `<p>${l}</p>`)).join("") + "</div>"
-      });
+      await rollEntryCheckFor({ tokenDocument, mover, region, spec, raw, points, entered, inside, centre, now, bars, turnKey });
     }
   } catch (error) {
     console.error("TRG Prime | A Web check could not be answered for this move", error);
   }
+}
+
+
+/**
+ * ONE CREATURE'S CHECK AGAINST ONE REGION, AND WHAT ITS RUNG DOES (3.685.0,
+ * moved out of `applyEntryChecks` unchanged so the start of a turn rolls the
+ * same check: H3 (a), Eldritch Arts' Arcane Mycelium — "Creatures that enter
+ * or begin their turn in the area must succeed on a Reflex save").
+ */
+async function rollEntryCheckFor({ tokenDocument, mover, region, spec, raw, points = [], entered = [], inside = () => false, centre = (p) => p, now = 0, bars = {}, turnKey = null, atTurnStart = false }) {
+  const dc = Number(raw.dc);
+  const { TRGCheck } = await import("../dice/check.mjs");
+  let check;
+  let skill = "";
+  let rollLabel;
+  if (spec.save) {
+    rollLabel = `${spec.save.charAt(0).toUpperCase()}${spec.save.slice(1)} save`;
+    check = await TRGCheck.roll({
+      actor: mover,
+      label: `${mover.name} — ${rollLabel}`,
+      subtitle: atTurnStart ? `${spec.label} — starting a turn in it` : `${spec.label} — crossing it`,
+      type: "save",
+      save: spec.save,
+      dc,
+      sourceUuid: raw.casterUuid ?? ""
+    });
+  } else {
+    const totals = Object.fromEntries(spec.skills.map((k) => [k, Number(mover.system?.skills?.[k]?.total ?? 0)]));
+    skill = entryCheckSkill(spec, totals);
+    const skillData = mover.system?.skills?.[skill] ?? null;
+    rollLabel = SKILLS[skill]?.label ?? skill;
+    check = await TRGCheck.roll({
+      actor: mover,
+      label: `${rollLabel} Check`,
+      subtitle: atTurnStart ? `${spec.label} — starting a turn in it` : `${spec.label} — moving through it`,
+      type: "skill",
+      subject: skill,
+      dc,
+      modifiers: skillData?.checkModifiers ?? [
+        { label: `${rollLabel} bonus`, value: Number(skillData?.total ?? 0), type: "untyped" }
+      ]
+    });
+  }
+  const outcome = entryCheckOutcome(spec, check?.outcome?.degree?.key ?? "failure", skill);
+
+  const lines = [entryCheckLine(mover.name, spec, outcome, rollLabel, check?.outcome?.total ?? "—", dc)];
+  if (outcome.endsChecksThisTurn && turnKey) {
+    await mover.setFlag(SYSTEM_ID, CLEARED_FLAG, { region: region.id, turn: turnKey });
+  }
+  // STOPPED AT THE LINE (3.630.0): put back outside, and barred for as
+  // long as the rung says. Not at a turn's start: nothing was crossed.
+  if (outcome.pushBack && !atTurnStart) {
+    const moved = await pushBackOutside(tokenDocument, points, entered, (p) => inside(region, p), centre);
+    lines.push(moved ? `${mover.name} is put back outside the boundary; the movement is still spent.`
+      : `<em>Move ${mover.name} back outside the boundary by hand.</em>`);
+  }
+  const bar = atTurnStart ? null : entryBarFor({ bar: outcome.bar }, { now, turnKey });
+  if (bar) await mover.setFlag(SYSTEM_ID, BAR_FLAG, { ...bars, [region.id]: bar });
+  if (outcome.rows.length) {
+    // THE SPELL ENGINE APPLIES THE RUNG — see entry-check.mjs.
+    const caster = raw.casterUuid ? await fromUuid(raw.casterUuid).catch(() => null) : null;
+    const item = raw.spellUuid ? await fromUuid(raw.spellUuid).catch(() => null) : null;
+    const spell = item ?? { name: raw.spellName || spec.label, img: "", uuid: null, system: { duration: "", effects: outcome.rows } };
+    const { applySpellEffects } = await import("./spell-effects.mjs");
+    const applied = [];
+    await applySpellEffects(caster ?? mover, spell, {
+      targets: [mover], effects: outcome.rows, lines: applied, saveDC: dc
+    });
+    lines.push(...applied);
+  }
+  await ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor: mover }),
+    content: `<div class="trg-prime trg-card"><header class="trg-card-header"><h3>${spec.label}</h3></header>`
+      + lines.map((l) => (String(l).startsWith("<p") ? l : `<p>${l}</p>`)).join("") + "</div>"
+  });
+}
+
+/**
+ * THE START OF A TURN IN AN ENTRY-CHECK REGION (3.685.0, H3 (a)). A row that
+ * says `atTurnStart: true` is rolled again for a creature that begins its
+ * turn inside — the same check, DC and rungs as on entering. Called from the
+ * turn-start pass in documents/combat.mjs; swallows its own failure.
+ * @returns {Promise<number>} how many checks were rolled
+ */
+export async function applyTurnStartEntryChecks(actor, token) {
+  let rolled = 0;
+  try {
+    const mover = actor ?? token?.actor ?? null;
+    const tokenDocument = token?.document ?? token ?? null;
+    if (!mover || !tokenDocument) return rolled;
+    const elevation = tokenDocument.elevation ?? 0;
+    const at = { x: token.center?.x ?? token.x, y: token.center?.y ?? token.y, elevation };
+    const combat = game.combat?.started ? game.combat : null;
+    const turnKey = entryTurnKey({ combatId: combat?.id ?? null, round: combat?.round ?? null, turn: combat?.turn ?? null });
+    const roundKey = combat ? `${combat.id}:${combat.round}` : null;
+    for (const region of globalThis.canvas?.scene?.regions ?? []) {
+      const raw = region.getFlag?.(SYSTEM_ID, ENTRY_CHECK_FLAG) ?? null;
+      const spec = normaliseEntryCheck(raw);
+      if (!spec?.atTurnStart) continue;
+      let within = false;
+      try { within = region.testPoint(at); } catch { within = false; }
+      if (!within) continue;
+      // THE SAME FILTERS AS ON MOVEMENT (3.685.0, review).
+      if (entryClearedThisTurn(mover, region, turnKey)) continue;
+      if (spec.gate?.length && !entryGateHolds(spec, await gateFacts(mover))) continue;
+      if (spec.hostileOnly && !(await entryHostileHolds(raw, tokenDocument))) continue;
+      if (spec.oncePerRound && roundKey && !(await entryFirstThisRound(mover, region, roundKey))) continue;
+      await rollEntryCheckFor({ tokenDocument, mover, region, spec, raw, now: Number(game.time?.worldTime ?? 0), turnKey, atTurnStart: true });
+      rolled += 1;
+    }
+  } catch (error) {
+    console.error("TRG Prime | an entry check could not be rolled at the start of this turn", error);
+  }
+  return rolled;
+}
+
+/*
+ * THE FILTERS BOTH MOMENTS ASK (3.685.0, review: the start of a turn asked
+ * none of them). A Critical's "no further checks this turn"; a threshold that
+ * stops only the caster's enemies; "only the first time … each round", which
+ * spends the round's roll when it answers yes.
+ */
+function entryClearedThisTurn(mover, region, turnKey) {
+  const cleared = mover?.getFlag?.(SYSTEM_ID, CLEARED_FLAG) ?? null;
+  return Boolean(turnKey) && cleared?.region === region?.id && cleared?.turn === turnKey;
+}
+
+async function entryHostileHolds(raw, tokenDocument) {
+  const caster = raw?.casterUuid ? await fromUuid(raw.casterUuid).catch(() => null) : null;
+  const casterSide = Number(caster?.getActiveTokens?.()?.[0]?.document?.disposition ?? caster?.prototypeToken?.disposition ?? 1);
+  return Number(tokenDocument?.disposition ?? 0) !== casterSide;
+}
+
+async function entryFirstThisRound(mover, region, roundKey) {
+  const rolled = mover?.getFlag?.(SYSTEM_ID, ROLLED_FLAG) ?? {};
+  if (rolled[region.id] === roundKey) return false;
+  await mover.setFlag(SYSTEM_ID, ROLLED_FLAG, { ...rolled, [region.id]: roundKey });
+  return true;
 }
 
 /** Hook it up. Called from the system's ready hook beside the hazards. */

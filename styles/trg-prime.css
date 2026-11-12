@@ -640,6 +640,21 @@
     opacity: 0.8;
   }
 
+  /* THE ARCANIST'S LEVELLED BOOK (3.676.0): a sub-section inside the
+     archetype card. The sheet centres every h3, which under a
+     left-aligned eyebrow read as an indent; this one sits flush left
+     under its eyebrow, the way the card's own heading does. */
+  .trg-prime .archetype-book-heading {
+    margin-top: 10px;
+    border-top: 1px solid var(--trg-line, rgba(0, 0, 0, 0.15));
+    padding-top: 8px;
+  }
+  .trg-prime .archetype-book-heading h3 {
+    margin: 2px 0 0;
+    text-align: left;
+    color: var(--trg-ink);
+  }
+
   .trg-prime .section-heading h2 {
     display: flex;
     gap: 9px;
@@ -1864,8 +1879,22 @@
 
   .trg-prime .inventory-header,
   .trg-prime .inventory-row {
-    grid-template-columns: minmax(130px, 1.7fr) 0.7fr 0.7fr 0.6fr 78px;
+    /* THE CONTROLS NO LONGER SPILL OVER THE WEIGHT (3.684.9; Graham: "weight
+       does not actually show on the gear tab, it is hidden"). The controls
+       column was 78px — room for two buttons and a half — and a gear row
+       carries up to eight (equip, stow, light, hood, use, edit, delete…).
+       They overflowed leftwards across the Wt. column. The column is now
+       four buttons wide, and the buttons wrap onto a second line inside it
+       rather than leaving it. */
+    grid-template-columns: minmax(110px, 1.6fr) 0.6fr 0.6fr 0.55fr 118px;
     gap: 6px;
+  }
+
+  .trg-prime .inventory-row .item-controls {
+    flex-wrap: wrap;
+    row-gap: 2px;
+    min-width: 0;
+    overflow: hidden;
   }
 
   .trg-prime .magic-summary {
@@ -2023,6 +2052,19 @@
   .trg-prime .effect-row.disabled {
     filter: grayscale(0.65);
     opacity: 0.62;
+    /* AN INACTIVE EFFECT CAN BE SWITCHED BACK ON (3.684.9; Graham: "I did
+       make Mage Armour inactive but then the sheet would not allow me to
+       make it active again"). Foundry's own stylesheet gives any element
+       with the class "disabled" no pointer events at all, and the row is
+       marked "disabled" when its effect is — so the row's toggle, edit and
+       delete buttons stopped taking clicks the moment the effect was
+       switched off. Measured in Graham's world: the toggle's centre hit
+       the card behind it until this was set. */
+    pointer-events: auto;
+  }
+
+  .trg-prime .effect-row.disabled button {
+    pointer-events: auto;
   }
 
   .trg-prime .effect-toggle {

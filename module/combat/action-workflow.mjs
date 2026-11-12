@@ -28,7 +28,7 @@ import { applyRefocusOutcome, chooseRefocusTarget, restoreRefocusCompanion, choo
 import { rallyReduction } from "./rally.mjs";
 import { repairHPRestored } from "./repair.mjs";
 import {
-  consumePreparedReaction, preparableReactions, preparationCovers, preparedReaction,
+  consumePreparedReaction, isReactionCost, preparableReactions, preparationCovers, preparedReaction,
   promptPreparedReaction, storePreparedReaction
 } from "./prepare.mjs";
 import {
@@ -104,6 +104,7 @@ import {
   invokeRageResult,
   revokeRageResult,
   rageBlocksAction,
+  rageCastingActionAllowed,
   rageExtensionDifficulty,
   rageExtensionSucceeds
 } from "./rage.mjs";
@@ -112,6 +113,7 @@ import {
   canExtendRage,
   canInvokeRage,
   canRevokeRage,
+  castsWhileRaging,
   endRage,
   isRaging,
   markRageRideOut,
@@ -119,8 +121,8 @@ import {
   recordRageExtension
 } from "./rage-workflow.mjs";
 import { spendTemporaryHP } from "./temporary-hp.mjs";
-import { isArmableMovement } from "./movement.mjs";
-import { armMovementAction, armedMovementSummary, clearArmedMovement } from "./movement-workflow.mjs";
+import { armedHeaderCost, isArmableMovement } from "./movement.mjs";
+import { armMovementAction, armedMovementSummary, clearArmedMovement, lapseNextActionLeg, nextActionLegArmed } from "./movement-workflow.mjs";
 import { recordTraitUsage, traitGate, wordAftermathModifier } from "../traits-workflow.mjs";
 import { applyEscapeRoute } from "./escape.mjs";
 import { armCharge, chargeState } from "./charge-workflow.mjs";
@@ -159,6 +161,7 @@ import {
   ladderModifier,
   subsistModifiers,
   timeLadder,
+  featTimeLadder,
   identifyPowerLadderFor
 } from "../general-skill-options.mjs";
 import { hasTradeoffs, tradedApCost } from "../difficulty-tradeoffs.mjs";
@@ -1420,6 +1423,25 @@ function placeNotes(actor, action) {
   return out;
 }
 
+/**
+ * THE ACTION IS TAKEN (3.684.6; Agile Display). Graham, 5 November 2026: "A
+ * reaction should not affect it", and "Yes" to "Should an action that is
+ * refused or cancelled keep the Step?". So a leg that must be the next
+ * action lapses here, at each commit point of `resolveAction` — after every
+ * refusal and cancel — and never for a reaction-cost action or a readied
+ * one (Ready's reaction pays for it). See movement-workflow.mjs
+ * `lapseNextActionLeg`.
+ */
+async function basicActionTaken(actor, action, { readied = false } = {}) {
+  return lapseNextActionLeg(actor, { reaction: Boolean(readied) || isReactionCost(action) });
+}
+
+/** `spendActionCost`, at a commit point: the action is taken, then paid. */
+async function commitActionCost(actor, action, readied, apCost, actionName, opts) {
+  await basicActionTaken(actor, action, { readied });
+  return spendActionCost(actor, apCost, actionName, opts);
+}
+
 export async function resolveAction(actor, action, {
   invokedSkillKey: requestedSkillKey = null, event = null, readied = false,
   // ONE ROLL AGAINST SEVERAL CREATURES (3.669.0; Inner Tempest's Spirit Roar:
@@ -1437,7 +1459,11 @@ export async function resolveAction(actor, action, {
   // ANOTHER CHECK'S RESULT AS THIS ONE (3.670.0; Drunken Strike, B6-3):
   // with `presetDice`, that check's modifiers replace this one's, so the
   // total is that check's. See TRGCheck.
-  presetModifiers = null
+  presetModifiers = null,
+  // A DISPEL AIMED AT A SPELL BEING CAST (3.681.0; Eldritch Arts' Disrupting
+  // Magic, Q23 and Q33): `{ effectValue, dc, what }`, the incoming spell's PP
+  // and DC, opened in the Dispel dialog for the reactor to declare their PP.
+  presetDispel = null
 } = {}) {
   // Same fix as promptTrackQuarry above: two dialogs in this function used
   // DialogV2 without binding it.
@@ -1605,7 +1631,10 @@ export async function resolveAction(actor, action, {
 
   // An armed movement action survives only until you do something else,
   // exactly as Aim's accrued bonus does just above.
-  if (!isArmableMovement(action.key)) {
+  // BUT NOT A LEG THAT MUST BE THE NEXT ACTION (3.684.6; Agile Display): it
+  // stays armed through a refusal, a cancel and a reaction, and lapses where
+  // the action is taken (`basicActionTaken`). Aim is unchanged.
+  if (!isArmableMovement(action.key) && !nextActionLegArmed(actor)) {
     await clearArmedMovement(actor);
   }
 
@@ -1625,7 +1654,11 @@ export async function resolveAction(actor, action, {
         (e) => !e.disabled && e.getFlag?.(SYSTEM_ID, "momentOfClarity")
       );
       const concentrateRule = /concentrate/i.test(blocked.reason);
-      if (!(clarityActive && concentrateRule)) {
+      // CASTING WHILE RAGING (3.684.0; Eldritch Arts' Birthrager, G10, Q104):
+      // the Concentrate actions that are part of casting or sustaining a
+      // spell — Sustain a Spell — and no other. See rage.mjs.
+      const castingAction = rageCastingActionAllowed(action, blocked, Boolean(castsWhileRaging(actor)));
+      if (!(clarityActive && concentrateRule) && !castingAction) {
         ui.notifications.warn(`${action.name}: ${blocked.reason}.`);
         return null;
       }
@@ -2067,7 +2100,12 @@ export async function resolveAction(actor, action, {
         if (!jumpSetup.freeAction) {
           const leapCost = leapApCost(action.apCost);
           if (!(await ensureActionPoints(actor, leapCost, action.name, { traits: action.traits }))) return null;
-          await spendActionCost(actor, leapCost, action.name, { traits: action.traits });
+          await commitActionCost(actor, action, readied, leapCost, action.name, { traits: action.traits });
+        } else {
+          // THE JUMP THAT NEEDS NO ACTION STILL TAKES THE STEP'S PLACE (3.684.7).
+          // Graham, 6 November 2026, asked whether it should remove Agile
+          // Display's Step: "Yes".
+          await basicActionTaken(actor, action, { readied });
         }
         await postCard(actor, action.name, [line(naturalLeaperLine(jumpSetup))]);
         return null;
@@ -2095,13 +2133,55 @@ export async function resolveAction(actor, action, {
     // A HAUNT'S COUNTERACT (3.629.0): "Counteract Level: the haunt's Level.
     // Counteract DC: the haunt's Level DC" — the dialog opens on both.
     const { perilDispelDefaults } = await import("../peril-workflow.mjs");
+    // A MODULE'S DISPEL MODIFIERS (3.683.0; Eldritch Arts Block 5, D10, C9):
+    // asked here, so the prompt can offer them. A COUNTER is a Dispel aimed at
+    // a spell being cast — `presetDispel` (Disrupting Magic) or Counter Spell's
+    // free Dispel. A Focus modifier whose use is spent is shown, struck out.
+    // With none registered the prompt is the one it always was.
+    const { offeredDispelModifiers, appliedDispelOffers, combinedDispelModifiers, dispelActionWithLadder, plainCopy } = await import("./dispel-modifiers.mjs");
+    const counterSpell = presetDispel ? presetDispel.counterSpell !== false : Boolean(action.counterSpell);
+    const dispelOffers = await offeredDispelModifiers({
+      actor, target: presetDispel ? null : firstTargetActor(), effect: String(presetDispel?.what ?? ""),
+      declaredPP: null, counterSpell, presetDispel
+    });
+    if (dispelOffers.some((o) => o.focus)) {
+      const { itemUsesRemaining } = await import("../uses-workflow.mjs");
+      for (const offer of dispelOffers) {
+        if (!offer.focus) continue;
+        const item = actor.items?.get?.(offer.focusItemId) ?? null;
+        const left = item ? itemUsesRemaining(item) : 0;
+        if (!item) offer.unavailable = "its item is not on this sheet";
+        else if (left !== null && !(left > 0)) offer.unavailable = "its Focus use is spent — Refocus restores it";
+      }
+    }
     const declared = await promptDispel(
       maxPPPerCast(Number(actor.system?.magic?.casterLevelValue ?? 0)),
       Number(actor.system?.resources?.pp?.value ?? 0),
-      perilDispelDefaults(firstTargetActor()) ?? {}
+      {
+        ...(presetDispel
+          ? { level: Math.max(0, Math.trunc(Number(presetDispel.effectValue) || 0)), dc: Math.max(0, Math.trunc(Number(presetDispel.dc) || 0)) }
+          : perilDispelDefaults(firstTargetActor()) ?? {}),
+        offers: dispelOffers
+      }
     );
     if (declared === undefined) return null;
-    dispelSetup = declared;
+    // PLAIN DATA, merged into the setup a resumed card stores: what applied,
+    // and the counter's caster and spell by uuid (see `pendingOutcomeContext`).
+    const applied = appliedDispelOffers(dispelOffers, declared.taken ?? []);
+    dispelSetup = {
+      ...declared,
+      ...combinedDispelModifiers(applied),
+      counterSpell,
+      what: String(presetDispel?.what ?? ""),
+      casterUuid: String(presetDispel?.casterUuid ?? ""),
+      spellUuid: String(presetDispel?.spellUuid ?? ""),
+      // The counter's own request, as data, for the riders. A copy that
+      // survives being stored: anything that is not plain data is dropped.
+      preset: plainCopy(presetDispel)
+    };
+    // AN OWN LADDER (Dispel Power, Q84) replaces Dispel's results for this
+    // roll: the banner and the card read the action's rows.
+    action = dispelActionWithLadder(action, dispelSetup);
   }
 
   // RECHARGE ITEM (Chapter 4, page 91). "A skill check with the DC based
@@ -2210,7 +2290,7 @@ export async function resolveAction(actor, action, {
     // moving, which is the whole reason the book makes this a failure
     // rather than a refusal.
     if (pickPocketSetup.autoFail) {
-      await spendActionCost(actor, action.apCost, action.name, { traits: action.traits });
+      await commitActionCost(actor, action, readied, action.apCost, action.name, { traits: action.traits });
       await postCard(actor, action.name, [
         line(`<strong>The attempt automatically fails</strong> — ${pickPocketSetup.autoFail}.`),
         line("<em>Page 96: your check automatically fails if the creature you are stealing from is in combat or on guard.</em>")
@@ -2255,7 +2335,10 @@ export async function resolveAction(actor, action, {
     return improvisedAttack(actor, { event });
   }
 
-  const targetActor = firstTargetActor();
+  // A DISPEL AIMED AT A SPELL BEING CAST (3.681.0; Disrupting Magic, found in
+  // review) is aimed at that spell, not at whatever the reactor happens to
+  // have targeted: no peril's DC, refusal or banked counteract from it.
+  const targetActor = presetDispel ? null : firstTargetActor();
   // A MODULE MAY REFUSE AN ATTEMPT (3.630.0) — Pillars of Faith's Perform
   // Last Rites on a corpse whose rites were botched: "You cannot attempt
   // Last Rites on the corpse again until the error has been identified."
@@ -2428,6 +2511,9 @@ export async function resolveAction(actor, action, {
       // tiers. Swapping was never a printed rule; ending is, and a player
       // who wants the other tier can end and take it again.
       if (activeTakeCover(actor)) {
+        // A FREE ACTION TAKEN (3.684.6, found in review): Agile Display's
+        // Step goes, as with any other.
+        await basicActionTaken(actor, action, { readied });
         await endTakeCover(actor);
         await postCard(actor, action.name, [
           ...headerLines(action),
@@ -2484,6 +2570,7 @@ export async function resolveAction(actor, action, {
       }
 
       if (isActorDelayed(game.combat, actor)) {
+        await basicActionTaken(actor, action, { readied });
         await returnFromDelay(game.combat, combatant);
         return postCard(actor, "Delay — Return", [
           line(`${actor.name} returns to the initiative order and acts now.`)
@@ -2494,6 +2581,7 @@ export async function resolveAction(actor, action, {
         ui.notifications.warn("You can only choose to Delay on your own turn.");
         return null;
       }
+      await basicActionTaken(actor, action, { readied });
       await enterDelay(game.combat, combatant);
       return postCard(actor, "Delay", [
         line(`${actor.name} delays, removing themselves from the initiative order for now.`),
@@ -2589,7 +2677,7 @@ export async function resolveAction(actor, action, {
       // 2 AP and charged nothing — found live testing 3.645.0 — so a
       // character could spend all three AP and Ready besides.
       if (!(await ensureActionPoints(actor, action.apCost, action.name, { traits: action.traits }))) return null;
-      await spendActionCost(actor, action.apCost, action.name, { traits: action.traits });
+      await commitActionCost(actor, action, readied, action.apCost, action.name, { traits: action.traits });
       await readyActionAndEndTurn(actor, game.combat, choice);
       const readiedLabel = choice.kind === "spell" ? "a spell (2 AP or less)" : "an action";
       return postCard(actor, "Ready", [
@@ -2602,12 +2690,16 @@ export async function resolveAction(actor, action, {
     // check and a target to read, so it has its own resolution rather
     // than a card describing itself.
     if (action.key === "alignedControl") {
-      return resolveAlignedControl(actor, action);
+      const controlled = await resolveAlignedControl(actor, action);
+      if (controlled) await basicActionTaken(actor, action, { readied });
+      return controlled;
     }
     // SENSE ALIGNED (3.632.0, ruling 14) — see aligned-sense-workflow.mjs.
     if (action.key === "senseAligned") {
       const { resolveSenseAligned } = await import("../aligned-sense-workflow.mjs");
-      return resolveSenseAligned(actor, action);
+      const sensed = await resolveSenseAligned(actor, action);
+      if (sensed) await basicActionTaken(actor, action, { readied });
+      return sensed;
     }
 
     // DOUBLE SLICE (Chapter 4). Two Strikes whose results depend on each
@@ -2616,7 +2708,7 @@ export async function resolveAction(actor, action, {
     // describes two attacks the player then makes by hand.
     if (action.key === "doubleSlice") {
       if (!(await ensureActionPoints(actor, action.apCost, action.name, { traits: action.traits }))) return null;
-      await spendActionCost(actor, action.apCost, action.name, { traits: action.traits });
+      await commitActionCost(actor, action, readied, action.apCost, action.name, { traits: action.traits });
       await recordTraitUsage(actor, action);
       {
         // A REAL BINDING, NOT MEMBER ACCESS ON THE IMPORT. The first draft
@@ -2738,10 +2830,15 @@ export async function resolveAction(actor, action, {
         chargeStart = await armCharge(actor, chargerToken.document ?? chargerToken, targetToken.document ?? targetToken);
       }
 
+      // ARMING IT IS TAKING IT (3.684.6): the Step's leg goes, with its notice.
+      await basicActionTaken(actor, action, { readied });
       await armMovementAction(actor, action.key);
       const armed = armedMovementSummary(actor);
       return postCard(actor, action.name, [
-        ...headerLines(action),
+        // THE COST THIS CHARACTER PAYS (3.684.8; found in the 3.684.7 live
+        // test): a Sudden Charger's header read "3 AP" over an Armed line and
+        // a spend of 2. Only a reduced cost replaces the printed one.
+        ...headerLines(action, armedHeaderCost(action.apCost, armed?.apCost)),
         line(action.description ?? ""),
         line(
           `<strong>Armed.</strong> Your next move is a ${armed.name}` +
@@ -2761,7 +2858,7 @@ export async function resolveAction(actor, action, {
 
     if (!(await ensureActionPoints(actor, action.apCost, action.name, { traits: action.traits }))) return null;
     if (preparedPaysFor) await consumePreparedReaction(actor, action.key);
-    else await spendActionCost(actor, action.apCost, action.name, { traits: action.traits });
+    else await commitActionCost(actor, action, readied, action.apCost, action.name, { traits: action.traits });
     await recordTraitUsage(actor, action);
     {
       // A REAL BINDING — see the doubleSlice commit point above. This
@@ -2954,6 +3051,30 @@ export async function resolveAction(actor, action, {
     actor.system
   );
 
+  // A MODULE ACTION'S OWN DC (3.678.0; Eldritch Arts Block 2): Tap Ley Line's
+  // "Hard (+2) DC check based upon the ley lines level" — the DC is the
+  // level of a line on the map, which neither a target nor a fixed number
+  // can say. `resolveDC({ actor, targetActor })` returns `{ dc, label }`, or
+  // `{ refused }` to stop before anything is rolled or spent (no line in
+  // range), or null to leave the DC as resolved above.
+  if (typeof action.resolveDC === "function") {
+    let own = null;
+    try {
+      own = await action.resolveDC({ actor, targetActor });
+    } catch (err) {
+      console.error(`TRG Prime | ${action.name}: the module's DC failed`, err);
+    }
+    if (own?.refused) {
+      ui.notifications.warn(`${action.name}: ${own.refused}`);
+      return null;
+    }
+    if (Number.isFinite(Number(own?.dc))) {
+      resolved.dc = Number(own.dc);
+      resolved.label = String(own.label ?? resolved.label);
+      resolved.missingTarget = false;
+    }
+  }
+
   // A PERIL TARGETED BY A DISABLING ACTION (3.620.0; Chapter 12, Graham's
   // R17): "The specific skill and corresponding DC required to disable a
   // peril are indicated in its stat block." Its Disable DC, and only its
@@ -2992,15 +3113,21 @@ export async function resolveAction(actor, action, {
   // with the DC rows below, applied to the roll's bias further down.
   let defenceDisadvantages = [];
   if (targetActor && resolved.dc !== null) {
+    // AN ACTION AGAINST A CREATURE SAYS SO (3.684.0, G20 — review): a Shove or
+    // a Trip meets `attackKinds: ["action"]` rows, and never a "weapon" or
+    // "spell" one; a row naming no kind meets it as before.
     const defence = defenceDCBonus(
       targetActor, action.against, action.key,
-      creatureTypesOf(actor?.system ?? {}), actor?.uuid ?? "", [], creatureTraits(actor?.system ?? {}));
-    if (defence.total) {
+      creatureTypesOf(actor?.system ?? {}), actor?.uuid ?? "", [], creatureTraits(actor?.system ?? {}), { attackKind: "action" });
+    // A ROW THAT DID NOT STACK (3.684.1) is still listed, and says so: a
+    // status bonus under a higher one moves no DC — see defence-dc.mjs.
+    if (defence.total || defence.notCounted?.length) {
       resolved.dc += defence.total;
       for (const entry of defence.entries) {
+        const lost = defence.notCounted?.find((n) => n.entry === entry);
         defenceDCLines.push(
           `<em>${targetActor.name}: ${entry.label} ${entry.value > 0 ? "+" : ""}${
-            entry.value} to ${resolved.label}${entry.scope ? ` — ${entry.scope}` : ""}.</em>`
+            entry.value} to ${resolved.label}${entry.scope ? ` — ${entry.scope}` : ""}${lost ? ` (not counted: ${lost.reason.toLowerCase()})` : ""}.</em>`
         );
       }
     }
@@ -3209,6 +3336,10 @@ export async function resolveAction(actor, action, {
     action.key === "extendRage"
       ? rageExtensionDifficulty(rageExtensionsUsed(actor))
       : action.difficulty ?? "medium";
+  // A DISPEL MODIFIER'S DIFFICULTY (3.683.0, C9): Dispel Power's "more
+  // difficult than making a normal Dispel action and has a Very Hard (DC +5)
+  // difficulty". The default the dialog opens on, as Extend Rage's step is.
+  if (action.key === "dispel" && dispelSetup?.difficulty) actionDifficulty = dispelSetup.difficulty;
 
   // Ambush and Sniping: "the difficulty decreases by one step for each
   // size category larger than you the target is." Stated in both
@@ -3642,7 +3773,8 @@ export async function resolveAction(actor, action, {
   // same table; picking the ladder for the prompt and the modifier
   // separately is how a player gets charged for a rung they did not pick.
   // A module action may declare its own (3.666.0) — see declaredTimeLadder.
-  const baseLadder = skipDialog(event) ? null : timeLadder(action.key, action);
+  // A FEAT'S OWN LADDER FOR A MODULE ACTION (3.675.0, C5): Focused Ley Sense.
+  const baseLadder = skipDialog(event) ? null : (featTimeLadder(action, actorFeatNames) ?? timeLadder(action.key, action));
   const actionLadder = (baseLadder && action.key === "identifyPower")
     ? identifyPowerLadderFor(baseLadder, actorFeatNames)
     : baseLadder;
@@ -3712,7 +3844,9 @@ export async function resolveAction(actor, action, {
   }
 
   const dispelRows = [];
-  if (dispelSetup && dispelSetup.effectValue > 0) {
+  // A REPLACED PP (3.683.0, C9) is compared in its own block below.
+  const dispelReplaced = dispelSetup?.ppReplace !== null && dispelSetup?.ppReplace !== undefined;
+  if (dispelSetup && dispelSetup.effectValue > 0 && !dispelReplaced) {
     const value = counteractModifier(dispelSetup.pp, dispelSetup.effectValue);
     if (value) {
       dispelRows.push({
@@ -3720,6 +3854,29 @@ export async function resolveAction(actor, action, {
         value,
         type: "circumstance"
       });
+    }
+  }
+  // THE VALUE A REPLACEMENT COMPARES (3.683.0, C9): Dispel Power's "You
+  // replace the PP cost with your caster level", compared as Dispel compares,
+  // ±2 a step (Q84). The PP declared plays no part.
+  if (dispelSetup && dispelSetup.effectValue > 0 && dispelReplaced) {
+    const { dispelCounteractValue } = await import("./dispel-modifiers.mjs");
+    const acting = dispelCounteractValue(dispelSetup);
+    const value = counteractModifier(acting, dispelSetup.effectValue);
+    if (value) {
+      dispelRows.push({
+        label: `Counteract (${acting}, ${(dispelSetup.modifierLabels ?? []).join(", ") || "in place of PP"}, vs ${dispelSetup.effectValue})`,
+        value,
+        type: "circumstance"
+      });
+    }
+  }
+  // A MODIFIER'S OWN ROWS (3.683.0, C9): Threadbreaker's Precision's "+2
+  // racial bonus to the Dispel check" (Q67). Typed as answered, so they stack
+  // as their types do.
+  if (dispelSetup && Array.isArray(dispelSetup.modifiers)) {
+    for (const row of dispelSetup.modifiers) {
+      if (Number(row?.value)) dispelRows.push({ label: String(row.label ?? "Dispel"), value: Math.trunc(Number(row.value)), type: String(row.type || "untyped") });
     }
   }
 
@@ -3794,7 +3951,9 @@ export async function resolveAction(actor, action, {
     bias: rollBiasWith(tracklessBias(situational?.bias, tracklessQuarry), [
       ...(actionAttackTerms?.advantage ? ["advantage"] : []),
       ...(defenceDisadvantages.length ? ["disadvantage"] : []),
-      ...(firstAdvantage ? ["advantage"] : [])
+      ...(firstAdvantage ? ["advantage"] : []),
+      // A DISPEL MODIFIER'S BIAS (3.685.0): Eaog Balls' "made with disadvantage".
+      ...(action.key === "dispel" && Array.isArray(dispelSetup?.biases) ? dispelSetup.biases : [])
     ]),
     // SECRET (Appendix 3): "the GM rolls the check in secret." Forced
     // rather than defaulted — a Secret check the player can read isn't
@@ -3896,7 +4055,10 @@ export async function resolveAction(actor, action, {
   if (!defersApCost) {
     if (!(await ensureActionPoints(actor, effectiveApCost, action.name, { traits: action.traits }))) return null;
     if (preparedPaysFor) await consumePreparedReaction(actor, action.key);
-    else await spendActionCost(actor, effectiveApCost, action.name, { traits: action.traits });
+    else await commitActionCost(actor, action, readied, effectiveApCost, action.name, { traits: action.traits });
+  } else {
+    // A RAGE ACTION PAYS ON ITS RESULT, but is taken here, at the roll.
+    await basicActionTaken(actor, action, { readied });
   }
 
   // BORN TO RIDE'S allowance is spent HERE, at the point of commitment —
@@ -4074,7 +4236,8 @@ export async function resolveAction(actor, action, {
     checkMargin: check.outcome?.margin ?? null,
     checkTotal: check.outcome?.total ?? null,
     lines,
-    ctx: outcomeContext
+    ctx: outcomeContext,
+    check
   });
 
   return check;
@@ -4142,7 +4305,10 @@ export async function resolveAction(actor, action, {
  * also means the `applied` guard cannot be walked around.
  */
 async function applyActionOutcome({
-  actor, action, rawDegree = null, checkMargin = null, checkTotal = null, lines = [], ctx = {}
+  actor, action, rawDegree = null, checkMargin = null, checkTotal = null, lines = [], ctx = {},
+  // THE ROLL ITSELF, for a Dispel modifier's rider (3.683.0, C9). Null on a
+  // card resumed by the GM's DC, which has no live check to hand on.
+  check = null
 } = {}) {
   const {
     invokedSkillKey = null,
@@ -4169,6 +4335,13 @@ async function applyActionOutcome({
     coverTracksCount = null,
     ignoreActionImmunity = false
   } = ctx ?? {};
+  // A DISPEL MODIFIER'S OWN LADDER (3.683.0, C9), read from the stored setup:
+  // a resumed card rebuilds the action from the table, which knows nothing
+  // of Dispel Power's rows. Before anything reads the action's outcomes.
+  const isDispel = action?.key === "dispel" && Boolean(dispelSetup);
+  const { dispelActionWithLadder, dispelPPPaid, dispelResultRiders, dispelCountered, dispelCounteractValue } =
+    isDispel ? await import("./dispel-modifiers.mjs") : {};
+  if (isDispel) action = dispelActionWithLadder(action, dispelSetup);
   // Re-derived rather than passed: it is a class reference, not state.
   const { DialogV2 } = foundry.applications.api;
   // THE CREATE PROJECT'S ITEM TYPE, for the ruined-herb line below (F4).
@@ -4309,9 +4482,26 @@ async function applyActionOutcome({
     let ppCost = 0;
     let ppLabel = "";
     if (action.key === "dispel" && dispelSetup) {
-      const halved = degree === "critical" || degree === "partial";
-      ppCost = halved ? Math.ceil(dispelSetup.pp / 2) : dispelSetup.pp;
-      ppLabel = halved ? `Dispel — half of ${dispelSetup.pp}` : "Dispel";
+      // THE RULE MOVED TO combat/dispel-modifiers.mjs (3.683.0, C9), unchanged
+      // for a Dispel no modifier touched: half on a Critical or a Partial,
+      // rounded up. A module's factor, reduction or replacement is read there
+      // (Q63, Q84; Runebreaker's "2 PP less (min 1)").
+      const paidFor = dispelPPPaid(degree, dispelSetup);
+      ppCost = paidFor.pp;
+      ppLabel = paidFor.label;
+      // A FOCUS USE SPENT WITH THE PP (C9): Dispel Power's Focus trait. After
+      // the roll, as the PP is, so an attempt abandoned in a dialog costs
+      // nothing; from the pool's owner, as every use is.
+      if (Array.isArray(dispelSetup.focusItemIds) && dispelSetup.focusItemIds.length) {
+        const { itemUsesRemaining, usesPoolItem } = await import("../uses-workflow.mjs");
+        for (const id of dispelSetup.focusItemIds) {
+          const item = actor.items?.get?.(id) ?? null;
+          const left = item ? itemUsesRemaining(item) : null;
+          if (!item || !Number.isFinite(left)) continue;
+          await (usesPoolItem(item) ?? item).update({ "system.usesValue": Math.max(0, left - 1) });
+          lines.push(line(`<em>${item.name}: its Focus use is spent.</em>`));
+        }
+      }
     }
     else if (Number(action.ppCost) > 0) {
       ppCost = Number(action.ppCost);
@@ -5624,7 +5814,7 @@ async function applyActionOutcome({
           ? ` <em>(short by ${result.paid.shortfallGP} gp — nothing deducted, settle it with your GM)</em>`
           : "";
         lines.push(
-          line(`<strong>${result.spellName}</strong> learned and added to your Spell Library — ${spentText}.${shortText}`)
+          line(`<strong>${result.spellName}</strong> learned and added to ${result.bookLabel ?? "your Spell Library"} — ${spentText}.${shortText}`)
         );
       } else {
         const materialsText =
@@ -5659,7 +5849,42 @@ async function applyActionOutcome({
   // Interpret Haunt whispers the haunt's Trigger to the GM on a Success.
   // Called after the card, with the rolled degree.
   // AND THE TOTAL (3.630.0): Conceal Faith's "the result becomes the DC".
-  Hooks.callAll("trgPrimeActionResolved", { actor, action, degree: rawDegree ?? degree, targetActor, invokedSkillKey, total: checkTotal });
+  // AND THE DEGREE THE CARD RESOLVED (3.683.0; Eldritch Arts Block 5, C10):
+  // `degree` stays the raw one the dice produced, as modules have read it
+  // since 3.629.0; `resolvedDegree` is the one the card printed, after
+  // Shadowborn Agility, a module's `registerDegreeUpgrades`, a helpful
+  // animal, a day's first and the action's declared rungs. Channel Siphoner:
+  // "When you attempt a Tap Magical Energy … check, treat a Partial result as
+  // a Success". Registered as an upgrade, the card said Success while the
+  // module, reading `degree`, siphoned the Partial's PP.
+  Hooks.callAll("trgPrimeActionResolved", { actor, action, degree: rawDegree ?? degree, resolvedDegree: degree, targetActor, invokedSkillKey, total: checkTotal });
+  // A DISPEL MODIFIER'S RIDER (3.683.0; Eldritch Arts Block 5, D10, C9), after
+  // the outcome card as the hook is, for each modifier that applied:
+  // Threadbreaker's Precision's "if you successfully counter a spell, the
+  // caster is also Dazed 1" (Q67), Mirrored Rebuke's reflection on a Success
+  // (Q85). Its lines, if any, are a card of their own, below the outcome's.
+  if (isDispel && degree && (dispelSetup.modifierKeys ?? []).length) {
+    const byUuid = async (uuid) => (uuid ? await fromUuid(uuid).catch(() => null) : null);
+    const riderLines = await dispelResultRiders({
+      actor, degree, rawDegree,
+      countered: dispelCountered(dispelSetup.counterSpell, degree),
+      counterSpell: Boolean(dispelSetup.counterSpell),
+      target: targetActor,
+      targetCaster: await byUuid(dispelSetup.casterUuid),
+      spell: await byUuid(dispelSetup.spellUuid),
+      effect: String(dispelSetup.what ?? ""),
+      check, total: checkTotal,
+      presetDispel: dispelSetup.preset ?? null,
+      dispel: {
+        declaredPP: Number(dispelSetup.pp) || 0,
+        paidPP: dispelPPPaid(degree, dispelSetup).pp,
+        counteractValue: dispelCounteractValue(dispelSetup),
+        effectValue: Number(dispelSetup.effectValue) || 0,
+        dc: dispelSetup.dc ?? null
+      }
+    }, dispelSetup.modifierKeys);
+    if (riderLines.length) await postCard(actor, `${action.name} — ${(dispelSetup.modifierLabels ?? []).join(", ")}`, riderLines.map((t) => line(t)));
+  }
   return { lines, degree };
 }
 

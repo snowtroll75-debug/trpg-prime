@@ -93,6 +93,11 @@ export const RELAY_ACTIONS = Object.freeze({
   // master is the target; the GM's client creates the companion actor bound
   // to it, and the asker, who owns it, goes on to fill it.
   COMPANION: "target.companion",
+  // AN EFFECT COUNTERACTED ON SOMEBODY ELSE'S CREATURE (3.686.0; Block 8a
+  // review): Remove Curse cast by a player on the GM's NPC. The payload names
+  // the effect and the row's traits; the GM's client re-reads the effect's
+  // own traits and deletes it only when the row could reach it.
+  COUNTERACT: "target.counteract",
   RESULT: "target.result",
   // "I HAVE IT, AND IT MAY TAKE A WHILE" (3.673.0). Sent by the GM's client
   // the moment it takes a request, before carrying it out. A request that
@@ -133,8 +138,12 @@ export const RELAY_WORKING_TIMEOUT_MS = 90000;
  * @param {{id: string}|null} activeGM
  * @returns {boolean}
  */
-export function shouldHandleAsGM(user, activeGM) {
+export function shouldHandleAsGM(user, activeGM, connectionWriter = true) {
   if (!user?.isGM) return false;
+  // ONE CONNECTION OF THAT GM (3.686.2): every tab of the designated GM
+  // receives the request, so only the elected one (gm-connection.mjs)
+  // carries it out. Defaults to true so the pure two-argument contract holds.
+  if (connectionWriter === false) return false;
   // No designated GM: act anyway. A duplicated application is visible and
   // reversible; damage that silently never lands is neither.
   if (!activeGM?.id) return true;
@@ -470,6 +479,11 @@ export async function performRelay(request, deps) {
       const created = await deps.createCompanion(payload.data);
       return created ? { ok: true, result: { id: created.id } } : { ok: false, reason: "the companion could not be created" };
     }
+    case RELAY_ACTIONS.COUNTERACT: {
+      const traits = Array.isArray(payload.traits) ? payload.traits.map((t) => String(t)) : [];
+      const removed = await deps.counteractEffect(target, String(payload.effectId ?? ""), traits);
+      return removed ? { ok: true, result: true } : { ok: false, reason: "that effect is not one this counteract can reach" };
+    }
     case RELAY_ACTIONS.ONE_ATTACK: {
       const event = {
         kind: String(payload.event?.kind ?? ""),
@@ -491,11 +505,11 @@ export async function performRelay(request, deps) {
  * party relay, so every client receives both kinds and each handler must
  * mind its own.
  */
-export async function handleRelayMessage(data, { user, activeGM, deps }) {
+export async function handleRelayMessage(data, { user, activeGM, deps, connectionWriter = true }) {
   const action = data?.action ?? "";
   if (!action.startsWith("target.")) return { handled: false, reason: "not a target relay message" };
   if (action === RELAY_ACTIONS.RESULT || action === RELAY_ACTIONS.WORKING) return { handled: false, reason: "a reply, not a request" };
-  if (!shouldHandleAsGM(user, activeGM)) return { handled: false, reason: "another GM is handling it" };
+  if (!shouldHandleAsGM(user, activeGM, connectionWriter)) return { handled: false, reason: "another GM is handling it" };
   // TAKEN (3.673.0): the asker now waits for the answer, however long the
   // request takes, rather than its first eight seconds.
   deps.acknowledge?.({ action: RELAY_ACTIONS.WORKING, requestId: data.requestId, userId: data.userId });

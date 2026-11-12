@@ -14,7 +14,7 @@
  */
 
 import { SUSTAIN_AP_COST, SUSTAIN_TRAITS, resolveSustainTarget, sustainRefusal } from "./sustain.mjs";
-import { endActiveSpell, getActiveSpells, recordSustainDues, sustainActiveSpell } from "./active-spells.mjs";
+import { endActiveSpell, getActiveSpells, recordSustainDues, sustainActiveSpell, sustainerOf } from "./active-spells.mjs";
 import { duesLine, heldLabel, roundsHeld, sustainDues } from "./sustain-clock.mjs";
 import { hitPointsLost } from "./pending-cast.mjs";
 import { growthRefusal } from "./emanation-growth.mjs";
@@ -24,6 +24,7 @@ import {
 } from "./sustain-choice.mjs";
 import { ensureActionPoints, spendActionCost } from "../combat/action-points-workflow.mjs";
 
+const SYSTEM_ID = "trg-prime";
 
 /** Which of several running spells to sustain. */
 async function promptSustainChoice(actor, candidates) {
@@ -368,17 +369,99 @@ export async function sustainSpellAction(actor, { spellId = null } = {}) {
  * R9 wrote the rule and then hand-rolled it in the hook.
  */
 export function registerSustainInterruptHooks() {
+  registerSustainerIndexHooks();
   Hooks.on("preUpdateActor", (actor, changed) => {
     const after = changed?.system?.resources?.hp?.value;
     if (after === undefined) return;
     if (!hitPointsLost(actor.system?.resources?.hp?.value, after)) return;
-    const threatened = getActiveSpells(actor).filter((entry) => entry?.sustained);
-    if (!threatened.length) return;
+    // A SPELL ANOTHER CREATURE SUSTAINS (3.684.0; Eldritch Arts Block 6, G24)
+    // is not threatened by the caster's hurt, but by the sustainer's: Graham's
+    // Q137, "damage to the familiar asks the check". See active-spells.mjs.
+    const threatened = getActiveSpells(actor).filter((entry) => entry?.sustained && !sustainerOf(entry));
+    const held = heldForOthersBy(actor);
+    if (!threatened.length && !held.length) return;
     // AFTER THE UPDATE LANDS, like R9's: this is a `preUpdate` hook, and
     // prompting from inside it would open a dialog against hit points
     // that have not been written yet.
-    globalThis.setTimeout(() => { interruptSustained(actor, threatened); }, 0);
+    globalThis.setTimeout(() => {
+      if (threatened.length) interruptSustained(actor, threatened);
+      for (const { caster, entries } of held) interruptSustained(caster, entries);
+    }, 0);
   });
+}
+
+/** Every actor in the world or on the scene, once each (by uuid). */
+function worldAndSceneActors() {
+  const casters = new Map();
+  for (const a of Array.from(globalThis.game?.actors ?? [])) casters.set(a.uuid, a);
+  for (const t of Array.from(globalThis.canvas?.tokens?.placeables ?? [])) if (t?.actor) casters.set(t.actor.uuid, t.actor);
+  return casters;
+}
+
+/*
+ * WHO SUSTAINS ANYTHING, KEPT AS AN INDEX (3.684.0; Eldritch Arts Block 6,
+ * G24 — review, Low). The HP hook above runs on every hit-point loss in every
+ * world, and `heldForOthersBy` walked every actor and every token's active
+ * spells each time — for a feature (a familiar holding its Witch's spell)
+ * that almost no world uses. The uuids named by any entry's `sustainedBy`
+ * are worked out once and kept until an active-spell list, an actor or a
+ * token changes (the hooks below), so an ordinary blow costs one Set lookup.
+ */
+let sustainerIndex = null;
+
+/** The uuids some caster's sustained entry names as its sustainer. */
+export function knownSustainers() {
+  if (sustainerIndex) return sustainerIndex;
+  const out = new Set();
+  for (const caster of worldAndSceneActors().values()) {
+    for (const e of getActiveSpells(caster)) {
+      const by = e?.sustained ? sustainerOf(e)?.uuid : "";
+      if (by) out.add(by);
+    }
+  }
+  sustainerIndex = out;
+  return out;
+}
+
+/** Forget the index: the next HP loss works it out afresh. */
+export function invalidateSustainerIndex() {
+  sustainerIndex = null;
+}
+
+/** Whether an actor/token update could change who sustains what. */
+function touchesActiveSpells(changed) {
+  const ours = changed?.flags?.[SYSTEM_ID] ?? changed?.delta?.flags?.[SYSTEM_ID] ?? null;
+  if (ours && ("activeSpells" in ours || "-=activeSpells" in ours)) return true;
+  return Boolean(changed?.flags?.["-=" + SYSTEM_ID] || changed?.delta?.flags?.["-=" + SYSTEM_ID] || changed?.actorLink !== undefined || changed?.actorId !== undefined);
+}
+
+function registerSustainerIndexHooks() {
+  Hooks.on("updateActor", (_actor, changed) => { if (touchesActiveSpells(changed)) invalidateSustainerIndex(); });
+  Hooks.on("updateToken", (_token, changed) => { if (touchesActiveSpells(changed)) invalidateSustainerIndex(); });
+  for (const hook of ["createActor", "deleteActor", "createToken", "deleteToken", "canvasReady"]) {
+    Hooks.on(hook, () => invalidateSustainerIndex());
+  }
+}
+
+/**
+ * The spells this creature holds for its casters (3.684.0, G24): each caster
+ * in the world or on the scene with an entry naming it as the sustainer.
+ * Exported for the harness.
+ * @returns {Array<{caster: Actor, entries: object[]}>}
+ */
+export function heldForOthersBy(sustainer) {
+  const uuid = String(sustainer?.uuid ?? "");
+  if (!uuid) return [];
+  // NOT A SUSTAINER: nothing to walk (the index, above).
+  if (!knownSustainers().has(uuid)) return [];
+  const casters = worldAndSceneActors();
+  const out = [];
+  for (const caster of casters.values()) {
+    if (caster === sustainer) continue;
+    const entries = getActiveSpells(caster).filter((e) => e?.sustained && sustainerOf(e)?.uuid === uuid);
+    if (entries.length) out.push({ caster, entries });
+  }
+  return out;
 }
 
 /**

@@ -157,7 +157,7 @@ ok("B22 Monstrous Grab / Knockdown: no MAP on the declared actions", /if \(count
 ok("B23 Fearful Strength swaps the skill's ability when Strength is higher", /const swap = abilitySwaps\.get\(key\);/.test(src.actor) && /skill\.ability = swap;/.test(src.actor));
 ok("B24 a kill, a cast and a secondary hit are announced, and the Codex listens", /Hooks\.callAll\("trgPrimeCreatureSlain"/.test(src.dying) && /Hooks\.callAll\("trgPrimeSpellCast"/.test(src.cast) && /Hooks\.callAll\("trgPrimeSecondaryDamage"/.test(src.attack) && /Hooks\.on\("trgPrimeCreatureSlain"/.test(src.hooks) && /Hooks\.on\("trgPrimeSpellCast"/.test(src.hooks) && /Hooks\.on\("trgPrimeSecondaryDamage"/.test(src.hooks) && /registerCodexHooks\(\);/.test(src.init));
 ok("B25 Souldrinker heals as a Cure at its level, only within four levels; Alien Mind answers a mental trait", /const roll = await new Roll\(`\$\{level\}d8`\)\.evaluate\(\);/.test(src.hooks) && /levelOf\(victim\) >= levelOf\(killer\) - below/.test(src.hooks) && /wanted\.some\(\(t\) => traits\.includes\(t\)\)/.test(src.hooks));
-ok("B26 Spell Resilience adds its row to a spell's save and its DB", /\.\.\.spellResilienceModifiers\(target\)/.test(src.cast) && /baseDB \+ dragonhideDB \+ resilienceDB/.test(src.cast));
+ok("B26 Spell Resilience adds its row to a spell's save and its DB", /\.\.\.spellResilienceModifiers\(target(, actor)?\)/.test(src.cast) && /baseDB \+ dragonhideDB \+ resilienceDB/.test(src.cast));
 ok("B27 Arcadian Caster casts as Specialist and provokes nothing", /\|\| castDerives\.specialistAll;/.test(src.cast) && /&& !castDerives\.castNoProvoke\) \{/.test(src.cast));
 ok("B28 Elemental Grasp and Elemental Blood run at the turn start, from the holder and the bleeder", /abilityRule\(Array\.from\(holder\.items \?\? \[\]\), "grabbedTurnDamage"\)/.test(src.hooks) && /abilityRule\(Array\.from\(actor\.items \?\? \[\]\), "bleedSplash"\)/.test(src.hooks));
 ok("B29 Corrode splits between metal armour and a metal shield", /const half = Math\.floor\(Number\(amount\) \/ 2\);/.test(src.hooks));
@@ -169,7 +169,8 @@ async function readPack(name) {
   const db = new ClassicLevel(path.join(SYSTEM_ROOT, "packs", name), { valueEncoding: "json", createIfMissing: false });
   await db.open();
   const out = new Map();
-  for await (const [key, value] of db.iterator()) if (key.startsWith("!items!") && !key.slice(7).includes("!")) out.set(String(value?.name ?? "").trim().toLowerCase(), value);
+  out.keys_ = new Set();
+  for await (const [key, value] of db.iterator()) if (key.startsWith("!items!") && !key.slice(7).includes("!")) { out.keys_.add(key); out.set(String(value?.name ?? "").trim().toLowerCase(), value); }
   await db.close();
   return out;
 }
@@ -193,10 +194,15 @@ for (const [name, declared] of Object.entries(CODEX_DECLARATIONS)) {
 equal("C1 every declaration is on its pack entry", declaredMissing, []);
 equal("C2 and there are as many as the declaration file holds", declaredFound, Object.keys(CODEX_DECLARATIONS).length);
 equal("C3 Scorching Breath and Wing Buffet are in the Codex pack with their rails", NEW_ENTRIES.map((e) => [packs["creature-abilities"].get(e.name.toLowerCase())?._id, Boolean(packs["creature-abilities"].get(e.name.toLowerCase())?.flags?.["trg-prime"]?.creatureAbility?.[e.name === "Wing Buffet" ? "area" : "breathRider"])]), NEW_ENTRIES.map((e) => [e._id, true]));
+// 3.685.2: the 3.631.0 ids were seventeen characters and Foundry loaded both with a null id.
+equal("C3b the two are keyed by their sixteen-character ids, and the seventeen-character keys of 3.631.0 are gone", [
+  NEW_ENTRIES.map((e) => e._id), NEW_ENTRIES.map((e) => packs["creature-abilities"].keys_.has(`!items!${e._id}`)),
+  ["ff30ScorchingBrth", "ff30WingBuffet001"].map((id) => packs["creature-abilities"].keys_.has(`!items!${id}`))
+], [["ff30ScorchBreath", "ff30WingBuffet01"], [true, true], [false, false]]);
 const codexCount = packs["creature-abilities"].size;
 equal("C4 the Codex pack holds its 103 entries plus the two", codexCount, 105);
 
-const EXPECTED = 80;
+const EXPECTED = 81;
 equal("Z the suite ran every check it is meant to", checks + 1, EXPECTED);
 if (failures.length) { console.log(`verify-ff30-codex: ${checks} checks — ${failures.length} FAILED\n`); for (const f of failures) console.log(`  ✗ ${f}`); process.exitCode = 1; }
 else console.log(`verify-ff30-codex: ${checks} checks — all green.`);

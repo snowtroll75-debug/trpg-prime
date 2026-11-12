@@ -631,7 +631,8 @@ ok("G26 and the card prints the DB it actually compared against",
   !/vs DB \$\{baseDB\}/.test(castSource) && /vs DB \$\{defendedDB\}/.test(castSource),
   "'attack 17 vs DB 16 — Miss' is a card that contradicts itself");
 ok("G27 a weapon strike meets it too, beside Arrow Catching",
-  /\+ arrowCatchingDB \+ dragonhideDB \+/.test(attack)
+  // RE-POINTED AT 3.684.3: a row among the Strike's stacked DB bonuses (Graham, 5 November 2026).
+  /arrowCatching: arrowCatchingDB, shieldedStride: shieldedStrideDB, dragonhide: dragonhideDB/.test(attack)
     && /dragonhideShieldDB\(Array\.from\(targetActor\.items \?\? \[\]\), \[weaponData\.damageType\]\)/.test(attack));
 
 /* THE DIALOG: the dragon is chosen with the material, and discarded when
@@ -696,7 +697,8 @@ ok("H3 the registry is imported where it is used",
 ok("H4 an actor created already overloaded is synced",
   /Hooks\.on\("createActor", \(actor\) => sync\(actor\)\);/.test(workflow));
 ok("H5 every actor is synced once when the world opens",
-  /Hooks\.once\("ready", \(\) => \{\s*for \(const actor of game\.actors \?\? \[\]\) \{\s*void syncEncumbranceImmobilised\(actor, \{ quiet: true \}\);/.test(workflow),
+  // RE-PINNED 3.686.2: the sweep waits for the GM-connection election to settle first, so it is never skipped.
+  /Hooks\.once\("ready", async \(\) => \{\s*if \(!gmConnectionSettled\(\)\) await gmConnectionReady\(\);\s*for \(const actor of game\.actors \?\? \[\]\) \{\s*void syncEncumbranceImmobilised\(actor, \{ quiet: true \}\);/.test(workflow),
   "installing the release left every overloaded character exactly as it was");
 ok("H6 and quietly — no banner per overloaded character on opening a world",
   /notice: encumbered && !quiet/.test(workflow) && /notice: quiet \? "" :/.test(workflow));

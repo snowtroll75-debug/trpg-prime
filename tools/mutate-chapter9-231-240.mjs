@@ -177,7 +177,8 @@ const MUTATIONS = [
   { file: RANGE, name: "I: every spell becomes a touch spell",
     from: "  return /^\\s*touch\\s*$/i.test(String(rangeText ?? \"\"));", to: "  return true;", breaks: "I4" },
   { file: RANGE, name: "I: the touch misses on a tie",
-    from: "  return { landed: av >= db, by: av - db };", to: "  return { landed: av > db, by: av - db };", breaks: "I5" },
+    // RE-ANCHORED AT 3.682.0: the natural 1 and 20 come first now; this is the rest.
+    from: "  return { landed: av >= db, by: av - db, natural: \"\" };", to: "  return { landed: av > db, by: av - db, natural: \"\" };", breaks: "I5" },
 
   /* ── J: the optional harder Save DC ────────────────────────────── */
   { file: CASTING, name: "J: the audit's own guess comes back — Hard as +5",
@@ -242,9 +243,12 @@ const MUTATIONS = [
     to: "          line(\"<em>Reminder (GM judgement, not tracked): skipping daily preparation entirely limits you to cantrips only that day.</em>\")",
     breaks: "K17" },
   { file: CASTWF, name: "K: the optional rule never reaches the Save DC",
-    from: "      + harderSaveDCStep\n", to: "      + 0\n", breaks: "K18" },
+    // RE-ANCHORED AT 3.685.0: the save DC assembly is one function (H5); the step is its parameter.
+    from: "      clSaveDC: clMods.saveDC, harderStep: harderSaveDCStep, consume: true", to: "      clSaveDC: clMods.saveDC, harderStep: 0, consume: true", breaks: "K18" },
   { file: CASTWF, name: "K: the DC is raised and the saving kept",
-    from: "    waiveSaving: harderSaveRule && harderSaveDCStep > 0", to: "    waiveSaving: false", breaks: "K19" },
+    // RE-ANCHORED AT 3.684.0: G4's discounted `paidOutcome` asks the same
+    // waiver; this is the cast's own outcome (four-space indent).
+    from: "    waiveCritical,\n    waiveSaving: harderSaveRule && harderSaveDCStep > 0", to: "    waiveCritical,\n    waiveSaving: false", breaks: "K19" },
   { file: CASTWF, name: "K: the unwilling touch is offered on every spell",
     from: "  const touchField = touchAttackRequired({ rangeText: spell?.system?.range, willing: false, isAttackSpell: isAttack })",
     to: "  const touchField = (true)", breaks: "K20" },

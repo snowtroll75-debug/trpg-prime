@@ -25,11 +25,21 @@ import {
   featSlotSpellData,
   featSlotMark,
   featSlotState,
-  featSpellSlots,
+  actorFeatSpellSlots,
   knightCastingSources,
   suppressedTierFeats
 } from "./feat-casting.mjs";
 import { contentPack } from "../content-packs.mjs";
+import {
+  archetypeBookMark,
+  bookArchetype,
+  bookSlotEligible,
+  bookSpells,
+  bookTraditionLabel,
+  slotIsBookBound
+} from "./arcanist-book.mjs";
+
+const SYSTEM_ID = "trg-prime";
 
 function line(text) {
   return `<p style="margin:2px 0">${text}</p>`;
@@ -45,16 +55,10 @@ async function postCard(actor, title, lines) {
 /** Every feat-granted levelled slot this actor has, with its contents. */
 export function featSlotsFor(actor) {
   const items = Array.from(actor?.items ?? []);
-  const slots = featSpellSlots({
-    items,
-    level: Number(actor?.system?.identity?.level ?? 0),
-    casterLevel: Number(actor?.system?.magic?.casterLevelValue ?? 0),
-    // DIFFERENT FROM THE CLASS'S TRADITION (Graham, 20 Aug 2026). Read
-    // from the resolved sheet value, this excluded the tradition the
-    // character's own archetype had just opened — and since every caster
-    // feat is trait-gated to that archetype, it killed all twelve.
-    ownTradition: classTradition(actor?.system?.progression)
-  });
+  // DIFFERENT FROM THE CLASS'S TRADITION (Graham, 20 Aug 2026), read from
+  // the class rather than the resolved sheet value — inside
+  // `actorFeatSpellSlots`, which the cast gate shares (3.676.0).
+  const slots = actorFeatSpellSlots(actor);
   return featSlotState(slots, items);
 }
 
@@ -74,6 +78,7 @@ export function featSlotContext(actor) {
   );
   if (!slots.length && !orphaned.length && !suppressed.length) return [];
   const groups = new Map();
+  const book = bookArchetype(Array.from(actor?.items ?? []));
   for (const slot of slots) {
     if (!groups.has(slot.tradition)) {
       groups.set(slot.tradition, { tradition: slot.tradition, label: slot.label, slots: [] });
@@ -83,8 +88,13 @@ export function featSlotContext(actor) {
       grantedBy: slot.grantedBy,
       maxPP: slot.maxPP,
       filledName: slot.filled?.name ?? null,
-      filledId: slot.filled?.id ?? null
+      filledId: slot.filled?.id ?? null,
+      // FILLED FROM THE SPELLBOOK (3.676.0) — Graham's ruling of 29
+      // October: an Arcanist's slots, Arcane Knight's included, take a
+      // spell already in the book rather than any arcane spell.
+      fromBook: slotIsBookBound(slot, book)
     });
+    groups.get(slot.tradition).fromBook ||= slotIsBookBound(slot, book);
   }
   const out = Array.from(groups.values()).map((g) => ({
     ...g,
@@ -155,6 +165,11 @@ export async function openFeatSlotPick(actor, slotId) {
     ui.notifications.info(`${slot.grantedBy}: that slot already holds ${slot.filled.name}. Clear it first.`);
     return null;
   }
+  // FROM THE SPELLBOOK (3.676.0). "You can memorise and cast one
+  // additional arcane spell FROM YOUR SPELLBOOK" — and, by Graham's
+  // ruling R2, Arcane Knight's PP 2 slot the same way.
+  const book = bookArchetype(Array.from(actor.items ?? []));
+  if (slotIsBookBound(slot, book)) return memoriseFromBook(actor, slot, book, slots);
   const picked = await pickFromPack("spells", {
     title: `${slot.grantedBy} — ${slot.label} spell, PP ${slot.maxPP} or less`,
     fields: ["system.tradition", "system.ppCost", "system.specialist"],
@@ -178,6 +193,66 @@ export async function openFeatSlotPick(actor, slotId) {
   return created;
 }
 
+/**
+ * Memorise a spell from the Arcanist's book into one slot.
+ *
+ * THE BOOK ENTRY IS MARKED, NOT COPIED — see arcanist-book.mjs. The
+ * picker lists only what the book holds; an empty answer says which of
+ * the three reasons it is, because "nothing to choose" reads as a broken
+ * button unless it says why.
+ */
+async function memoriseFromBook(actor, slot, book, slots) {
+  const items = Array.from(actor.items ?? []);
+  const inBook = bookSpells(items, book.key);
+  const live = new Map(slots.map((s) => [s.id, s.maxPP]));
+  const options = inBook
+    .filter((i) => bookSlotEligible(i, slot, live))
+    .sort((a, b) => Number(a.system?.ppCost ?? 0) - Number(b.system?.ppCost ?? 0) || a.name.localeCompare(b.name))
+    .map((i) => [i.id, `${i.name} (PP ${Number(i.system?.ppCost ?? 0)})`]);
+  const label = bookTraditionLabel(book).toLowerCase();
+  if (!options.length) {
+    const why = !inBook.length
+      ? `your spellbook holds no levelled ${label} spells yet`
+      : `no spell in your spellbook fits — PP ${slot.maxPP} or less, and not already memorised in another slot`;
+    ui.notifications.warn(`${slot.grantedBy}: ${why}. Add one with the ${book.label} card's free additions, or Learn a Spell (Arcana).`);
+    return null;
+  }
+  const choice = await chooseBookSpell(`${slot.grantedBy} — ${slot.label} spell, PP ${slot.maxPP} or less`, options);
+  if (!choice) return null;
+  const item = actor.items.get(choice);
+  if (!item) return null;
+  await item.update({ [`flags.${SYSTEM_ID}.featSpellSlot`]: { slotId: slot.id, tradition: slot.tradition } });
+  await postCard(actor, slot.grantedBy, [
+    line(`<strong>${item.name}</strong> memorised from your spellbook in your ${slot.label.toLowerCase()} slot (PP ${slot.maxPP} or less).`),
+    line(`<em>Spellcraft for it uses the ${slot.label.toLowerCase()} tradition's own ability.</em>`)
+  ]);
+  return item;
+}
+
+async function chooseBookSpell(title, options) {
+  const { DialogV2 } = foundry.applications.api;
+  const rows = options.map(([value, text]) => `<option value="${value}">${text}</option>`).join("");
+  const result = await DialogV2.wait({
+    window: { title, icon: "fa-solid fa-book" },
+    classes: ["trg-prime"],
+    position: { width: 400 },
+    content: `<div class="trg-prime trg-check-dialog"><div class="form-group stacked">
+      <label>From your spellbook</label>
+      <select name="choice" style="width:100%">${rows}</select></div></div>`,
+    buttons: [
+      {
+        action: "ok", label: "Memorise", icon: "fa-solid fa-wand-sparkles", default: true,
+        callback: (event, button) =>
+          new (foundry.applications?.ux?.FormDataExtended ?? globalThis.FormDataExtended)(button.form ?? button.closest("form")).object
+      },
+      { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark" }
+    ],
+    rejectClose: false
+  });
+  if (!result || result === "cancel") return null;
+  return String(result.choice ?? "") || null;
+}
+
 /** Empty one slot, so a different spell can be memorised in it. */
 export async function clearFeatSlot(actor, slotId) {
   const { slots } = featSlotsFor(actor);
@@ -187,6 +262,17 @@ export async function clearFeatSlot(actor, slotId) {
     return 0;
   }
   const name = slot.filled.name;
+  // A BOOK SPELL GOES BACK INTO THE BOOK (3.676.0). Deleting it — what a
+  // slot's own copy has always had done to it — would tear the page out
+  // of the spellbook the player paid to write it into.
+  if (archetypeBookMark(slot.filled)) {
+    await slot.filled.update({ [`flags.${SYSTEM_ID}.-=featSpellSlot`]: null });
+    await postCard(actor, slot.grantedBy, [
+      line(`<strong>Cleared:</strong> ${name} — still in your spellbook.`),
+      line(`<em>Memorise another ${slot.label.toLowerCase()} spell of PP ${slot.maxPP} or less from the Magic tab.</em>`)
+    ]);
+    return 1;
+  }
   await actor.deleteEmbeddedDocuments("Item", [slot.filled.id]);
   await postCard(actor, slot.grantedBy, [
     line(`<strong>Cleared:</strong> ${name}.`),

@@ -121,8 +121,9 @@ const MUTATIONS = [
   {
     file: PROF,
     name: "THE SHIPPED DEFECT: the racial clause does nothing",
-    from: "    return \"Martial\";",
-    to: "    return category;",
+    // Re-anchored at 3.677.0: the clause is now one step easier (C13, m64).
+    from: "const racial = ownRace ? (RACIAL_STEP[norm(category)] ?? \"\") : \"\";",
+    to: "const racial = \"\";",
     breaks: "D2 — a dwarf untrained with a zokarrin"
   },
   {

@@ -158,7 +158,10 @@ const workflowSrc = fs.readFileSync(
   path.join(SYSTEM_ROOT, "module", "magic", "cast-workflow.mjs"), "utf8");
 
 equal("X1 THE GATE ASKS THE RULE, WITH BOTH HALVES",
-  [...workflowSrc.matchAll(/effectiveRangeText\(\s*\n?\s*warpedRange\(effRange, warpMods\),\s*\n?\s*warpedAreaText\(effArea, warpMods\)\s*\n?\s*\)/g)].length, 1,
+  // THE GATE'S OWN LINE (3.683.0): C15's Sniping reads the same range the
+  // gate read, so the expression now appears twice; the gate is the one
+  // assigned to `castRange`.
+  [...workflowSrc.matchAll(/const castRange = effectiveRangeText\(\s*\n?\s*warpedRange\(effRange, warpMods\),\s*\n?\s*warpedAreaText\(effArea, warpMods\)\s*\n?\s*\)/g)].length, 1,
   "the warped range AND the warped area — a warp that grants either one has to be "
   + "able to lift the restriction it would otherwise be gated by");
 equal("X1b AND NOTHING GATES ON THE BARE WARPED RANGE ANY MORE",

@@ -60,7 +60,7 @@ const MUTATIONS = [
   { file: MIGRATION, name: "the repair clears nothing", from: "    if (!stale) continue;", to: "    if (true) continue;", breaks: "D6" },
   // E — R6
   { file: TREC, name: "F6 — THE OLD DEFECT: the end of a combat clears nothing", from: "        await clearAttackCount(actor);\n        await clearTraitUsageRecord(actor);", to: "        await clearTraitUsageRecord(actor);", breaks: "E2" },
-  { file: TREC, name: "every client clears", from: "    if (!game.user?.isGM) return;\n", to: "", breaks: "E2" },
+  { file: TREC, name: "every client clears", from: "    if (!isActingGM()) return;\n", to: "", breaks: "E2" },
   { file: MAIN, name: "the hook is never registered", from: "  registerTurnRecordHooks();\n", to: "", breaks: "E3" },
   // F — R5
   { file: SPLASH, name: "F5 — THE OLD DEFECT: dice splash is not recognised", from: "  return /^\\s*\\d*\\s*d\\s*\\d+(\\s*[+-]\\s*\\d+)?\\s*$/i.test(String(value ?? \"\"));", to: "  return false;", breaks: "F1" },

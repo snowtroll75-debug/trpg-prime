@@ -204,7 +204,8 @@ ok("C6 the Life Stealing rune says recurring",
 // 3.578.0 (block 18, D3): recurring damage is now the condition, and the
 // card reports the value it put on, not the profile's formula.
 ok("C7 the alchemical bomb summary says recurring",
-  /<strong>Recurring \$\{next\.value\} \$\{damageType\}<\/strong>/.test(read("module", "alchemical-workflow.mjs")));
+  /<strong>\$\{recurringStackLine\(next\)\}<\/strong>/.test(read("module", "alchemical-workflow.mjs"))
+    && /return `Recurring \$\{next\.value\} \$\{next\.damageType\}/.test(read("module", "conditions", "recurring.mjs")));
 ok("C8 the Delay action says recurring",
   /Recurring damage\/effects due at the start/.test(read("module", "data", "basic-actions.mjs")));
 

@@ -108,8 +108,8 @@ const MUTATIONS = [
   { file: COUNTER, name: "R14 — a named condition is counted twice",
     from: "    if (statuses.some((s) => named.has(String(s).toLowerCase()))) continue;", to: "    ;", breaks: "G2" },
   { file: APPLY, name: "R14 — a condition forgets the spell that caused it",
-    from: "        updates[`flags.${SYSTEM_ID}.${SOURCE_TRAITS_FLAG}`] = sourceTraits;\n      }\n      if (effect?.update && Object.keys(updates).length) {\n        await effect.update(updates);\n      }\n      applied.push({ key: tag.key, label: tag.label, value: newValue, wasAlreadyPresent, ...(wardedBy ? { wardedPartly: wardedBy } : {}) });",
-    to: "      }\n      if (effect?.update && Object.keys(updates).length) {\n        await effect.update(updates);\n      }\n      applied.push({ key: tag.key, label: tag.label, value: newValue, wasAlreadyPresent, ...(wardedBy ? { wardedPartly: wardedBy } : {}) });", breaks: "G6" },
+    from: "        updates[`flags.${SYSTEM_ID}.${SOURCE_TRAITS_FLAG}`] = sourceTraits;\n      }\n      if (effect?.update && Object.keys(updates).length) {\n        await effect.update(updates);\n      }\n      // WHAT THIS TAG ADDED",
+    to: "      }\n      if (effect?.update && Object.keys(updates).length) {\n        await effect.update(updates);\n      }\n      // WHAT THIS TAG ADDED", breaks: "G6" },
   { file: FX, name: "R14 — Soothing Words counteracts its own buff",
     from: "              && x.origin !== spell.uuid && !(castId && x.flags?.[SYSTEM_ID]?.castId === castId))) {",
     to: "              )) {", breaks: "G7" },
@@ -126,7 +126,7 @@ const MUTATIONS = [
   { file: THORNS, name: "B8 — the thorns ignore their warp",
     from: "  if (!raw || !n || !step || typeof step !== \"object\") return raw;", to: "  return raw;", breaks: "H8" },
   { file: FX, name: "B8 — the cast never warps the thorns",
-    from: "          const spec = normaliseThorns(warpedThorns(effect, warpBonus));", to: "          const spec = normaliseThorns(effect);", breaks: "H8" },
+    from: "          const spec = normaliseThorns(spellThorns(normaliseThorns(warpedThorns(effect, warpBonus)), {", to: "          const spec = normaliseThorns(spellThorns(normaliseThorns(effect), {", breaks: "H8" },
   { file: PLANF, name: "A2 — Purge The Unlife burns the living again",
     from: '    kindGate: "undead"\n  },\n\n  // A3', to: '    kindGate: ""\n  },\n\n  // A3', breaks: "H2/I1" }
 ];

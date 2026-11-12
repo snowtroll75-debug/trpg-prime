@@ -50,6 +50,34 @@ export function knownCantripCount(classItem) {
   return Math.max(0, Math.floor(Number(classItem?.system?.cantripsKnown) || 0));
 }
 
+/**
+ * DECLARED BONUS CANTRIPS (3.684.0; Eldritch Arts Block 6, G25).
+ *
+ *   EXTRA CANTRIP (Adept, repeatable): "learn one more cantrip from your
+ *   available spell list … if you are a caster who memorises spells, you
+ *   gain an additional memorised cantrip."
+ *
+ * Summed over the owned feats' `flags["trg-prime"].cantripBonus` (one copy
+ * of a repeatable feat, one bonus). It raises the allowance a class already
+ * has — the memorised cantrips a day (memorisation.mjs), or the known
+ * cantrips (here) — and invents no pool for a class that has neither: that
+ * cantrip is the module's to add, as a repertoire spell. Pure.
+ */
+export function declaredCantripBonus(items = []) {
+  let total = 0;
+  for (const item of Array.from(items ?? [])) {
+    if (item?.type !== "feat") continue;
+    total += Math.max(0, Math.trunc(Number(item.flags?.[SYSTEM_ID]?.cantripBonus) || 0));
+  }
+  return total;
+}
+
+/** The known-cantrip allowance with the declared bonus: none without the class's own pool (3.684.0). */
+export function knownCantripAllowance(classItem, items = []) {
+  const own = knownCantripCount(classItem);
+  return own ? own + declaredCantripBonus(items) : 0;
+}
+
 /** The cantrips already picked into the pool. */
 export function knownCantrips(actor) {
   return Array.from(actor?.items ?? []).filter(

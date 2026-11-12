@@ -37,6 +37,7 @@ import { roman } from "./runes.mjs";
 import { ENERGY_RUNES, energyRuneState } from "./rune-damage.mjs";
 import { runeUsageAllows, weaponUsage } from "./weapon-rune-usage.mjs";
 import { CODEX_ARMOUR_RUNES, CODEX_WEAPON_RUNES } from "./codex-rune-data.mjs";
+import { runeFieldOf } from "./infused-runes.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -218,7 +219,7 @@ export function runeActionsFor(item) {
   if (!kind) return [];
   const catalogueKind = kind === "shield" ? "shield" : kind;
   const out = [];
-  for (const chosen of fieldToRunes(catalogueKind, item?.system?.runes ?? "")) {
+  for (const chosen of fieldToRunes(catalogueKind, runeFieldOf(item))) {
     // A REGISTERED RUNE'S OWN BUTTON (3.626.0): Pillars of Faith's Sanctuary,
     // "Activate Engage (1 AP) … For 1 minute, you emanate a 10-foot
     // spiritual sanctuary … The rune then becomes expended and may be

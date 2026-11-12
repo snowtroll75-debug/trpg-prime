@@ -94,7 +94,7 @@ import {
   hidePlacedLine, hideRemainderLine
 } from "./hide-from-animals.mjs";
 import {
-  normaliseSpellStoring, releaseActionCost, armedLine, displacedLine, noBondCastLine,
+  normaliseSpellStoring, releaseActionCost, armedLine, displacedLine, noBondCastLine, noStoreCastLine,
   spellStoringRemainderLine
 } from "./spell-storing.mjs";
 import {
@@ -117,7 +117,9 @@ import {
 } from "../conditions/suppression.mjs";
 import { traitList } from "./counteract-row.mjs";
 import { attackRowRecipients, isAttackGated } from "./attack-degree-rows.mjs";
-import { THORNS_FLAG, normaliseThorns, thornsCastLine, warpedThorns } from "./thorns.mjs";
+import { THORNS_FLAG, normaliseThorns, spellThorns, thornsCastLine, warpedThorns } from "./thorns.mjs";
+import { withEndsOnHeal } from "./heal-ends.mjs";
+import { bonusGroupKeys, bonusGroupRefreshKey, bonusGroupWords, normaliseBonusGroup } from "./bonus-group.mjs";
 import {
   offeredTypes, chosenType, opposingElement, typeChosenLine, typeRefusal
 } from "./damage-type-choice.mjs";
@@ -475,7 +477,7 @@ export async function healActor(actor, amount, { magical = true, direct = false,
       if (next > 0) await actor.toggleStatusEffect("dying", { value: next });
       // DEATH'S DEFIANCE (3.611.0): "coming back from dying due to this
       // healing doesn't increase its Fatigued condition".
-      else await applyDyingRecovery(actor, { noFatigue: noDyingFatigue });
+      else await applyDyingRecovery(actor, { noFatigue: noDyingFatigue, route: "healing" });
     }
     // RESURGENT HEALING (3.625.0): a Dying creature "regains half the
     // normal amount of HP restored by the spell rather than being restored
@@ -563,7 +565,7 @@ async function rollAmount(formula, rollData, rolls) {
  * the dying check. Pushes a line per hit and returns nothing (rolls collected in
  * `rolls`).
  */
-async function applyDamageEffect(recipients, effect, { rollData, rolls, warpDice, lines, elementalType = null, extraDamage = 0 }) {
+async function applyDamageEffect(recipients, effect, { rollData, rolls, warpDice, lines, elementalType = null, extraDamage = 0, caster = null, spellName = "" }) {
   const [{ resolveAgainstDefences }, { applyDamageAndCheckDying }] = await Promise.all([
     import("../combat/damage-workflow.mjs"),
     import("../combat/dying-workflow.mjs")
@@ -582,6 +584,12 @@ async function applyDamageEffect(recipients, effect, { rollData, rolls, warpDice
     // auto-hit spell that strikes more than once.
     const bonus = i === 0 ? Math.max(0, Math.floor(Number(extraDamage) || 0)) : 0;
     const amount = (await rollAmount(formula, rollData, rolls)) + bonus;
+    // A DAMAGE REACTION, BEFORE THE DEFENCES (3.681.0; Eldritch Arts Block
+    // 3b): asked once a cast, so a volley of missiles asks its creature once.
+    {
+      const { damageReactionsBefore } = await import("../reactions/reactions-workflow.mjs");
+      for (const said of await damageReactionsBefore(target, { kind: "spell", types: [type], magical: true })) lines?.push?.(line(said));
+    }
     const packet = resolveAgainstDefences(target.system ?? {}, {
       amount,
       type,
@@ -595,7 +603,9 @@ async function applyDamageEffect(recipients, effect, { rollData, rolls, warpDice
     if (bracersLine) lines.push(bracersLine);
     let newHP = null;
     if (packet.taken > 0) {
-      const applied = await applyDamageAndCheckDying(target, packet.taken);
+      // THE SPELL'S CASTER, FOR WHOEVER LISTENS (3.684.0; Eldritch Arts Block 6, G23).
+      const applied = await applyDamageAndCheckDying(target, packet.taken,
+        caster?.uuid ? { sourceUuid: caster.uuid, context: { kind: "spell", spellName: String(spellName ?? "") } } : {});
       newHP = applied?.newHP;
     }
     const tag = count > 1 ? ` (${i + 1}/${count})` : "";
@@ -684,6 +694,47 @@ export function effectName(spellName, note, suffix = "") {
   return `${spellName}${scope ? ` ${scope}` : ""}${suffix}`;
 }
 
+/**
+ * ONE EFFECT FOR SEVERAL SLOTS (3.685.1): a `bonus` row naming `slots` —
+ * Eldritch Arts' Distracted. See magic/bonus-group.mjs. The timing and the
+ * cast's id are the single row's, so it is timed and ended with the spell.
+ */
+async function applyBonusGroupEffect(target, spell, effect, group, parsedDuration, castId = null, registersCast = false, caster = null) {
+  const bonusType = effect.bonusType || "status";
+  const { keys, refused } = bonusGroupKeys(group, {
+    targetFor: bonusTargetFor,
+    skillKeys: Object.keys(target?.system?.skills ?? {}).filter((k) => SKILL_SLOTS.has(k)),
+    speedKeys: speedsPresentOn(target?.system),
+    bonusType,
+    allSkills: ALL_SKILLS_SLOT,
+    allSpeeds: ALL_SPEEDS_SLOT
+  });
+  if (!keys.length) return { applied: false, reason: `nowhere to place ${group.slots.join(", ")}`, refused };
+  const timing = spellExpiryTiming(parsedDuration);
+  const flags = { [SYSTEM_ID]: { spellBuff: true } };
+  if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
+  if (timing.spellEffectEnd != null) flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
+  if (timing.expiresRound != null) flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+  if (castId) flags[SYSTEM_ID].castId = castId;
+  if (castId && registersCast) flags[SYSTEM_ID].endsWithCast = true;
+  // SCOPED TO THIS SPELL AND CASTER (3.685.1, review): see magic/bonus-group.mjs.
+  const refreshKey = bonusGroupRefreshKey(group, spell?.name, caster?.uuid);
+  if (refreshKey) flags[SYSTEM_ID].refreshKey = refreshKey;
+  const data = {
+    name: group.name || effectName(spell.name, effect.note),
+    img: spell.img || DEFAULT_SPELL_IMG,
+    origin: spell.uuid,
+    changes: keys.map((key) => ({ key, type: CHANGE_TYPE.CUSTOM, value: String(Number(effect.value) || 0) })),
+    flags
+  };
+  if (timing.foundryDuration) {
+    data.duration = { ...timing.foundryDuration, startTime: Number(game.time?.worldTime ?? 0) };
+  }
+  data.flags = withEndsOnHeal(data.flags, effect);
+  await createEffectsOn(target, [data]);
+  return { applied: true, keys, refused };
+}
+
 /** Create a bonus Active Effect on a target — its CUSTOM-mode change flows through
  *  TRGActiveEffect into the Appendix-1 bonus pool and onto the target's rolls. */
 async function applyBonusEffect(target, spell, effect, parsedDuration, castId = null, opposedTo = [], registersCast = false) {
@@ -721,6 +772,8 @@ async function applyBonusEffect(target, spell, effect, parsedDuration, castId = 
     if (timingS.foundryDuration) {
       dataS.duration = { ...timingS.foundryDuration, startTime: Number(game.time?.worldTime ?? 0) };
     }
+    // UNTIL HEALED (3.685.0, H11): see magic/heal-ends.mjs.
+    dataS.flags = withEndsOnHeal(dataS.flags, effect);
     await createEffectsOn(target, [dataS]);
     return { applied: true, skills: keys.length };
   }
@@ -750,6 +803,8 @@ async function applyBonusEffect(target, spell, effect, parsedDuration, castId = 
     if (timing0.foundryDuration) {
       data0.duration = { ...timing0.foundryDuration, startTime: Number(game.time?.worldTime ?? 0) };
     }
+    // UNTIL HEALED (3.685.0, H11): see magic/heal-ends.mjs.
+    data0.flags = withEndsOnHeal(data0.flags, effect);
     await createEffectsOn(target, [data0]);
     return { applied: true, speeds: present };
   }
@@ -789,6 +844,8 @@ async function applyBonusEffect(target, spell, effect, parsedDuration, castId = 
     if (timingC.foundryDuration) {
       dataC.duration = { ...timingC.foundryDuration, startTime: Number(game.time?.worldTime ?? 0) };
     }
+    // UNTIL HEALED (3.685.0, H11): see magic/heal-ends.mjs.
+    dataC.flags = withEndsOnHeal(dataC.flags, effect);
     await createEffectsOn(target, [dataC]);
     return { applied: true, conditional: true };
   }
@@ -826,6 +883,8 @@ async function applyBonusEffect(target, spell, effect, parsedDuration, castId = 
   if (timing.foundryDuration) {
     data.duration = { ...timing.foundryDuration, startTime: Number(game.time?.worldTime ?? 0) };
   }
+  // UNTIL HEALED (3.685.0, H11): see magic/heal-ends.mjs.
+  data.flags = withEndsOnHeal(data.flags, effect);
   await createEffectsOn(target, [data]);
 }
 
@@ -1396,7 +1455,7 @@ async function stampEscapable(target, docs, dc, from) {
  *
  * @returns {Promise<{rolls: Roll[]}>}
  */
-export async function applySpellEffects(caster, spell, { targets = [], areaCaught = [], saveResults = [], saveDC = null, attackResults = [], rollData = {}, warpMods = null, lines = [], effects: effectsOverride = null, extraDamage = 0, castId = null, pickedTraits = "", registersCast = false, durationOverride = null, lightTraitDefault = false } = {}) {
+export async function applySpellEffects(caster, spell, { targets = [], areaCaught = [], saveResults = [], saveDC = null, attackResults = [], rollData = {}, warpMods = null, lines = [], effects: effectsOverride = null, extraDamage = 0, castId = null, pickedTraits = "", registersCast = false, durationOverride = null, lightTraitDefault = false, castPP = 0 } = {}) {
   // `effectsOverride` lets a variable-AP spell (see cast-workflow apOptions) run
   // the effect set for the chosen AP mode instead of the item's stored effects.
   const stated = Array.isArray(effectsOverride)
@@ -1426,6 +1485,12 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
   // recipient (3.611.0) — Element Ward's damage type, Wits's ability score.
   // See the `defence` and `bonus` cases.
   const castChoices = new Map();
+  // A MANEUVER SPELL'S MULTIPLE ATTACK PENALTY (3.682.3) is frozen for the
+  // cast, as a spell volley's is: every maneuver check in one cast rolls at
+  // the count as it stood before the first, and the count climbs by one for
+  // each. See the `maneuver` case.
+  let maneuverMapBefore = null;
+  let maneuverChecks = 0;
   if (!effects.length) return { rolls, affected: [] };
 
   // Warping can override the duration and add to healing/temp-HP dice and to a
@@ -1873,7 +1938,8 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
     // Auto-hit damage distributes N missiles across ALL recipients at once (not
     // one full effect per recipient), so it's handled before the per-target loop.
     if (effect.kind === "damage") {
-      await applyDamageEffect(recipients, effect, { rollData, rolls, warpDice, lines, elementalType: warpMods?.elementalType ?? null, extraDamage });
+      // A WARP THAT CHANGES THE TYPE (3.684.0, G15) is all of the spell's damage.
+      await applyDamageEffect(recipients, effect, { rollData, rolls, warpDice, lines, elementalType: warpMods?.damageType || (warpMods?.elementalType ?? null), extraDamage, caster, spellName: spell?.name ?? "" });
       continue;
     }
     for (const target of recipients) {
@@ -1938,7 +2004,11 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             targetMax: Number(target.system?.resources?.hp?.max ?? 0),
             targetDying: Boolean(target.hasCondition?.("dying")),
             self: target === caster || (target?.uuid && target.uuid === caster?.uuid),
-            used: ridersUsed
+            used: ridersUsed,
+            // PER PP, ON A SPELL OF A TRAIT (3.684.0, G12; the Angelic Pact):
+            // the PP the cast was cast at, handed in by the cast (cast-pp.mjs).
+            castPP,
+            traits: String(spell?.system?.traits ?? "")
           });
           // AN ITEM'S OFFER ON THE DICE (3.626.0): Hands of Mercy's Steady Gift.
           const itemMax = await offerItemMaximise(caster, { formula: riderPlan.formula, castId });
@@ -2540,6 +2610,19 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
               break;
             }
           }
+          /*
+           * AND A CONDITION HELD BY A CURSE (3.686.0, H17; Graham's Q183):
+           * "while the hold lasts, nothing but Remove Curse reduces or ends
+           * it". Refused out loud, as the seal is. See conditions/held-conditions.mjs.
+           */
+          {
+            const { holdsOn, heldRefusedLine } = await import("../conditions/held-conditions.mjs");
+            const holds = holdsOn(target.effects ?? [], relief.condition);
+            if (holds.length) {
+              lines.push(line(heldRefusedLine(target.name, relief.label, holds[0].label)));
+              break;
+            }
+          }
 
           const left = Math.max(0, had - relief.amount);
           if (left > 0) await target.toggleStatusEffect?.(relief.condition, { value: left });
@@ -2547,7 +2630,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             // OUT OF DYING IS A RECOVERY (3.630.0): Dying goes, Fatigued
             // rises by 1, and a fatal injury keeps them in it.
             const { applyDyingRecovery } = await import("../combat/death-state.mjs");
-            const state = await applyDyingRecovery(target);
+            const state = await applyDyingRecovery(target, { route: "relief", lines });
             if (state?.blocked) lines.push(line(`<em>${state.note ?? `${target.name} cannot leave Dying.`}</em>`));
           } else await target.toggleStatusEffect?.(relief.condition, { active: false });
           if (reliefSpec.oncePerDay && target.setFlag) {
@@ -2660,6 +2743,15 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
                 spell.name, ally.name, "the creature they hit is no longer here")));
               continue;
             }
+            // A DAMAGE REACTION, BEFORE THE DEFENCES (3.681.0; found in
+            // review): the strike is this spell's damage.
+            {
+              const { damageReactionsBefore } = await import("../reactions/reactions-workflow.mjs");
+              for (const said of await damageReactionsBefore(victim, {
+                kind: "spell", types: [String(spec.damageType ?? "").toLowerCase()].filter(Boolean), magical: true,
+                spellName: spell?.name ?? "", sourceName: ally?.name ?? "", sourceUuid: ally?.uuid ?? "", source: ally ?? null
+              })) lines.push(line(said));
+            }
             const roll = await new Roll(spec.dice).evaluate();
             const packet = resolveAgainstDefences(victim.system ?? {}, {
               amount: roll.total,
@@ -2694,8 +2786,17 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             break;
           }
           const gone = [];
+          let refusedHeld = 0;
+          // A CONDITION HELD BY A CURSE IS NOT REMOVED (3.686.0, H17; Block 8a
+          // review): refused out loud, as condition relief refuses.
+          const { actorConditionHeld: heldNow, holdsOn: holdsNow, heldRefusedLine: heldLine } = await import("../conditions/held-conditions.mjs");
           for (const key of spec.conditions) {
             if (!target.hasCondition?.(key)) continue;
+            if (heldNow(target, key)) {
+              lines.push(line(heldLine(target.name, CONDITIONS[key]?.label ?? key, holdsNow(target.effects, key)[0]?.label)));
+              refusedHeld += 1;
+              continue;
+            }
             await target.toggleStatusEffect?.(key, { active: false });
             gone.push(CONDITIONS[key]?.label ?? key);
           }
@@ -2703,7 +2804,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             await fx.delete();
             gone.push(fx.name);
           }
-          lines.push(line(gone.length
+          if (gone.length || !refusedHeld) lines.push(line(gone.length
             ? `${target.name}: <strong>${gone.join(", ")}</strong> removed.${spec.note ? ` <em>${spec.note}</em>` : ""}`
             // "HAD NO …" (3.630.1, F5): "had none of persistent acid damage" read badly.
             : `${target.name} had no ${[...spec.conditions.map((c) => CONDITIONS[c]?.label ?? c), ...(spec.recurringType ? [`persistent ${spec.recurringType} damage`] : [])].join(" or ")} to remove.`));
@@ -3357,7 +3458,14 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           // GROWN BY ITS WARP (3.613.0) — Vibrant Thorns' "+4 PP: the damage
           // increases by 1, or 1d6 after you cast an essence spell". See
           // `warpedThorns`.
-          const spec = normaliseThorns(warpedThorns(effect, warpBonus));
+          // AT THE CASTER'S SAVE DC, AND "+ CASTER LEVEL, MAX N" (3.685.0,
+          // H1): stamped once here, from the cast's own numbers. A row with
+          // neither is what it was.
+          const spec = normaliseThorns(spellThorns(normaliseThorns(warpedThorns(effect, warpBonus)), {
+            saveDC: Number(saveDC ?? rollData?.saveDC ?? 0) || 0,
+            casterLevel: Number(rollData?.casterLevel ?? casterLevelOf(caster?.system)) || 0,
+            spellName: spell.name
+          }));
           if (!spec) {
             lines.push(line(`<em>${spell.name} declares malformed thorns.</em>`));
             break;
@@ -3636,7 +3744,10 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           const flags = {
             [SYSTEM_ID]: {
               spellBuff: true,
-              warpFreeSchool: { school: trait, value: free, label: spell.name }
+              // `raisesSaveDC` (3.685.0, H9; Mana Surge, Q162): the waived PP
+              // still raise the Save DC. Absent, they raise nothing, as
+              // Healer's Grace's never have.
+              warpFreeSchool: { school: trait, value: free, label: spell.name, ...(effect.raisesSaveDC === true ? { raisesSaveDC: true } : {}) }
             }
           };
           if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
@@ -3887,6 +3998,9 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             break;
           }
           const { TRGCheck } = await import("../dice/check.mjs");
+          // A HIGH MAGIC CAST IS EVERY TRADITION to the target's Forbidden
+          // Magic (3.683.0; Graham's Q58), unless it spares them (Q59).
+          const { highMagicCast, spellSaveTraditions } = await import("./high-magic.mjs");
           const saveName = spec.save.charAt(0).toUpperCase() + spec.save.slice(1);
           const saveData = target.system?.combat?.saves?.[spec.save];
           const followCheck = await TRGCheck.roll({
@@ -3896,7 +4010,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             type: "save",
             saveSource: spell.name,
             traits: spell.system?.traits ?? "",
-            traditions: spell.system?.tradition ?? "",
+            traditions: spellSaveTraditions(target, spell.system ?? {}, highMagicCast(caster, spell.system ?? {})),
             sourceUuid: caster?.uuid ?? "",
             subject: spec.save,
             dc: Number(saveDC),
@@ -4576,24 +4690,40 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             break;
           }
           const {
-            bondedItemFor, armStoring, clearStored, readStored
+            bondedItemFor, armStoring,
+            spellStoreHostFor, readStoredIn, clearStoredIn
           } = await import("./spell-storing-workflow.mjs");
-          const bond = bondedItemFor(target);
+          // A STORE HELD BY A RUNE (3.684.0; Eldritch Arts Block 6, G16 — a
+          // FIX): the row's `host`. Storing Rune's "stored in one of your
+          // runes" answered "no bonded item" for a Rune Sorcerer, who has
+          // none. A row that names no host reads the Arcane Bond, as before.
+          const byBond = spec.host === "arcaneBond";
+          const bond = byBond ? bondedItemFor(target) : spellStoreHostFor(target, { host: spec.host, spellId: spell.id });
           if (!bond) {
-            lines.push(line(noBondCastLine(spell.name)));
+            if (byBond) lines.push(line(noBondCastLine(spell.name)));
+            else lines.push(line(noStoreCastLine(spell.name, spec.host)));
             break;
           }
           // "IF YOU CAST THE SPELL AGAIN THE LAST SPELL YOU STORED IS
           // DISMISSED" — the book's own sentence about casting Spell
           // Storing a second time, and the reason this is not simply an
           // overwrite when the next spell arrives.
-          const already = readStored(target);
+          //
+          // THIS HOST'S STORE ONLY (3.684.0, G16 — review, Medium). The bond
+          // branch read `readStored`/`clearStored`, which since this release
+          // fall back to ANY item holding a store: Spell Storing cast with an
+          // empty bond and a Storing Rune holding Fire Bolt dismissed the
+          // rune's Fire Bolt. Each store is its own spell's ("the last spell
+          // you stored" in THIS staff, or THIS rune), so both branches read
+          // and empty the one host they opened on.
+          const already = readStoredIn(bond);
           if (already?.record?.spellName) {
             lines.push(line(displacedLine(already.record.spellName)));
-            await clearStored(target);
+            await clearStoredIn(target, bond);
           }
           await armStoring(target, {
-            releaseCost: releaseActionCost(warpMods)
+            releaseCost: releaseActionCost(warpMods),
+            ...(byBond ? {} : { hostId: bond.id })
           });
           lines.push(line(armedLine(bond.name)));
           lines.push(line(spellStoringRemainderLine()));
@@ -5552,6 +5682,21 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           break;
         }
         case "bonus": {
+          // SEVERAL SLOTS, ONE EFFECT (3.685.1): see magic/bonus-group.mjs.
+          const group = normaliseBonusGroup(effect);
+          if (group) {
+            const groupValue = warpedBonusValue(Number(effect.value) || 0, warpBonus, warpBonusMax);
+            const res = await applyBonusGroupEffect(target, spell, { ...effect, value: groupValue }, group, parsedDuration, castId, registersCast, caster);
+            if (!res.applied) {
+              lines.push(line(`<em>${target.name}: ${res.reason} — nothing applied.</em>`));
+              break;
+            }
+            if (castId && target.uuid) affected.add(target.uuid);
+            const word = groupValue < 0 ? "penalty" : "bonus";
+            lines.push(line(`${target.name}: <strong>${group.name || spell.name}</strong>, ${groupValue >= 0 ? "+" : ""}${groupValue} ${effect.bonusType || "status"} ${word} to `
+              + `${bonusGroupWords(group.slots, SLOT_LABELS)}${res.refused.length ? ` (not ${res.refused.join(", ")}: nowhere to place it)` : ""}${durationText}.`));
+            break;
+          }
           /*
            * A SLOT CHOSEN AT CAST TIME (3.507.0). See magic/slot-choice.mjs.
            *
@@ -5802,6 +5947,41 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
               label: spell.name
             })
           ];
+          // BATTLE MAGE ON A MANEUVER SPELL (3.682.2; Graham, 3 November 2026,
+          // Eldritch Arts Q53: "Yes it should"). The maneuver's Spellcraft
+          // check is the spell's attack (Graham's August ruling, `spellIsManeuver`),
+          // so a Spellblade's BAB stands in for the BSB that Spellcraft holds,
+          // as on a spell attack. Every maneuver row is an attack action, the
+          // vine's later lashes too, so no trait is asked; and the Spellcraft
+          // holds the BSB whether the spell is innate or not.
+          {
+            const { spellAttackBaseRow } = await import("../combat/attack-base.mjs");
+            const baseRow = spellAttackBaseRow([...Array.from(caster.items ?? []), ...Array.from(caster.appliedEffects ?? [])], caster.system);
+            if (baseRow) modifiers.push(baseRow);
+          }
+          // THE MULTIPLE ATTACK PENALTY (3.682.3; Graham, 3 November 2026: "It
+          // should not ignore MAP"). The maneuver check is an attack action
+          // (his block-19 R1: "Any action which has the attack trait counts
+          // towards the multiple attack penalty including disarm, shove,
+          // spells etc."), so it rolls at the penalty a Disarm, Shove, Trip or
+          // Grapple action would, read from the same counter a Strike keeps,
+          // and counts toward the next attack, hit or miss. The action's own
+          // trait decides, as for the action itself, and Monstrous Grab's
+          // exemption is honoured the same way. One cast's checks share the
+          // count as it stood before the first, as a spell volley's rays do
+          // ("you don't increase your multiple attack penalty until after
+          // your spell attacks have been resolved"). The cast itself is no
+          // spell attack (`spellIsManeuver`), so it never counts twice.
+          const { attackCountOf, setAttackCount } = await import("../combat/turn-records.mjs");
+          const { countsTowardMAP, mapPenalty } = await import("../combat/attack.mjs");
+          const maneuverCounts = countsTowardMAP(actionData?.traits);
+          if (maneuverCounts) {
+            if (maneuverMapBefore === null) maneuverMapBefore = attackCountOf(caster);
+            const { abilityMapExemptActions } = await import("../creature-ability-rules.mjs");
+            const exempt = abilityMapExemptActions(Array.from(caster.items ?? [])).has(String(actionKey).toLowerCase());
+            const map = exempt ? 0 : mapPenalty(maneuverMapBefore);
+            if (map) modifiers.push({ label: "Multiple attack penalty", value: map, type: "untyped" });
+          }
 
           // AGAINST THE ACTION'S OWN DC, named in the action data rather
           // than assumed here. Grapple rolls against Fortitude; a spell
@@ -5821,6 +6001,11 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             label: `${spell.name} — ${target.name}`,
             dc
           , modifiers });
+          // AND THE LADDER CLIMBS, hit or miss (combat only: turn-records.mjs).
+          if (check && maneuverCounts) {
+            maneuverChecks += 1;
+            await setAttackCount(caster, maneuverMapBefore + maneuverChecks);
+          }
           const degree = check?.outcome?.degree?.key ?? "";
 
           // "The effects of the spell end at the beginning of your next
@@ -5911,9 +6096,15 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           // THE WARP RAISES THE PRINTED FEET, folded in before validation
           // so a warped grant is checked exactly as an authored one is —
           // the same order `warpedSuppression` takes, for the same reason.
-          const grantFeet = warpedBonusValue(
+          // A LAND + N GRANT GROWS ITS N INSTEAD (3.685.0, H4): Dragon Wings'
+          // "+10 ft (max +50)" is a bonus warp on the feet above the land Speed.
+          const landPlus = Number(effect.landPlus) > 0;
+          const grantFeet = landPlus ? 0 : warpedBonusValue(
             Number(effect.feet) || 0, warpBonus, warpBonusMax);
-          const grant = normaliseGrantedSpeed({ ...effect, feet: grantFeet }, SPEED_KEYS);
+          const grant = normaliseGrantedSpeed({
+            ...effect, feet: grantFeet,
+            ...(landPlus ? { landPlus: warpedBonusValue(Number(effect.landPlus), warpBonus, warpBonusMax) } : {})
+          }, SPEED_KEYS);
           if (!grant) {
             lines.push(line(`<em>${spell.name} declares a malformed speed grant.</em>`));
             break;
@@ -5924,7 +6115,9 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             type: "ability",
             img: spell.img || DEFAULT_SPELL_IMG,
             system: {
-              description: grant.landFraction
+              description: grant.landPlus
+                ? `A ${grant.key} Speed equal to this creature's land Speed + ${grant.landPlus} feet. Granted by ${spell.name}.`
+                : grant.landFraction
                 ? `A ${grant.key} Speed equal to ${grant.landFraction === 0.5 ? "half" : `${grant.landFraction} of`} this creature's land Speed. Granted by ${spell.name}.`
                 : grant.orLand
                 ? `A ${grant.key} Speed equal to this creature's land Speed, or ${grant.feet} feet, whichever is greater. Granted by ${spell.name}.`
@@ -6304,7 +6497,10 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
               sanctuaryDC: Number(saveDC ?? 0) || null,
               sanctuaryCaster: caster?.uuid ?? "",
               sanctuaryTraits: spell.system?.traits ?? "",
-              sanctuaryTradition: spell.system?.tradition ?? ""
+              sanctuaryTradition: spell.system?.tradition ?? "",
+              // CAST WITH HIGH MAGIC (3.683.0; Q58/Q59): each opponent's save
+              // is then told every tradition, unless High Magic spares it.
+              ...((await import("./high-magic.mjs")).highMagicCast(caster, spell.system ?? {}).highMagic ? { sanctuaryHighMagic: true } : {})
             }
           };
           if (wardTiming.spellEffect) wardFlags[SYSTEM_ID].spellEffect = true;
@@ -6537,7 +6733,9 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
               horrorDC: Number(saveDC ?? 0) || null,
               horrorCaster: caster?.uuid ?? "",
               horrorTraits: spell.system?.traits ?? "",
-              horrorTradition: spell.system?.tradition ?? ""
+              horrorTradition: spell.system?.tradition ?? "",
+              // CAST WITH HIGH MAGIC (3.683.0; Q58/Q59), as Sanctuary's.
+              ...((await import("./high-magic.mjs")).highMagicCast(caster, spell.system ?? {}).highMagic ? { horrorHighMagic: true } : {})
             }
           };
           if (horrorTiming.spellEffect) horrorFlags[SYSTEM_ID].spellEffect = true;
@@ -6668,7 +6866,10 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
               traitedRows.push({ id: e.id, name: e.name, statuses: Array.from(e.statuses ?? []), sourceTraits });
             }
           }
-          let held = counteractCandidates(spec, (c) => Boolean(target.hasCondition?.(c)), traitedRows);
+          // A CONDITION HELD BY A CURSE IS NOT COUNTERACTED BY NAME (3.686.0,
+          // H17): only the curse holding it, as an effect, may be.
+          const { actorConditionHeld, counteractAsOf } = await import("../conditions/held-conditions.mjs");
+          let held = counteractCandidates(spec, (c) => Boolean(target.hasCondition?.(c)) && !actorConditionHeld(target, c), traitedRows);
           // "ONE EMOTION EFFECT" — the caster picks which, when there is a choice.
           if (spec.limit && held.length > spec.limit) {
             const { promptCounteractChoice } = await import("./counteract-workflow-choice.mjs");
@@ -6690,7 +6891,10 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             // `caster`, and `actor` is the name the attack path uses. A
             // check rolled by the wrong document is the kind of mistake
             // `verify-no-undefined-names` exists to refuse.
-            const result = await rollCounteractCheck(caster);
+            // ITS LEVEL AND DC, WHEN THE EFFECT CARRIES THEM (3.686.0, H17):
+            // a symbol's curse is counteracted "against the symbol's PP" (Q183).
+            const knownAs = candidate.kind === "effect" ? counteractAsOf(target.effects?.get?.(candidate.key)) : null;
+            const result = await rollCounteractCheck(caster, knownAs ? { targetLevel: knownAs.targetLevel, dc: knownAs.dc } : {});
             if (result === null) break;
             /*
              * THE CHECK'S OWN DEGREE, not a `success` field it does not have.
@@ -6713,8 +6917,13 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             }
             if (degree.success) {
               // A CONDITION IS SWITCHED OFF; ANY OTHER EFFECT IS REMOVED.
-              if (candidate.kind === "effect") await target.effects?.get?.(candidate.key)?.delete?.();
-              else await target.toggleStatusEffect?.(candidate.key, { active: false });
+              // ON SOMEBODY ELSE'S CREATURE THROUGH THE GM (3.686.0; Block 8a
+              // review): a player's Remove Curse on the GM's NPC. The toggle
+              // crosses by itself (Actor#toggleStatusEffect relays, 3.666.1).
+              if (candidate.kind === "effect") {
+                const { counteractEffectOn } = await import("../combat/target-relay-workflow.mjs");
+                if (!await counteractEffectOn(target, candidate.key, spec.traits)) { lines.push(line(`<em>The check reaches ${target.name}'s ${condition}, but the GM's client did not remove it: remove it by hand.</em>`)); continue; }
+              } else await target.toggleStatusEffect?.(candidate.key, { active: false });
               lines.push(line(candidate.kind === "effect"
                 ? `<strong>${target.name}</strong> is free of <strong>${condition}</strong> &mdash; the effect was counteracted.`
                 : counteractedLine(target.name, condition)));
@@ -7092,6 +7301,56 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
         }
         case "perTurn":
           break;
+        /*
+         * A LADDER ROLLED AGAIN ON A TURN BOUNDARY (3.685.0, H3). An area's
+         * (`on: "casterTurnStart"`) is recorded on the Region by the cast
+         * workflow, as an entry check is. A target's (`on: "targetTurnStart"`)
+         * leaves a marker on each creature this row reaches — by `onSave`,
+         * like any row — with the degree it first rolled; see
+         * magic/turn-ladder-workflow.mjs.
+         */
+        case "turnLadder": {
+          if (String(effect.on ?? "") !== "targetTurnStart") break;
+          const { markTargetTurnLadder } = await import("./turn-ladder-workflow.mjs");
+          const first = (Array.isArray(saveResults) ? saveResults : []).find((r) => r?.target === target)?.degree ?? null;
+          const marked = await markTargetTurnLadder(target, effect, {
+            dc: Number(saveDC ?? rollData?.saveDC ?? 0) || 0, castId, casterUuid: caster?.uuid ?? "",
+            spellUuid: spell.uuid ?? "", spellName: spell.name, img: spell.img || DEFAULT_SPELL_IMG,
+            damageType: String(effect.damageType ?? spell.system?.damage?.type ?? ""), first
+          });
+          if (!marked) {
+            lines.push(line(`<em>${spell.name} declares a malformed turn ladder.</em>`));
+            break;
+          }
+          if (castId && target.uuid && marked.marked) affected.add(target.uuid);
+          lines.push(line(marked.marked
+            ? `${target.name} saves again at the start of each of its turns while ${spell.name} lasts.`
+            : `${target.name} saves no more against ${spell.name}.`));
+          break;
+        }
+        /*
+         * A TABLE ROLLED AT EACH OF THE TARGET'S TURNS (3.686.0, H18) — core
+         * Insanity's d10. Reached like any ungated row on a save spell, so by
+         * the creatures that failed; each is marked for 1 round per `per`
+         * points it failed by (a warp's `turnTablePer` replaces it). See
+         * magic/turn-table.mjs.
+         */
+        case "turnTable": {
+          const { markTurnTable } = await import("./turn-table-workflow.mjs");
+          const mine = (Array.isArray(saveResults) ? saveResults : []).find((r) => r?.target === target) ?? null;
+          const marked = await markTurnTable(target, effect, {
+            margin: mine?.margin ?? null, per: Number(warpMods?.turnTablePer ?? 0) || 0,
+            dc: Number(saveDC ?? rollData?.saveDC ?? 0) || 0, castId, casterUuid: caster?.uuid ?? "",
+            spellName: spell.name, img: spell.img || DEFAULT_SPELL_IMG
+          });
+          if (!marked) {
+            lines.push(line(`<em>${spell.name} declares a malformed turn table.</em>`));
+            break;
+          }
+          if (castId && target.uuid && marked.marked) affected.add(target.uuid);
+          lines.push(line(marked.line));
+          break;
+        }
         /*
          * A PRINTED LADDER IS NOT RESOLVED AT THE EFFECT STAGE EITHER
          * (3.585.0). `resolveSpellSave` reads it, because the ladder IS

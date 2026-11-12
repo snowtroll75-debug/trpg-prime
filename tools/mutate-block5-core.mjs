@@ -36,7 +36,7 @@ const MUTATIONS = [
   { name: "the reroll is offered again on the reroll", file: CK, from: "        check.fumbleRerolled = true;\n        await check.reroll();", to: "        await check.reroll();", breaks: "D2" },
   { name: "a shared roll's later creature is offered the reroll", file: CK, from: "!check.fumbleRerolled && !check.presetDice && [\"skill\", \"save\"]", to: "!check.fumbleRerolled && [\"skill\", \"save\"]", breaks: "D2" },
   { name: "the attack's fumble is never confirmed early", file: AW, from: "    if (risk && fumbleRerollAvailable(actor, \"attack\")) {", to: "    if (false) {", breaks: "D3" },
-  { name: "THE DEFECT: the reroll re-runs the whole Strike", file: AW, from: "          check = await TRGCheck.roll({ ...attackCheckConfig, conditionalChoices: check.conditionalChoices ?? [], allowConviction: false });\n          fumbleRerolled = true;", to: "          return rollWeaponAttack(actor, weapon, { ...callOptions, apPaid: true, fumbleRerolled: true });\n          fumbleRerolled = true;", breaks: "D4" },
+  { name: "THE DEFECT: the reroll re-runs the whole Strike", file: AW, from: "          check = await TRGCheck.roll({ ...attackCheckConfig, conditionalChoices: check.conditionalChoices ?? [], allowConviction: false, checkReactionsBeforeAsked: true, reactionAdvantages: check.reactionAdvantages ?? [], reactionModifiers: check.reactionModifiers ?? [] });\n          fumbleRerolled = true;", to: "          return rollWeaponAttack(actor, weapon, { ...callOptions, apPaid: true, fumbleRerolled: true });\n          fumbleRerolled = true;", breaks: "D4" },
   { name: "the reroll may be offered again on the reroll", file: AW, from: "          fumbleRerolled = true;\n          fumbleConfirmedEarly = null;", to: "          fumbleConfirmedEarly = null;", breaks: "D4" },
   { name: "a fumble confirmed early is checked again", file: AW, from: "thrown: thrownAttack, confirmed: fumbleConfirmedEarly });", to: "thrown: thrownAttack });", breaks: "D5" },
   { name: "a fumble averted early is tabled anyway", file: AW, from: "  if (confirmed === false) return null;\n", to: "", breaks: "D5" },
@@ -83,8 +83,8 @@ const MUTATIONS = [
   { name: "a placed light keeps no clock", file: PL, from: "              ...(ends ? { [REGION_EXPIRY_FLAG]: regionExpiryRecord({ castId, spellName: name, ends }) } : {})\n", to: "", breaks: "I8" },
   { name: "a module cannot register lights", file: APIW, from: "    registerLightSources: (entries, moduleId) => registerLightSources(entries, moduleId, Object.keys(LIGHT_SOURCES)),\n", to: "", breaks: "I10" },
   // J — B5-3
-  { name: "the refund reaches every skill", file: CR, from: "    if (skills.length && !skills.includes(skill)) continue;\n", to: "", breaks: "J1" },
-  { name: "the refund comes on a Partial too", file: CR, from: "    if (!degrees.includes(want)) continue;\n", to: "", breaks: "J1" },
+  { name: "the refund reaches every skill", file: CR, from: "  if (row.skills.length && !row.skills.includes(String(subject ?? \"\").trim().toLowerCase())) return false;\n", to: "", breaks: "J1" }, // re-anchored at 3.684.0 (G18 moved the test into rowAnswers)
+  { name: "the refund comes on a Partial too", file: CR, from: "    if (!row.degrees.includes(want)) continue;\n", to: "", breaks: "J1" }, // re-anchored at 3.684.0 (G18)
   { name: "the refund stacks on Scoundrel's Luck", file: CK, from: "    } else if (advantageSpent && !advantageKept && check.actor) {", to: "    }\n    if (advantageSpent && !advantageKept && check.actor) {", breaks: "J2" },
   { name: "the card forgets the refund", file: CK, from: "              convictionRefunded: Boolean(this.convictionRefunded),\n", to: "", breaks: "J3" },
   { name: "THE DEFECT: an innate-only DC bonus reaches every spell", file: SDC, from: "      if (row?.innateOnly === true && innate !== true) continue;\n", to: "", breaks: "J4" },

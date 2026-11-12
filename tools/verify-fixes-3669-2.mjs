@@ -134,9 +134,9 @@ const fr = await imp("fumble-reroll.mjs");
 equal("C1 the words follow the degree", [fr.fumbleWords("blunder"), fr.fumbleWords("Blunder"), fr.fumbleWords("fumble"), fr.fumbleWords()],
   [{ verb: "blundered", noun: "blunder" }, { verb: "blundered", noun: "blunder" }, { verb: "fumbled", noun: "fumble" }, { verb: "fumbled", noun: "fumble" }]);
 const frw = read("module", "fumble-reroll-workflow.mjs");
-ok("C2 the question says what happened", /export async function offerFumbleReroll\(actor, kind, \{ degree = "fumble" \} = \{\}\) \{/.test(frw) && /content: `<p>You \$\{fumbleWords\(degree\)\.verb\} the \$\{what\}\./.test(frw));
+ok("C2 the question says what happened", /export async function offerFumbleReroll\(actor, kind, \{ degree = "fumble"(?:, subject = "")? \} = \{\}\) \{/.test(frw) && /content: `<p>You \$\{fumbleWords\(degree\)\.verb\} the \$\{what\}\./.test(frw));
 ok("C3 the check passes the first result's degree, and its card names it",
-  /const firstDegree = check\.outcome\.degree\.key;\n\s*const taken = await offerFumbleReroll\(check\.actor, check\.type, \{ degree: firstDegree \}\);/.test(ck)
+  /const firstDegree = check\.outcome\.degree\.key;\n(?:\s*\/\/[^\n]*\n)*\s*const taken = await offerFumbleReroll\(check\.actor, check\.type, \{ degree: firstDegree(?:, subject: check\.subject)? \}\);/.test(ck)
   && /`\$\{taken\.label\}: the \$\{fumbleWords\(firstDegree\)\.noun\} is rerolled — /.test(ck));
 
 /* D — a defence reaction offered only when it could be spent */

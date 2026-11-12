@@ -35,11 +35,13 @@ const MUTATIONS = [
   { file: APPLIER, name: "C: a blank DC is counted as a failure rather than reported",
     from: `            if (!degree) {`, to: `            if (false) {`, breaks: "C6b" },
   { file: APPLIER, name: "C: the TARGET rolls the caster's counteract check",
-    from: `            const result = await rollCounteractCheck(caster);`,
-    to: `            const result = await rollCounteractCheck(target);`, breaks: "C7" },
+    // RE-ANCHORED 3.686.0 (H17): the check is prefilled from the effect's counteractAs.
+    from: `            const result = await rollCounteractCheck(caster, knownAs ? { targetLevel: knownAs.targetLevel, dc: knownAs.dc } : {});`,
+    to: `            const result = await rollCounteractCheck(target, knownAs ? { targetLevel: knownAs.targetLevel, dc: knownAs.dc } : {});`, breaks: "C7" },
   { file: APPLIER, name: "C: the check is rolled for both conditions whether the target has them or not",
     // RE-ANCHORED 3.613.0: the candidates are gathered by counteractCandidates (R14).
-    from: `          let held = counteractCandidates(spec, (c) => Boolean(target.hasCondition?.(c)), traitedRows);`,
+    // RE-ANCHORED 3.686.0 (H17): a condition a curse holds is left out.
+    from: `          let held = counteractCandidates(spec, (c) => Boolean(target.hasCondition?.(c)) && !actorConditionHeld(target, c), traitedRows);`,
     to: `          let held = spec.conditions.map((c) => ({ kind: "condition", key: c, label: c }));`, breaks: "C3c" },
   { file: APPLIER, name: "C: nothing to counteract goes back to silence",
     from: `            lines.push(line(nothingToCounteractLine(target.name, spec)));`,

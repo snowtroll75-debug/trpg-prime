@@ -12,9 +12,10 @@
  */
 import { actorReactionBlock } from "./reactions.mjs";
 import { parseApCost, computeApSpend, canAffordAP } from "./action-points.mjs";
+import { MOVEMENT_TRAIT_AP_FLAG, countsAsMovementAp, nextMovementTraitRecord } from "./movement.mjs";
 import { battleReadinessBonus, battleReadinessSpendBlock, reactionQualifies } from "../fighter.mjs";
 import {
-  AP_GRANT_FLAG, actionsText, apAvailable, grantOf, restrictedHeld, spendPlan, useKindsOf
+  AP_GRANT_FLAG, actionsText, apAvailable, cappedEntries, grantOf, restrictedGivenBack, restrictedHeld, restrictedTaken, spendPlan, useKindsOf
 } from "./restricted-ap.mjs";
 
 const SYSTEM_ID = "trg-prime";
@@ -102,11 +103,28 @@ export async function ensureActionPoints(actor, apCost, actionName = "This actio
  * @param {string|number} apCost e.g. "1", "3", "Free", "Reaction".
  * @param {string} [actionName] For the warning message, if any.
  */
-export async function spendActionPoints(actor, apCost, actionName = "This action", { use = null, traits = "" } = {}) {
+export async function spendActionPoints(actor, apCost, actionName = "This action", { use = null, traits = "", deferNextAction = false, continuesSpend = false } = {}) {
   if (!actorInCombat(actor)) return;
 
   const cost = parseApCost(apCost);
   if (!cost) return;
+
+  // A LEG THAT MUST BE THE NEXT ACTION (3.684.5; Agile Display): AP spent on
+  // anything else first removes it. The leg's own drag costs 0 and never
+  // reaches here.
+  // UNLESS THE SPENDER LAPSES IT ITSELF (3.684.6; `deferNextAction`): the
+  // Strike pays before its prompts, and a Strike cancelled at one of them
+  // keeps the Step (Graham: a cancelled action keeps it), so it lapses the
+  // leg once its roll is made. The write is marked so the AP-write hook
+  // leaves it too.
+  // THE POOL BEFORE THIS SPEND is kept with the leg it removes, so only this
+  // spend's refund gives it back (3.684.6). A spend that CONTINUES one just
+  // made (a cast's option AP, `continuesSpend`) is the same action's.
+  if (!continuesSpend) {
+    const { lapseNextActionLeg, forgetLapsedLeg } = await import("./movement-workflow.mjs");
+    if (deferNextAction) await forgetLapsedLeg(actor);
+    else await lapseNextActionLeg(actor, { spendFrom: Number(actor.system?.resources?.ap?.value ?? 0) });
+  }
 
   const currentAP = Number(actor.system?.resources?.ap?.value ?? 0);
   const result = computeApSpend(currentAP, cost);
@@ -115,9 +133,13 @@ export async function spendActionPoints(actor, apCost, actionName = "This action
   // spell never touches them unless it overruns the general points.
   const grant = grantOf(actor);
   const grantUpdate = {};
+  // WHAT THIS SPEND TOOK FROM THEM (3.684.7), returned as its receipt, so a
+  // refund gives back these points and no others.
+  let restrictedSpent = [];
   if (grant && (grant.entries ?? []).length) {
     const plan = spendPlan(currentAP, grant.entries, cost, useKindsOf(actionName, { use, traits }));
     grantUpdate[`flags.${SYSTEM_ID}.${AP_GRANT_FLAG}.entries`] = plan.entries;
+    restrictedSpent = restrictedTaken(cappedEntries(grant.entries, currentAP), plan.entries);
   }
 
   // THE ROUND THIS ACTOR LAST SPENT AP IN (3.619.0; Chapter 12, Graham's
@@ -129,8 +151,18 @@ export async function spendActionPoints(actor, apCost, actionName = "This action
     // AND THE TURN (3.622.0; Graham's R11 of block 39): a Word spell "must
     // be used as your opening action", and every AP spent passes here.
     [`flags.${SYSTEM_ID}.apSpentRound`]: { combatId: game.combat.id, round: game.combat.round, turn: game.combat.turn },
+    // AND AP SPENT ON A MOVEMENT-TRAIT ACTION outside the drag (3.683.0;
+    // Eldritch Arts Block 5, seam C17: Astral Drift's "after spending all 3
+    // AP on movement actions"). The drag's own AP is its pools'; see
+    // movement.mjs `countsAsMovementAp`. Keyed by the turn, so it needs no reset.
+    ...(countsAsMovementAp({ use, traits })
+      ? { [`flags.${SYSTEM_ID}.${MOVEMENT_TRAIT_AP_FLAG}`]: nextMovementTraitRecord(
+        actor.getFlag?.(SYSTEM_ID, MOVEMENT_TRAIT_AP_FLAG) ?? null,
+        Math.max(0, currentAP - result.newValue),
+        { combatId: game.combat.id, round: game.combat.round, turn: game.combat.turn }) }
+      : {}),
     ...grantUpdate
-  });
+  }, deferNextAction ? { trgPrimeNextActionDeferred: true } : {});
 
   // SHARED AP (page 200; the block-19 audit's D13, Graham's R13 of 21
   // September 2026): "You and your mount operate with a combined pool of
@@ -169,6 +201,9 @@ export async function spendActionPoints(actor, apCost, actionName = "This action
     const { checkApSpendWatch } = await import("./critical-ap-watch.mjs");
     await checkApSpendWatch(actor, cost);
   }
+  // THE RECEIPT (3.684.7): what was paid, and which restricted points it
+  // took — for `refundActionCost`.
+  return { cost, restricted: restrictedSpent };
 }
 
 /**
@@ -188,10 +223,23 @@ export async function spendActionPoints(actor, apCost, actionName = "This action
  * value and can never lift a pool above its own ceiling. An unclamped
  * add would turn a cancelled 3 AP spell into a way of banking AP.
  *
+ * NOT AN ACTION (3.684.6, found in re-review): the write is marked as the
+ * Strike's spend is, so the AP-write hook never reads a refund as an action
+ * that removes Agile Display's Step — a pool still below the Step's figure
+ * (after a Strike Sanctuary wasted) would otherwise lose it.
+ *
+ * THE RESTRICTED POINTS IT TOOK GO BACK TOO (3.684.7; Graham, 6 November
+ * 2026: "Yes"). With `receipt` — what `spendActionPoints` returned for the
+ * spend being refunded — the restricted points that spend took are added
+ * back to their own entries, so a Strike-only point comes back Strike-only,
+ * not as a general one. Only those points: the rest of the turn's entries
+ * stand as they are now.
+ *
  * @param {Actor} actor
  * @param {number|string} apCost what the action took
+ * @param {{receipt?: {restricted?: Array}|null}} [opts]
  */
-export async function refundActionCost(actor, apCost) {
+export async function refundActionCost(actor, apCost, { receipt = null } = {}) {
   if (!actorInCombat(actor)) return;
   const cost = parseApCost(apCost);
   if (!cost) return;
@@ -201,7 +249,15 @@ export async function refundActionCost(actor, apCost) {
   const max = Number(actor.system?.resources?.ap?.max ?? 0) + (Number(grantOf(actor)?.bonus) || 0);
   const restored = Math.min(Math.max(0, max), Math.max(0, current) + cost);
   if (restored === current) return;
-  await actor.update({ "system.resources.ap.value": restored });
+  const taken = receipt?.restricted ?? [];
+  const grantBack = taken.length && grantOf(actor)
+    ? { [`flags.${SYSTEM_ID}.${AP_GRANT_FLAG}.entries`]: restrictedGivenBack(grantOf(actor).entries ?? [], taken, restored) }
+    : {};
+  await actor.update({ "system.resources.ap.value": restored, ...grantBack }, { trgPrimeNextActionDeferred: true });
+  // A CANCELLED ACTION KEEPS THE STEP (3.684.6; Graham, 5 November 2026):
+  // the refund gives back an Agile Display Step its spend removed.
+  const { restoreNextActionLeg } = await import("./movement-workflow.mjs");
+  await restoreNextActionLeg(actor);
 }
 
 /**
@@ -295,9 +351,9 @@ export async function spendReaction(actor, actionName = "This action", { traits 
  * @param {string|number} apCost
  * @param {string} [actionName]
  */
-export async function spendActionCost(actor, apCost, actionName = "This action", { traits = "", use = null } = {}) {
+export async function spendActionCost(actor, apCost, actionName = "This action", { traits = "", use = null, continuesSpend = false } = {}) {
   if (String(apCost ?? "").trim().toLowerCase() === "reaction") {
     return spendReaction(actor, actionName, { traits });
   }
-  return spendActionPoints(actor, apCost, actionName, { use, traits });
+  return spendActionPoints(actor, apCost, actionName, { use, traits, continuesSpend });
 }

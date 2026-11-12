@@ -371,7 +371,8 @@ equal("G5 still a reaction", String(shield?.system?.castAP ?? ""), "Reaction");
 ok("G6 the effect kind is handled at all",
   EFFECTS.includes('case "sacrificingShield": {'));
 ok("G7 THE CASTER IS STAMPED ON THE WARD",
-  EFFECTS.includes("casterUuid: caster?.uuid"),
+  // SCOPED TO ITS OWN CASE (3.685.0): the turn ladder's row stamps a caster too.
+  /case "sacrificingShield": \{(?:(?!\n        case ")[\s\S])*casterUuid: caster\?\.uuid \?\? "",/.test(EFFECTS),
   "the only effect in the system that must reach a SECOND creature when it fires");
 // G10 THE WARP IS FOLDED IN AT PLACEMENT, NOT AT THE GATE. Section A
 // proves `shieldAmount` does the arithmetic; nothing proved the placer

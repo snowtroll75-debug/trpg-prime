@@ -27,7 +27,7 @@ import {
 import {
   STORM_FLAG, normaliseStorm, spanSeconds, stormModesOffered, stormStrikeLine, thunderImmune
 } from "../module/magic/storm.mjs";
-import { aggregateWarpSelection } from "../module/magic/spell-warp.mjs";
+import { aggregateWarpSelection, mergeWarpSelections } from "../module/magic/spell-warp.mjs";
 import { templateContains } from "../module/magic/spell-template.mjs";
 import { spellSavesOnTurnStart } from "../module/magic/turn-save.mjs";
 import { REGION_CLAIMING_KINDS, areaRegionIsClaimed } from "../module/magic/area-region-life.mjs";
@@ -59,6 +59,12 @@ const deepEqual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   ok("A5 the length warp lengthens it", warped?.lengthFeet === 40);
   ok("A6 the ring warp widens the ring", warped?.ringRadiusFeet === 15);
   ok("A7 the HP warp strengthens each section", warped?.sections?.hp === 50 && warped?.sections?.hardness === 5);
+  // "…OR ITS HEIGHT BY 5 FEET" (3.686.0; Eldritch Arts' Wall of Sand): a height option, read by the wall and the warp engine.
+  const tall = normaliseWall({ kind: "wall", length: 20, height: 10 }, { wallHeight: 10 });
+  const flat = normaliseWall({ kind: "wall", length: 20 }, { wallHeight: 10 });
+  const bought = aggregateWarpSelection([{ ppCost: 2, text: "length", mods: { wallLength: 10 } }, { ppCost: 2, text: "height", mods: { wallHeight: 5 } }], { "warp-1": 2 });
+  ok("A7b the height warp raises a wall that prints a height (10 + 10), not one that prints none; the engine sums it and leaves the length", tall?.heightFeet === 20 && flat?.heightFeet === 0 && bought?.mods?.wallHeight === 10 && bought?.mods?.wallLength === 0, JSON.stringify([tall?.heightFeet, flat?.heightFeet, bought?.mods?.wallHeight, bought?.mods?.wallLength]));
+  ok("A7c …and a second pass of warps (Warp Manipulation's merge) adds its height to the first's", mergeWarpSelections(bought, bought)?.mods?.wallHeight === 20, String(mergeWarpSelections(bought, bought)?.mods?.wallHeight));
   const stone = normaliseWall({ kind: "wall", length: 20, snap: "border",
     block: { move: "normal", sight: "normal", light: "normal", sound: "normal" }, unobstructed: true });
   ok("A8 a border wall's space is the line itself", stone?.snap === "border" && stone?.stripFeet === 1);
@@ -240,7 +246,8 @@ const combat = read("module", "documents", "combat.mjs");
 const targeting = read("module", "combat", "targeting.mjs");
 const attack = read("module", "combat", "attack-workflow.mjs");
 ok("F1 a wall row is read before the area", /const wallSpec = normaliseWall\(\(effEffects \?\? \[\]\)\.find\(\(e\) => e\?\.kind === "wall"\) \?\? null, warpMods\);/.test(cast));
-ok("F2 and placed by the wall's own aim", /\? await placeWall\(wallSpec, actor, rangeFeet, spell\.name\)/.test(cast));
+// RE-ANCHORED AT 3.684.0 (G24): aimed from the caster, or from the token the cast is measured from.
+ok("F2 and placed by the wall's own aim", /\? await placeWall\(wallSpec, aimFrom, rangeFeet, spell\.name\)/.test(cast) && /const aimFrom = rangeOrigin\?\.actor \?\? actor;/.test(cast));
 ok("F3 a wall is always placed in range", /const rangeFeet = wallSpec \? parseRangeFeet\(effRange\) :/.test(cast));
 ok("F4 the cast raises the wall on its Region", /await raiseWall\(region, wallSpec, placedArea, \{/.test(cast));
 ok("F5 and strikes with the storm", /await castStorm\(region, row, \{/.test(cast));

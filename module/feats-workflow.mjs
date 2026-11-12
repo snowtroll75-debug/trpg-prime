@@ -189,8 +189,9 @@ async function chooseMagicalTradition(actor, item) {
   ]);
 }
 
-async function chooseFromList(title, label, options) {
-  const opts = options.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
+async function chooseFromList(title, label, options, selected = null) {
+  // `selected` (3.684.2; Agile Display): the option the list opens on.
+  const opts = options.map(([v, l]) => `<option value="${v}"${selected !== null && String(v) === String(selected) ? " selected" : ""}>${l}</option>`).join("");
   // A form-group is a two-column grid with a 150px label column, which is
   // right for "Spell to gain" and wrong for a sentence. The Crusader's
   // reaction-feat prompt is a sentence — it wrapped into five short lines
@@ -1327,6 +1328,86 @@ export const PP_GRANTS = [
   }))
 ];
 
+/**
+ * A MODULE'S PP GRANTS, AS PP_GRANTS ROWS (3.680.0; Eldritch Arts Block 3a).
+ *
+ * Two sources, built on each call because modules register after this file
+ * loads:
+ *
+ *   - `registerPPGrant(name, {perLevel, label, types})`: the Wild birthright's
+ *     "an additional +1 PP per level".
+ *   - `registerRacialPP(name, perLevel)`: a module's races and heritages.
+ *     FOUND BY THE BLOCK 3 AUDIT: these were stored from 3.560.0 and read by
+ *     `racialPPDue`, which nothing calls — PP_GRANTS is built from the core's
+ *     own tables alone — so Eldritch Arts' Aetherial, Emberkin, Nyrinn and
+ *     Scaelyn reached no character's pool. A name the core's tables already
+ *     answer is left to the core's row.
+ *
+ * Every row keeps its own flag, so removing the item hands back what it gave.
+ */
+export function modulePPGrants() {
+  const slug = (name) => String(name).toLowerCase().replace(/[^a-z0-9]/g, "");
+  const rows = [];
+  for (const [name, per] of registeredRacialPPEntries()) {
+    const key = String(name).trim().toLowerCase();
+    if (!key || !Number(per)) continue;
+    if (Object.prototype.hasOwnProperty.call(RACIAL_PP_PER_LEVEL, key) || Object.prototype.hasOwnProperty.call(HERITAGE_PP_PER_LEVEL, key)) continue;
+    const label = key.replace(/(^|[\s-])\p{L}/gu, (m) => m.toUpperCase());
+    rows.push({
+      name: key,
+      flag: `moduleRacialPP_${slug(key)}`,
+      label: `${label} (racial Power Points)`,
+      path: "system.resources.pp.base",
+      statLabel: "maximum PP",
+      types: ["race", "heritage"],
+      due: (actor) => Number(per) * racialPPLevels(actor)
+    });
+  }
+  for (const grant of registeredPPGrants()) {
+    // OR A BSB FLOOR OF HALF THE LEVEL (3.684.0; Eldritch Arts Block 6, G11):
+    // the Birthrager's "a BSB equal to half your level (round up)". The core's
+    // four caster archetypes' row above, with the grant's own rounding and
+    // flag, so it fills a gap and hands its contribution back as theirs does.
+    if (grant.stat === "bsb") {
+      const flag = `moduleBSBGrant_${slug(grant.name)}`;
+      rows.push({
+        name: grant.name,
+        flag,
+        label: grant.label,
+        path: "system.magic.bsb",
+        statLabel: "BSB",
+        types: grant.types,
+        due: (actor) => archetypeBSBDue({
+          level: actor.system.identity?.level,
+          classBSB: actor.system.progression?.bsb,
+          ownFieldBSB: foundry.utils.getProperty(actor?._source ?? actor, "system.magic.bsb"),
+          alreadyGranted: actor.getFlag?.(SYSTEM_ID, flag),
+          round: grant.halfLevel
+        })
+      });
+      continue;
+    }
+    // OR MAXIMUM HP (3.682.0), when the grant says so: the path Stone-Like
+    // Endurance's own row uses.
+    const hp = grant.stat === "hp";
+    rows.push({
+      name: grant.name,
+      flag: `${hp ? "moduleHPGrant" : "modulePPGrant"}_${slug(grant.name)}`,
+      label: grant.label,
+      path: hp ? "system.resources.hp.other" : "system.resources.pp.base",
+      statLabel: hp ? "Max HP (misc)" : "maximum PP",
+      types: grant.types,
+      due: (actor) => grant.perLevel * Math.max(0, Number(actor.system.identity?.level ?? 0))
+    });
+  }
+  return rows;
+}
+
+/** The core's rows and every module's (3.680.0). */
+export function allPPGrants() {
+  return [...PP_GRANTS, ...modulePPGrants()];
+}
+
 /** A stored-delta grant looked up by feature name. */
 function ppGrantByName(name) {
   return PP_GRANTS.find((g) => g.name === name) ?? null;
@@ -1552,7 +1633,7 @@ async function unwindClassSkillDelta(actor, flagKey, label, featName) {
 // was pressed. Broken since 3.204.0 and green in every harness, because
 // nothing had ever resolved an identifier. See tools/verify-lint.mjs.
 import { CLASS_SKILL_GRANTS } from "./class-skills.mjs";
-import { queuedPassiveAutomation } from "./module-api.mjs";
+import { queuedPassiveAutomation, registeredPPGrants, registeredRacialPPEntries } from "./module-api.mjs";
 import { FORMULA_BOOK_CAPACITY, hasFormulaCapacity, packItemData } from "./items.mjs";
 import { parseGrantList as parseFormulaList } from "./grants.mjs";
 import { effectiveClasses, elevatedLineageBlocked, elevatedLineageChoices, heritageMechanics } from "./feats.mjs";
@@ -1607,6 +1688,23 @@ export const MODULE_HELPERS = Object.freeze({
   enterStance: (actor, item, options = {}) => enterFeatStance(actor, item, options),
   /** The stance effects up on an actor (3.664.0). */
   activeStances: (actor) => activeStanceEffects(Array.from(actor?.effects ?? [])),
+  /**
+   * ENTER SHADOW STANCE ON A MODULE'S TERMS (3.683.0; Eldritch Arts Block 5,
+   * seam C19). Veil of Honour: "Trigger you take damage from a melee attack
+   * … you enter Shadow Stance", a reaction: `{ apCost: 0, ignoreOpen: true }`.
+   * The Kornargon Use's own body (`enterShadowStanceFor`): the Stance trait's
+   * wait, Concealed to the start of the next turn, the stance before it ended.
+   * `item` defaults to the actor's own Shadow Stance. Resolves true when it
+   * was entered; false when a rule refused it or the actor has none.
+   */
+  enterShadowStance: async (actor, { apCost = 1, ignoreOpen = false, item = null } = {}) => {
+    const own = item ?? Array.from(actor?.items ?? []).find((i) => normalise(i.name) === normalise("Shadow Stance")) ?? null;
+    if (!actor || !own) {
+      ui.notifications.warn(`${actor?.name ?? "This creature"} has no Shadow Stance to enter.`);
+      return false;
+    }
+    return enterShadowStanceFor(actor, own, { apCost, ignoreOpen: Boolean(ignoreOpen) });
+  },
   useClassSkillGrant: async (actor, item) => {
     const grant = CLASS_SKILL_GRANTS.find((g) => g.name === normalise(item?.name));
     if (!grant) {
@@ -1641,8 +1739,18 @@ export const MODULE_HELPERS = Object.freeze({
    * removed at 0. Resolves {from, to, floor}: what actually changed.
    */
   reduceCondition: async (actor, key, by = 1) => {
+    // RECURRING DAMAGE IS LOWERED ONE TYPE AT A TIME (3.685.0, review): the
+    // largest total. Its `from`/`to` are that type's.
+    if (String(key) === "recurring") {
+      const { reduceRecurring } = await import("./conditions/recurring-workflow.mjs");
+      const r = await reduceRecurring(actor, by);
+      return { from: r.from, to: r.to, floor: 0 };
+    }
     const from = Math.max(0, Number(actor?.getConditionValue?.(key) ?? 0) || 0);
     if (!from) return { from: 0, to: 0, floor: 0 };
+    // HELD BY A CURSE (3.686.0, H17): nothing but Remove Curse lowers it.
+    const { actorConditionHeld } = await import("./conditions/held-conditions.mjs");
+    if (actorConditionHeld(actor, key)) return { from, to: from, floor: from, held: true };
     const { conditionFloorFor } = await import("./magic/emanation-workflow.mjs");
     const floor = Math.max(0, Number(conditionFloorFor(actor, key)) || 0);
     const to = Math.max(0, from - Math.max(0, Math.trunc(Number(by) || 0)), floor);
@@ -1784,6 +1892,113 @@ async function enterFeatStance(actor, item, { name, apCost = 1, description, cha
     line(`<strong>${name}</strong> entered${game.combat?.started && apCost ? ` (${apCost} AP)` : ""} — its effect stays until you leave the stance (delete the effect) or enter another.`),
     ...(mastery && existing.length ? [line("<em>Stance Mastery: a second stance is running alongside — make an Exhaustion check each round beyond the first that both are maintained (both drop on a failure).</em>")] : []),
     ...extraLines
+  ]);
+  return true;
+}
+
+/* -------------------------------------------------------------------- */
+/*  Shadow Stance (the Kornargon's; 3.552.0, moved out at 3.683.0)       */
+/* -------------------------------------------------------------------- */
+
+/**
+ * ENTER SHADOW STANCE (the Kornargon racial ability's Use).
+ *
+ * MOVED OUT OF FEAT_AUTOMATION AT 3.683.0 (Eldritch Arts Block 5, seam C19),
+ * so a module can enter it on its own terms — `helpers.enterShadowStance(
+ * actor, { apCost, ignoreOpen })`. Veil of Honour: "Trigger you take damage
+ * from a melee attack … you enter Shadow Stance" — a reaction, so 0 AP, and
+ * not the first action of a turn that is not yours (`ignoreOpen`). The
+ * Stance trait's one-round wait still applies, as it does to every entry.
+ *
+ *   apCost      the AP spent in combat (1, the printed cost; 0 for a
+ *               reaction that already paid its own way)
+ *   ignoreOpen  the Open trait is not asked, nor recorded
+ *
+ * AND THE STANCE IS NOW A STANCE (3.683.0, the fix). Its effect carries the
+ * `featStance` flag `enterFeatStance` writes, so `inAnyStance` and every
+ * "while in any stance" rule see it — Tranquil Mind's advantage, Inner
+ * Tempest's Martial Affinity, `stanceConditionals` and `stanceDefenceDC`. It
+ * was written by `replaceFeatEffect` alone, so a Kornargon in Shadow Stance
+ * was, to all of them, in no stance at all. AND IT IS REPLACED LIKE ONE: a
+ * feat stance entered afterwards ends it (`enterFeatStance` deletes every
+ * `featStance` effect past Stance Mastery's one), and entering it ends the
+ * stance before it, by the same rule. Its NAME is unchanged, which is what
+ * the attack workflow reads for "while you are in Shadow Stance"
+ * (`ghostTouch.whileStance`) and what Eldritch Arts' Shadow's Discipline reads.
+ *
+ * Resolves true when the stance was entered, false when a rule refused it.
+ */
+async function enterShadowStanceFor(actor, item, { apCost = 1, ignoreOpen = false } = {}) {
+  // THE PRINTED TRAITS ARE OPEN AND STANCE, and until 3.552.4 this
+  // button consulted neither. The block reads "SHADOW STANCE / OPEN
+  // STANCE / Action 1 AP": that second line is the TRAITS line, and
+  // the pages 18-30 audit misread it as a second ability that was
+  // missing. Graham corrected it on 15 Sep 2026 — and the correction
+  // found a real hole, because `system.traits` on the ability was
+  // empty, so both rules the system already models reached nothing:
+  //
+  //   OPEN   — must be your first action of the turn (traits.mjs)
+  //   STANCE — wait a round before entering another stance
+  //
+  // Gated BEFORE the AP is spent, and recorded after, which is the
+  // order every other trait-bearing action in the system uses.
+  //
+  // `ignoreOpen` (3.683.0) takes Open off the traits asked and recorded,
+  // and nothing else: a reaction on another's turn is not an opening action.
+  const { traitGate, recordTraitUsage } = await import("./traits-workflow.mjs");
+  const traits = ignoreOpen
+    ? String(item?.system?.traits ?? "").split(/[,;]/).map((t) => t.trim()).filter((t) => t && t.toLowerCase() !== "open").join(", ")
+    : item?.system?.traits;
+  const asAction = { ...(item?.system ?? {}), traits };
+  if (!traitGate(actor, asAction, item.name)) return false;
+
+  const cost = Math.max(0, Math.trunc(Number(apCost) || 0));
+  const ap = generalAP(actor); // 3.648.0: not Haste's or Fast Attack's point
+  if (game.combat?.started && cost > 0 && ap < cost) {
+    ui.notifications.warn(`Shadow Stance: ${cost} AP required.`);
+    return false;
+  }
+  if (game.combat?.started && cost > 0) {
+    await actor.update({ "system.resources.ap.value": Number(actor.system.resources?.ap?.value ?? 0) - cost });
+  }
+  // "UNTIL THE START OF YOUR NEXT TURN" IS A CLOCK, and until 3.552.0
+  // this applied Concealed with no clock at all: it stayed until
+  // somebody noticed and unticked it, which is a permanent -2 to be
+  // hit for the price of one AP. Stamped on the round counter the
+  // same way a spell or critical condition is, so the start-of-turn
+  // sweep (`expireTimedConditions`) takes it away on its own.
+  //
+  // OUT OF COMBAT THERE IS NO ROUND to count to, so the condition is
+  // applied untimed and the card says so rather than inventing a
+  // six-second duration for a stance entered in a corridor.
+  const inCombat = Boolean(game.combat?.started);
+  const expiresRound = inCombat ? Number(game.combat?.round ?? 0) + 1 : null;
+  await applyConditionTags(actor, [{ key: "concealed", label: "Concealed" }], { expiresRound });
+  await recordTraitUsage(actor, asAction);
+  // THE STANCE BEFORE IT ENDS (3.683.0), as `enterFeatStance` ends one:
+  // every other stance effect past Stance Mastery's one. Its own previous
+  // effect goes with `replaceFeatEffect`, below.
+  const others = Array.from(actor.effects ?? [])
+    .filter((e) => e.getFlag?.(SYSTEM_ID, FEAT_STANCE_FLAG) && e.getFlag?.(SYSTEM_ID, FEAT_SOURCE_FLAG) !== item.id);
+  const mastery = Array.from(actor.items ?? []).some(
+    (i) => i.type === "feat" && normalise(i.name) === "stance mastery"
+  );
+  const keep = mastery ? 1 : 0;
+  if (others.length > keep) {
+    await actor.deleteEmbeddedDocuments("ActiveEffect",
+      others.slice(0, others.length - keep).map((e) => e.id));
+  }
+  await replaceFeatEffect(actor, item, {
+    name: "Shadow Stance",
+    img: item.img,
+    description: "Concealed until the start of your next turn. At the start of each turn in the stance: a successful Sneak (Stealth) check moving you at least 10 ft reactivates Concealed.",
+    // A STANCE, SO "ANY STANCE" SEES IT (3.683.0, the fix; see above).
+    flags: { [SYSTEM_ID]: { [FEAT_STANCE_FLAG]: true } }
+  });
+  await postCard(actor, "Shadow Stance", [
+    line(`Stance entered${inCombat && cost ? ` (${cost} AP spent)` : ""} — <strong>Concealed</strong>${
+      inCombat ? " until the start of your next turn" : " (no combat is running, so it is not on a clock)"}.`),
+    line("<em>Each turn in the stance: succeed at a Sneak (Stealth) check moving 10+ ft to reactivate Concealed; end the stance by removing its effect.</em>")
   ]);
   return true;
 }
@@ -3994,6 +4209,17 @@ export const FEAT_AUTOMATION = {
       const { specialistSpellAccess } = await import("./aspect-rules.mjs");
       const { specialistAccessFor } = await import("./aspect-workflow.mjs");
       const access = await specialistAccessFor(actor);
+      // A MODULE'S OPENING (3.680.0; Eldritch Arts Block 3a): a birthright's
+      // "You may select additional specialist spells from those available to
+      // the Wizard class", the Umbral's shadow trait, the Archmage's "any
+      // Specialist Spell, from any class". It can only open. See
+      // registerSpecialistAccess. ONLY A SPECIALIST SPELL is opened (3.680.0,
+      // review): `allowSpecialist` admits them beside ordinary spells, and it
+      // was the core's access rule alone that kept ordinary spells out.
+      const { registeredSpecialistAccess } = await import("./module-api.mjs");
+      const opened = (s) => registeredSpecialistAccess().some(({ key, allows }) => {
+        try { return allows(actor, s) === true; } catch (err) { console.error(`TRG Prime | specialist access "${key}" failed`, err); return false; }
+      });
       await grantChosenSpell(actor, {
         title: "Specialist Spell",
         // SPECIALIST BY DESIGN. `grantChosenSpell` excludes specialist
@@ -4010,12 +4236,12 @@ export const FEAT_AUTOMATION = {
             myClasses: mine,
             spellName: s.name,
             specialistClass: s.system?.specialistClass
-          })) return false;
+          }) && !(s.system?.specialist && opened(s))) return false;
           if (Number(s.system?.ppCost ?? Infinity) > maxPP) return false;
           return !owned.has(String(s.name).trim().toLowerCase());
         },
         flagKey: "featSpecialistSpell",
-        indexFields: ["system.specialistClass"],
+        indexFields: ["system.specialistClass", "system.traits", "system.ppCost", "system.specialist", "flags.trg-prime"],
         grantNote: `A specialist spell bought with the Specialist Spell feat (PP ${maxPP} or less at level ${level}).`,
         sourceItem: item
       });
@@ -5495,6 +5721,7 @@ export const FEAT_AUTOMATION = {
     async use(actor, item) {
       const { wildShapeDailyUses } = await import("./druid.mjs");
       let spell = actor.items.find((i) => i.type === "spell" && normalise(i.name) === "shape of the animal");
+      const initialiseUses = !spell || !spell.system.innate;
       if (!spell) {
         // Primal Shape and Voice of the Beast both just WARN here and
         // send the player to re-add the granting FEAT through a picker
@@ -5551,7 +5778,10 @@ export const FEAT_AUTOMATION = {
       await spell.update({
         "system.innate": true,
         "system.usesPerDay": String(uses),
-        "system.usesValue": Math.min(uses, Number(spell.system.usesValue ?? uses) || uses)
+        // Configuration is not a rest. Preserve finite zero and partial
+        // expenditure; only a new/unconfigured pool starts freshly full.
+        "system.usesValue": initialiseUses || !Number.isFinite(spell.system.usesValue)
+          ? uses : Math.max(0, Math.min(uses, spell.system.usesValue))
       });
       // THE SIZE CLAUSE LIVES ON THE SPELL, NOT HERE (3.332.0).
       //
@@ -5776,54 +6006,10 @@ export const FEAT_AUTOMATION = {
   "shadow stance": {
     hint: "Enter Shadow Stance (1 AP): Concealed until the start of your next turn.",
     async use(actor, item) {
-      // THE PRINTED TRAITS ARE OPEN AND STANCE, and until 3.552.4 this
-      // button consulted neither. The block reads "SHADOW STANCE / OPEN
-      // STANCE / Action 1 AP": that second line is the TRAITS line, and
-      // the pages 18-30 audit misread it as a second ability that was
-      // missing. Graham corrected it on 15 Sep 2026 — and the correction
-      // found a real hole, because `system.traits` on the ability was
-      // empty, so both rules the system already models reached nothing:
-      //
-      //   OPEN   — must be your first action of the turn (traits.mjs)
-      //   STANCE — wait a round before entering another stance
-      //
-      // Gated BEFORE the AP is spent, and recorded after, which is the
-      // order every other trait-bearing action in the system uses.
-      const { traitGate, recordTraitUsage } = await import("./traits-workflow.mjs");
-      if (!traitGate(actor, item.system, item.name)) return;
-
-      const ap = generalAP(actor); // 3.648.0: not Haste's or Fast Attack's point
-      if (game.combat?.started && ap < 1) {
-        ui.notifications.warn("Shadow Stance: 1 AP required.");
-        return;
-      }
-      if (game.combat?.started) {
-        await actor.update({ "system.resources.ap.value": Number(actor.system.resources?.ap?.value ?? 0) - 1 });
-      }
-      // "UNTIL THE START OF YOUR NEXT TURN" IS A CLOCK, and until 3.552.0
-      // this applied Concealed with no clock at all: it stayed until
-      // somebody noticed and unticked it, which is a permanent -2 to be
-      // hit for the price of one AP. Stamped on the round counter the
-      // same way a spell or critical condition is, so the start-of-turn
-      // sweep (`expireTimedConditions`) takes it away on its own.
-      //
-      // OUT OF COMBAT THERE IS NO ROUND to count to, so the condition is
-      // applied untimed and the card says so rather than inventing a
-      // six-second duration for a stance entered in a corridor.
-      const inCombat = Boolean(game.combat?.started);
-      const expiresRound = inCombat ? Number(game.combat?.round ?? 0) + 1 : null;
-      await applyConditionTags(actor, [{ key: "concealed", label: "Concealed" }], { expiresRound });
-      await recordTraitUsage(actor, item.system);
-      await replaceFeatEffect(actor, item, {
-        name: "Shadow Stance",
-        img: item.img,
-        description: "Concealed until the start of your next turn. At the start of each turn in the stance: a successful Sneak (Stealth) check moving you at least 10 ft reactivates Concealed."
-      });
-      await postCard(actor, "Shadow Stance", [
-        line(`Stance entered${inCombat ? " (1 AP spent)" : ""} — <strong>Concealed</strong>${
-          inCombat ? " until the start of your next turn" : " (no combat is running, so it is not on a clock)"}.`),
-        line("<em>Each turn in the stance: succeed at a Sneak (Stealth) check moving 10+ ft to reactivate Concealed; end the stance by removing its effect.</em>")
-      ]);
+      // THE BODY MOVED OUT (3.683.0; Eldritch Arts Block 5, seam C19) so a
+      // module can run it with its own terms — Veil of Honour enters the
+      // stance as a reaction, at 0 AP. See `enterShadowStanceFor`.
+      await enterShadowStanceFor(actor, item);
     }
   },
 
@@ -7085,26 +7271,92 @@ export const FEAT_AUTOMATION = {
   },
 
   "agile display": {
-    hint: "1 AP (Flourish): Step 5 ft and roll Acrobatics vs an adjacent foe's Reflex DC — success makes it Flat-Footed to your next melee Strike.",
+    hint: "1 AP (Flourish): Step 5 ft (no further AP, no reactions) and roll Acrobatics vs the Reflex DC of a creature you choose within reach — success makes it Flat-Footed to your next melee Strike.",
     async use(actor) {
+      /*
+       * THE STEP, AND THE CREATURE CHOSEN AFTER USE (3.684.2).
+       *
+       * The book: "Action 1 AP. You Step 5 feet and may attempt an
+       * Acrobatics check against the Reflex DC of one adjacent creature
+       * …" Graham, 5 November 2026: "When activated, this should allow
+       * the character to step as a free (0 AP) action but does not seem
+       * to work. Also, the character should be able to select any target
+       * once the use ability is clicked that is within step range to
+       * target."
+       *
+       * Both were so. This charged its 1 AP and rolled, and granted no
+       * Step — the drag after it was charged again, as a Stride or a Step
+       * — and it read its creature only from a target chosen before Use,
+       * asking for a typed DC without one.
+       *
+       * NOW, IN THIS ORDER: the AP is checked; the creature is chosen from
+       * every token within the Step plus 5 ft (adjacent now, or adjacent
+       * once stepped), or "no check" ("may attempt"); a cancelled chooser
+       * spends nothing and arms nothing. Then the 1 AP, which pays for the
+       * whole action, and the Step armed as a compound leg of no AP of its
+       * own that provokes nothing and counts as a Step. Then the roll.
+       * The typed DC is kept only for an actor with no token on the scene.
+       */
       const { TRGCheck } = await import("./dice/check.mjs");
-      const target = game.user?.targets?.first?.();
-      const dc = target
-        ? 10 + Number(target.actor?.system?.combat?.saves?.reflex?.total ?? 0)
-        : Number.parseInt(await enterText("Agile Display", "Adjacent creature's Reflex DC", "e.g. 16") ?? "", 10);
+      const { activeToken, distanceBetween } = await import("./combat/geometry.mjs");
+      const { stepDistance } = await import("./combat/movement-workflow.mjs");
+      const { AGILE_DISPLAY_NO_CHECK, agileDisplayCandidates, agileDisplayDefault, agileDisplayLeg, agileDisplayReach, agileDisplayStepLine } =
+        await import("./combat/agile-display.mjs");
       const ap = generalAP(actor); // 3.648.0: not Haste's or Fast Attack's point
       if (game.combat?.started && ap < 1) {
         ui.notifications.warn("Agile Display: 1 AP required.");
         return;
       }
+      const stepFeet = stepDistance(actor);
+      const mine = activeToken(actor);
+      let target = null;
+      let dc = NaN;
+      if (mine) {
+        const reach = agileDisplayReach(stepFeet);
+        const others = (canvas?.tokens?.placeables ?? []).filter((t) => t?.actor && t.id !== mine.id
+          && (game.user?.isGM || !t.document?.hidden));
+        const candidates = agileDisplayCandidates(
+          others.map((t) => ({ id: t.id, token: t, feet: distanceBetween(mine, t) })), reach);
+        const picked = await chooseFromList("Agile Display",
+          `Acrobatics against which creature's Reflex DC? (within ${reach} ft: adjacent now, or after your ${stepFeet}-ft Step)`,
+          [...candidates.map((c) => [c.id, `${esc(c.token.name)} (${c.feet} ft)`]), [AGILE_DISPLAY_NO_CHECK, "No check — just Step"]],
+          agileDisplayDefault(candidates, game.user?.targets?.first?.()?.id ?? null));
+        if (picked === null || picked === undefined) return; // cancelled: no AP, no Step
+        target = candidates.find((c) => c.id === picked)?.token ?? null;
+        // THE USER'S TARGET IS THE CREATURE CHOSEN, so the Strike that
+        // follows, and the Flat-Footed rule, see it.
+        if (target) target.setTarget?.(true, { user: game.user, releaseOthers: true });
+        if (target) dc = 10 + Number(target.actor?.system?.combat?.saves?.reflex?.total ?? 0);
+      } else {
+        const typed = await enterText("Agile Display", "Adjacent creature's Reflex DC", "e.g. 16");
+        if (typed === null) return; // cancelled: no AP, no Step
+        dc = Number.parseInt(typed, 10);
+      }
+      const noCheck = !target && !Number.isFinite(dc) && Boolean(mine);
       if (game.combat?.started) {
+        // A STEP STILL ARMED FROM AN EARLIER USE LAPSES (3.684.5): this Use
+        // is another action. Before the AP write, so the new leg is untouched.
+        const { lapseNextActionLeg } = await import("./combat/movement-workflow.mjs");
+        await lapseNextActionLeg(actor);
         await actor.update({ "system.resources.ap.value": Number(actor.system.resources?.ap?.value ?? 0) - 1 });
+        // THE STEP, after the AP that pays for it: free of AP, no reactions.
+        // IT MUST BE THE NEXT ACTION (3.684.5; Graham): the pool as it now
+        // stands is kept, so a later AP write below it lapses the leg.
+        const { armCompoundLeg } = await import("./combat/compound-action-workflow.mjs");
+        await armCompoundLeg(actor, { ...agileDisplayLeg(stepFeet), apAtArm: Number(actor.system.resources?.ap?.value ?? 0) }, "Agile Display");
+      }
+      const stepLine = line(game.combat?.started
+        ? agileDisplayStepLine(stepFeet)
+        : `<strong>Step:</strong> up to ${stepFeet} ft — out of combat, move the token freely.`);
+      if (noCheck) {
+        await postCard(actor, "Agile Display", [stepLine, line("No Acrobatics check attempted.")]);
+        return;
       }
       const skill = actor.system.skills?.acrobatics;
       const check = await TRGCheck.roll({
         actor,
         label: "Agile Display",
-        subtitle: `Step 5 ft — Acrobatics vs Reflex DC${target ? ` (${target.name})` : ""}`,
+        subtitle: `Step ${stepFeet} ft — Acrobatics vs Reflex DC${target ? ` (${target.name})` : ""}`,
         type: "skill",
         dc: Number.isFinite(dc) ? dc : null,
         modifiers: skill?.checkModifiers ?? [
@@ -7112,7 +7364,7 @@ export const FEAT_AUTOMATION = {
         ]
       });
       const degree = check.outcome?.degree?.key ?? null;
-      const lines = [];
+      const lines = [stepLine];
       /*
        * IT APPLIES THE CONDITION NOW (3.586.3).
        *
@@ -7285,6 +7537,15 @@ export const FEAT_AUTOMATION = {
         label: "Spell Recognition",
         subtitle: "Reaction — identify the spell as it is cast",
         type: "skill",
+        // THE ROLL NAMES ITSELF (3.683.0; Eldritch Arts Block 5, C11 — a fix),
+        // as every skill action's does: the skill as `subject`, the action as
+        // `actionKey`. Without them a conditional scoped to the action, a
+        // `fumbleReroll` scoped to the skill and a check reaction reading
+        // `ctx.check.actionKey` all passed it by: Esoteric Insight's "advantage
+        // on Spell Recognition checks against uncommon or rare spells" and its
+        // Arcana/Occultism reroll (Block 1) never reached this roll.
+        subject: skillKey,
+        actionKey: "spellRecognition",
         dc: Number.isFinite(dc) ? dc : null,
         modifiers: [...modifiers]
       });
@@ -7676,6 +7937,10 @@ export const FEAT_AUTOMATION = {
         ...base,
         name: "Counter Spell (free Dispel)",
         apCost: "0",
+        // A COUNTER (3.683.0, C9): a Dispel modifier is told so — Mirrored
+        // Rebuke's "When you make a counter a spell attempt using the Counter
+        // Spell feat", Threadbreaker's "if you successfully counter a spell".
+        counterSpell: true,
         requirements: "You have just identified the incoming spell with Spell Recognition."
       }, { invokedSkillKey: "powerManipulation" });
     }
@@ -8508,7 +8773,8 @@ export async function reconcileAllGrants(actor) {
 
 async function reconcileAllGrantsNow(actor) {
   const lines = [];
-  for (const grant of PP_GRANTS) {
+  // …AND EVERY MODULE'S (3.680.0): see modulePPGrants.
+  for (const grant of allPPGrants()) {
     const summary = await reconcilePPGrant(actor, grant);
     if (summary) lines.push(summary);
   }

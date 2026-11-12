@@ -19,6 +19,8 @@ const MUTATIONS = [
   { name: "the warp's dice miscounted", file: DH, from: "  return 1 + Math.floor((pp - 2) / 2);", to: "  return 1 + Math.floor((pp - 2) / 3);", breaks: "B2" },
   { name: "the PP no longer defaults to the level", file: DH, from: "    const pp = Number(raw.ppCost) > 0 ? Number(raw.ppCost) : Number(level) || 0;", to: "    const pp = Number(raw.ppCost) || 0;", breaks: "B3" },
   { name: "no harvest on a death", file: HK, from: "  await harvestNearbyDeath(victim);\n", to: "", breaks: "S2" },
+  // NEW 3.686.2: the local kill hook must not wait for the acting GM (Graham's 3.686.1).
+  { name: "the kill hook is guarded again, so a kill on a player's client harvests nothing", file: HK, from: "  if (!victim) return;\n  await harvestNearbyDeath(victim);", to: "  if (!isActingGM() || !victim) return;\n  await harvestNearbyDeath(victim);", breaks: "S2" },
   { name: "the divine mark is never made", file: RR, from: "some((t) => [\"divinity\", \"divine\"].includes(lower(t))) ? [\"divine\"] : [];", to: "some(() => false) ? [\"divine\"] : [];", breaks: "B4" },
   { name: "the spells do not carry the mark", file: CAST, from: "          damageTypes: [String(secondary.type ?? \"\").toLowerCase(), ...divineDamageMark(spellDamageSource(spell).sourceTraits)].filter(Boolean), sourceLevel", to: "          damageTypes: [String(secondary.type ?? \"\").toLowerCase()].filter(Boolean), sourceLevel", breaks: "S3" },
   { name: "Unstoppable Force read from anything", file: RS, from: "i?.type === \"ability\" && i?.flags?.[SYSTEM_ID]?.creatureAbility?.derives?.meleeIgnoresResistance === true", to: "i?.flags?.[SYSTEM_ID]?.creatureAbility?.derives?.meleeIgnoresResistance === true", breaks: "B6" },
@@ -28,7 +30,7 @@ const MUTATIONS = [
   { name: "frightened raised by every power in reach", file: FP, from: "  return { ...tag, value: value + 1,", to: "  return { ...tag, value: value + powerNames.length,", breaks: "B7" },
   { name: "status bonuses stack", file: FP, from: "  return Math.max(0, Math.trunc(Number(bonus) || 0) - Math.max(0, Math.trunc(Number(existingStatus) || 0)));", to: "  return Math.max(0, Math.trunc(Number(bonus) || 0));", breaks: "B8" },
   { name: "frightened is never raised", file: EFF, from: "    if (powers.length) tags = tags.map((t) => boostedFrightenedTag(t, powers));", to: "    if (false) tags = tags.map((t) => boostedFrightenedTag(t, powers));", breaks: "S5" },
-  { name: "the DB ignores Fearful Power", file: AW, from: "shieldedStrideDB + typedDefence.total + fearfulDB", to: "shieldedStrideDB + typedDefence.total", breaks: "S5" }
+  { name: "the DB ignores Fearful Power", file: AW, from: "    const fearful = stackFearfulPower(rowsMet, defenceBase, fearfulBonus);", to: "    const fearful = stackFearfulPower(rowsMet, defenceBase, 0);", breaks: "S5" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-ff30-block28.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

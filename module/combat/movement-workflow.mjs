@@ -18,7 +18,8 @@ import { IMMUNITY_TOKENS } from "../defences.mjs";
 import { actorDefences } from "../creature-traits.mjs";
 import { endTakeCover, isInFullDefence } from "./basic-action-stances.mjs";
 import { flyMovementCost, recordFlyAction } from "./fly-workflow.mjs";
-import { declaresFirstMoveNoReactions, firstDifficultSquareCost, firstMoveIsFree, ignoresFirstDifficultSquare, wildStrideCost, terrainReliefName } from "./passive-feats.mjs";
+import { declaresFirstMoveNoReactions, firstDifficultSquareCost, firstMoveIsFree, ignoresFirstDifficultSquare, onlyMagicalTerrain, wildStrideCost, terrainReliefName } from "./passive-feats.mjs";
+import { MAGICAL_TERRAIN_FLAG } from "../magic/difficult-terrain.mjs";
 import { moveActionProvokes } from "./opportunity-rules.mjs";
 import { FULL_DEFENCE_MOVES_FLAG, fullDefenceMovementBlock } from "./reactions.mjs";
 import {
@@ -27,8 +28,8 @@ import {
   resolveChargeStrike,
   validateCharge
 } from "./charge-workflow.mjs";
-import { declaredStepBonus, movementLimitBonus, movementFractionOverride } from "../feats.mjs";
-import { mayEndInSquare, passageThrough } from "./space.mjs";
+import { apCostReduction, declaredStepBonus, movementLimitBonus, movementFractionOverride } from "../feats.mjs";
+import { grantsIncorporealPassage, mayEndInSquare, passageThrough } from "./space.mjs";
 import { regionContains, surfaceMovementEffect, unusualSurfaceOf } from "./surfaces.mjs";
 import { feetFromPointToToken, tokenSquares } from "./geometry.mjs";
 import { AURA_MOVE_LIMIT_FLAG, approachLimitLive, approachRefusal, difficultSurchargeFeet } from "./aura-move-limits.mjs";
@@ -44,9 +45,15 @@ import {
   speedForMovement,
   validateArmedMove,
   COMPOUND_LEG_KEY,
-  validateCompoundLeg
+  armedMovementKind,
+  validateCompoundLeg,
+  MOVEMENT_TRAIT_AP_FLAG,
+  movementThisTurnFrom,
+  pathSquaresOf,
+  crossedSquares
 } from "./movement.mjs";
 import { abilityGallop } from "../creature-ability-rules.mjs";
+import { nextActionLegLapses, nextActionLegRestores } from "./agile-display.mjs";
 import { isSwarm } from "../codex-trait-rules.mjs";
 
 const SYSTEM_ID = "trg-prime";
@@ -54,6 +61,8 @@ const MOVED_FLAG = "movementPools";
 /** A passed Tumble, waiting to be spent on the move it was rolled for. */
 export const TUMBLE_FLAG = "tumbledThrough";
 const ARMED_FLAG = "armedMovement";
+/** A next-action leg an AP spend removed, kept for a refund (3.684.6). */
+const LAPSED_LEG_FLAG = "nextActionLapsed";
 // Superseded by MOVED_FLAG in 3.98.0. Cleared on turn reset so a world
 // upgraded mid-combat doesn't keep stale scalars lying around.
 const LEGACY_FLAGS = Object.freeze(["movementCost", "movementAp"]);
@@ -101,7 +110,8 @@ function tallyFor(actor) {
 function poolFor(tally, key) {
   const existing = tally.pools[key];
   if (existing) return existing;
-  const fresh = { movedCost: 0, apCharged: 0 };
+  // `movedFeet` (3.683.0, C17): the ruler's distance, beside the priced cost.
+  const fresh = { movedCost: 0, apCharged: 0, movedFeet: 0 };
   tally.pools[key] = fresh;
   return fresh;
 }
@@ -115,12 +125,28 @@ export function movementState(actor) {
   };
 }
 
+/**
+ * HOW FAR THIS CREATURE HAS MOVED THIS TURN, AND THE AP IT SPENT ON MOVING
+ * (3.683.0; Eldritch Arts Block 5, seam C17): `{ feet, apOnMovement }`. See
+ * movement.mjs `movementThisTurnFrom` for what each counts. On the API as
+ * `helpers.movementThisTurn(actor)`. Zero outside a running combat.
+ */
+export function movementThisTurn(actor) {
+  const combat = globalThis.game?.combat;
+  if (!actor || !combat?.started) return { feet: 0, apOnMovement: 0 };
+  return movementThisTurnFrom(
+    movementState(actor).pools,
+    actor?.getFlag?.(SYSTEM_ID, MOVEMENT_TRAIT_AP_FLAG) ?? null,
+    { combatId: combat.id, round: combat.round, turn: combat.turn }
+  );
+}
+
 /** Clears the per-turn movement tally. Called at the start of a turn. */
 export async function resetMovementForTurn(actor) {
   tallies.delete(actor?.id);
   // THE TUMBLE MARKER GOES WITH THE TURN (page 198; R15): a Tumble
   // bought one passage on the turn it was rolled, not a standing licence.
-  for (const flag of [MOVED_FLAG, ARMED_FLAG, TUMBLE_FLAG, ...LEGACY_FLAGS]) {
+  for (const flag of [MOVED_FLAG, ARMED_FLAG, TUMBLE_FLAG, LAPSED_LEG_FLAG, ...LEGACY_FLAGS]) {
     if (actor?.getFlag?.(SYSTEM_ID, flag) !== undefined) {
       await actor.unsetFlag(SYSTEM_ID, flag);
     }
@@ -146,6 +172,99 @@ export async function clearArmedMovement(actor) {
   if (actor?.getFlag?.(SYSTEM_ID, ARMED_FLAG) !== undefined) {
     await actor.unsetFlag(SYSTEM_ID, ARMED_FLAG);
   }
+}
+
+/**
+ * A LEG THAT MUST BE THE NEXT ACTION, LAPSED (3.684.5; Agile Display). Graham,
+ * 5 November 2026: "The step must be the next action, if the character does
+ * something else, the free step is removed." Called where an action is taken
+ * (`spendActionPoints`, `resolveAction`, the Strike) and on any AP write that
+ * lowers the pool below what it was when the leg was armed (`apNow`, from the
+ * updateActor hook below, for uses that write AP themselves). Only a leg
+ * marked `nextAction` lapses; see agile-display.mjs `nextActionLegLapses`.
+ *
+ * WHERE THE ACTION IS TAKEN, NOT WHERE IT IS CLICKED (3.684.6; Graham, 5
+ * November 2026: a refused or cancelled action keeps the Step, and "A
+ * reaction should not affect it"). `resolveAction` calls this at its commit
+ * points, the Strike once its roll is made, and `reaction: true` (a reaction
+ * Strike, a reaction-cost action, a readied one) never lapses it.
+ *
+ * @param {Actor} actor
+ * @param {{apNow?: number|null, reaction?: boolean}} [opts]
+ * @returns {Promise<boolean>} whether a leg lapsed
+ */
+export async function lapseNextActionLeg(actor, { apNow = null, reaction = false, spendFrom = null } = {}) {
+  if (reaction === true) return false;
+  const leg = actor?.getFlag?.(SYSTEM_ID, COMPOUND_LEG_KEY) ?? null;
+  if (!nextActionLegLapses(actor?.getFlag?.(SYSTEM_ID, ARMED_FLAG) ?? null, leg, { apNow })) {
+    // ANOTHER ACTION TAKEN: a Step kept for an earlier spend's refund is
+    // that spend's no longer — the spend stood (3.684.6, found in review).
+    // Not for an AP write seen by the hook, which follows a spend's own.
+    if (apNow === null || apNow === undefined) await forgetLapsedLeg(actor);
+    return false;
+  }
+  await actor.unsetFlag(SYSTEM_ID, COMPOUND_LEG_KEY);
+  // KEPT FOR A REFUND (3.684.6): an AP spend that removed it keeps it, with
+  // the pool before that spend (`spendFrom`), so the same spend's refund
+  // gives it back — see `restoreNextActionLeg`. Removed any other way, it
+  // is not kept.
+  if (Number.isFinite(spendFrom)) await actor.setFlag?.(SYSTEM_ID, LAPSED_LEG_FLAG, { leg: { ...leg }, apBefore: Number(spendFrom) });
+  else await forgetLapsedLeg(actor);
+  // Only while it is still the leg: an action armed meanwhile (a Step) stays.
+  if (actor.getFlag?.(SYSTEM_ID, ARMED_FLAG) === COMPOUND_LEG_KEY) await clearArmedMovement(actor);
+  globalThis.ui?.notifications?.info?.(`${leg.label || "The free Step"}: the free Step is removed — it had to be ${actor?.name ?? "the character"}'s next action.`);
+  return true;
+}
+
+/**
+ * WHETHER THE ACTOR'S ARMED MOVEMENT IS A LEG THAT MUST BE THE NEXT ACTION
+ * (3.684.6): `resolveAction` leaves it armed at the click, so a refused
+ * action or a reaction keeps it, and lapses it where the action is taken.
+ */
+export function nextActionLegArmed(actor) {
+  return nextActionLegLapses(actor?.getFlag?.(SYSTEM_ID, ARMED_FLAG) ?? null, actor?.getFlag?.(SYSTEM_ID, COMPOUND_LEG_KEY) ?? null);
+}
+
+/** Drops a Step kept for a refund: the spend that removed it stood (3.684.6). */
+export async function forgetLapsedLeg(actor) {
+  if (actor?.getFlag?.(SYSTEM_ID, LAPSED_LEG_FLAG) !== undefined) await actor.unsetFlag(SYSTEM_ID, LAPSED_LEG_FLAG);
+}
+
+/**
+ * A CANCELLED ACTION GIVES THE STEP BACK (3.684.6; Graham, 5 November 2026:
+ * "Yes" to "Should an action that is refused or cancelled keep the Step?").
+ * Called by `refundActionCost` after the AP comes back — a spell whose
+ * targeting is cancelled. See agile-display.mjs `nextActionLegRestores`.
+ *
+ * @param {Actor} actor
+ * @returns {Promise<boolean>} whether the leg was re-armed
+ */
+export async function restoreNextActionLeg(actor) {
+  const saved = actor?.getFlag?.(SYSTEM_ID, LAPSED_LEG_FLAG) ?? null;
+  if (!saved) return false;
+  if (!nextActionLegRestores(saved, {
+    armed: actor.getFlag?.(SYSTEM_ID, ARMED_FLAG) ?? null,
+    leg: actor.getFlag?.(SYSTEM_ID, COMPOUND_LEG_KEY) ?? null,
+    apNow: Number(actor.system?.resources?.ap?.value ?? 0)
+  })) return false;
+  await actor.unsetFlag(SYSTEM_ID, LAPSED_LEG_FLAG);
+  await actor.setFlag(SYSTEM_ID, COMPOUND_LEG_KEY, saved.leg);
+  await actor.setFlag(SYSTEM_ID, ARMED_FLAG, COMPOUND_LEG_KEY);
+  globalThis.ui?.notifications?.info?.(`${saved.leg.label || "The free Step"}: the free Step is back — the action was cancelled and its AP returned.`);
+  return true;
+}
+
+/**
+ * The updateActor half: an AP write by this user that lowered the pool.
+ * NOT A STRIKE'S OWN SPEND (3.684.6): `spendActionPoints` marks a spend the
+ * Strike lapses later itself, once its roll is made (`deferNextAction`).
+ */
+export function onApWriteLapse(actor, changes, options, userId) {
+  if (userId !== undefined && userId !== globalThis.game?.user?.id) return;
+  if (options?.trgPrimeNextActionDeferred === true) return;
+  const ap = changes?.["system.resources.ap.value"] ?? foundry.utils.getProperty(changes ?? {}, "system.resources.ap.value");
+  if (ap === undefined || ap === null) return;
+  void lapseNextActionLeg(actor, { apNow: Number(ap) });
 }
 
 /**
@@ -241,7 +360,12 @@ function pathCost(movement, actor = null, armedKey = null) {
     // carriers now. Read here, where the question is already being
     // asked, rather than asked again at the notice — two scans could
     // disagree, and the one that printed would be the one nobody tested.
-    const easedBy = terrainReliefName(actor, armedKey);
+    // …AND A CARRIER OF THE MAGICAL KIND ONLY (3.683.0, C16; Astral Drift)
+    // eases a path whose difficult ground a spell made, all of it. The
+    // Regions are scanned only when such a carrier is met.
+    const easedBy = terrainReliefName(actor, armedKey, {
+      magicalTerrain: () => onlyMagicalTerrain(costingTerrainOnPath(movement))
+    });
     const eased = wildStrideCost({
       cost: base,
       distance: proposedDistance(movement),
@@ -264,6 +388,39 @@ function pathCost(movement, actor = null, armedKey = null) {
   // leave the previous behaviour alone, not replace it with zero.
   if (!flown) return { cost: base, flown: null };
   return { cost: flown.cost, flown };
+}
+
+/**
+ * THE GROUND ON THIS PATH THAT CHARGES MORE (3.683.0; seam C16): one row per
+ * Region the path's squares touch with an enabled `modifyMovementCost`
+ * behaviour pricing this movement above 1 — `{ magical }`, true when every
+ * such behaviour carries the magical-terrain mark a spell's ground carries
+ * (magic/difficult-terrain.mjs `MAGICAL_TERRAIN_FLAG`). Best-effort: a scene
+ * that cannot be read answers [], which eases nothing.
+ */
+function costingTerrainOnPath(movement) {
+  try {
+    const regions = Array.from(canvas?.scene?.regions ?? []);
+    if (!regions.length) return [];
+    const grid = canvas?.grid?.size ?? 100;
+    const points = pathSquares(movement).map((sq) => ({ x: (sq.col + 0.5) * grid, y: (sq.row + 0.5) * grid }));
+    if (!points.length) return [];
+    const action = movementAction(movement);
+    const out = [];
+    for (const region of regions) {
+      const costing = Array.from(region?.behaviors ?? []).filter((b) => {
+        if (b?.type !== "modifyMovementCost" || b.disabled) return false;
+        const d = Number(b.system?.difficulties?.[action]);
+        return !Number.isFinite(d) || d > 1;
+      });
+      if (!costing.length) continue;
+      if (!points.some((p) => regionContains(region, p))) continue;
+      out.push({ magical: costing.every((b) => Boolean(b.getFlag?.(SYSTEM_ID, MAGICAL_TERRAIN_FLAG) ?? b.flags?.[SYSTEM_ID]?.[MAGICAL_TERRAIN_FLAG])) });
+    }
+    return out;
+  } catch {
+    return [];
+  }
 }
 
 /** The Foundry movement action the path uses. */
@@ -405,37 +562,16 @@ function maybeOfferCreatureReactions(tokenDocument, movement) {
 /* Moving through creatures (page 198; the audit's D15, Graham's R15)   */
 /* ------------------------------------------------------------------ */
 
-/** Every grid square a proposed path touches, in order. */
+/**
+ * Every grid square a proposed path touches, in order. The reading (walked
+ * legs sampled, teleported legs not) is `pathSquaresOf` in movement.mjs.
+ */
 function pathSquares(movement) {
   try {
-    const grid = canvas?.grid?.size ?? 100;
-    const points = [
+    return pathSquaresOf([
       ...(movement?.passed?.waypoints ?? []),
       ...(movement?.pending?.waypoints ?? [])
-    ].filter((w) => Number.isFinite(Number(w?.x)) && Number.isFinite(Number(w?.y)));
-    const out = [];
-    const push = (x, y) => {
-      const square = { col: Math.round(Number(x) / grid), row: Math.round(Number(y) / grid) };
-      const last = out.at(-1);
-      if (!last || last.col !== square.col || last.row !== square.row) out.push(square);
-    };
-    // SAMPLED ALONG EACH LEG, not just at the corners: a straight drag
-    // across four squares is TWO waypoints, and the creature standing in
-    // the middle of it is the one the rule is about.
-    for (let i = 0; i < points.length; i++) {
-      if (i > 0) {
-        const a = points[i - 1];
-        const b = points[i];
-        const steps = Math.max(
-          Math.abs(Number(b.x) - Number(a.x)), Math.abs(Number(b.y) - Number(a.y))) / grid;
-        for (let s = 1; s < steps; s++) {
-          push(Number(a.x) + (Number(b.x) - Number(a.x)) * (s / steps),
-            Number(a.y) + (Number(b.y) - Number(a.y)) * (s / steps));
-        }
-      }
-      push(points[i].x, points[i].y);
-    }
-    return out;
+    ], canvas?.grid?.size ?? 100);
   } catch {
     return [];
   }
@@ -551,10 +687,13 @@ function spaceRules(tokenDocument, movement) {
     return result;
   }
 
-  // AND THE SQUARES IT PASSES THROUGH.
-  const crossed = squares.slice(0, -1);
+  // AND THE SQUARES IT PASSES THROUGH: not a teleport's (3.680.1), which
+  // lands without crossing. See `crossedSquares`.
+  const crossed = crossedSquares(squares);
   const crossedKeys = new Set(crossed.map((s) => `${s.col},${s.row}`));
   const feetPerSquare = Number(canvas?.scene?.grid?.distance ?? 5) || 5;
+  // INCORPOREAL BY AN EFFECT (3.683.0, C18): through any creature's square.
+  const incorporeal = grantsIncorporealPassage(Array.from(mover.appliedEffects ?? mover.effects ?? []));
   for (const other of tokensOnSquares(crossed, token)) {
     const passage = passageThrough({
       moverSize,
@@ -562,7 +701,8 @@ function spaceRules(tokenDocument, movement) {
       ally: other.document.disposition === tokenDocument.disposition,
       prone: Boolean(other.actor?.hasCondition?.("prone")),
       tumbled,
-      swarm: moverIsSwarm || isSwarm(other.actor?.system)
+      swarm: moverIsSwarm || isSwarm(other.actor?.system),
+      incorporeal
     });
     if (!passage.allowed) {
       result.refused =
@@ -768,7 +908,10 @@ function onPreMoveToken(tokenDocument, movement) {
   // same flag is read again below as `state.armed` for the limit and AP;
   // one read here would have meant threading it through six branches.
   const armedNow = actor?.getFlag?.(SYSTEM_ID, ARMED_FLAG) ?? null;
-  const { cost: measured, flown, eased, easedBy } = pathCost(movement, actor, armedNow);
+  // A LEG THAT IS A STEP (3.684.2; Agile Display) is eased as a Step is
+  // (Feather Step). See movement.mjs `armedMovementKind`.
+  const armedAs = armedMovementKind(armedNow, armedNow === COMPOUND_LEG_KEY ? (actor?.getFlag?.(SYSTEM_ID, COMPOUND_LEG_KEY) ?? null) : null);
+  const { cost: measured, flown, eased, easedBy } = pathCost(movement, actor, armedAs);
   // The creature-square surcharge page 198 adds, on top of whatever the
   // ruler already priced. See `spaceRules`.
   //
@@ -864,7 +1007,7 @@ function onPreMoveToken(tokenDocument, movement) {
   // Channel the Aspect's any Move action, but Fast Attack's buys no movement.
   const state = movementState(actor);
   const moveKinds = !state.armed ? ["stride", "move"]
-    : /^step$/i.test(String(state.armed)) ? ["step", "move"] : ["move"];
+    : /^step$/i.test(String(armedAs ?? state.armed)) ? ["step", "move"] : ["move"];
   const available = Math.max(
     0,
     apAvailable(actor, moveKinds) - tally.pendingSpend
@@ -896,6 +1039,13 @@ function onPreMoveToken(tokenDocument, movement) {
         limitBonus: featMovementBonus(actor, state.armed),
         fractionOverride: featMovementFraction(actor, state.armed)
       });
+    // A FEAT'S CHEAPER ARMED ACTION (3.684.7; Sudden Charge: "It only costs
+    // you 2 Action Points to Charge instead of 3"). The armed path never
+    // reached resolveAction's AP_COST_REDUCTION_FEATS step, so the move paid
+    // the table's 3 AP.
+    if (!leg && check && Number.isFinite(Number(check.apCost))) {
+      check.apCost = armedApCost(actor, state.armed, check.apCost);
+    }
 
     if (!check.allowed) {
       ui.notifications.warn(`${config?.name ?? state.armed}: ${check.reason}.`);
@@ -917,10 +1067,13 @@ function onPreMoveToken(tokenDocument, movement) {
     const armedPool = poolFor(tally, movementPoolKey(state.armed, speedKey));
     armedPool.movedCost += cost;
     armedPool.apCharged += check.apCost;
+    // THE RULER'S DISTANCE TOO (3.683.0, C17): Veilstride's "move at least
+    // 10 ft" is feet moved, not the price of the ground.
+    armedPool.movedFeet = (Number(armedPool.movedFeet) || 0) + proposedDistance(movement);
     tally.pendingSpend += check.apCost;
 
     void (async () => {
-      await spendActionPoints(actor, String(check.apCost), config.name, { use: /^step$/i.test(String(config.name)) ? "step" : "move" });
+      await spendActionPoints(actor, String(check.apCost), config.name, { use: /^step$/i.test(String(config.name)) || armedAs === "step" ? "step" : "move" });
       tally.pendingSpend = Math.max(0, tally.pendingSpend - check.apCost);
       await actor.setFlag(SYSTEM_ID, MOVED_FLAG, tally.pools);
       await clearArmedMovement(actor);
@@ -977,6 +1130,7 @@ function onPreMoveToken(tokenDocument, movement) {
 
   stridePool.movedCost = due.totalCost;
   stridePool.apCharged = due.requiredAp;
+  stridePool.movedFeet = (Number(stridePool.movedFeet) || 0) + proposedDistance(movement);
   tally.pendingSpend += due.apDue;
 
   void (async () => {
@@ -999,6 +1153,8 @@ function onPreMoveToken(tokenDocument, movement) {
 /** Registers the movement hook. Called once, from the system's init. */
 export function registerMovementHooks() {
   Hooks.on("preMoveToken", onPreMoveToken);
+  // AN AP WRITE THAT IS AN ACTION (3.684.5): see `lapseNextActionLeg`.
+  Hooks.on("updateActor", onApWriteLapse);
 }
 
 /** The actor's feat names, normalised once for the two lookups below. */
@@ -1010,6 +1166,18 @@ function movementFeatNames(actor) {
 
 /** Extra feet a feat grants this actor for one armed movement action
  *  (Graceful Step: Step reaches 10 ft for the same 1 AP). */
+/**
+ * AN ARMED ACTION'S AP after the actor's AP-cost feats (3.684.7): the table's
+ * cost less `apCostReduction` (Sudden Charge takes 1 off Charge), never below
+ * 0. Exported for the harness.
+ */
+export function armedApCost(actor, actionKey, base) {
+  const cost = Math.max(0, Math.trunc(Number(base) || 0));
+  // Feats and class abilities, as resolveAction reads them.
+  const names = Array.from(actor?.items ?? []).filter((i) => i.type === "feat" || i.type === "ability").map((i) => i.name);
+  return Math.max(0, cost - apCostReduction(actionKey, names));
+}
+
 function featMovementBonus(actor, actionKey) {
   const named = movementLimitBonus(actionKey, movementFeatNames(actor));
   if (actionKey !== "step") return named;
@@ -1027,6 +1195,17 @@ function featMovementFraction(actor, actionKey) {
   return movementFractionOverride(actionKey, movementFeatNames(actor));
 }
 
+/**
+ * HOW FAR THIS CREATURE'S STEP GOES (3.684.2; Agile Display), in feet: 5,
+ * or what Graceful Step or a declared Step (Tiger Stance) makes it — the
+ * same `armedMoveLimit` an armed Step is held to, so a Step granted inside
+ * another action is the Step the button would have armed.
+ */
+export function stepDistance(actor) {
+  const speed = Number(speedForMovement(actor?.system, "walk")?.speed ?? 0) || 0;
+  return armedMoveLimit("step", speed, featMovementBonus(actor, "step"), featMovementFraction(actor, "step")) ?? 5;
+}
+
 /** Exposed for the arming UI: what an armed action would allow. */
 export function armedMovementSummary(actor) {
   const { armed } = movementState(actor);
@@ -1036,7 +1215,7 @@ export function armedMovementSummary(actor) {
   return {
     key: armed,
     name: config.name,
-    apCost: config.apCost,
+    apCost: armedApCost(actor, armed, config.apCost),
     limit: armedMoveLimit(armed, speed, featMovementBonus(actor, armed), featMovementFraction(actor, armed)),
     note: config.note
   };

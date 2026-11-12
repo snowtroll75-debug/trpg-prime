@@ -78,7 +78,9 @@ export const REGION_CLAIMING_KINDS = Object.freeze([
   // check is recorded on the Region, and an unclaimed Region was deleted at
   // the end of the very cast that recorded it. Web survived only because
   // its difficult terrain claimed the Region first.
-  "entryCheck"
+  "entryCheck",
+  // AN AREA'S LADDER ROLLED AT EACH OF THE CASTER'S TURNS (3.685.0, H3).
+  "turnLadder"
 ]);
 
 /**

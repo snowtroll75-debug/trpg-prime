@@ -24,7 +24,7 @@ const MUTATIONS = [
   { name: "the save is always against the defender's own level", file: DG, from: "  const level = Math.max(0, Math.floor(Number(known ? sourceLevel : ownLevel) || 0));", to: "  const level = Math.max(0, Math.floor(Number(ownLevel) || 0));", breaks: "A7" },
   { name: "a Partial holds", file: DG, from: "  return [\"heroic\", \"critical\", \"success\"].includes(lower(degreeKey));", to: "  return [\"heroic\", \"critical\", \"success\", \"partial\"].includes(lower(degreeKey));", breaks: "A9" },
   { name: "the guard is never asked", file: DY, from: "    if (guarded) return guarded;\n", to: "", breaks: "A11" },
-  { name: "the guard leaves the creature at 0", file: DGW, from: "    await actor.update({ \"system.resources.hp.value\": 1 });\n", to: "", breaks: "A14" },
+  { name: "the guard leaves the creature at 0", file: DGW, from: "    await actor.update({ \"system.resources.hp.value\": healTo });\n", to: "", breaks: "A14" },
   { name: "the weapon hit reports no type", file: AW, from: "      damageTypes: [String(effectiveDamageType ?? \"\").trim().toLowerCase()].filter(Boolean),\n      sourceLevel: Number(actor.system?.identity?.level ?? 0),\n      sourceName: actor.name,\n      sourceUuid: actor.uuid ?? \"\",", to: "      sourceUuid: actor.uuid ?? \"\",", breaks: "A13" },
   { name: "a plain hit counts as a critical injury", file: DA, from: "  if ((spec.onCritical || spec.onCriticalInjury) && !ctx.critical) return false;\n", to: "", breaks: "B3" },
   { name: "the weapon is not asked", file: DA, from: "  if (spec.weaponNames.length && !spec.weaponNames.includes(lower(ctx.weaponName))) return false;\n", to: "", breaks: "B4" },

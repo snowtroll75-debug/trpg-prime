@@ -277,7 +277,7 @@ const row = (name, kind, i = 0) => (PLAN[name]?.effects ?? []).filter((e) => e.k
     && FX.includes("conditionValue: warpedConditionValue(Math.max(1, Number(effect.conditionValue ?? 1) || 1), warpMods, effect)"));
   const thorns = normaliseThorns(warpedThorns(row("Vibrant Thorns", "thorns"), 1));
   ok("H8 Vibrant Thorns' warp: 2, or 2d6 intensified", thorns?.damage === "2" && thorns.intensified === "2d6"
-    && FX.includes("const spec = normaliseThorns(warpedThorns(effect, warpBonus));"));
+    && FX.includes("const spec = normaliseThorns(spellThorns(normaliseThorns(warpedThorns(effect, warpBonus)), {"));
   ok("H9 the thorns' 'by hand' note is gone, and the warp says essence",
     !(PLAN["Vibrant Thorns"].effects.some((e) => e.kind === "note")) && /essence spell/.test(PLAN["Vibrant Thorns"].warps[0].text));
   const vs = row("Veiled Secret", "conditional");

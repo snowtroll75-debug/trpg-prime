@@ -73,7 +73,7 @@ ok("F6d an AoO and a reaction strike ask too", /const picked = await chooseMelee
 // F7
 ok("F7a a readied action costs no AP and is spent only once it happens", /resolveAction\(actor, \{ \.\.\.storedAction, apCost: "0" \}/.test(src.aw) && /if \(done\) \{\n          await consumeReadiedAction\(actor\);/.test(src.aw));
 ok("F7b a readied cast likewise", /const cast = await castSpell\(actor, spell, \{ apPaid: true \}\);\n          if \(cast\) \{\n            await consumeReadiedAction\(actor\);/.test(src.aw));
-ok("F7c the cast skips the AP gate and the spend when paid", /\} else if \(!apPaid && !\(await ensureActionPoints/.test(src.cast) && /if \(!apPaid\) await spendActionCost\(actor, totalCastAP, spell\.name\);/.test(src.cast));
+ok("F7c the cast skips the AP gate and the spend when paid", /\} else if \(!apPaid && !\(await ensureActionPoints/.test(src.cast) && /const castReceipt = apPaid \? null : await spendActionCost\(actor, totalCastAP, spell\.name\);/.test(src.cast));
 ok("F7d a readied Strike is paid", /apPaid: String\(action\.apCost \?\? ""\)\.trim\(\) === "0"/.test(src.aw));
 
 const EXPECTED = 27;

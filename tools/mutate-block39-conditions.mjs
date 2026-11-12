@@ -46,7 +46,7 @@ const MUTATIONS = [
   // B — values
   { file: RULES, name: "A4 — THE OLD DEFECT: every valued condition adds", from: "  return ADDING_CONDITION_IDS.includes(id) ? had + add : Math.max(had, add);", to: "  return had + add;", breaks: "B2" },
   { file: RULES, name: "Injured stops adding", from: "const ADDING_CONDITION_IDS = Object.freeze([\"bleeding\", \"injured\",", to: "const ADDING_CONDITION_IDS = Object.freeze([\"bleeding\",", breaks: "B1" },
-  { file: APPLY, name: "the tags add again", from: "const newValue = combinedConditionValue(tag.key, existingValue, incomingValue);", to: "const newValue = existingValue + Math.max(0, incomingValue);", breaks: "B3" },
+  { file: APPLY, name: "the tags add again", from: "        : combinedConditionValue(tag.key, existingValue, incomingValue);", to: "        : existingValue + Math.max(0, incomingValue);", breaks: "B3" },
   { file: COMBAT, name: "A3 — THE OLD DEFECT: Slowed read under Stunned's override", from: "const slowed = Number(actor.conditions?.direct?.get?.(\"slowed\") ?? actor.getConditionValue?.(\"slowed\") ?? 0) || 0;", to: "const slowed = actor.getConditionValue?.(\"slowed\") ?? 0;", breaks: "B4" },
   // C — thresholds and deaths
   { file: REG, name: "R6 — a grant is never visited", from: "  for (const [id, source] of grants ?? []) visit(id, source);", to: "", breaks: "C1" },
@@ -59,8 +59,8 @@ const MUTATIONS = [
   { file: WATCH, name: "an instant death out of combat goes unannounced", from: "if (result.removed || result.cause) {", to: "if (result.removed) {", breaks: "C6" },
   { file: RULES, name: "A7 — THE OLD DEFECT: Soul Drain deals no damage", from: "  return Math.max(0, (Number(after) || 0) - (Number(before) || 0));", to: "  return 0;", breaks: "C7" },
   { file: ACTOR, name: "a created condition reports nothing", from: "    const [effect] = await this.createEmbeddedDocuments(\"ActiveEffect\", [data]);\n    await settle();", to: "    const [effect] = await this.createEmbeddedDocuments(\"ActiveEffect\", [data]);", breaks: "C8" },
-  { file: REST, name: "A5 — THE OLD DEFECT: a full night leaves the Fatigue", from: "  if (activity === \"sleeping\" && wholeHours >= FULL_NIGHT_HOURS && ate && drank) {", to: "  if (false) {", breaks: "C9" },
-  { file: ATTACK, name: "A6 — THE OLD DEFECT: Weakened never reaches the damage", from: "    if (weakened > 0 && isStrengthBasedAttack(weaponData)) formula += ` - ${weakened}`;", to: "", breaks: "C10" },
+  { file: REST, name: "A5 — THE OLD DEFECT: a full night leaves the Fatigue", from: "  if (activity === \"sleeping\" && wholeHours >= FULL_NIGHT_HOURS && ate && drank && !actorConditionHeld(actor, \"fatigued\")) {", to: "  if (false) {", breaks: "C9" }, // RE-ANCHORED 3.686.0 (H17)
+  { file: ATTACK, name: "A6 — THE OLD DEFECT: Weakened never reaches the damage", from: "    if (weakened > 0 && isStrengthBasedAttack(weaponData) && !declaredDamageAbility) formula += ` - ${weakened}`;", to: "", breaks: "C10" },
   // D — movement
   { file: RULES, name: "Petrified can walk", from: "const CANNOT_MOVE_CONDITIONS = Object.freeze([\"immobilised\", \"paralyzed\", \"petrified\"]);", to: "const CANNOT_MOVE_CONDITIONS = Object.freeze([\"immobilised\", \"paralyzed\"]);", breaks: "D1" },
   { file: RULES, name: "Prone may Stride", from: "  if (hasCondition(conds, \"prone\") && armed !== \"crawl\") {", to: "  if (false) {", breaks: "D3" },

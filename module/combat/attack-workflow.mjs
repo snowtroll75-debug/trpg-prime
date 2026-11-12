@@ -7,7 +7,7 @@ import {
   attackOutcome,
   bonusDamageDice,
   armourCRBypass,
-  buildWeaponDamageFormula, itemDamageExcess, weaponQualityDamageBonus,
+  buildWeaponDamageFormula, flatReplacementFormula, itemDamageExcess, weaponQualityDamageBonus,
   criticalPrecisionDice,
   CRITICAL_BONUS_DICE,
   computePersistenceRounds,
@@ -29,6 +29,7 @@ import {
   rangedAbilityAdjustment,
   quickCritResult,
   reachPenalty,
+  withinReachOverride,
   weaponReachExtension,
   sweepApplies,
   biggerTheyAreDamageBonus
@@ -38,7 +39,7 @@ import { IMMUNITY_TOKENS } from "../defences.mjs";
 import { lineOfEffectBlocked } from "../magic/spell-template.mjs";
 import { isFatalPersistence, splitPersistenceTags } from "../injuries.mjs";
 import { meleeFromHere } from "./space.mjs";
-import { markFatalInjury, recordPersistence, fatalBlockNote } from "../injury-workflow.mjs";
+import { markFatalInjury, recordPersistence, fatalBlockNote, persistenceConditions } from "../injury-workflow.mjs";
 import { declaredDamageRiders, damageRidersFor, riderFormula, ridersBurnUpdate, RIDERS_USED_FLAG } from "./damage-riders.mjs";
 import { declaredMagicalAttacks, magicalAttackSource } from "./magical-attacks.mjs";
 import { weaponDamageBonusFor } from "../magic/weapon-damage-bonus.mjs";
@@ -82,6 +83,7 @@ import { improvisedAttackModifier, improvisedDamagePackets } from "../goods.mjs"
 import { splashNeighboursLine } from "../magic/splash.mjs";
 import { consumeAmmunition, selectAmmunition } from "./ammunition-workflow.mjs";
 import { consumeThrownWeapon } from "./thrown-weapons.mjs";
+import { damageCardSummary } from "./damage-summary.mjs";
 import { skipDialog } from "../apps/check-dialog.mjs";
 import { spendActionPoints } from "./action-points-workflow.mjs";
 import { clearAimIfOtherAction } from "./aim.mjs";
@@ -113,7 +115,7 @@ import { promptTargetSelection } from "./targeting.mjs";
 import { targetPromptText } from "./target-prompt.mjs";
 import { surpriseAttackApplies, surpriseAttackDefenceBonus, surpriseRoundInEffect } from "./surprise.mjs";
 import {
-  FIGHT_DEFENSIVELY_ATTACK_FLAG, fightDefensivelyCoversAttack, isFightingDefensively, takeCoverLevelOf
+  FIGHT_DEFENSIVELY_ATTACK_FLAG, fightDefensivelyCoversAttack, isFightingDefensively, takeCoverLevelOf, activeTakeCover
 } from "./basic-action-stances.mjs";
 import {
   relayConditionTags,
@@ -614,6 +616,11 @@ export function weaponManeuverModifiers(actor, weapon) {
 export async function rollWeaponAttack(actor, weapon, {
   event,
   isReaction = false,
+  // A REACTION FEAT'S STRIKE WITH ITS MAP FROZEN (3.684.6): paid for by the
+  // reaction, though not `isReaction` (whose MAP rules differ). Read only by
+  // Agile Display's Step, which a reaction keeps. See reaction-feats.mjs
+  // `strikeOptionsFor`.
+  asReaction = false,
   apPaid = false,
   extraModifiers = [],
   skipTargetPrompt = false,
@@ -663,6 +670,10 @@ export async function rollWeaponAttack(actor, weapon, {
   // offered a strike at all — so re-measuring here is two places deciding
   // one question, and the second one holds stale geometry.
   reachAlreadyEstablished = false,
+  // A MELEE STRIKE AT A SPELL'S RANGE (3.682.0; Eldritch Arts' Shooting Star:
+  // "If it's a melee weapon, the attack can target a creature within 30
+  // feet"). Feet; a target within it is in reach.
+  reachOverrideFeet = null,
   // XITHRA AND SCREECH (3.643.0, F&F 3.0 block 13 R6): a weapon marked
   // `viaAbility` is struck only through that ability's Use.
   viaAbility = false,
@@ -864,6 +875,56 @@ export async function rollWeaponAttack(actor, weapon, {
   const abilityData = abilityStrikeView(weaponData, abilityUnarmed);
 
   /*
+   * THE STRIKE'S OWN QUESTIONS, ASKED BEFORE IT SETS ANYTHING OFF (3.684.7).
+   * Graham, 6 November 2026, asked whether cancelling a Strike at Versatile,
+   * Unsteady or Blunt Arrows should also undo what the Strike set off — its
+   * trait counts, the attacker's Sanctuary ending, the target's Fixation
+   * ending, a queued Power Attack, the Crimson Covenant, Opportunist: "Yes".
+   *
+   * ASKED HERE, so a cancel comes before any of it — and before the AP — and
+   * there is nothing to undo. Restoring a deleted ward or a lifted condition
+   * would mean recreating effects and taking back chat cards other players
+   * have seen; not doing them yet is the same answer without either. These
+   * read only the weapon, its round and the attacker's own options, all
+   * known by now. The answers are applied where they always were (below), so
+   * a Strike that goes ahead rolls exactly as before.
+   */
+  const unsteadyTrait = /\bunsteady\b/i.test(String(weaponData.traits ?? ""));
+  let unsteadyRested = true;
+  if (unsteadyTrait) {
+    unsteadyRested = await promptUnsteadyRested(weapon.name);
+    if (unsteadyRested === null) return null;
+  }
+  // BLUNT ARROWS (3.576.0): "an archer can choose to inflict subdual
+  // damage with the arrows by taking a -4-circumstance penalty to their
+  // attack." Asked before the roll, like Versatile, because the penalty
+  // is on the roll.
+  let subdualShot = false;
+  if (ammoEffects.allowsSubdual && !skipDialog(event)) {
+    subdualShot = await promptSubdualShot(ammo?.name ?? "Ammunition");
+    if (subdualShot === null) return null;
+  }
+  // Versatile (Chapter 6): "you must choose the damage type before
+  // you make the attack" — carried through to whichever damage
+  // resolution follows a hit.
+  let versatileDamageType = null;
+  const versatileAlternate = extractVersatileType(weaponData.traits);
+  // AND ANY TYPE THE ATTACKER DECLARES FOR THIS KIND OF STRIKE (3.627.0):
+  // Essence Attacks' "you may have the attack deal essence damage instead".
+  // Asked in the same breath as Versatile; see combat/strike-type-options.mjs.
+  const strikeTypeOptions = [...declaredStrikeTypeOptions(Array.from(actor.appliedEffects ?? actor.effects ?? [])), ...weaponStrikeTypeOptions(weapon)];
+  // A TYPE SET RATHER THAN OFFERED (3.670.0; Tiger and Wolf Stance): it is
+  // the Strike's type, and nothing else is asked; two set at once are asked
+  // between.
+  const forcedTypes = forcedStrikeTypes(abilityData, strikeTypeOptions);
+  const damageTypeChoices = forcedTypes.length ? forcedTypes : strikeTypeChoices(abilityData, strikeTypeOptions, versatileAlternate);
+  if (forcedTypes.length === 1) versatileDamageType = forcedTypes[0].type;
+  else if (damageTypeChoices.length > 1) {
+    versatileDamageType = await promptVersatileDamageType(weapon.name, damageTypeChoices);
+    if (versatileDamageType === null) return null;
+  }
+
+  /*
    * HIDE FROM ANIMALS ENDS HERE (3.503.0). "If a warded character
    * touches an animal or ATTACKS ANY CREATURE, even with a spell, the
    * spell ends."
@@ -954,7 +1015,10 @@ export async function rollWeaponAttack(actor, weapon, {
     !inherentRanged &&
     canThrow &&
     distanceToTarget !== null &&
-    distanceToTarget > meleeReach;
+    distanceToTarget > meleeReach &&
+    // A SPELL'S REACH KEEPS IT A MELEE STRIKE (3.682.0, review): Shooting
+    // Star's 30 ft, with a dagger in hand, is not a throw.
+    !withinReachOverride(distanceToTarget, reachOverrideFeet);
   const thrownAttack = weaponData.attackMode === "thrown" || thrownByDistance;
   const isRanged = inherentRanged || thrownByDistance;
 
@@ -1059,7 +1123,7 @@ export async function rollWeaponAttack(actor, weapon, {
     reach = reachPenalty(
       hasReach,
       normalReach,
-      reachAlreadyEstablished ? null : distanceToTarget,
+      (reachAlreadyEstablished || withinReachOverride(distanceToTarget, reachOverrideFeet)) ? null : distanceToTarget,
       { extension: reachExtension, noAdjacent: Boolean(weaponData.noAdjacent) }
     );
     // THE WHIP CANNOT STRIKE AN ADJACENT CREATURE (Chapter 6; 3.576.0).
@@ -1278,12 +1342,24 @@ export async function rollWeaponAttack(actor, weapon, {
       Number(actor.getFlag(SYSTEM_ID, FIGHT_DEFENSIVELY_ATTACK_FLAG) ?? 0) + 1
     );
   } else if (!isReaction && !apPaid && !offTurnFree) {
-    await spendActionPoints(actor, "1", `${weapon.name} — Strike`, { use: "strike" });
+    await spendActionPoints(actor, "1", `${weapon.name} — Strike`, { use: "strike", deferNextAction: true });
+    // ITS STEP LAPSE WAITS FOR THE ROLL (3.684.6, `deferNextAction`): a Strike
+    // stopped before it is rolled (Sanctuary) keeps Agile Display's Step.
   }
   await recordTraitUsage(actor, strikeTraits);
+  // A STRIKE THAT WAS MADE: Agile Display's Step goes, unless it was the
+  // reaction's (3.684.6). After the roll below, and where a Strike made ends
+  // early (the target's miss-chance flat check).
+  const strikeTaken = async () => {
+    const { lapseNextActionLeg } = await import("./movement-workflow.mjs");
+    const { strikeSpendsReaction } = await import("./agile-display.mjs");
+    await lapseNextActionLeg(actor, { reaction: strikeSpendsReaction({ isReaction, readied, asReaction }) });
+  };
 
   // AND THE ACTION IS NOW WASTED. The spend above has run, so a failed
   // Sanctuary save costs exactly what the page says it costs.
+  // THE STEP IS KEPT (3.684.6). Graham, 5 November 2026, asked whether a
+  // Strike wasted by Sanctuary should keep Agile Display's Step: "Yes".
   if (sanctuary.blocked) return null;
 
   /*
@@ -1372,6 +1448,8 @@ export async function rollWeaponAttack(actor, weapon, {
         speaker: ChatMessage.getSpeaker({ actor }),
         content: `<div class="trg-prime trg-check-card"><header class="check-header"><div class="check-heading"><span class="check-actor">${actor.name}</span><h3>${weapon.name} — Attack</h3></div></header><p style="margin:2px 0"><strong>The attack doesn't affect ${targetActor.name}.</strong> ${targetActor.name} was ${avoidance.condition} and passed the DC ${avoidance.dc} avoidance flat check.</p></div>`
       });
+      // A STRIKE MADE (3.684.6, found in review): the flat check was rolled.
+      await strikeTaken();
       return null;
     }
   }
@@ -1557,6 +1635,18 @@ export async function rollWeaponAttack(actor, weapon, {
     ])
   ];
 
+  // BSB IN PLACE OF BAB (3.680.0; Eldritch Arts Block 3a, D17). The Dragon
+  // birthright's claws: "When attacking with your claws you may use BSB rather
+  // than your BAB when determining your attack bonus." Declared on the weapon
+  // as `flags.trg-prime.attackBase: "bsb"`, and taken when it is the better —
+  // "may", as Weapon Finesse's Dex is taken when it is. The BAB stays in the
+  // total above; this row is the difference, named on the card.
+  {
+    const { attackBaseRow } = await import("./attack-base.mjs");
+    const row = attackBaseRow(weapon, actor.system);
+    if (row) modifiers.push(row);
+  }
+
   // CRIMSON COVENANT (3.632.0; Fiends & Fables 3.0 block 2, ruling 2): armed
   // by a bleed result of 5+, spent by this attack — see codex-feat-rules.mjs.
   {
@@ -1613,6 +1703,18 @@ export async function rollWeaponAttack(actor, weapon, {
   );
   if (finesseBonus) {
     modifiers.push({ label: "Finesse (Dexterity)", value: finesseBonus, type: "untyped" });
+  }
+  // A DECLARED ABILITY FOR THE MELEE STRIKE (3.684.0; Eldritch Arts Block 6,
+  // G25): Clever Strike's Intelligence. The best of the current ability,
+  // Finesse's Dexterity and the declared ones, so the two never both add —
+  // see combat/melee-ability.mjs.
+  if (!isRanged) {
+    const { declaredMeleeAbilities, bestMeleeAbility } = await import("./melee-ability.mjs");
+    const declared = declaredMeleeAbilities([...Array.from(actor.items ?? []), ...Array.from(actor.appliedEffects ?? [])], "attack");
+    const better = declared.length
+      ? bestMeleeAbility(declared, system.attributes ?? {}, Number(system.combat?.attack?.ability ?? 0) + finesseBonus)
+      : null;
+    if (better) modifiers.push({ label: `${better.label} (${better.ability.charAt(0).toUpperCase()}${better.ability.slice(1)})`, value: better.delta, type: "untyped" });
   }
 
   /*
@@ -2422,22 +2524,12 @@ export async function rollWeaponAttack(actor, weapon, {
   const typedDefence = targetActor
     // …AND ITS TRAITS (3.664.0): Spirit Stance's DB "against spirits and
     // incorporeal creatures".
-    ? defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments, creatureTraits(actor.system ?? {}))
+    // A STRIKE SAYS IT IS A WEAPON ATTACK (3.684.0; Eldritch Arts Block 6, G20
+    // — review, Low-medium): a row's `when.attackKinds: ["weapon"]` matched
+    // nothing, since only the spell attack named its kind. A row naming no
+    // kind still meets every attack, as before.
+    ? defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments, creatureTraits(actor.system ?? {}), { attackKind: "weapon" })
     : { total: 0, entries: [] };
-  // STANCE BONUSES IGNORED (3.668.0; Formless Cut): what the target's
-  // stances give its DB against this Strike, paid back as a bonus on it.
-  if (ignoreTargetStance && targetActor) {
-    const { stanceDefenceOf } = await import("./strike-options.mjs");
-    const { activeStanceEffects } = await import("../stance-declarations.mjs");
-    const ignored = stanceDefenceOf({
-      breakdown: targetActor.system?.combat?.defence?.breakdown?.entries ?? [],
-      stanceUuids: activeStanceEffects(Array.from(targetActor.appliedEffects ?? targetActor.effects ?? [])).map((e) => e.uuid),
-      dcEntries: typedDefence.entries ?? []
-    });
-    if (ignored.total > 0) {
-      modifiers.push({ label: `${optionLabel || "This Strike"}: ignores ${targetActor.name}'s stance (${ignored.labels.join(", ")})`, value: ignored.total, type: "untyped" });
-    }
-  }
   // AID DEFENSIVE (Chapter 4): "+N circumstance to Defence, only against
   // that target's next attack." Read here rather than off a shared
   // circumstance pool because "only against THAT target" is a fact about
@@ -2458,18 +2550,130 @@ export async function rollWeaponAttack(actor, weapon, {
   const pierce = targetActor
     ? defencePierceFor(defencePiercesOn(actor), weapon?.id, targetActor.system?.combat?.defence)
     : { amount: 0, slots: [], labels: [] };
-  // FEARFUL POWER (3.659.0; block 28 R9): the Tenebrax's status bonus to DB,
-  // less any status bonus its DB already carries (they do not stack).
-  let fearfulDB = 0;
-  if (targetActor) {
-    const { fearfulPowerBonus } = await import("../fearful-power-workflow.mjs");
-    const { statusBonusOver } = await import("../fearful-power.mjs");
-    fearfulDB = statusBonusOver(fearfulPowerBonus(targetActor), Number(targetActor.system?.combat?.defence?.breakdown?.byType?.status ?? 0));
+  // COVER STEPPED DOWN (3.682.0; Eldritch Arts' Shooting Star): the target's
+  // own Take Cover, or the cover firing into melee gives it — THE HIGHER OF
+  // THE TWO (3.684.5; Graham, 5 November 2026: "Yes", asked "Should it step
+  // whichever cover is higher instead?"). One degree, once; on a tie the
+  // firing-into-melee cover (see strike-edge.mjs `coverToStep`).
+  let coverStep = null;
+  let coverPick = null;
+  if (strikeEdge?.reduceCover && targetActor) {
+    const { coverSteppedDown, coverLossInDefence, steppedCoverEntries, coverEntryIn, coverToStep } = await import("../magic/strike-edge.mjs");
+    // A SWITCHED-OFF TAKE COVER IS NO COVER (review).
+    const coverEffect = activeTakeCover(targetActor);
+    const taken = coverEffect && !coverEffect.disabled ? takeCoverLevelOf(targetActor) : "";
+    // THE DB THE TARGET HAS (review): a Paralyzed or Unconscious DB keeps no
+    // cover, so a step takes nothing from it.
+    const sheetEntries = taken ? (await import("./defence-dc.mjs")).defenceStackBase(targetActor) : [];
+    // FOUND BY THE TAKE COVER EFFECT (3.684.4, live test): its +4 is its
+    // own breakdown entry, not the sheet's circumstance slot.
+    const coverSource = taken ? { uuid: coverEffect.uuid, id: coverEffect.id, name: coverEffect.name } : null;
+    // A Take Cover the DB does not hold is no cover to weigh.
+    const takenValue = taken && coverEntryIn(sheetEntries, coverSource) ? Number(COVER_TYPES[taken]?.bonus ?? 0) : 0;
+    coverPick = coverToStep({ taken: takenValue, intoMelee: coverBonus });
+    if (taken && coverPick.step !== "intoMelee") {
+      // WHAT THE DB LOSES, NOT THE TABLE'S DIFFERENCE (review): circumstance
+      // bonuses do not stack, so another one may hold part of it up.
+      const step = coverSteppedDown(taken, strikeEdge.reduceCover);
+      const sheetLoss = coverLossInDefence(sheetEntries, step.lost, coverSource);
+      // AGAINST THE STEPPED COVER (3.684.3, review): the Strike's own
+      // circumstance rows (Aid Defensive and the rest) stack against the
+      // stepped cover, so one that the full cover held down counts again.
+      coverStep = { ...step, taken: true, lost: sheetLoss, sheetLoss, tableLost: step.lost, coverSource, steppedCoverEntries };
+    } else if (coverBonus) {
+      coverStep = coverSteppedDown("standard", strikeEdge.reduceCover);
+    }
+    if (coverStep) coverStep = { ...coverStep, both: coverPick.both, tie: coverPick.tie };
   }
+  // FEARFUL POWER (3.659.0; block 28 R9): the Tenebrax's status bonus to DB.
+  // ONE STATUS ROW AMONG THE REST (3.684.1, review): it was weighed only
+  // against the sheet's own status bonus, so it stacked with a status
+  // defence row (a ward's +1 beside its +3). It now joins the defence rows'
+  // own stacking, as a status row, against the same DB entries;
+  // `fearfulDB` is what it adds over the rows alone.
+  // AND THE STRIKE'S OTHER DB BONUSES BESIDE THEM (3.684.3; Graham, 5 November
+  // 2026: "Yes", they stack by type with the defence rows too): cover, Aid
+  // Defensive, Warden Hunter, Trap Finder (circumstance, as their text has
+  // them), Arrow Catching, Shielded Stride and Dragonhide (untyped), as rows
+  // among `rowsMet` — see defence-dc.mjs `strikeDefenceRows`. `defenceStack`
+  // is then the one total the DB moves by, and its `notCounted` names them.
+  // A STEPPED-DOWN FIRING-INTO-MELEE COVER is the stepped row (3.684.3): the DB
+  // loses what the stack loses, not the table's difference, since a higher
+  // circumstance bonus may hold part of it up.
+  let fearfulDB = 0;
+  let fearfulRow = null;
+  const { defenceStackBase, stackFearfulPower, strikeDefenceRows } = await import("./defence-dc.mjs");
+  const unsteppedBase = targetActor ? defenceStackBase(targetActor) : [];
+  const defenceBase = coverStep?.taken && coverStep.sheetLoss
+    ? coverStep.steppedCoverEntries(unsteppedBase, coverStep.tableLost, coverStep.coverSource)
+    : unsteppedBase;
+  const fearfulBonus = targetActor
+    ? (await import("../fearful-power-workflow.mjs")).fearfulPowerBonus(targetActor)
+    : 0;
+  const strikeBonuses = {
+    cover: coverBonus, aid: aidDefence, warden: wardenDB, trapFinder: trapFinderDB,
+    arrowCatching: arrowCatchingDB, shieldedStride: shieldedStrideDB, dragonhide: dragonhideDB
+  };
+  const intoMeleeStep = coverStep && !coverStep.taken ? coverStep.lost : 0;
+  const intoMeleeTo = intoMeleeStep ? (coverStep.to || "no") : "";
+  const strikeRows = targetActor
+    ? strikeDefenceRows({ ...strikeBonuses, cover: coverBonus - intoMeleeStep })
+    : [];
+  const rowsMet = [...(typedDefence.entries ?? []), ...strikeRows];
+  let defenceStack = { total: Number(typedDefence.total ?? 0), notCounted: typedDefence.notCounted ?? [] };
+  if (targetActor) {
+    const fearful = stackFearfulPower(rowsMet, defenceBase, fearfulBonus);
+    defenceStack = fearful.stack;
+    if (fearful.row) ({ row: fearfulRow, fearfulDB } = fearful);
+    if (intoMeleeStep) {
+      const unstepped = stackFearfulPower([...(typedDefence.entries ?? []), ...strikeDefenceRows(strikeBonuses)], defenceBase, fearfulBonus);
+      coverStep = { ...coverStep, lost: Math.max(0, unstepped.stack.total - defenceStack.total) };
+    }
+    // A TAKEN COVER'S LOSS is what the DB actually loses (3.684.3, review):
+    // the sheet's loss, less what the Strike's rows now add back.
+    if (coverStep?.taken && coverStep.sheetLoss) {
+      const unstepped = stackFearfulPower(rowsMet, unsteppedBase, fearfulBonus);
+      coverStep = { ...coverStep, lost: Math.max(0, coverStep.sheetLoss + unstepped.stack.total - defenceStack.total) };
+    }
+  }
+  // STANCE BONUSES IGNORED (3.668.0; Formless Cut): what the target's
+  // stances give its DB against this Strike, paid back as a bonus on it.
+  // STACKED BOTH WAYS (3.684.1, review): the DB with the stance less the DB
+  // without it, every defence row and Fearful Power stacked against the same
+  // DB entries both times — see stanceDefenceOf.
+  if (ignoreTargetStance && targetActor) {
+    const { stanceDefenceOf } = await import("./strike-options.mjs");
+    const { activeStanceEffects } = await import("../stance-declarations.mjs");
+    const ignored = stanceDefenceOf({
+      breakdown: defenceBase,
+      stanceUuids: activeStanceEffects(Array.from(targetActor.appliedEffects ?? targetActor.effects ?? [])).map((e) => e.uuid),
+      dcEntries: [...rowsMet, ...(fearfulRow ? [fearfulRow] : [])]
+    });
+    if (ignored.total > 0) {
+      modifiers.push({ label: `${optionLabel || "This Strike"}: ignores ${targetActor.name}'s stance (${ignored.labels.join(", ")})`, value: ignored.total, type: "untyped" });
+    }
+  }
+  // The sheet's taken-cover loss comes off the DB even when the Strike's
+  // rows give it all back (the card then shows no step).
+  const takenCoverLoss = coverStep?.taken ? Number(coverStep.sheetLoss ?? 0) : 0;
+  // A TIE IS SAID ON THE CARD (3.684.5): both covers equal, the firing-into-
+  // melee one is stepped, and the DB is what stepping either would give.
+  const coverTieNote = coverStep?.tie
+    ? `${strikeEdge.label || "Edge"}: ${targetActor.name}'s Take Cover and its firing-into-melee cover are both ${coverStep.from} cover; the firing-into-melee cover is the one stepped down (stepping the Take Cover gives the same DB)${coverStep.lost ? "" : ", and the DB loses nothing"}.`
+    : "";
+  if (coverStep && !coverStep.lost) coverStep = null;
+  // THE DB: the sheet's, every row that met this Strike stacked by type
+  // (3.684.3), less the pierce and a taken cover's step down.
   const db = Number.isFinite(baseDB)
-    ? baseDB + coverBonus + wardenDB + arrowCatchingDB + dragonhideDB + shieldedStrideDB + typedDefence.total + fearfulDB
-      + trapFinderDB + (aidDefence?.amount ?? 0) - pierce.amount
+    ? baseDB + defenceStack.total - pierce.amount - takenCoverLoss
     : null;
+  if (coverStep) {
+    // WHICH COVER, when it has two (3.684.5): the higher, so say which.
+    const whichCover = coverStep.both && !coverStep.tie
+      ? ` (${coverStep.taken ? "Take Cover" : "firing into melee"}, the higher of its two covers)`
+      : "";
+    modifiers.push({ label: `${strikeEdge.label || "Edge"}: ${targetActor.name}'s ${coverStep.from} cover${whichCover} is ${coverStep.to || "no"} cover (−${coverStep.lost} DB)`, value: 0, type: "untyped" });
+  }
 
   // AID OFFENSIVE (Chapter 4): the mirror of the above — a bonus to the
   // aided creature's next attack against one named enemy, and against
@@ -2481,51 +2685,20 @@ export async function rollWeaponAttack(actor, weapon, {
     modifiers.push({ label: aidAttack.label, value: aidAttack.amount, type: "circumstance" });
   }
 
-  if (/\bunsteady\b/i.test(String(weaponData.traits ?? ""))) {
-    const rested = await promptUnsteadyRested(weapon.name);
-    if (rested === null) return null;
-    if (!rested) {
-      modifiers.push({ label: "Unsteady", value: -2, type: "circumstance" });
-    }
+  // UNSTEADY, BLUNT ARROWS AND VERSATILE were asked before the Strike set
+  // anything off (3.684.7, see `unsteadyTrait` above); applied here, where
+  // they always were.
+  if (unsteadyTrait && !unsteadyRested) {
+    modifiers.push({ label: "Unsteady", value: -2, type: "circumstance" });
   }
-
-  // Versatile (Chapter 6): "you must choose the damage type before
-  // you make the attack" — prompted here, before the roll, and
-  // carried through to whichever damage resolution follows a hit.
-  // BLUNT ARROWS (3.576.0): "an archer can choose to inflict subdual
-  // damage with the arrows by taking a -4-circumstance penalty to their
-  // attack." Asked before the roll, like Versatile, because the penalty
-  // is on the roll.
-  let subdualShot = false;
   // DRACONIC SHIFTING (Creature Codex; 3.631.0): while shifted, its Strikes
   // "would now be classed as unarmed subdual attacks" — the modifiers stand,
   // the damage type is subdual.
   const { strikesAreSubdual } = await import("../creature-ability-rules.mjs");
   const shiftedSubdual = strikesAreSubdual(Array.from(actor.items ?? []));
   if (shiftedSubdual) modifiers.push({ label: "Draconic Shifting (unarmed subdual)", value: 0, type: "untyped" });
-  if (ammoEffects.allowsSubdual && !skipDialog(event)) {
-    subdualShot = await promptSubdualShot(ammo?.name ?? "Ammunition");
-    if (subdualShot === null) return null;
-    if (subdualShot) {
-      modifiers.push({ label: `Subdual (${ammo?.name ?? "ammunition"})`, value: SUBDUAL_SHOT_PENALTY, type: "circumstance" });
-    }
-  }
-
-  let versatileDamageType = null;
-  const versatileAlternate = extractVersatileType(weaponData.traits);
-  // AND ANY TYPE THE ATTACKER DECLARES FOR THIS KIND OF STRIKE (3.627.0):
-  // Essence Attacks' "you may have the attack deal essence damage instead".
-  // Asked in the same breath as Versatile; see combat/strike-type-options.mjs.
-  const strikeTypeOptions = [...declaredStrikeTypeOptions(Array.from(actor.appliedEffects ?? actor.effects ?? [])), ...weaponStrikeTypeOptions(weapon)];
-  // A TYPE SET RATHER THAN OFFERED (3.670.0; Tiger and Wolf Stance): it is
-  // the Strike's type, and nothing else is asked; two set at once are asked
-  // between.
-  const forcedTypes = forcedStrikeTypes(abilityData, strikeTypeOptions);
-  const damageTypeChoices = forcedTypes.length ? forcedTypes : strikeTypeChoices(abilityData, strikeTypeOptions, versatileAlternate);
-  if (forcedTypes.length === 1) versatileDamageType = forcedTypes[0].type;
-  else if (damageTypeChoices.length > 1) {
-    versatileDamageType = await promptVersatileDamageType(weapon.name, damageTypeChoices);
-    if (versatileDamageType === null) return null;
+  if (subdualShot) {
+    modifiers.push({ label: `Subdual (${ammo?.name ?? "ammunition"})`, value: SUBDUAL_SHOT_PENALTY, type: "circumstance" });
   }
 
   // THE x1.5 (Chapter 6, Weapon Sizes): a weapon one size larger than its
@@ -2600,6 +2773,12 @@ export async function rollWeaponAttack(actor, weapon, {
     attackForm: attackFormOf(abilityData),
     // THE WEAPON'S GROUP (3.668.0): Weapon Discipline's scope.
     attackGroup: String(weaponData.group ?? "").trim().toLowerCase(),
+    // THE WEAPON, AND THE GRIP USED (3.684.0; Eldritch Arts Block 6, G25),
+    // for a check reaction: Arcane Fencer's "a melee Strike with a
+    // one-handed weapon". Two-handed when the weapon takes two hands as held
+    // — the Two-Handed trait, one size larger, a Hand & a Half grip.
+    weaponUuid: String(weapon?.uuid ?? ""),
+    twoHanded: Boolean(usedTwoHanded || itemRequiredHands({ type: "weapon", system: weaponData }, system.identity?.size ?? "medium") >= 2),
     // HOW FAR IT REACHES (3.668.0): Stone Serpent's reach, Distant Honour's
     // first increment.
     rangeBand: rangeBandOf({ isRanged, distance: distanceToTarget, rangeIncrement }),
@@ -2623,6 +2802,10 @@ export async function rollWeaponAttack(actor, weapon, {
   // Strike has spent its AP and its defender has been offered reactions, so
   // it cannot be swapped for another action. See TRGCheck.roll.
   let check = await TRGCheck.roll(attackCheckConfig);
+  // WHAT A REACTION SAID BEFORE THE DICE (3.681.0; Prophetic Warning), kept
+  // for the card: a reroll below replaces the check, and the card writes its
+  // own detail lines.
+  const reactionBeforeLines = [...(check.reactionBeforeLines ?? [])];
 
   // ALTER THE THREAD (3.667.0; Inner Tempest's Mystic, Graham's B3-5): the
   // defender may spend conviction, once the roll is seen and before it
@@ -2635,7 +2818,8 @@ export async function rollWeaponAttack(actor, weapon, {
     if (asked.rerolled) {
       const before = Number(check.outcome?.total ?? check.total ?? 0);
       // THE FIRST ROLL'S TICK-BOXES STAND (3.667.3): not asked again.
-      check = await TRGCheck.roll({ ...attackCheckConfig, allowConviction: false, conditionalChoices: check.conditionalChoices ?? [] });
+      // A REACTION'S BONUSES ARE CARRIED LIKE ITS ADVANTAGE (3.683.0, C2).
+      check = await TRGCheck.roll({ ...attackCheckConfig, allowConviction: false, conditionalChoices: check.conditionalChoices ?? [], checkReactionsBeforeAsked: true, reactionAdvantages: check.reactionAdvantages ?? [], reactionModifiers: check.reactionModifiers ?? [] });
       await postRerollCard(targetActor, actor, asked.label, before, Number(check.outcome?.total ?? check.total ?? 0));
     }
   }
@@ -2665,7 +2849,7 @@ export async function rollWeaponAttack(actor, weapon, {
         const taken = await offerFumbleReroll(actor, "attack");
         if (taken) {
           const before = Number(check.outcome?.total ?? 0);
-          check = await TRGCheck.roll({ ...attackCheckConfig, conditionalChoices: check.conditionalChoices ?? [], allowConviction: false });
+          check = await TRGCheck.roll({ ...attackCheckConfig, conditionalChoices: check.conditionalChoices ?? [], allowConviction: false, checkReactionsBeforeAsked: true, reactionAdvantages: check.reactionAdvantages ?? [], reactionModifiers: check.reactionModifiers ?? [] });
           fumbleRerolled = true;
           fumbleConfirmedEarly = null;
           await postCard(actor, taken.label, [line(`The fumble is not rolled on its table: the attack check is made again (${before} → <strong>${Number(check.outcome?.total ?? 0)}</strong>), and the second result stands, even if it is worse.`)]);
@@ -2755,6 +2939,12 @@ export async function rollWeaponAttack(actor, weapon, {
   // bonus has already applied to this roll (the whole point of
   // aiming), rather than before it could.
   await clearAimIfOtherAction(actor, "strike");
+  // A LEG THAT MUST BE THE NEXT ACTION (3.684.5; Agile Display): a Strike
+  // first removes it, a free one too — once it is made, here, after every
+  // prompt that can cancel it (3.684.6). A Strike made with the reaction —
+  // an Attack of Opportunity, a readied Strike, a reaction feat's — keeps it
+  // (Graham, 5 November 2026: "A reaction should not affect it").
+  await strikeTaken();
 
   // Parry (Chapter 6): "the bonus is lost if the weapon is used to
   // attack with" — per Graham directly. Only relevant (and only
@@ -2814,9 +3004,11 @@ export async function rollWeaponAttack(actor, weapon, {
   // listens (aligned-control-workflow.mjs).
   if (targetActor) Hooks.callAll("trgPrimeStrikeRolled", { attacker: actor, target: targetActor, weapon });
 
-  const outcome = attackOutcome({
-    unmodified: check.dice?.unmodified ?? 0,
-    total: check.outcome.total,
+  // THE OUTCOME, AS A FUNCTION OF THE CHECK (3.681.0): read again when a
+  // reaction rerolls the attack below.
+  const outcomeOf = (c) => attackOutcome({
+    unmodified: c.dice?.unmodified ?? 0,
+    total: c.outcome.total,
     db,
     proficient,
     // A real template.json field, summed in documents/actor.mjs from
@@ -2837,6 +3029,37 @@ export async function rollWeaponAttack(actor, weapon, {
     clumsy,
     missForgiveness
   });
+  let outcome = outcomeOf(check);
+  const reactionDetailLines = [...reactionBeforeLines];
+  // A MODULE'S REACTION TO A HIT OR A MISS (3.681.0; Eldritch Arts Block 3b):
+  // Missed Chance, "when an enemy … succeeds at an attack check … force them
+  // to reroll", and Second Chance's ally who misses. Asked here because only
+  // here is the hit known; the reroll is this check made again in place, and
+  // the second result stands. Not on a shared strike's later creatures.
+  if (targetActor && !presetDice && outcome.resolved) {
+    const { checkReactionsAfter } = await import("../reactions/reactions-workflow.mjs");
+    const answered = await checkReactionsAfter(check, { type: "attack", succeeded: outcome.hits, failed: !outcome.hits, target: targetActor });
+    if (answered.rerolled) {
+      check = answered.check;
+      outcome = outcomeOf(check);
+    }
+    // OR THE HIT IS A MISS (3.685.0, H6): a duplicate struck in your place.
+    if (answered.missed) {
+      const { missedByReaction } = await import("../reactions/reactions.mjs");
+      outcome = missedByReaction(outcome);
+      reactionDetailLines.push(`${answered.missedBy}: the hit is a miss.`);
+    }
+    // KEPT FOR THE CARD (found in review): the card's detail lines are
+    // written whole below, so the reaction's own lines and its reroll line
+    // are carried there rather than left on a field that is overwritten.
+    reactionDetailLines.push(...answered.lines);
+    if (answered.rerolled) {
+      reactionDetailLines.push(...(check.extraDetailLines ?? []).slice(-1));
+      // A FRESH ROLL, A FRESH FUMBLE CHECK: the first roll's confirmation
+      // belongs to dice no longer read.
+      fumbleConfirmedEarly = null;
+    }
+  }
   // ONE CRITICAL FOR THE PAIR (3.668.2): read as an ordinary hit before the
   // card is written, so the card, the bonus dice and the injury all agree.
   const criticalDowngraded = Boolean(noCritical) && Boolean(outcome.critical);
@@ -2979,52 +3202,76 @@ export async function rollWeaponAttack(actor, weapon, {
       )
     );
   }
+  // WHICH OF THE STRIKE'S OTHER DB BONUSES DID NOT COUNT (3.684.3; Graham, 5
+  // November 2026): each line says so, as the defence rows' lines do.
+  const strikeRowLost = (key) => {
+    const row = strikeRows.find((r) => r.key === key);
+    const lost = row ? (defenceStack.notCounted ?? []).find((n) => n.entry === row) : null;
+    return lost ? ` — not counted: ${String(lost.reason).toLowerCase()}` : "";
+  };
   if (coverBonus) {
     lines.push(
       line(
-        `<em>${targetActor?.name ?? "The target"} is engaged in melee: +${coverBonus} DB (Standard cover, firing into melee).</em>`
+        `<em>${targetActor?.name ?? "The target"} is engaged in melee: +${coverBonus - intoMeleeStep} DB (Standard cover, firing into melee${intoMeleeStep ? `, stepped down to ${intoMeleeTo} cover` : ""}, circumstance)${strikeRowLost("cover")}.</em>`
       )
     );
+    if (coverTieNote) lines.push(line(`<em>${coverTieNote}</em>`));
   }
   if (diversionNote) lines.push(line(diversionNote));
   if (interceptNote) lines.push(line(interceptNote));
   if (arrowCatchingDB) {
     lines.push(
       line(
-        `<em>${targetActor?.name ?? "The target"} bears an Arrow Catching rune: +${arrowCatchingDB} DB against missile attacks, and its concealment does not count against them.</em>`
+        `<em>${targetActor?.name ?? "The target"} bears an Arrow Catching rune: +${arrowCatchingDB} DB against missile attacks${strikeRowLost("arrowCatching")}, and its concealment does not count against them.</em>`
       )
     );
   }
   // SAID ON THE CARD, like every other defender-side bonus above it — a
   // DB that moved with nothing to explain it reads as a fault.
-  if (fearfulDB) lines.push(line(`<em>${targetActor?.name ?? "The target"}'s Fearful Power: +${fearfulDB} status to DB (the highest frightened value within 30 feet).</em>`));
+  // THE DEFENDER'S DB ROWS, AND WHICH DID NOT COUNT (3.684.1, review), as
+  // the action and spell cards say them.
+  const notCountedOf = (entry) => (defenceStack.notCounted ?? []).find((n) => n.entry === entry);
+  const escRow = (text) => globalThis.foundry?.utils?.escapeHTML?.(String(text)) ?? String(text);
+  for (const entry of typedDefence.entries ?? []) {
+    const lost = notCountedOf(entry);
+    lines.push(line(`<em>${targetActor?.name ?? "The target"}'s ${escRow(entry.label)}: ${entry.value > 0 ? "+" : ""}${entry.value} DB${entry.scope ? ` (${escRow(entry.scope)})` : ""}${lost ? ` — not counted: ${escRow(lost.reason.toLowerCase())}` : ""}.</em>`));
+  }
+  if (fearfulRow) {
+    const lost = notCountedOf(fearfulRow);
+    lines.push(line(`<em>${targetActor?.name ?? "The target"}'s Fearful Power: +${fearfulRow.value} status to DB (the highest frightened value within 30 feet)${lost ? ` — not counted: ${lost.reason.toLowerCase()}` : ""}.</em>`));
+  }
   if (dragonhideDB) {
     lines.push(
       line(
-        `<em>${targetActor?.name ?? "The target"}'s Dragonhide shield: +${dragonhideDB} DB against ${String(weaponData.damageType ?? "").toLowerCase()}.</em>`
+        `<em>${targetActor?.name ?? "The target"}'s Dragonhide shield: +${dragonhideDB} DB against ${String(weaponData.damageType ?? "").toLowerCase()}${strikeRowLost("dragonhide")}.</em>`
       )
     );
   }
   if (shieldedStrideDB) {
     lines.push(
       line(
-        `<em>${targetActor?.name ?? "The target"} answers with their shield as they go: +${shieldedStrideDB} DB (Shielded Stride).</em>`
+        `<em>${targetActor?.name ?? "The target"} answers with their shield as they go: +${shieldedStrideDB} DB (Shielded Stride)${strikeRowLost("shieldedStride")}.</em>`
       )
     );
   }
   if (wardenDB) {
     lines.push(
       line(
-        `<em>${targetActor?.name ?? "The target"} is a Warden Hunter and you are its hunted prey: +${wardenDB} DB (circumstance).</em>`
+        `<em>${targetActor?.name ?? "The target"} is a Warden Hunter and you are its hunted prey: +${wardenDB} DB (circumstance)${strikeRowLost("warden")}.</em>`
       )
     );
   }
   if (trapFinderDB) {
     lines.push(
       line(
-        `<em>${targetActor?.name ?? "The target"} has Trap Finder and this attack carries the trap trait: +${trapFinderDB} DB (circumstance).</em>`
+        `<em>${targetActor?.name ?? "The target"} has Trap Finder and this attack carries the trap trait: +${trapFinderDB} DB (circumstance)${strikeRowLost("trapFinder")}.</em>`
       )
     );
+  }
+  // AID DEFENSIVE ON THE CARD (3.684.3): it moved the DB with no line saying
+  // so; now it has one, and says when a higher circumstance bonus beat it.
+  if (aidDefence) {
+    lines.push(line(`<em>${targetActor?.name ?? "The target"}'s ${escRow(aidDefence.label || "Aid Defensive")}: +${aidDefence.amount} DB against you (circumstance)${strikeRowLost("aid")}.</em>`));
   }
   if (outcome.resolved) {
     lines.push(
@@ -3107,7 +3354,7 @@ export async function rollWeaponAttack(actor, weapon, {
   }
   check.compact = true;
   check.compactSummary = compactSummary;
-  check.extraDetailLines = lines;
+  check.extraDetailLines = [...reactionDetailLines.map((said) => line(said)), ...lines];
   await check.toMessage();
 
   // Press the Advantage: "you inflict a critical hit" is a trigger the
@@ -3829,6 +4076,18 @@ export async function rollCriticalInjury(
     const edge = await offerCriticalAdvantage(actor, weapon, bias);
     if (edge) { bias = edge.bias; edgeLine = edge.line; }
   }
+  // A REACTION FROM THE CREATURE STRUCK (3.681.0; Eldritch Arts Block 3b):
+  // Eternity Resilience, "when you take a critical hit, you may expend
+  // Conviction to grant Disadvantage on the critical roll". After the
+  // wielder's Harmony Edge, so the two cancel; for a weapon's critical or a
+  // spell's, not a forced result.
+  const reactionLines = [];
+  if (targetActor && targetActor !== actor && (forcedResult === null || forcedResult === undefined)) {
+    const { criticalReactionsFor } = await import("../reactions/reactions-workflow.mjs");
+    const reacted = await criticalReactionsFor({ attacker: actor, target: targetActor, weapon: weapon ?? null, bias, severity: severity ?? "minor" });
+    bias = reacted.bias;
+    reactionLines.push(...reacted.lines);
+  }
 
   const rolls = [];
   const draw = async (faces) => {
@@ -3838,7 +4097,8 @@ export async function rollCriticalInjury(
   };
 
   const forced = forcedResult === null ? null : Math.max(1, Math.min(100, Math.trunc(Number(forcedResult) || 0)));
-  const percentile = forced === null
+  // `let` since 3.685.0 (H7): a critical reaction may read the same dice lower.
+  let percentile = forced === null
     ? await rollPercentile({
         drawTen: async () => (await draw(10)) % 10,
         drawUnit: async () => (await draw(10)) % 10,
@@ -3858,23 +4118,24 @@ export async function rollCriticalInjury(
   // reduces damage from a critical if it actually covers that
   // location — replacing the old "does the target have any armour
   // at all" approximation with the real, location-specific answer.
-  const hitLocation = hitLocationFromUnitDie(percentile.unit);
+  let hitLocation = hitLocationFromUnitDie(percentile.unit);
   // WHAT covers the struck location, not merely WHETHER (3.580.0, R6/R7):
   // the tables address metal and rigid armour separately, and a leather
   // jerkin used to collect results the book reserves for plate.
   const { itemsSeenByCritical, armourBypassLine } = await import("../magic/attack-riders.mjs");
-  const seenItems = itemsSeenByCritical(Array.from(targetActor?.items ?? []), armourBypass);
+  let seenItems = itemsSeenByCritical(Array.from(targetActor?.items ?? []), armourBypass);
   // MAGE ARMOUR AND BRACERS COVER EVERY LOCATION (3.617.4, Graham's Q1 of
   // the 3.617.3 drive): laid over the worn pieces here, so the table, the
   // amendment and the damage step's DR bypass all read one answer. Mage
   // Armour's CL 10 rigidity rides on it (MA4: while it has HP).
-  const targetArmour = targetActor
+  let targetArmour = targetActor
     ? withWholeBodyArmour(armourAtLocation(seenItems, hitLocation), targetActor.system)
     : { armoured: false, rigid: false, metal: false, coveredBy: "" };
-  const targetArmoured = targetArmour.armoured;
+  let targetArmoured = targetArmour.armoured;
 
   const lines = [];
   if (edgeLine) lines.push(line(edgeLine));
+  for (const said of reactionLines) lines.push(line(said));
   // SAID WHEN IT MATTERED: only a bypassed piece that covers the struck
   // location changed what the table reads.
   if (targetActor && armourBypass?.length) {
@@ -3990,6 +4251,48 @@ export async function rollCriticalInjury(
         + `<strong>${alternate}</strong> instead (page 206).`));
       result = alternate;
       row = replacement;
+    }
+  }
+
+  /*
+   * A LOWER SEVERITY, AFTER THE ROLL (3.685.0, H7; Arcane Bastion, Graham's
+   * Q151: "the same d100 is read one severity lower (Minor → no injury)").
+   * Asked of the creature struck once the row is known, so its rule can see
+   * whether the injury would leave it dying or incapacitated. The same two
+   * dice are read lower (combat/critical-severity.mjs); the location, the
+   * armour, the row and its "no armour" clause follow the new reading. Not
+   * for a forced re-read (Ambush, Sniping): that is the same injury.
+   */
+  if (targetActor && targetActor !== actor && forced === null) {
+    const { criticalAfterReactionsFor } = await import("../reactions/reactions-workflow.mjs");
+    const lowered = await criticalAfterReactionsFor({
+      attacker: actor, target: targetActor, weapon: weapon ?? null, severity: severity ?? "minor", bias, result, row, hitLocation,
+      percentile: { value: percentile.value, tens: percentile.tens, unit: percentile.unit, drawn: percentile.drawn ?? null }
+    });
+    for (const said of lowered.lines) lines.push(line(said));
+    if (lowered.steps < 0) {
+      const { loweredCriticalReading } = await import("./critical-severity.mjs");
+      const reread = loweredCriticalReading(percentile, bias, lowered.steps, severity ?? "minor");
+      if (reread.none) {
+        lines.unshift(line(`Rolled <strong>${percentile.value}</strong> (${severity}, ${bias}) — <strong>lowered below Minor: no critical injury</strong>.`));
+        await postCard(actor, "Critical Injury", lines, rolls, {});
+        return { result, row, save: null, hitLocation, locationArmoured: targetArmoured, armourAmended: false, negated: true, lowered: lowered.steps };
+      }
+      lines.push(line(`<strong>Severity lowered by ${reread.steps}</strong>: the same dice read ${reread.severity || reread.bias} — ${percentile.value} → <strong>${reread.value}</strong>.`));
+      percentile = { ...percentile, value: reread.value, tens: reread.tens, unit: reread.unit, swapped: reread.tens !== reread.drawn[0] };
+      bias = reread.bias;
+      if (reread.severity) severity = reread.severity;
+      hitLocation = hitLocationFromUnitDie(percentile.unit);
+      seenItems = itemsSeenByCritical(Array.from(targetActor?.items ?? []), armourBypass);
+      targetArmour = withWholeBodyArmour(armourAtLocation(seenItems, hitLocation), targetActor.system);
+      targetArmoured = targetArmour.armoured;
+      result = percentile.value + Number(modifier || 0);
+      row = lookupTableRow(table, result);
+      const alternateLow = criticalRowRiders(row).alternateResult;
+      if (alternateLow !== null && !targetArmoured) {
+        const replacement = lookupTableRow(table, alternateLow);
+        if (replacement && replacement !== row) { result = alternateLow; row = replacement; }
+      }
     }
   }
 
@@ -4166,9 +4469,16 @@ export async function rollCriticalInjury(
           { label: `${save.save} save`, value: Number(saveData?.total ?? 0), type: "untyped" }
         ]
       });
-      const verdict = deathCriticalOutcome(save, saveRoll?.total, result);
+      // THE CHECK'S TOTAL IS ITS OUTCOME'S (3.681.1; found live testing
+      // Eldritch Arts 0.6.0): a TRGCheck has no `total` of its own, so this
+      // read undefined, and every Death critical was a failed save.
+      const saveTotal = saveRoll?.outcome?.total;
+      // AND THE VERDICT IS ITS DEGREE (3.681.1, found in review), as every
+      // other save's is: a converted or shifted save keeps its total.
+      const saveDegree = saveRoll?.outcome?.degree ?? null;
+      const verdict = deathCriticalOutcome(save, saveTotal, result, saveDegree ? { saved: Boolean(saveDegree.success) } : {});
       lines.push(line(
-        `${targetActor.name} rolls <strong>${saveRoll?.total ?? "—"}</strong> against DC ${save.dc} — `
+        `${targetActor.name} rolls <strong>${saveTotal ?? "—"}</strong> against DC ${save.dc} — `
         + `<strong>${verdict.died ? "failed" : "made it"}</strong>.`));
 
       if (verdict.died) {
@@ -4382,7 +4692,10 @@ export async function rollCriticalInjury(
       // paths can end them; M and D are round-counted above.
       const persistenceEntry = {
         code: persistence,
-        conditions: applied.filter((a) => !a.immune).map((a) => ({ key: a.key, value: a.value ?? 0 })),
+        // RECURRING DAMAGE BY TYPE AND BY WHAT THIS CRITICAL ADDED (3.685.0,
+        // review): healing it takes that much off that type, not off whichever
+        // recurring effect comes first.
+        conditions: persistenceConditions(applied),
         effect: row.effect
       };
       // Through the GM relay when the striker does not own the target (3.627.1).
@@ -5184,7 +5497,23 @@ async function fumbleTableAfterConfirmation(actor, weapon, category) {
  * Mook-only Quick Crit path — rather than only reporting it in a chat
  * card and leaving application to a separate manual step.
  */
-async function resolveWeaponDamage(
+async function resolveWeaponDamage(actor, weapon, options = {}) {
+  // ONE STRIKE, ONE SCOPE (3.681.0; found in review): Phase Familiar's
+  // "applies only against the triggering damage" is the whole strike — its
+  // runes, riders and typed extras land after the weapon's own packet has
+  // been written, and a one-blow grant would be gone by then. The strike is
+  // a scope like a cast's (combat/granted-defences.mjs): a grant tied to it
+  // ends when the strike's damage is done, and the creature is asked once.
+  const { beginCastScope, endCastScope } = await import("./granted-defences.mjs");
+  const scope = beginCastScope();
+  try {
+    return await resolveWeaponDamageInScope(actor, weapon, options ?? {});
+  } finally {
+    endCastScope(scope);
+  }
+}
+
+async function resolveWeaponDamageInScope(
   actor,
   weapon,
   { critical = null, glancing = false, locationArmoured = true, armourAmended = false, distance = null, damageTypeOverride = null, damageOverride = null, usedTwoHanded = false, hitLocation = null, ammo = null, ammoName = "", ammoCoat = null, powerAttack = false, sneakDice = 0, precisionDice = 0, precisionParts = null, damageRiders = [], targetSize = null, meleeDistance = null, spinBonus = null, targetTokenOverride = null, deathMarkBonus = 0, declaredBonus = 0, declaredBonusLines = [], compoundFlat = 0, compoundFlatLines = [], extraTypedDamage = [], sharedDamage = null, drWaived = false, seriesLabel = "", declaredRending = 0, declaredRendingLines = [] } = {}
@@ -5205,6 +5534,43 @@ async function resolveWeaponDamage(
    * pipeline.
    */
   const damagePierce = defencePierceFor(defencePiercesOn(actor), weapon?.id, null);
+
+  /*
+   * A RIDER IN PLACE OF THE WEAPON'S DAMAGE (3.685.0, H10; Eldritch Arts'
+   * Spirit Arrow: "The arrow deals 6d6 piercing damage (in place of the
+   * arrows normal damage)"). Its dice become this Strike's base damage and
+   * its type the Strike's, so the critical doubles them as it doubles a
+   * weapon's (Q161); everything else the Strike adds still adds. An override
+   * the caller already chose (a Vital Strike's dice) is left as it is.
+   */
+  // ASKED WITH THE STRIKE'S OWN FACTS (3.685.0, review), so a gated rider
+  // can pass its gate; the type it asks of is the weapon's own, since the
+  // rider is what would change it. AND ONE THE CALLER'S OVERRIDE BEAT IS NOT
+  // SPENT: the Strike did not use it.
+  let discardedReplacement = "";
+  // EXACTLY THE RIDER'S DAMAGE (3.685.0, H10; Graham: "Flat 6d6").
+  let replacingFlat = false;
+  {
+    const { strikeDamageReplacement } = await import("../magic/strike-riders-workflow.mjs");
+    const replaceToken = targetTokenOverride ?? firstTargetToken() ?? null;
+    const replaceTarget = replaceToken?.actor ?? null;
+    const replacing = strikeDamageReplacement(actor, weapon, {
+      targetTypes: creatureTypesOf(replaceTarget?.system ?? {}),
+      targetTraits: creatureTraits(replaceTarget?.system ?? {}),
+      critical: Boolean(critical),
+      damageType: String(damageTypeOverride ?? weapon?.system?.damageType ?? "").trim().toLowerCase(),
+      targetHp: Number(replaceTarget?.system?.resources?.hp?.value ?? NaN),
+      targetMax: Number(replaceTarget?.system?.resources?.hp?.max ?? 0),
+      distanceFeet: replaceToken ? await strikeDistanceFeet(actor, replaceToken) : null,
+      targetUuid: String(replaceTarget?.uuid ?? "")
+    });
+    if (replacing && damageOverride) discardedReplacement = replacing.id;
+    else if (replacing) {
+      damageOverride = replacing.dice;
+      damageTypeOverride = replacing.damageType;
+      replacingFlat = replacing.flat === true;
+    }
+  }
 
   // A BLANCHED OR SILVERED BLOW (3.578.0; the block-18 audit's D8, R8):
   // "counts as adamantine instead of its normal material for any physical
@@ -5255,6 +5621,16 @@ async function resolveWeaponDamage(
   // must read THAT creature's defences and not the one aimed at.
   const targetTokenHere = targetTokenOverride ?? firstTargetToken() ?? null;
   const targetActor = targetTokenHere?.actor ?? null;
+  // A DAMAGE REACTION, BEFORE THE DICE (3.681.0; Eldritch Arts Block 3b):
+  // Phase Familiar, "your familiar would take damage … immune to precision
+  // damage". Asked before the defences below are read, because the precision
+  // gate reads them before the formula is built.
+  const damageReactionLines = targetActor
+    ? await (await import("../reactions/reactions-workflow.mjs")).damageReactionsBefore(targetActor, {
+      kind: "weapon", types: [String(damageTypeOverride ?? weapon?.system?.damageType ?? "").toLowerCase()].filter(Boolean),
+      magical: false, sourceName: actor?.name ?? "", sourceUuid: actor?.uuid ?? "", source: actor ?? null
+    })
+    : [];
   const damageTargetDefences = targetActor
     ? actorDefences(targetActor.system ?? {}, ownedCreatureTypeSystem(targetActor))
     : null;
@@ -5385,7 +5761,18 @@ async function resolveWeaponDamage(
   const hardmanStrength = isMelee && ownsDamageFeat("proper hardman")
     ? Math.floor(rawStrengthMod * 1.5)
     : rawStrengthMod;
-  const strengthMod = weaponFinesseDamage ? dexterityMod : hardmanStrength;
+  // A DECLARED ABILITY FOR MELEE DAMAGE (3.684.0; Eldritch Arts Block 6, G25):
+  // Clever Damage's Intelligence, when it beats the Strength (Proper Hardman's
+  // included) or Finesse's Dexterity this blow would add. The Hand & a Half
+  // ×1.5 applies to whichever is used, as it does to Dexterity; Rage and
+  // Weakened, which are about Strength, then leave it alone.
+  let declaredDamageAbility = null;
+  if (isMelee) {
+    const { declaredMeleeAbilities, bestMeleeAbility } = await import("./melee-ability.mjs");
+    const declared = declaredMeleeAbilities([...Array.from(actor.items ?? []), ...Array.from(actor.appliedEffects ?? [])], "damage");
+    if (declared.length) declaredDamageAbility = bestMeleeAbility(declared, system.attributes ?? {}, weaponFinesseDamage ? dexterityMod : hardmanStrength);
+  }
+  const strengthMod = declaredDamageAbility ? declaredDamageAbility.value : weaponFinesseDamage ? dexterityMod : hardmanStrength;
   const hasPropulsive = !isMelee && /\bpropulsive\b/i.test(String(weaponData.traits ?? ""));
   // THE SLING (3.576.0): "A sling is treated as a thrown weapon for
   // determining damage modifiers" — full Strength, as a thrown weapon adds.
@@ -5405,7 +5792,7 @@ async function resolveWeaponDamage(
   // attacks too, not only to the attack roll. Added to the formula here
   // rather than through the bonus pools, since damage is a rolled
   // expression rather than a derived total with typed slots.
-  if (isRaging(actor) && isStrengthBasedAttack(weaponData)) {
+  if (isRaging(actor) && isStrengthBasedAttack(weaponData) && !declaredDamageAbility) {
     formula += ` + ${RAGE_BONUS}`;
   }
 
@@ -5414,7 +5801,7 @@ async function resolveWeaponDamage(
   // as Rage's just above, and a status penalty of the condition's value.
   {
     const weakened = Number(actor.getConditionValue?.("weakened") ?? 0);
-    if (weakened > 0 && isStrengthBasedAttack(weaponData)) formula += ` - ${weakened}`;
+    if (weakened > 0 && isStrengthBasedAttack(weaponData) && !declaredDamageAbility) formula += ` - ${weakened}`;
   }
 
   // Weapon Specialisation (Class, Chapter 5): "+2 extra base damage"
@@ -5627,6 +6014,10 @@ async function resolveWeaponDamage(
     await weapon.update({ "system.spinBonus": 0 });
   }
 
+  // A FLAT REPLACEMENT DROPS EVERY ADDITION ABOVE (3.685.0, H10; Graham on
+  // Spirit Arrow: "Flat 6d6" — no BAB, attribute, feat or other flat or dice
+  // addition). Its dice and the critical's bonus dice, as weapon damage.
+  if (replacingFlat) formula = flatReplacementFormula(damageOverride, { critical, criticalDice: (drainDice || guardDice) ? 0 : critDiceKept });
   const roll = await sharedRoll(sharedDamage, "strike", formula);
   let total = roll.total;
   if (glancing) total = Math.ceil(total / 2);
@@ -5634,13 +6025,17 @@ async function resolveWeaponDamage(
   const typeLabel =
     DAMAGE_TYPES[effectiveDamageType]?.label ?? effectiveDamageType ?? "";
 
-  const displayBonusDice = bonusDamageDice(Number(system.combat?.bab?.total ?? 0));
+  const displayBonusDice = replacingFlat ? 0 : bonusDamageDice(Number(system.combat?.bab?.total ?? 0));
   const lines = [
     line(
       `<strong>${total}</strong> ${typeLabel} damage (${formula}${glancing ? ", glancing: halved" : ""}).`
     )
   ];
   if (displayBonusDice) lines.push(line(`Includes +${displayBonusDice} base dice from BAB.`));
+  // A FLAT REPLACEMENT SAYS SO (3.685.0, H10), and the lines below that name
+  // an addition it dropped are not said.
+  if (replacingFlat) lines.push(line("<em>Flat damage: the rider's dice alone — no other addition.</em>"));
+  for (const said of damageReactionLines) lines.push(line(said));
   if (versus.line) lines.push(line(versus.line));
   // ONLY WHEN THEY ARE IN THE ROLL (3.673.3, F3 of the 3.673.2 live test).
   // Guarded (3.673.0) and a Reaver Blade's Soul Drain (3.659.0) keep the
@@ -5650,10 +6045,10 @@ async function resolveWeaponDamage(
   if (critical && critDiceKept && !drainDice && !guardDice) {
     lines.push(line(`Includes critical bonus dice (${critical}), precision type.`));
   }
-  for (const said of Array.isArray(declaredBonusLines) ? declaredBonusLines : []) lines.push(line(said));
-  for (const said of Array.isArray(compoundFlatLines) ? compoundFlatLines : []) lines.push(line(said));
-  if (unarmedFlat) lines.push(line(`<em>${unarmed.flatLabel}: total unarmed damage.</em>`));
-  if (bondedFlat) lines.push(line(`<em>${bonded.flatLabel}: total damage.</em>`));
+  for (const said of replacingFlat ? [] : Array.isArray(declaredBonusLines) ? declaredBonusLines : []) lines.push(line(said));
+  for (const said of replacingFlat ? [] : Array.isArray(compoundFlatLines) ? compoundFlatLines : []) lines.push(line(said));
+  if (unarmedFlat && !replacingFlat) lines.push(line(`<em>${unarmed.flatLabel}: total unarmed damage.</em>`));
+  if (bondedFlat && !replacingFlat) lines.push(line(`<em>${bonded.flatLabel}: total damage.</em>`));
   // SAID OUT LOUD, because dice that silently vanish read as a bug. The
   // player spent Sneak Attack or the once-per-round Precision Hunter die
   // on this strike and has to see where it went.
@@ -5677,18 +6072,18 @@ async function resolveWeaponDamage(
         + `are precision (page 203), so ${critDiceFull} becomes <strong>${critDiceKept}</strong>.`));
     }
   }
-  if (sneak) {
+  if (sneak && !replacingFlat) {
     lines.push(line(`<strong>${sneakDiceLabel(actor)}</strong> — +${sneak}d6 precision damage (target flanked or flat-footed).`));
   }
-  if (precision) {
+  if (precision && !replacingFlat) {
     const parts = Array.isArray(precisionParts) && precisionParts.length ? precisionParts : [{ dice: precision, label: "Precision Hunter", why: "first damage against your hunted prey this round" }];
     for (const part of parts) lines.push(line(`<strong>${part.label}</strong> — +${part.dice}d6 precision damage (${part.why}).`));
   }
-  for (const rider of damageRiders ?? []) {
+  for (const rider of replacingFlat ? [] : damageRiders ?? []) {
     lines.push(line(`<strong>${rider.label}</strong> — +${rider.dice} secondary damage${rider.grownBy ? ` (with ${rider.grownBy})` : ""}${rider.oncePerRound ? " (first damage this round)" : ""}.`));
   }
   // WITH NOBODY TARGETED, the typed extras are said rather than lost.
-  if (!targetActor) {
+  if (!targetActor && !replacingFlat) {
     for (const extra of typedExtras) {
       lines.push(line(`<strong>${extra.label}</strong> — also ${extra.dice} ${extra.type} damage; no target selected, apply by hand.`));
     }
@@ -5849,6 +6244,9 @@ async function resolveWeaponDamage(
       || strikeTypeIsMagical(abilityStrikeView(weaponData, declaresUnarmedAbilities(unarmedAbilityCarriers(actor), weapon)), declaredStrikeTypeOptions(Array.from(actor.appliedEffects ?? actor.effects ?? [])), effectiveDamageType, extractVersatileType(weaponData.traits))
       // …AND TRAINED FISTS THAT "CLASS AS MAGICAL" (3.667.0, Powerful Fists at BAB 3).
       || Boolean(unarmed?.magical)
+      // …AND A WEAPON INFUSED FOR ITS WIELDER (3.682.0; Eldritch Arts' Infuse
+      // Weapon): "magical for the purpose of overcoming resistances".
+      || Boolean(weapon?.system?.infused)
       // …AND A BONDED WEAPON THAT CLASSES AS MAGICAL (3.671.0, Soul-Bound Weapon at BAB 3).
       || Boolean(bonded?.magical);
     // PENETRATING STRIKES (Creature Codex; 3.631.0): "the creature's
@@ -6183,9 +6581,15 @@ async function resolveWeaponDamage(
       // feet away … 1d6 precision damage".
       distanceFeet: await strikeDistanceFeet(actor, targetTokenHere),
       precisionImmune,
-      precisionResisted
+      precisionResisted,
+      // WHICH CREATURE (3.684.0; Eldritch Arts Block 6, G25): a rider scoped
+      // to one named creature — Spellblade's Mark's 1d6 secondary force.
+      targetUuid: String(targetActor?.uuid ?? ""),
+      // A REPLACING RIDER THE CALLER'S OVERRIDE BEAT (3.685.0, review): kept.
+      ...(discardedReplacement ? { keepRiderIds: [discardedReplacement] } : {})
     };
-    for (const rune of [
+    // NO SECONDARY PACKET ON A FLAT REPLACEMENT (3.685.0, H10): "only the 6d6".
+    for (const rune of replacingFlat ? [] : [
       // BANE IS IN THE STRIKE ITSELF (above); everything else is a packet.
       ...strikeRunes.filter((r) => !r.addsToStrike), ...strikeRiderPackets(actor, weapon, riderCtx), ...areaPackets, ...typedExtras, ...unguentPackets
     ]) {
@@ -6197,9 +6601,18 @@ async function resolveWeaponDamage(
       // UNSTOPPABLE FORCE reaches the blow's other packets too (3.659.0).
       const { setResistanceBypass: bypassFor, clearResistanceBypass: bypassClear } = await import("./damage-workflow.mjs");
       if (unstoppable) bypassFor([String(rune.type ?? "").toLowerCase()], 5);
+      // A RUNE THAT IGNORES RESISTANCE (3.684.0; Eldritch Arts Block 6, G19):
+      // Runeforge Mastery, for the runes its attacker names — a weapon rune's
+      // packet only, not a feat's rider or a scene's. See combat/rune-damage-bypass.mjs.
+      let runeBypass = null;
+      if (strikeRunes.includes(rune) && rune.key) {
+        const { declaredRuneDamageBypass } = await import("./rune-damage-bypass.mjs");
+        runeBypass = declaredRuneDamageBypass([...Array.from(actor.items ?? []), ...Array.from(actor.appliedEffects ?? [])], { runeKey: rune.key, weaponId: weapon?.id ?? "" });
+      }
       const runePacket = resolveAgainstDefences(targetActor.system, {
         amount: runeRoll.total,
         type: rune.type,
+        ...(runeBypass ? { ignoreResistance: true, immunityAsResistance: runeBypass.immunityAsResistance } : {}),
         creatureTypeSystem: ownedCreatureTypeSystem(targetActor),
         targetItems: Array.from(targetActor.items ?? []),
         attackerIsSwarm,
@@ -6433,8 +6846,15 @@ async function resolveWeaponDamage(
     }
   }
 
-  const damageCompactSummary = () =>
-    finalTaken !== null ? `${finalTaken} ${typeLabel} taken` : `${total} ${typeLabel}`;
+  // WHO TOOK IT, ON THE LINE A READER SEES FIRST (3.681.2). The header above
+  // is the attacker's name, so "2 Piercing taken" beneath it read as the
+  // attacker being hurt. See combat/damage-summary.mjs.
+  const damageCompactSummary = () => damageCardSummary({
+    targetName: finalTaken !== null ? targetActor?.name ?? null : null,
+    taken: finalTaken,
+    total,
+    typeLabel
+  });
 
   await postCard(actor, `${weapon.name} — Damage`, lines, [roll], {
     compactSummary: damageCompactSummary()
@@ -6734,19 +7154,14 @@ function howlingKinshipFor(actor) {
 
 /**
  * A WEAPON'S RECURRING DAMAGE (3.656.0; F&F 3.0 block 23 R5 — "recurring +N"
- * on the Fire Primals' Fiery Slam): laid through `recurringAfterHit`, the
- * rule the bombs and the spells use, so a second hit of one type keeps the
- * stronger rather than adding.
+ * on the Fire Primals' Fiery Slam): laid through `layRecurring`, the rule the
+ * bombs and the spells use. Since 3.685.0 (Graham's Q150) a second hit of one
+ * type adds to that type's total; another type is its own total.
  */
 async function layWeaponRecurring(targetActor, amount, damageType, immune) {
   if (immune) return `<em>No recurring ${damageType} damage — ${targetActor.name} is immune to ${damageType}.</em>`;
-  const { recurringAfterHit } = await import("../bombs.mjs");
-  const existingEffect = Array.from(targetActor.effects ?? []).find((e) => e.statuses?.has?.("recurring"));
-  const existing = existingEffect
-    ? { value: Number(existingEffect.getFlag(SYSTEM_ID, "value") ?? 0), damageType: existingEffect.getFlag(SYSTEM_ID, "damageType") ?? "" }
-    : null;
-  const next = recurringAfterHit(existing, amount, damageType);
-  await targetActor.toggleStatusEffect("recurring", { value: next.value, damageType: next.damageType });
-  return `Plus <strong>Recurring ${next.value} ${next.damageType}</strong> on ${targetActor.name} — dealt in its end phase until a flat check ends it`
-    + `${next.replaced ? ", replacing the recurring damage already there" : ""}.`;
+  const { layRecurring } = await import("../conditions/recurring-workflow.mjs");
+  const { recurringStackLine } = await import("../conditions/recurring.mjs");
+  const next = await layRecurring(targetActor, amount, damageType);
+  return `Plus <strong>${recurringStackLine(next)}</strong> on ${targetActor.name} — dealt in its end phase until a flat check ends that type's total.`;
 }

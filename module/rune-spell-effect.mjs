@@ -36,6 +36,7 @@ import { runeKindOf } from "./rune-bearing.mjs";
 import {
   SPELL_EFFECT_ENHANCEMENTS, spellEffectRune, spellTableFor
 } from "./magic-item-tables.mjs";
+import { runeFieldOf } from "./infused-runes.mjs";
 
 /**
  * The four frequencies, and what each costs in rune levels.
@@ -169,7 +170,7 @@ export function spellEffectRunesOf(item) {
   // for every other rune — `item.type` is "gear" for Traveller's clothing.
   const kind = runeKindOf(item) ?? item?.type;
   if (!["weapon", "armour"].includes(kind)) return [];
-  const field = String(item?.system?.runes ?? "");
+  const field = runeFieldOf(item);
   const out = [];
   for (const entry of parseRunes(field)) {
     if (!/^spell\s*effect$/i.test(String(entry.label ?? "").trim())) continue;

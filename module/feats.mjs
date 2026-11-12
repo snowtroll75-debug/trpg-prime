@@ -120,6 +120,34 @@ export function freeGrantSources(items = [], seedTypes = [], systemId = "trg-pri
   return free;
 }
 
+/**
+ * DOES THIS FEAT OR ABILITY SPEND A PICK? (3.684.8) — the sheet's
+ * `row.bonusFeat`, as a pure rule the harness runs. Graham, 6 November 2026:
+ * "When the Spell Weaver Archetype feat is taken, it charges a feat pick for
+ * Magical Reservoir … The benefits gained from an archetype feat should not
+ * charge the character an additional feat. There may be other feats also
+ * affected."
+ *
+ * Free when:
+ *   - it is an ability (an ability is not a feat);
+ *   - a foundation item handed it over, however far back the chain goes
+ *     (`foundationIds`, from `freeGrantSources`) — as before;
+ *   - ANOTHER ITEM THE CHARACTER HAS handed it over (`ownedIds`): a paid
+ *     archetype feat's Favoured Terrain, Shield Focus or Agile Display is
+ *     that feat's benefit, not a second pick. A grant whose source has gone
+ *     from the sheet is no longer anyone's benefit, and counts.
+ *
+ * @param {{id?: string, type?: string, flags?: object}} item
+ * @param {{ownedIds?: Set<string>, foundationIds?: Set<string>, systemId?: string}} [opts]
+ * @returns {boolean} true when it spends nothing
+ */
+export function spendsNoFeatPick(item, { ownedIds = new Set(), foundationIds = new Set(), systemId = "trg-prime" } = {}) {
+  if (String(item?.type ?? "") === "ability") return true;
+  const from = item?.flags?.[systemId]?.grantedBy?.sourceId;
+  if (!from || from === item?.id) return false;
+  return foundationIds.has(from) || ownedIds.has(from);
+}
+
 export function featBudget({
   groups = {}, level = 0, featNames = [], classBonusFeats = 0, endeavourFeats = null, extraPicks = []
 } = {}) {
@@ -148,7 +176,11 @@ export function featBudget({
   // all three groups, because the grants do not respect the grouping:
   // 36 of the 37 feats a background gives are General-category, but the
   // Miner's Favoured Terrain is Class.
-  const paid = (rows = []) => rows.filter((row) => !row?.bonusFeat).length;
+  // AND AN ABILITY NEVER SPENDS A FEAT PICK (3.684.8; Graham, 6 November
+  // 2026: "The benefits gained from an archetype feat should not charge the
+  // character an additional feat"). An Archetype ability sits in the
+  // Archetype Feats table beside the feat that granted it; it is not a feat.
+  const paid = (rows = []) => rows.filter((row) => !row?.bonusFeat && String(row?.type ?? "") !== "ability").length;
   // An Archetype-only pick (the Undead Lords campaign's bonus feat) is
   // spent first by Archetype feats; any more of them draw on Class picks.
   const archetypePaid = paid(groups.archetypeFeats);
@@ -234,7 +266,11 @@ export function companionFeatBudget({ groups = {}, bonusFeats = 0 } = {}) {
   // Improved Evasion arrive from the Animal Companion class itself, and
   // charging the companion a pick for a feature it cannot decline would
   // eat two of its ten.
-  const paid = (rows = []) => rows.filter((row) => !row?.bonusFeat).length;
+  // AND AN ABILITY NEVER SPENDS A FEAT PICK (3.684.8; Graham, 6 November
+  // 2026: "The benefits gained from an archetype feat should not charge the
+  // character an additional feat"). An Archetype ability sits in the
+  // Archetype Feats table beside the feat that granted it; it is not a feat.
+  const paid = (rows = []) => rows.filter((row) => !row?.bonusFeat && String(row?.type ?? "") !== "ability").length;
   const spent = COMPANION_FEAT_GROUPS.reduce(
     (total, key) => total + paid(groups[key]), 0
   );

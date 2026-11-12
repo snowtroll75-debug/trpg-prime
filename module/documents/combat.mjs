@@ -21,6 +21,7 @@ import {
   RECURRING_FLAT_CHECK_DC,
   bleedingSeverity
 } from "../conditions/registry.mjs";
+import { recurringByType, recurringFlatCheckEase, recurringTypeLabel } from "../conditions/recurring.mjs";
 import { DAMAGE_TYPES } from "../config.mjs";
 import { applyDamageAndCheckDying } from "../combat/dying-workflow.mjs";
 import { actorDeathState, applyDyingRecovery, isDead, reapDead } from "../combat/death-state.mjs";
@@ -855,6 +856,25 @@ export class TRGCombat extends Combat {
       lines.push(TRGCombat.#chatLine(burn));
     }
 
+    // AND THE SAVES OWED ON A TURN BOUNDARY (3.685.0, H3; Eldritch Arts Block
+    // 7): an entry check that also asks at the start of a turn in its area
+    // (Arcane Mycelium), an area ladder rolled for everyone in it at the start
+    // of each of its caster's turns (Bubble Buffet), and a single target's
+    // ladder rolled again at the start of its turns while the cast lasts
+    // (Flesh to Blossom). Beside the recurring ladder: the same clock question.
+    {
+      const { applyTurnStartEntryChecks } = await import("../magic/entry-check-workflow.mjs");
+      await applyTurnStartEntryChecks(actor, combatant.token?.object ?? null);
+      const { applyTurnLadders } = await import("../magic/turn-ladder-workflow.mjs");
+      for (const said of await applyTurnLadders(actor, combatant.token?.object ?? null)) {
+        lines.push(TRGCombat.#chatLine(said));
+      }
+      // AND A TABLE ROLLED AT THE START OF EACH OF ITS TURNS (3.686.0, H18):
+      // core Insanity's d10, before AP are regained so its stun and slow bite now.
+      const { applyTurnTables } = await import("../magic/turn-table-workflow.mjs");
+      for (const said of await applyTurnTables(actor)) lines.push(TRGCombat.#chatLine(said));
+    }
+
     // AND DAMAGE THAT LINGERS (3.650.0; F&F 3.0 block 17 R3): the Iron
     // Golem's poison, "a saving throw at the beginning of each of their turns".
     {
@@ -1028,9 +1048,26 @@ export class TRGCombat extends Combat {
     // Dying check first: a dying creature regains no AP.
     const dying = actor.getConditionValue?.("dying");
     if (dying !== null && dying !== undefined) {
-      await this.#processDyingCheck(actor, dying, lines);
-      await TRGCombat.#postTurnCard(actor, "Phase 1 — Assessment", lines);
-      return;
+      // A DYING CHECK WAIVED (3.684.0; Eldritch Arts' Last Horizon, Block 6
+      // G7): "you may act normally and do not need to make a dying check".
+      // The actor's `dyingCheckWaived` names this Dying; the check is not
+      // rolled, the waiver is spent, and with `actNormally` the turn goes on.
+      // See combat/zero-hp-moment.mjs.
+      const { DYING_CHECK_WAIVED_FLAG, dyingCheckWaiver } = await import("../combat/zero-hp-moment.mjs");
+      const dyingEffect = Array.from(actor.effects ?? []).find((e) => !e.disabled && Array.from(e.statuses ?? []).includes("dying"));
+      const waiver = dyingCheckWaiver(actor.flags?.[SYSTEM_ID], dyingEffect?.id ?? null);
+      if (!waiver) {
+        await this.#processDyingCheck(actor, dying, lines);
+        await TRGCombat.#postTurnCard(actor, "Phase 1 — Assessment", lines);
+        return;
+      }
+      await actor.unsetFlag(SYSTEM_ID, DYING_CHECK_WAIVED_FLAG);
+      lines.push(TRGCombat.#chatLine(`<strong>${waiver.label}</strong> — no Dying Check this turn (Dying ${dying}).`
+        + (waiver.actNormally ? " They act normally." : "")));
+      if (!waiver.actNormally) {
+        await TRGCombat.#postTurnCard(actor, "Phase 1 — Assessment", lines);
+        return;
+      }
     }
 
     const stunned = actor.getConditionValue?.("stunned") ?? 0;
@@ -1533,20 +1570,24 @@ export class TRGCombat extends Combat {
       // playtest "recovered" and inert: unable to act, nothing on her sheet
       // saying why, and still being offered Attacks of Opportunity as an
       // eligible reactor.
-      const state = await applyDyingRecovery(actor);
+      // A module's waiver (3.683.0, C8; Relentless Will) says itself after.
+      const waived = [];
+      const state = await applyDyingRecovery(actor, { route: "recoveryCheck", lines: waived });
       if (state.blocked) {
         // A Fatal injury holds them at Dying 1 (page 193; R8).
         lines.push(TRGCombat.#chatLine(
           `Dying would reach 0 — but ${state.note} It holds at <strong>1</strong>.`));
         return;
       }
+      const fatigue = state.fatigueWaived ? "No Fatigued for leaving it." : `Fatigued rises to ${state.fatigued}.`;
       lines.push(
         TRGCombat.#chatLine(
           state.unconscious
-            ? `Dying reaches 0 — <strong>recovered</strong>, but still at 0 HP and <strong>Unconscious</strong>. Fatigued rises to ${state.fatigued}.`
-            : `Dying reaches 0 — <strong>recovered</strong>, and already above 0 HP. Fatigued rises to ${state.fatigued}.`
+            ? `Dying reaches 0 — <strong>recovered</strong>, but still at 0 HP and <strong>Unconscious</strong>. ${fatigue}`
+            : `Dying reaches 0 — <strong>recovered</strong>, and already above 0 HP. ${fatigue}`
         )
       );
+      lines.push(...waived);
       return;
     }
 
@@ -1819,8 +1860,13 @@ export class TRGCombat extends Combat {
       );
     }
 
-    for (const entry of recurrings) {
-      const typeLabel = DAMAGE_TYPES[entry.damageType]?.label ?? "Fire";
+    // ONE TOTAL PER DAMAGE TYPE (3.685.0; Graham, 7 November 2026, Q150:
+    // "recurring damage stacks with a flat check made for totals of the same
+    // damage type"). Each type is one packet here and one flat check below;
+    // two effects of one type (a world from before 3.685.0) read as one total.
+    const recurringTotals = recurringByType(recurrings);
+    for (const entry of recurringTotals) {
+      const typeLabel = recurringTypeLabel(entry.damageType, DAMAGE_TYPES);
       // Graham's ruling (2 Aug 2026): DR never reduces recurring damage —
       // "if you catch fire, what good is armour."
       const packet = resolveAgainstDefences(actor.system, {
@@ -1868,8 +1914,11 @@ export class TRGCombat extends Combat {
       }
     }
 
-    // Flat checks to end. Recurring: always DC 16 per source. Bleeding: only
-    // the Light band self-removes (Appendix 2, as ruled).
+    // Flat checks to end. Recurring: DC 16, one for each damage type's total
+    // (3.685.0, Q150). Bleeding: only the Light band self-removes (Appendix 2,
+    // as ruled: "If you are suffering from light bleeding, you may attempt to
+    // remove it in the same way as other recurring damage each round by
+    // making a flat check" — Light is 1 to 4).
     //
     // EACH CHECK NAMES ITS OWN PHASE (3.373.0). `TRGCheck.roll` posts its
     // card the moment it resolves, and the Phase 3 summary card is posted
@@ -1889,15 +1938,16 @@ export class TRGCombat extends Combat {
     // has been readable since Sharuk-Dur; recurring damage had only a
     // sentence in a dialog. Read the same way, from an effect flag, so a
     // GM (or a feat, or an item) lowers it by the same mechanism.
-    const recurringEasier = Array.from(actor.appliedEffects ?? actor.effects ?? [])
-      .filter((e) => !e.disabled)
-      .reduce((total, e) => total
-        + Math.max(0, Number(e.getFlag?.(SYSTEM_ID, "recurringFlatCheckReduction") ?? 0)), 0);
-    const recurringDC = Math.max(1, RECURRING_FLAT_CHECK_DC - recurringEasier);
-    for (const entry of recurrings) {
+    // BY TYPE SINCE 3.685.0 (Q150): a lever set on one type's Recurring effect
+    // eases that type's check; one on a feat or an item eases every type's.
+    // See conditions/recurring.mjs `recurringFlatCheckEase`.
+    for (const entry of recurringTotals) {
+      const recurringEasier = recurringFlatCheckEase(actor.appliedEffects ?? actor.effects ?? [], entry, SYSTEM_ID);
+      const recurringDC = Math.max(1, RECURRING_FLAT_CHECK_DC - recurringEasier);
+      const typeLabel = recurringTypeLabel(entry.damageType, DAMAGE_TYPES);
       const check = await TRGCheck.roll({
         actor,
-        label: "Recurring Damage — Flat Check",
+        label: recurringTotals.length > 1 ? `Recurring ${typeLabel} Damage — Flat Check` : "Recurring Damage — Flat Check",
         subtitle: recurringEasier
           ? `${END_PHASE_LABEL} · DC ${recurringDC} (reduced by ${recurringEasier})`
           : END_PHASE_LABEL,
@@ -1906,8 +1956,10 @@ export class TRGCombat extends Combat {
         dc: recurringDC
       });
       if (check.outcome?.degree?.success) {
-        await entry.effect.delete();
-        lines.push(TRGCombat.#chatLine("The recurring damage <strong>ends</strong>."));
+        for (const effect of entry.effects) await effect.delete();
+        lines.push(TRGCombat.#chatLine(recurringTotals.length > 1
+          ? `The recurring ${typeLabel.toLowerCase()} damage <strong>ends</strong>.`
+          : "The recurring damage <strong>ends</strong>."));
       }
     }
 

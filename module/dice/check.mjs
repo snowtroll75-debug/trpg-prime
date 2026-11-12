@@ -277,6 +277,11 @@ export class TRGCheck {
     this.attackForm = config.attackForm ?? "";
     // THE WEAPON'S GROUP (3.668.0), for conditionals' `attackGroups` axis.
     this.attackGroup = config.attackGroup ?? "";
+    // THE WEAPON AND ITS GRIP (3.684.0; Eldritch Arts Block 6, G25), for a
+    // check reaction's ctx (Arcane Fencer's "one-handed weapon"). Blank and
+    // false on any roll that is not a weapon attack.
+    this.weaponUuid = String(config.weaponUuid ?? "");
+    this.twoHanded = config.twoHanded === true;
     // HOW FAR IT REACHES (3.668.0), for the `rangeBands` axis.
     this.rangeBand = config.rangeBand ?? "";
     // THE TARGET'S STATE AGAINST THIS ATTACKER (3.668.0): flatfooted,
@@ -289,6 +294,10 @@ export class TRGCheck {
     // WHAT IS SHEATHED (3.671.0, Iaijutsu Master): a caller may say;
     // otherwise it is read off the actor's items when the context is built.
     this.sheathedGroups = config.sheathedGroups ?? "";
+    // THE AMBIENT LIGHT AT THE ROLLER'S TOKEN (3.683.0, seam C4; Graham's
+    // Q61): a caller may say; otherwise it is read off the roller's token
+    // when the context is built, and only when an entry asks.
+    this.lightLevel = config.lightLevel ?? "";
     // TICK-BOXES ON A ROLL WITH NO DIALOG (3.667.3): asked unless the roller
     // skipped the questions (Shift). A roll made again carries the first
     // roll's answer in `conditionalChoices` and is not asked twice.
@@ -314,6 +323,22 @@ export class TRGCheck {
     // the reaction a second time would let one trigger be answered twice.
     this.isArea = Boolean(config.isArea);
     this.saveSource = config.saveSource ?? "";
+    // WHAT A REACTION MAY CALL THIS CHECK (3.681.0; Eldritch Arts Block 3b):
+    // a spell attack's casting check is its attack check ("attack").
+    this.reactionAs = String(config.reactionAs ?? "");
+    // A RESULT A REACTION LOCKED (3.681.0): "the result of the 2nd check
+    // which cannot be modified further or rerolled using any other effect".
+    this.locked = config.locked ?? false;
+    // ASKED ONCE A CHECK (3.681.0): a reroll that rolls the check anew (Alter
+    // the Thread, a fumble reroll) is not offered Prophetic Warning again.
+    this.checkReactionsBeforeAsked = Boolean(config.checkReactionsBeforeAsked);
+    // …BUT WHAT IT GAVE IS KEPT (found in review): Prophetic Warning's
+    // advantage was paid for on the first roll, and a reroll of that check
+    // is the same check. The labels of the advantages granted, carried.
+    this.reactionAdvantages = Array.isArray(config.reactionAdvantages) ? config.reactionAdvantages.map(String) : [];
+    // AND THE BONUSES A REACTION ANSWERED (3.683.0; Eldritch Arts Block 5,
+    // C2): Voidbound Resolve's +2 racial, carried the same way.
+    this.reactionModifiers = Array.isArray(config.reactionModifiers) ? config.reactionModifiers.map((m) => ({ ...m })) : [];
     this.saveReactionResolved = Boolean(config.saveReactionResolved);
     // A NAMED DEGREE SHIFT (3.612.0, R4) — Fateful Temptation's. Carried in
     // the card flags so a rebuilt outcome keeps it. See dice/degree-shift.mjs.
@@ -929,9 +954,14 @@ export class TRGCheck {
               // LUCK CHANGED THIS CHECK (3.624.0, R12): no Conviction Bonus,
               // no reroll from another fortune effect.
               luckUsed: Boolean(this.luckUsed),
+              // LOCKED BY A REACTION (3.681.0): nothing on the card may move it.
+              locked: Boolean(this.locked),
               // A DECLARED REFUND ALREADY GIVEN (3.669.0), so a late DC does
               // not give it twice. See conviction-refund.mjs.
               convictionRefunded: Boolean(this.convictionRefunded),
+              // THE DAILY ROWS THIS ROLL USED (3.684.0, G18 — review): the card's
+              // re-ask honours them. See conviction-refund.mjs `usedTodayForCard`.
+              convictionRefundDaily: Array.isArray(this.convictionRefundDaily) ? [...this.convictionRefundDaily] : [],
               // A DEGREE DECLARED WITHOUT THE ROLL (3.669.2), so a DC the
               // GM sets later declares it too, rather than showing the dice's.
               declaredDegree: this.declaredDegree || "",
@@ -1015,6 +1045,13 @@ export class TRGCheck {
       if (entries.length) {
         // ONE CONTEXT FOR BOTH HALVES (3.667.3): what applies unasked, and
         // what is offered as a tick-box below. Two copies would drift.
+        // THE LIGHT WHERE THE ROLLER STANDS (3.683.0; seam C4): the ambient
+        // level, not the perceived one (Q61). Read only when some entry is
+        // scoped by it — a scan of the scene's light sources is not owed to
+        // every roll — and an attack's check is the attacker's, so its token.
+        const wantsLight = entries.some((e) => e?.when?.lightLevels || e?.not?.lightLevels);
+        const rollerLight = String(check.lightLevel ?? "").trim() !== "" ? check.lightLevel
+          : wantsLight ? ((await import("../light-workflow.mjs")).ambientLightLevelOf(check.actor) ?? "") : "";
         const conditionalContext = {
           checkType: check.type,
           subject: check.subject,
@@ -1041,6 +1078,8 @@ export class TRGCheck {
           attackGroup: check.attackGroup,
           rangeBand: check.rangeBand,
           targetStates: check.targetStates,
+          // THE AMBIENT LIGHT AT THE ROLLER'S TOKEN (3.683.0, C4), above.
+          lightLevel: rollerLight,
           // WHAT THE ROLLER HAS SHEATHED (3.671.0; Iaijutsu Master's
           // Initiative, B7-5). Read off the actor's own items.
           sheathedGroups: check.sheathedGroups || sheathedGroups(check.actor?.items ?? []),
@@ -1309,6 +1348,19 @@ export class TRGCheck {
       }
     }
 
+    // A MODULE'S REACTION BEFORE THE DICE (3.681.0; Eldritch Arts Block 3b):
+    // Prophetic Warning, "invoke this hex as a reaction before making an
+    // attack check, saving throw or skill check. The check gains advantage."
+    // Beside the rods, the other offered advantage, and combined the same way.
+    if (check.actor && !check.flat && !check.presetDice && !check.presetModifiers) {
+      const { checkReactionsBefore } = await import("../reactions/reactions-workflow.mjs");
+      const said = await checkReactionsBefore(check, BIAS);
+      if (said.length) check.extraDetailLines = [...(check.extraDetailLines ?? []), ...said];
+      // Kept apart too, for a card that writes its own detail lines (a
+      // weapon attack's; found in review).
+      check.reactionBeforeLines = said;
+    }
+
     // The Advantage spend chosen in the configuration dialog: verify and
     // deduct before the dice are rolled.
     let advantageSpent = false;
@@ -1387,10 +1439,19 @@ export class TRGCheck {
     } else if (advantageSpent && !advantageKept && check.actor) {
       // A DECLARED REFUND ON A GOOD RESULT (3.669.0; Inner Tempest's
       // Adaptive Mind, Graham's B5-3). See conviction-refund.mjs.
-      const { convictionRefundRow, convictionRefundLine } = await import("../conviction-refund.mjs");
-      const refund = convictionRefundRow(check.actor.items, {
-        checkType: check.type, subject: check.subject, degree: check.outcome?.degree?.key ?? ""
-      });
+      const { convictionRefundRow, convictionRefundLine, convictionRefundDailyUsed } = await import("../conviction-refund.mjs");
+      // ONCE A DAY, AND ON SAVES (3.684.0; Eldritch Arts' Fate's Favour, G18):
+      // the day's first spend a daily row answers is marked, refunded or not.
+      const usedToday = check.actor.getFlag?.(SYSTEM_ID, "declaredUsedToday") ?? {};
+      const refundAsk = { checkType: check.type, subject: check.subject, degree: check.outcome?.degree?.key ?? "", usedToday };
+      const refund = convictionRefundRow(check.actor.items, refundAsk);
+      const dailyUsed = convictionRefundDailyUsed(check.actor.items, refundAsk);
+      if (dailyUsed.length) {
+        await check.actor.setFlag(SYSTEM_ID, "declaredUsedToday", { ...usedToday, ...Object.fromEntries(dailyUsed.map((k) => [k, true])) });
+        // THIS ROLL TOOK THE DAY'S USE (3.684.0, G18 — review): kept on the
+        // card, so a DC the GM changes there re-asks the same spend.
+        check.convictionRefundDaily = [...dailyUsed];
+      }
       if (refund) {
         await awardConviction(check.actor, 1);
         await check.actor.unsetFlag(SYSTEM_ID, "convictionSpent");
@@ -1477,19 +1538,38 @@ export class TRGCheck {
     // the roller before anybody reads it, and the second result stands.
     // A BLUNDER TOO (3.669.1; Graham's B5-5 of 24 October 2026): it fails by
     // more than a Fumble does.
+    // A FAILURE OR A PARTIAL TOO, FOR A REROLL THAT NAMES IT (3.677.0;
+    // Esoteric Insight: "a failure or fumble result"). Asked of the items
+    // first, so a Failure loads nothing for an actor with no such reroll.
+    const rerollDegree = check.outcome?.degree?.key;
+    const rerollable = ["fumble", "blunder"].includes(rerollDegree)
+      || (["partial", "failure"].includes(rerollDegree) && check.actor && ["skill", "save"].includes(check.type)
+        && (await import("../fumble-reroll.mjs")).rerollAnswers(Array.from(check.actor.items ?? []), check.type, check.subject, rerollDegree));
     if (check.actor && !check.flat && !check.fumbleRerolled && !check.presetDice && ["skill", "save"].includes(check.type)
-      && ["fumble", "blunder"].includes(check.outcome?.degree?.key)) {
+      && rerollable) {
       const { offerFumbleReroll } = await import("../fumble-reroll-workflow.mjs");
       const { fumbleWords } = await import("../fumble-reroll.mjs");
       // CALLED WHAT IT WAS (3.669.2; found live): "the blunder is rerolled".
       const firstDegree = check.outcome.degree.key;
-      const taken = await offerFumbleReroll(check.actor, check.type, { degree: firstDegree });
+      // THE SKILL, FOR A REROLL SCOPED TO SOME (3.675.0, C4): Esoteric Insight.
+      const taken = await offerFumbleReroll(check.actor, check.type, { degree: firstDegree, subject: check.subject });
       if (taken) {
         check.fumbleRerolled = true;
         await check.reroll();
         check.extraDetailLines = [...(check.extraDetailLines ?? []),
           `${taken.label}: the ${fumbleWords(firstDegree).noun} is rerolled — ${check.outcome?.degree?.label ?? "?"} (${check.outcome?.total ?? "?"}) stands, even if worse.`];
       }
+    }
+
+    // A MODULE'S REACTION ONCE THE RESULT IS FINAL (3.681.0; Eldritch Arts
+    // Block 3b): Missed Chance and Second Chance, "force them to reroll" /
+    // "allow them to reroll". A save or a skill check is final here, after
+    // the roller's own Conviction and rerolls (Q27); the second result is
+    // locked. An attack's hit is known only to its workflow, which asks there.
+    if (check.actor && !check.flat && check.outcome?.degree?.key && ["save", "skill"].includes(check.type)) {
+      const { checkReactionsAfter } = await import("../reactions/reactions-workflow.mjs");
+      const answered = await checkReactionsAfter(check);
+      if (answered.lines.length) check.extraDetailLines = [...(check.extraDetailLines ?? []), ...answered.lines];
     }
 
     // A CHECK WHOSE DEGREE IS FINAL (3.630.0), announced for a module to

@@ -150,8 +150,12 @@ const MUTATIONS = [
     // reading it — the state the tree was in until 3.420.0.
     file: CAST,
     name: "the Spell Fumble roll keeps its own copy of the zero rule",
-    from: "    draw: async () => percentileValue(await draw(10), await draw(10)),\n    profile: CHAIN_PROFILES.d100,\n    openEnded: OPEN_ENDED.TOP\n  });\n\n  const noFocus",
-    to: "    draw: async () => {\n      const t = (await draw(10)) % 10;\n      const u = (await draw(10)) % 10;\n      const v = t * 10 + u;\n      return v === 0 ? 100 : v;\n    },\n    profile: CHAIN_PROFILES.d100,\n    openEnded: OPEN_ENDED.TOP\n  });\n\n  const noFocus",
+    // ONE LINE SINCE 3.678.0: the Resonance roll draws through its own
+    // `firstDraw` now (disadvantage), so the fumble's draw line is unique.
+    // RE-POINTED AT 3.684.0 (G5): the fumble's draw is a block now, its
+    // first read made unique by the bias test that follows it.
+    from: "      const first = percentileValue(await draw(10), await draw(10));\n      if (moduleFumble.bias === \"normal\"",
+    to: "      const first = (((await draw(10)) % 10) * 10 + ((await draw(10)) % 10)) || 100;\n      if (moduleFumble.bias === \"normal\"",
     breaks: "H1/H2 — two copies of a rule agree until one of them is edited"
   },
   {

@@ -84,14 +84,25 @@ function landedOnLines(target, damage, fallerSeverity, fallerOutcome = {}) {
  * drop, an Arrest a Fall, a Catfall, or Skyfeather's Feather Fall, a
  * fall that costs nothing cannot injure — see `fallProvokesInjurySave`.
  */
-export async function rollFalling(actor, { distance: prefilled = 0, onto = undefined, note = "" } = {}) {
+export async function rollFalling(actor, { distance: prefilled = 0, onto = undefined, note = "", ask = true } = {}) {
   // PREFILLED WHEN SOMETHING ELSE ALREADY KNOWS THE HEIGHT. Fly's
   // turn-end drop knows exactly how far up the token was, and making the
   // GM read that off the token and type it back is how a 40 becomes a 4.
   // Still a field rather than a silent roll, because every reduction the
   // hint lists is one only the table can decide has applied.
   const startingDistance = Math.max(0, Math.floor(Number(prefilled) || 0));
-  const result = await DialogV2.wait({
+  /*
+   * …UNLESS THE CALLER ALREADY KNOWS IT IS THE FINAL DISTANCE (3.683.0;
+   * Eldritch Arts Block 5, seam C5). A module's flight that ends — Voidborn
+   * Wings, Stormrunner's Zeal, Voidborn Grace — drops the token itself and
+   * knows the height; `helpers.rollFalling(actor, { distance })` passes
+   * `ask: false` and the fall is rolled with no dialog. The declared
+   * reductions (a Ren's 20 feet) and Skyfeather still apply below, as they
+   * do to what a person types. Every core caller still asks.
+   */
+  const result = ask === false
+    ? { distance: startingDistance }
+    : await DialogV2.wait({
     window: { title: "Falling From Height", icon: "fa-solid fa-person-falling" },
     classes: ["trg-prime"],
     position: { width: 400 },

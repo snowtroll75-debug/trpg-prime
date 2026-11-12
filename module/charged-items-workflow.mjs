@@ -28,6 +28,10 @@ import { rollItemDepletion } from "./magic-items-workflow.mjs";
 import { castingDC, castingOutcome } from "./magic/casting.mjs";
 import { TRGCheck } from "./dice/check.mjs";
 import { contentPack } from "./content-packs.mjs";
+import { registeredReleasePaths } from "./module-api.mjs";
+import {
+  chargedItemCost, chargedItemMetamagic, chargedItemPayment, chargedRuleAnswers, chargedWieldLimitFor
+} from "./charged-item-rules.mjs";
 
 const SYSTEM_ID = "trg-prime";
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -71,8 +75,70 @@ export function chargedItemsOf(actor) {
  */
 export function chargedItemSheetWarnings(actor) {
   return chargedItemWarnings(
-    chargedItemsOf(actor).filter((i) => i.system?.equipped).map((i) => i.name)
+    chargedItemsOf(actor).filter((i) => i.system?.equipped).map((i) => i.name),
+    // A MODULE'S WIELD LIMIT (3.684.0; Eldritch Arts Block 6, G6): Dual
+    // Channel's two, Conduit Mastery's three. One when no rule answers.
+    chargedWieldLimitFor(actor)
   );
+}
+
+/** The charged items an actor wields now (equipped), for a rule's ctx. */
+function wieldedChargedItems(actor) {
+  return chargedItemsOf(actor).filter((i) => i.system?.equipped);
+}
+
+/**
+ * WHAT EACH RULE SAYS ONCE AN ACTIVATION HAS PAID (3.684.0; Eldritch Arts
+ * Block 6, G6). Awaited after the spend is written, so a rule's own change to
+ * an item stands: Dual Channel's "both items immediately lose 1 additional
+ * PP" on a fumbled activation, Resonant Conduit's daily stamp. `paidBy` is
+ * "item", or "wielder" for an own-PP release (Weave Infusion).
+ * @returns {Promise<string[]>} the card lines
+ */
+export async function chargedItemReleased(actor, item, { kind = "release", reason = "", degree = null, ppSpent = 0, paidBy = "item" } = {}) {
+  const lines = [];
+  for (const answer of await chargedRuleAnswers("onRelease", {
+    actor, item, kind, reason, degree, ppSpent: Math.max(0, Math.floor(Number(ppSpent) || 0)), paidBy, wielded: wieldedChargedItems(actor)
+  })) {
+    for (const text of Array.isArray(answer?.lines) ? answer.lines : []) {
+      if (typeof text === "string" && text.trim()) lines.push(text.trim());
+    }
+  }
+  return lines;
+}
+
+/**
+ * THE ONE SPEND PATH (3.684.0; Eldritch Arts Block 6, G6 — the audit's D12).
+ * Every charged item's PP leave through here: Cast from Item's release (`kind:
+ * "release"`, the degree's price, or a rod's printed cost) and a rod paying
+ * inside a cast (`kind: "rod"`: a metamagic rod's Extend, a Rod of the Magi's
+ * draw). The registered rules' `cost` cuts what the item pays (Conduit
+ * Mastery's −1, minimum 1; Resonant Conduit's free first activation); the
+ * pool is written; then each rule's `onRelease` is asked. A world with no
+ * rule pays exactly what it always paid.
+ *
+ * OVERSPENDING IS ALLOWED, as it always was: the pool empties, and the caller
+ * rolls Charge Depletion when `after` is below 0.
+ *
+ * @returns {Promise<{pp: number, due: number, before: number, after: number, stored: number, overspent: number, lines: string[]}>}
+ */
+export async function chargedItemSpend(actor, item, pp, { kind = "release", reason = "", degree = null } = {}) {
+  const due = Math.max(0, Math.floor(Number(pp) || 0));
+  const answers = await chargedRuleAnswers("cost", { actor, item, pp: due, kind, reason, degree, wielded: wieldedChargedItems(actor) });
+  const cost = chargedItemCost(due, answers);
+  const before = Number(item.system?.uses ?? 0);
+  const after = before - cost.pp;
+  const stored = Math.max(0, after);
+  await item.update({ "system.uses": stored });
+  const lines = [];
+  if (cost.cut) {
+    const who = cost.labels.length ? `${cost.labels.map(esc).join(", ")}: ` : "";
+    lines.push(cost.free
+      ? `${who}<strong>${esc(item.name)}</strong> pays nothing for this activation (${cost.due} PP waived).`
+      : `${who}${cost.cut} PP off — <strong>${esc(item.name)}</strong> pays ${cost.pp} of ${cost.due} PP.`);
+  }
+  lines.push(...(await chargedItemReleased(actor, item, { kind, reason, degree, ppSpent: cost.pp, paidBy: "item" })));
+  return { pp: cost.pp, due, before, after, stored, overspent: Math.max(0, -after), lines };
 }
 
 /**
@@ -100,6 +166,44 @@ export async function spellTraditionFor(actor, spellName) {
 }
 
 /** The facts about the caster that the two paths are judged against. */
+/**
+ * A MODULE'S OWN WAY TO READ (3.675.0; Eldritch Arts Block 1, C6). Each
+ * registered path is asked with the spell and the reader, and returns an
+ * option in `castFromItemOptions`' shape or null. A malformed answer, or one
+ * that throws, is dropped and logged rather than offered.
+ *
+ * @param {string} kind "scroll" (the only kind asked today)
+ * @param {object} ctx `{ spellPPCost, spellTradition, spellName, casterLevel, casterTradition, skillRanks, skillTotals }`
+ * @returns {object[]}
+ */
+const RELEASE_DIFFICULTIES = Object.freeze(["incrediblyEasy", "veryEasy", "easy", "medium", "hard", "veryHard", "incrediblyHard"]);
+
+export async function moduleReleaseOptions(kind, ctx = {}) {
+  if (String(kind ?? "") !== "scroll") return [];
+  const out = [];
+  for (const path of registeredReleasePaths()) {
+    try {
+      const option = await path({ kind, ...ctx });
+      if (!option || typeof option !== "object") continue;
+      const key = String(option.key ?? "").trim();
+      const label = String(option.label ?? "").trim();
+      if (!key || !label || !Number.isFinite(Number(option.dcAdjustment ?? 0))) continue;
+      out.push({
+        key, label,
+        skill: String(option.skill ?? "").trim(),
+        // A DIFFICULTY THE CHECK KNOWS (dice/resolution.mjs DIFFICULTIES), else medium.
+        difficulty: RELEASE_DIFFICULTIES.includes(String(option.difficulty ?? "").trim()) ? String(option.difficulty).trim() : "medium",
+        dcAdjustment: Math.trunc(Number(option.dcAdjustment ?? 0)),
+        available: option.available === true,
+        reason: String(option.reason ?? "")
+      });
+    } catch (err) {
+      console.error("TRG Prime | a module's release path failed", err);
+    }
+  }
+  return out;
+}
+
 export function casterContext(actor) {
   const system = actor?.system ?? {};
   const skills = system.skills ?? {};
@@ -169,14 +273,21 @@ export async function rollReleaseCheck(actor, {
   pp = 0,
   title = "",
   icon = "fa-solid fa-wand-sparkles",
-  hint = ""
+  hint = "",
+  // WHAT IS BEING READ (3.675.0, C6): "scroll" lets a module's release path
+  // join the ladder — Eldritch Arts' Lingual Casting. Anything else, none.
+  kind = "",
+  // THE ITEM ITSELF (3.684.0; Eldritch Arts Block 6, G6): carried on
+  // `trgPrimeReleaseRolled` beside its name, so a listener can find it.
+  itemUuid = ""
 } = {}) {
   const cost = Math.max(0, Math.floor(Number(pp) || 0));
-  const options = castFromItemOptions({
-    spellPPCost: cost,
-    spellTradition: await spellTraditionFor(actor, spellName),
-    ...casterContext(actor)
-  });
+  const spellTradition = await spellTraditionFor(actor, spellName);
+  const context = casterContext(actor);
+  const options = [
+    ...castFromItemOptions({ spellPPCost: cost, spellTradition, ...context }),
+    ...(await moduleReleaseOptions(kind, { spellPPCost: cost, spellTradition, spellName, ...context }))
+  ];
   const rows = options.map((option, i) =>
     `<option value="${i}">${esc(option.label)} — ${option.difficulty}${
       option.available ? "" : ` (unavailable: ${esc(option.reason)})`}</option>`
@@ -244,9 +355,23 @@ export async function rollReleaseCheck(actor, {
     await rollSpellFumble(actor, {
       tradition: await spellTraditionFor(actor, spellName),
       blunder: degree === "blunder",
-      pp: cost
+      pp: cost,
+      // WHICH CHECK FUMBLED (3.684.0, G5): a release by Spellcraft is a
+      // Spellcraft check (Mana Bound's −20 reads it); by a tradition skill,
+      // that skill.
+      check: { type: option.skill ? "skill" : "spellcraft", skill: option.skill ?? "" },
+      release: true
     }).catch(() => null);
   }
+
+  // SAID TO MODULES (3.678.0; Eldritch Arts Block 2, Graham's Q7): a release
+  // check is a casting check for a Wild Magic area — "Yes they do" surge,
+  // scrolls and wands included. A released spell then casts as an item cast
+  // with no check of its own, so this is the one place the degree is known.
+  globalThis.Hooks?.callAll?.("trgPrimeReleaseRolled", {
+    actor, itemName, itemUuid: String(itemUuid ?? ""), spellName, kind, pp: cost, degree,
+    chaos: Boolean(check?.dice?.chaos)
+  });
 
   return { check, degree, outcome, option, options };
 }
@@ -375,6 +500,15 @@ export async function castFromChargedItem(actor, item) {
     flexible: Boolean(charged.flexible)
   });
 
+  // PAYING FROM YOUR OWN PP (3.684.0; Eldritch Arts Block 6, G6): Weave
+  // Infusion's "spend your own PP instead of expending those of the item".
+  // Offered as a tick beside the spell, only where a rule offers it and only
+  // for a spell (a rod's printed cost is the rod's).
+  const ownPayment = spells.length
+    ? chargedItemPayment(await chargedRuleAnswers("payment", { actor, item, remaining, wielded: wieldedChargedItems(actor) }))
+    : null;
+  let payOwn = false;
+
   let choice = null;
   if (spells.length) {
     // A BAKED-IN WARP HAS TO SHOW. From 3.310.0 the builder can warp a
@@ -407,7 +541,10 @@ export async function castFromChargedItem(actor, item) {
       content: `<div class="trg-prime trg-check-dialog">
         <p style="margin:0 0 6px">${remaining} of ${charged.maximumPP} PP remaining.</p>
         <div class="form-group"><label>Spell</label><select name="choice">${options}</select></div>
-        ${bakedNotes}${warpRow}</div>`,
+        ${bakedNotes}${warpRow}${ownPayment
+    ? `<div class="form-group"><label><input type="checkbox" name="payOwn"${remaining <= 0 && ownPayment.allowEmpty ? " checked" : ""}> ${esc(ownPayment.label)}</label></div>`
+      + `<p class="hint" style="margin:2px 0">Your own PP are charged by the degree and ${esc(item.name)} is untouched${ownPayment.allowEmpty ? "; an empty item may be used so, and Charge Depletion is rolled after the spell" : ""}.</p>`
+    : ""}</div>`,
       buttons: [
         {
           action: "ok", label: "Choose", icon: "fa-solid fa-check", default: true,
@@ -422,6 +559,7 @@ export async function castFromChargedItem(actor, item) {
     });
     if (!picked || picked === "cancel") return null;
     choice = spells[Number(picked.choice)] ?? null;
+    payOwn = Boolean(ownPayment && picked.payOwn);
     if (choice && warp.allowed) {
       const warped = await chooseItemWarp(actor, item, choice, { flexible: Boolean(charged.flexible), ceiling: warp.ceiling });
       if (!warped) return null;
@@ -453,6 +591,29 @@ export async function castFromChargedItem(actor, item) {
   }
   if (!choice) return null;
 
+  // YOUR OWN PP MUST COVER THE SPELL (3.684.0, G6): a Fumble charges it all.
+  // An empty item is used so only where the rule allows it ("an item with no
+  // charges may be used so").
+  const poolBefore = Number(actor.system?.resources?.pp?.value ?? 0);
+  if (payOwn) {
+    if (remaining <= 0 && !ownPayment.allowEmpty) {
+      ui.notifications.warn(`${item.name} has no charge left, and ${ownPayment.label} does not reach an empty item.`);
+      return null;
+    }
+    if (poolBefore < Number(choice.pp ?? 0)) {
+      ui.notifications.warn(`${actor.name} has ${poolBefore} PP — not enough to pay ${choice.pp} PP for ${choice.name} from their own pool.`);
+      return null;
+    }
+  }
+  // METAMAGIC ON THE ITEM'S CAST (3.684.0, G6; Metamagic Conduit, Q130).
+  // Never on a rod's printed effect (no spell), and nothing changes without a
+  // rule: the cast's Warp? dialog offers metamagic only when told to.
+  const itemMetamagic = spells.length
+    ? chargedItemMetamagic(choice.pp, await chargedRuleAnswers("metamagic", {
+      actor, item, spellName: choice.name, pp: Number(choice.pp ?? 0), wielded: wieldedChargedItems(actor)
+    }))
+    : { allowed: false, ceiling: 0, labels: [] };
+
   // THE CHECK IS ROLLED, AND WHAT IT COSTS THE ITEM FOLLOWS FROM IT.
   //
   // Until 3.312.0 everything below this point was a description. The card
@@ -473,6 +634,7 @@ export async function castFromChargedItem(actor, item) {
   const release = spells.length
     ? await rollReleaseCheck(actor, {
       itemName: item.name,
+      itemUuid: item.uuid ?? "",
       spellName: choice.name,
       pp: choice.pp,
       title: `${item.name} — Cast from Item`,
@@ -483,7 +645,7 @@ export async function castFromChargedItem(actor, item) {
   // spell was chosen but never released.
   if (spells.length && !release) return null;
 
-  const ppSpent = release ? release.outcome.ppSpent : choice.pp;
+  const due = release ? release.outcome.ppSpent : choice.pp;
 
   // OVERSPENDING IS ALLOWED, because that is what the depletion table is
   // for — "rolled whenever a charged item's PP is reduced below 0". The
@@ -492,9 +654,27 @@ export async function castFromChargedItem(actor, item) {
   // is not a state the chapter describes. Flagged to Graham as a
   // ruling, since the book says what triggers the roll and not what the
   // pool reads afterwards.
-  const after = remaining - ppSpent;
+  //
+  // THROUGH THE ONE SPEND PATH (3.684.0; Eldritch Arts Block 6, G6):
+  // `chargedItemSpend` writes the pool after every rule's cut (Conduit
+  // Mastery, Resonant Conduit) and asks each rule's `onRelease` once it is
+  // written. PAID FROM THE WIELDER instead (Weave Infusion): the degree's
+  // price leaves their own pool and the item is untouched.
+  let spend = null;
+  let ownPaid = 0;
+  if (payOwn) {
+    ownPaid = Math.min(due, poolBefore);
+    if (ownPaid > 0) await actor.update({ "system.resources.pp.value": poolBefore - ownPaid });
+  } else {
+    spend = await chargedItemSpend(actor, item, due, { kind: "release", reason: isRod ? "rod" : "castFromItem", degree: release?.degree ?? null });
+  }
+  const ppSpent = payOwn ? ownPaid : spend.pp;
+  const after = payOwn ? remaining : spend.after;
   const overspent = Math.max(0, -after);
   const stored = Math.max(0, after);
+  const ruleLines = payOwn
+    ? await chargedItemReleased(actor, item, { kind: "release", reason: "castFromItem", degree: release?.degree ?? null, ppSpent, paidBy: "wielder" })
+    : spend.lines;
   const lines = [
     line(choice.warpedTo
       ? `Releases <strong>${esc(choice.name)}</strong>, warped from ${choice.warpedFrom} to <strong>${choice.warpedTo} PP</strong>.`
@@ -505,16 +685,20 @@ export async function castFromChargedItem(actor, item) {
   if (release) {
     lines.push(release.outcome.cast
       ? line(`<strong>${esc(release.option.label)} holds</strong> — the spell is released${
-        ppSpent < choice.pp ? `, and the ${release.degree} discounts it to ${ppSpent} PP` : ""}.`)
+        due < choice.pp ? `, and the ${release.degree} discounts it to ${due} PP` : ""}.`)
       : release.degree === "partial"
         ? line("<strong>The release falters</strong> — nothing comes out, and the item is untouched.")
-        : line(`<strong>The release fails</strong> — nothing is cast, and the item loses ${ppSpent} PP.`));
+        : line(`<strong>The release fails</strong> — nothing is cast, and ${payOwn ? "you lose" : "the item loses"} ${ppSpent} PP.`));
   }
+  if (payOwn) {
+    lines.push(line(`<strong>${esc(ownPayment.label)}:</strong> ${ppSpent} PP from ${esc(actor.name)}'s own pool `
+      + `(${poolBefore - ownPaid} left); ${esc(item.name)} is untouched${remaining <= 0 ? " — empty, so Charge Depletion is rolled once the spell is cast" : ""}.`));
+  }
+  for (const text of ruleLines) lines.push(line(text));
   lines.push(overspent
     ? line(`${item.name}: <strong>0</strong> of ${charged.maximumPP} PP — overspent by ${overspent}, which triggers Charge Depletion.`)
     : line(`${item.name}: <strong>${stored}</strong> of ${charged.maximumPP} PP remaining.`));
 
-  await item.update({ "system.uses": stored });
   if (isRod) {
     const { stampRodUse } = await import("./trait-rules-workflow.mjs");
     await stampRodUse(actor, item);
@@ -558,7 +742,11 @@ export async function castFromChargedItem(actor, item) {
       warp: choice.warp ?? null
     }, {
       kind: charged.kind ?? "",
-      itemCheck: release?.check ?? null
+      itemCheck: release?.check ?? null,
+      // METAMAGIC CONDUIT (3.684.0, G6; the cross-group contract with G1):
+      // the cast's Warp? dialog offers metamagic on this item's spell only
+      // when a rule allows it, up to `itemMetamagicCeiling` PP in all.
+      ...(itemMetamagic.allowed ? { itemMetamagic: true, itemMetamagicCeiling: itemMetamagic.ceiling } : {})
     });
     if (released.missing) {
       ui.notifications.warn(
@@ -573,6 +761,16 @@ export async function castFromChargedItem(actor, item) {
     // missing from the world is the item's data at fault, not the
     // player's, so it is refunded too.
     if (!castResult) {
+      // AN OWN-PP RELEASE IS REFUNDED TO ITS PAYER (3.684.0, G6).
+      if (payOwn) {
+        const poolNow = Number(actor.system?.resources?.pp?.value ?? 0);
+        const ppMax = Number(actor.system?.resources?.pp?.max ?? 0);
+        if (ownPaid > 0) await actor.update({ "system.resources.pp.value": Math.min(ppMax || Infinity, poolNow + ownPaid) });
+        await postCard(actor, `${item.name} — Cast from Item`, [
+          line(`Nothing was cast, so <strong>${esc(actor.name)}</strong> keeps the ${ownPaid} PP paid for it.`)
+        ]);
+        return { spell: choice, remaining, overspent: 0, ppSpent: 0, release, cast: false, refunded: true, paidBy: "wielder" };
+      }
       await item.update({ "system.uses": remaining });
       await postCard(actor, `${item.name} — Cast from Item`, [
         line(`Nothing was cast, so <strong>${item.name}</strong> keeps its ${ppSpent} PP: <strong>${remaining}</strong> of ${charged.maximumPP} PP.`)
@@ -580,9 +778,13 @@ export async function castFromChargedItem(actor, item) {
       return { spell: choice, remaining, overspent: 0, ppSpent: 0, release, cast: false, refunded: true };
     }
     if (after < 0) await rollItemDepletion(actor, item);
+    // AN EMPTY ITEM USED ON YOUR OWN PP (3.684.0, G6; Weave Infusion, Q131):
+    // "roll on the Item Depletion table after the spell has been cast with
+    // disadvantage" — the LOWER d100 kept, since low is worse there.
+    if (payOwn && remaining <= 0) await rollItemDepletion(actor, item, { bias: ownPayment.depletionBias });
   }
 
-  return { spell: choice, remaining: stored, overspent, ppSpent, release, cast: Boolean(castResult) };
+  return { spell: choice, remaining: stored, overspent, ppSpent, release, cast: Boolean(castResult), paidBy: payOwn ? "wielder" : "item" };
 }
 
 /**
@@ -643,16 +845,18 @@ export async function rechargeChargedItems(actor) {
  *
  * @returns {Promise<string>} the card line
  */
-export async function spendFromRod(actor, item, pp) {
+export async function spendFromRod(actor, item, pp, { reason = "" } = {}) {
   const { rodPaysLine } = await import("./rod-powers.mjs");
   // THE ROUND'S ROD (3.622.0; R11) — see trait-rules-workflow.mjs.
   const { stampRodUse } = await import("./trait-rules-workflow.mjs");
   await stampRodUse(actor, item);
-  const cost = Math.max(0, Math.floor(Number(pp) || 0));
-  const before = Number(item.system?.uses ?? 0);
-  const after = before - cost;
+  // THROUGH THE ONE SPEND PATH (3.684.0; Eldritch Arts Block 6, G6): a rule
+  // may cut what the rod pays (Conduit Mastery's "whenever you activate a
+  // charged item"), and is told once it has paid. `reason` names the power,
+  // so a rule can tell a Rod of the Magi's draw (not an activation) apart.
   const charged = chargedItemData(item);
-  await item.update({ "system.uses": Math.max(0, after) });
+  const { pp: cost, after, lines } = await chargedItemSpend(actor, item, pp, { kind: "rod", reason: String(reason ?? "") });
   if (after < 0) await rollItemDepletion(actor, item);
-  return rodPaysLine({ name: item.name }, cost, after, charged.maximumPP);
+  const said = rodPaysLine({ name: item.name }, cost, after, charged.maximumPP);
+  return lines.length ? `${said} ${lines.map((t) => `<em>${t}</em>`).join(" ")}` : said;
 }

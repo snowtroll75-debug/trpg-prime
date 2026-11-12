@@ -357,10 +357,10 @@ ok("G5 the attack total goes through its assembly too",
 // is that the number the attack resolves with COMES FROM the assembly,
 // so that is what G5b asserts.
 ok("G5b and its result is what the attack actually uses",
-  /const total = attackTotal\.total;/.test(cast),
+  /(?:let|const) total = attackTotal\.total;/.test(cast),
   "the assembly can be called and ignored; only consuming it counts");
 ok("G5c with no inline rebuild left beside it",
-  !/const total = Number\(check\.outcome\?\.total \?\? 0\) \+ attackWarp/.test(cast));
+  !/(?:let|const) total = Number\(check\.outcome\?\.total \?\? 0\) \+ attackWarp/.test(cast));
 
 ok("G6 the save DC goes through its assembly",
   /const saveDCResult = assembledSaveDC\(/.test(cast));
@@ -375,7 +375,7 @@ ok("G7b and the hand-picked caster-level clause is gone",
   !/includes \+\$\{clMods\.saveDC\} caster-level warp/.test(cast),
   "one contributor chosen by hand is how the other four went silent");
 ok("G8 Heighten Spell goes through its rule",
-  /heightenedSavePP\(totalPP, cap, highMagicHeightens\(actor, mm\.heightenSave(?: \|\| carried\?\.heighten === true)?\)\)/.test(cast));
+  /heightenedSavePP\(totalPP \+ freeWarpSaveDCPP, cap, highMagicHeightens\(actor, mm\.heightenSave(?: \|\| carried\?\.heighten === true)?\)\)/.test(cast));
 ok("G8b and the card says when it moved the base",
   /Heighten Spell — as \$\{savePP\} PP/.test(cast));
 

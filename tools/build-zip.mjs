@@ -32,6 +32,7 @@
  */
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { SYSTEM_ROOT } from "./lib/sources.mjs";
@@ -67,22 +68,39 @@ function arg(name, fallback) {
   return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
 }
 
-const version = JSON.parse(fs.readFileSync(path.join(SYSTEM_ROOT, "system.json"), "utf8")).version;
+const manifest = JSON.parse(fs.readFileSync(path.join(SYSTEM_ROOT, "system.json"), "utf8"));
+const version = manifest.version;
 const outDir = path.resolve(arg("out", path.join(SYSTEM_ROOT, "..", "..")));
 const outFile = path.join(outDir, `trg-prime-${version}.zip`);
 
 fs.mkdirSync(outDir, { recursive: true });
 fs.rmSync(outFile, { force: true });
 
-// Zipped from the PARENT so the archive contains `trg-prime/...`.
-const parent = path.dirname(SYSTEM_ROOT);
-const base = path.basename(SYSTEM_ROOT);
+// THE ARCHIVE'S ROOT IS THE SYSTEM'S ID, NOT THE CHECKOUT'S FOLDER NAME
+// (3.675.0; found live 29 Oct 2026). Foundry installs a system into a
+// folder named for the zip's root and drops any system whose folder is not
+// its `id`: a clone named `trpg-prime` (the repository's name) shipped
+// `trpg-prime/...`, and the system vanished from the setup screen. When the
+// folder is not named for the id, the zip is taken through a link that is.
+const base = String(manifest.id ?? "").trim();
+if (!base) throw new Error("build-zip: system.json has no id");
+let parent = path.dirname(SYSTEM_ROOT);
+let staging = null;
+if (path.basename(SYSTEM_ROOT) !== base) {
+  staging = fs.mkdtempSync(path.join(os.tmpdir(), "trg-prime-zip-"));
+  fs.symlinkSync(SYSTEM_ROOT, path.join(staging, base), "dir");
+  parent = staging;
+}
 const excludes = [
   ...EXCLUDE_DIRS.map((d) => `${base}/${d}/*`),
   ...EXCLUDE_FILES.map((f) => `${base}/${f}`)
 ];
 
-execFileSync("zip", ["-qr", outFile, base, "-x", ...excludes], { cwd: parent, stdio: "inherit" });
+try {
+  execFileSync("zip", ["-qr", outFile, base, "-x", ...excludes], { cwd: parent, stdio: "inherit" });
+} finally {
+  if (staging) fs.rmSync(staging, { recursive: true, force: true });
+}
 
 // VERIFY THE EXCLUSIONS RATHER THAN TRUSTING THEM. A silently-wrong -x
 // pattern produces a zip that looks right and ships the harness; the
@@ -98,6 +116,13 @@ const leaked = listing.filter((entry) => {
     EXCLUDE_FILES.includes(rest)
   );
 });
+
+// EVERY ENTRY UNDER `<id>/`: the check that would have caught 3.675.0.
+const misrooted = listing.filter((entry) => !entry.startsWith(`${base}/`));
+if (misrooted.length || listing[0] !== `${base}/`) {
+  process.stderr.write(`build-zip: the archive's root must be "${base}/" (the system id); found "${listing[0]}"${misrooted.length ? ` and ${misrooted.length} entr${misrooted.length === 1 ? "y" : "ies"} outside it` : ""}.\nThe zip at ${outFile} is NOT shippable.\n`);
+  process.exit(1);
+}
 
 const present = new Set(listing.map((entry) => entry.slice(base.length + 1)));
 const missing = REQUIRE_PRESENT.filter((p) => !present.has(p));

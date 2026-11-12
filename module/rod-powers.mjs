@@ -199,6 +199,34 @@ export function bonusRodFor(items, { subject = "", actionKey = "", checkType = "
   return null;
 }
 
+/**
+ * THE RODS OF A MODULE'S METAMAGIC (3.684.0; Eldritch Arts Block 6, G1 —
+ * Appendix D's S-M1 "rods"). A held rod whose `chargedItem.metamagic.kind` is
+ * a registered module key — Block 9's Rods of Focused Spell: "expend 2 PP from
+ * the rod … does not increase the casting DC … or cost you any PP" — offers
+ * that option rod-paid, as `metamagicRodsOf` offers Extend and Quicken. The
+ * core's two kinds are left to that function.
+ * @param {Array} items
+ * @param {string[]} keys registered module metamagic keys
+ * @returns {Array<{itemId, name, uses, kind, maxPP, cost}>}
+ */
+export function moduleMetamagicRodsOf(items, keys = []) {
+  const wanted = new Set((keys ?? []).map((k) => String(k ?? "").trim().toLowerCase()).filter(Boolean));
+  const out = [];
+  for (const item of heldRods(items)) {
+    const mm = chargedOf(item).metamagic;
+    const kind = String(mm?.kind ?? "").trim().toLowerCase();
+    if (!kind || ["extend", "quicken"].includes(kind) || !wanted.has(kind)) continue;
+    out.push({
+      ...rodRow(item),
+      kind,
+      maxPP: Math.max(0, Math.floor(Number(mm.maxPP) || 0)),
+      cost: Math.max(0, Math.floor(Number(mm.cost ?? 2) || 0))
+    });
+  }
+  return out;
+}
+
 /** A rod's line after it pays: what it holds now. */
 export function rodPaysLine(rod, pp, after, maximumPP) {
   const max = Number(maximumPP ?? 0);

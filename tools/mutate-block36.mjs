@@ -114,7 +114,7 @@ const MUTATIONS = [
   { file: CHARGEDF, name: "R19 — a flexible wand starts at its printed PP again",
     from: "  const base = flexible && spell ? Math.max(0, Math.floor(Number(spell.system?.ppCost ?? listed) || 0)) : listed;", to: "  const base = listed;", breaks: "F8" },
   { file: GATE, name: "R17 — a held staff is only an occupied hand (the shipped defect)",
-    from: "    !(implementHand && focusSatisfiesHand(components)) &&\n", to: "", breaks: "F9" },
+    from: "    !(implementHand && focusSatisfiesHand(handComponents)) &&\n", to: "", breaks: "F9" },
   { file: SKILLOPT, name: "A13 — Recharge Item reads the recomputed level",
     from: "      const level = chargedItemLevelOf(item);", to: "      const level = 0;", breaks: "F2" }
 ];

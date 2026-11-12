@@ -21,6 +21,9 @@
  *   {against: "weapon"}         a weapon or natural-weapon Strike only
  *                               (Impact Absorption: "a targeted physical
  *                               attack")
+ *   {against: "spell"}          a spell attack only (3.683.0; Eldritch Arts
+ *                               Block 5, C3: Glyph Unleashed's "+2 racial
+ *                               bonus to your … DB against that spell")
  *   {actions: ["shoveAttack"]}  one of these actions resolved against you
  *                               (Root the Body's raised DC, ruled as Storgar's)
  *
@@ -42,7 +45,7 @@ const lower = (v) => String(v ?? "").trim().toLowerCase();
  * An effect's declaration, normalised, or null when it declares none.
  *
  * @param {*} raw the flag's value
- * @returns {{against: "attack"|"weapon"|null, actions: string[]}|null}
+ * @returns {{against: "attack"|"weapon"|"spell"|null, actions: string[]}|null}
  */
 export function oneAttackSpec(raw) {
   if (raw === true) return { against: "attack", actions: [] };
@@ -50,6 +53,7 @@ export function oneAttackSpec(raw) {
   const actions = (Array.isArray(raw.actions) ? raw.actions : []).map(lower).filter(Boolean);
   const declared = lower(raw.against);
   const against = declared === "weapon" ? "weapon"
+    : declared === "spell" ? "spell"
     : declared === "attack" ? "attack"
     : actions.length ? null : "attack";
   const fromUuids = (Array.isArray(raw.fromUuids) ? raw.fromUuids : []).map((u) => String(u ?? "").trim()).filter(Boolean);
@@ -69,6 +73,9 @@ export function oneAttackUsedBy(spec, event) {
   const kind = String(event.kind ?? "");
   if (kind === "action") return spec.actions.includes(lower(event.actionKey));
   if (spec.against === "weapon") return kind === "weapon";
+  // A SPELL ATTACK ONLY (3.683.0, C3): not a Strike, a bomb or a spiritual
+  // weapon, which a spell-only ward would otherwise be spent by.
+  if (spec.against === "spell") return kind === "spell";
   if (spec.against === "attack") return ATTACK_KINDS.includes(kind);
   return false;
 }

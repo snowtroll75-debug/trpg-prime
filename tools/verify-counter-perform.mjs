@@ -255,7 +255,7 @@ ok("G7 a zero bonus records nothing but still reports",
 
 // THE TOTAL HAS TO GET THERE. Threaded through `rollData` beside `pp` and
 // `saveDC`; without it every Counter Perform refuses itself.
-const castBody = bodyOf(cast, "export async function castSpell(");
+const castBody = bodyOf(cast, "async function castSpellResolved(");
 ok("G8 the cast threads its total into the effect engine",
   has(castBody, "castTotal: check?.outcome?.total ?? null"),
   "without this the applier can never find a Perform check to compare");

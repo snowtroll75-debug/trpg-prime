@@ -41,6 +41,17 @@ import {
 import { KNIGHT_CASTING } from "./feat-casting.mjs";
 import { alreadyKnownSpell, knownSpellKeys } from "./repertoire.mjs";
 import { contentPack } from "../content-packs.mjs";
+import {
+  archetypeBookMark,
+  bookAdditionEligible,
+  bookSpellData,
+  bookSpellSlotted,
+  bookSpells,
+  freeBookAllowance,
+  freeBookState
+} from "./arcanist-book.mjs";
+import { classTradition } from "./caster-tier-feats.mjs";
+import { liveFeatSlotIds } from "./feat-casting.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -100,9 +111,105 @@ export function archetypeCastingContext(actor) {
       daily: held.daily.map((i) => ({ id: i.id, name: i.name })),
       // The Arcanist cannot prepare from an empty book, and saying so on
       // the card beats a picker that opens onto nothing.
-      blockedOnBook: state.preparesFromBook && !state.permanentPicked
+      blockedOnBook: state.preparesFromBook && !state.permanentPicked,
+      // THE BOOK'S LEVELLED HALF (3.676.0) — what the Arcane Knight and
+      // caster-tier slots memorise from. Only a book-style archetype has
+      // one.
+      ...(source.style === "book" ? levelledBookContext(actor, source, items) : {})
     };
   });
+}
+
+/**
+ * The levelled spells in an archetype's book, and the free additions the
+ * caster-tier feats owe it (Graham's ruling R1, 29 October 2026: as
+ * printed — "Each time you are granted a new spell slot, you may also
+ * add an arcane spell of the appropriate level to your spell book").
+ */
+function bookAdditionsFor(actor, source) {
+  const items = Array.from(actor?.items ?? []);
+  const featNames = items.filter((i) => i.type === "feat").map((i) => i.name);
+  const inBook = bookSpells(items, source.key);
+  return freeBookState({
+    allowed: freeBookAllowance(
+      featNames,
+      Number(actor?.system?.identity?.level ?? 0),
+      source.tradition,
+      classTradition(actor?.system?.progression)
+    ),
+    used: inBook.filter((i) => archetypeBookMark(i)?.via === "free").length
+  });
+}
+
+function levelledBookContext(actor, source, items) {
+  const live = liveFeatSlotIds(actor);
+  const inBook = bookSpells(items, source.key)
+    .slice()
+    .sort((a, b) => Number(a.system?.ppCost ?? 0) - Number(b.system?.ppCost ?? 0) || a.name.localeCompare(b.name));
+  const free = bookAdditionsFor(actor, source);
+  return {
+    hasLevelledBook: true,
+    levelled: inBook.map((i) => ({
+      id: i.id,
+      name: i.name,
+      pp: Number(i.system?.ppCost ?? 0),
+      via: archetypeBookMark(i)?.via ?? "",
+      memorised: bookSpellSlotted(i, live)
+    })),
+    freeAllowed: free.allowed,
+    freeUsed: free.used,
+    freeRemaining: free.remaining,
+    maxBookPP: Number(actor?.system?.magic?.casterLevelValue ?? 0) + 1
+  };
+}
+
+/**
+ * Write one spell into the book with a free addition.
+ *
+ * FROM THE PACK, of the book's tradition and a PP a slot could hold now
+ * ("of the appropriate level"), never one already on the sheet. Refused
+ * outright when no addition is owed, rather than greyed: the card only
+ * offers the button while one is.
+ */
+export async function addFreeBookSpell(actor, sourceKey) {
+  const source = archetypeCastingByName(sourceKey);
+  const feat = featFor(actor, sourceKey);
+  if (!source || source.style !== "book" || !feat) {
+    ui.notifications.warn("Only an Arcanist keeps a spellbook to add to.");
+    return null;
+  }
+  const free = bookAdditionsFor(actor, source);
+  if (!free.remaining) {
+    ui.notifications.info(`${source.label}: no free additions are owed — ${free.used} of ${free.allowed} used. Learn a Spell (Arcana) adds more.`);
+    return null;
+  }
+  const casterLevel = Number(actor.system?.magic?.casterLevelValue ?? 0);
+  const label = archetypeTraditionLabel(source);
+  const known = knownSpellKeys(Array.from(actor.items ?? []));
+  const picked = await pickFromPack("spells", {
+    title: `${source.label} — add to your spellbook (${label}, PP ${casterLevel + 1} or less)`,
+    fields: ["system.tradition", "system.ppCost", "system.specialist"],
+    filter: (entry) => !alreadyKnownSpell(known, entry) && bookAdditionEligible(
+      { tradition: entry.system?.tradition, ppCost: entry.system?.ppCost, specialist: entry.system?.specialist },
+      { tradition: source.tradition, casterLevel }
+    ),
+    emptyMessage: `No ${label.toLowerCase()} spells of PP ${casterLevel + 1} or less that are not already on your sheet.`
+  });
+  if (!picked) return null;
+  const document = await contentPack("spells")?.getDocument(picked.itemId);
+  if (!document) return null;
+  const [created] = await actor.createEmbeddedDocuments("Item", [
+    bookSpellData(packItemData(document), { feat, source: source.key, via: "free", requested: document.name })
+  ]);
+  if (!created) return null;
+  const after = bookAdditionsFor(actor, source);
+  await postCard(actor, source.label, [
+    line(`<strong>${created.name}</strong> (PP ${Number(created.system?.ppCost ?? 0)}) written into your spellbook — a free addition from your caster feats.`),
+    line(after.remaining
+      ? `<em>${after.remaining} more free addition${after.remaining === 1 ? "" : "s"} owed. Memorise book spells in your spell slots.</em>`
+      : `<em>All ${after.allowed} free additions used. Learn a Spell (Arcana) adds more. Memorise book spells in your spell slots.</em>`)
+  ]);
+  return created;
 }
 
 /* ------------------------------------------------------------------ */

@@ -117,7 +117,8 @@ const cast = read("module", "magic", "cast-workflow.mjs");
     /placedArea = \{ \.\.\.placedArea, regionId: null \};\s*\n\s*wallDissipated = true;/.test(cast));
   ok("D4 its notes are not printed",
     // 3.622.0: wrapped once more, by a blocked self-cast polymorph (block 39's R11).
-    cast.includes("effects: (wallDissipated ? (effEffects ?? []).filter((r) => r?.kind !== \"note\") : effEffects)"));
+    // 3.685.0: and once more, by the caster-level steps on the rows (H2).
+    cast.includes("effects: casterLevelRows((wallDissipated ? (effEffects ?? []).filter((r) => r?.kind !== \"note\") : effEffects)"));
   ok("D5 the flag starts false for every cast", /let placedArea = null;\n[^\n]*\n  let wallDissipated = false;/.test(cast));
 }
 

@@ -201,6 +201,13 @@ export async function applyHazardTerrain(tokenDocument, movement) {
       // ONE ROLL PER SQUARE, because the book charges per square. A
       // single roll multiplied would give four identical results and
       // hide the variance the dice are there to produce.
+      // A DAMAGE REACTION, BEFORE THE DEFENCES (3.681.0; found in review):
+      // asked once for the move, and its answer holds for every square of it
+      // (one HP write, below).
+      {
+        const { spellDamageReactionsFor } = await import("../reactions/reactions-workflow.mjs");
+        await spellDamageReactionsFor(mover, spec.damageType, { spellName: spec?.label ?? "", source: null });
+      }
       let rolled = 0;
       let taken = 0;
       for (let i = 0; i < hits.length; i += 1) {

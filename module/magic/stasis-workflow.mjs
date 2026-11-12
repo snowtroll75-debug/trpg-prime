@@ -3,6 +3,7 @@
  * Graham's R2 of block 35). The rules and the reasons are there.
  */
 
+import { isActingClientFor } from "../acting-gm.mjs";
 import {
   STASIS_FLAG, normaliseStasis, stasisEffectOf, stasisSaveOutcome, stasisElapsed,
   resumedClockUpdates, shortenedStasisUpdates, stasisLine, stasisTurnLine
@@ -197,7 +198,7 @@ export function registerStasis() {
     try {
       const record = effect?.flags?.[SYSTEM_ID]?.[STASIS_FLAG];
       if (!record) return;
-      if (game.users?.activeGM && game.users.activeGM.id !== game.user?.id) return;
+      if (!isActingClientFor(effect.parent)) return; // one connection of the acting GM; with no GM, one owner (3.686.2)
       const actor = effect.parent;
       if (!actor?.effects) return;
       const already = options?.[RESUMED_OPTION];

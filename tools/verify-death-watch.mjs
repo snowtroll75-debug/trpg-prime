@@ -119,9 +119,11 @@ ok("D1 the phase label is written once", /const END_PHASE_LABEL = "Phase 3 — E
 // THE DEFECT ITSELF. TRGCheck.roll posts its card immediately and the phase
 // summary is posted last, so a flat check always lands above the card that
 // explains it. Each check therefore has to say which phase it belongs to.
+// THE LABEL NAMES THE TYPE WHEN THERE ARE SEVERAL (3.685.0, Q150); the plain
+// one is still the single-type label, which is what is found here.
 const recurringCheck = combat.slice(
-  combat.indexOf('label: "Recurring Damage — Flat Check"'),
-  combat.indexOf('label: "Recurring Damage — Flat Check"') + 240
+  combat.indexOf('Damage — Flat Check` : "Recurring Damage — Flat Check",'),
+  combat.indexOf('Damage — Flat Check` : "Recurring Damage — Flat Check",') + 240
 );
 // THE SUBTITLE NOW HAS A SECOND JOB (3.579.0; page 193, Graham's R18):
 // recurring damage gained bleeding's GM lever, so the line names the
@@ -149,7 +151,7 @@ ok("D6 no stray hand-written copy of the label remains",
 // presentational, and a "fix" that moved them would be a real regression.
 const endPhase = combat.slice(combat.indexOf("async _onEndTurn("));
 ok("D7 the recurring flat check is in _onEndTurn",
-  endPhase.includes('label: "Recurring Damage — Flat Check"'));
+  endPhase.includes('Damage — Flat Check` : "Recurring Damage — Flat Check",'));
 const startPhase = combat.slice(combat.indexOf("async _onStartTurn("), combat.indexOf("async _onEndTurn("));
 ok("D8 no flat check was moved into _onStartTurn",
   !/Flat Check/.test(startPhase));

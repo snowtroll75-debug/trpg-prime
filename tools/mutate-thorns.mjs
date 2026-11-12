@@ -148,7 +148,7 @@ const MUTATIONS = [
   {
     file: TH,
     name: "N1 a formula nobody checked reaches the roller",
-    from: "  if (!DICE_OR_FLAT.test(damage)) return null;",
+    from: "  if (!(ladder && !damage) && !DICE_OR_FLAT.test(damage)) return null;",
     to: "  if (false) return null;",
     breaks: "B4"
   },
@@ -162,7 +162,7 @@ const MUTATIONS = [
   {
     file: TH,
     name: "N3 an empty damage type is accepted",
-    from: "  if (!damageType) return null;",
+    from: "  if (!damageType && !(ladder && !damage)) return null;",
     to: "  if (false) return null;",
     breaks: "B5"
   },
@@ -223,8 +223,9 @@ const MUTATIONS = [
     file: FX,
     name: "H3 the applier accepts malformed thorns",
     // RE-ANCHORED 3.613.0: the row is warped first (Vibrant Thorns' +4 PP).
-    from: "          const spec = normaliseThorns(warpedThorns(effect, warpBonus));\n          if (!spec) {",
-    to: "          const spec = normaliseThorns(warpedThorns(effect, warpBonus)) ?? effect;\n          if (false) {",
+    // AND AT 3.685.0: it is stamped with the cast's DC and caster level (H1).
+    from: "          }));\n          if (!spec) {",
+    to: "          })) ?? effect;\n          if (false) {",
     breaks: "H2 — a spell grows thorns nothing can roll and says nothing"
   },
   {

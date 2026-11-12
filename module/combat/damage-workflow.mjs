@@ -31,6 +31,7 @@ import { ownedCreatureTypeSystem } from "../creature-type-rules.mjs";
 import { applyDamageAndCheckDying } from "./dying-workflow.mjs";
 import { healsFromDamage } from "../creature-ability-rules.mjs";
 import { divineDamageMark } from "../regeneration-rules.mjs";
+import { runeBypassedDefences } from "./rune-damage-bypass.mjs";
 
 /**
  * THE RESISTANCE A CAST IGNORES (3.630.0). Blackfire Ivy: the spell it is
@@ -138,7 +139,13 @@ export function resolveAgainstDefences(targetSystem, {
   // GHOST TOUCH against the incorporeal (3.618.0) — see damage.mjs.
   incorporealTouch = false,
   // THE TARGET'S OWN ABILITIES (3.631.0): Fire Healing reads them.
-  targetItems = []
+  targetItems = [],
+  // A RUNE THAT IGNORES RESISTANCE (3.684.0; Eldritch Arts Block 6, G19):
+  // Runeforge Mastery's "ignore any resistance to their damage type …
+  // immunity is treated as resistance". The packet's own type only; the
+  // caller (a Strike's rune packet) says so. See combat/rune-damage-bypass.mjs.
+  ignoreResistance = false,
+  immunityAsResistance = false
 } = {}) {
   // FIRE HEALING (Creature Codex; 3.631.0): "fire damage heals the creature
   // of an amount of HP damage equal to half that taken … based upon the
@@ -152,7 +159,10 @@ export function resolveAgainstDefences(targetSystem, {
     const heal = Math.floor(raw * healing.fraction);
     return { taken: 0, immune: false, healsInstead: heal, healsFromType: type, drApplied: 0, steps: [`${raw} ${type} heals it instead (${heal})`] };
   }
-  const defences = actorDefences(targetSystem, creatureTypeSystem);
+  const declaredDefences = actorDefences(targetSystem, creatureTypeSystem);
+  const defences = (ignoreResistance || immunityAsResistance)
+    ? { ...declaredDefences, ...runeBypassedDefences(declaredDefences, type, { ignoreResistance, immunityAsResistance }) }
+    : declaredDefences;
   const ignored = String(ignoreImmunityTo ?? "").trim().toLowerCase();
   // A RESISTANCE THIS CAST IGNORES (3.630.0) — Blackfire Ivy's "negates each
   // target's fire resistance", for the spell it is spent on. See
@@ -304,14 +314,44 @@ export async function applyTypedDamage(targetActor, {
   // Breath "affects vampires normally and bypasses their immunity to
   // poison"): the type is met as if the target were not immune to it, and
   // its resistances and DR still apply.
-  ignoreImmunityTo = ""
+  ignoreImmunityTo = "",
+  // WHAT THE BLOW WAS, FOR A REACTION (3.681.0; Eldritch Arts Block 3b):
+  // Resist Magic answers "damage from a magical spell or effect". `magical`
+  // is also the packet's own (a magic resistance or immunity reads it), and
+  // false for every caller that does not say.
+  magical = false,
+  spellName = "",
+  // WHO DEALT IT, FOR WHOEVER LISTENS (3.684.0; Eldritch Arts Block 6, G23):
+  // Warlock's Hex and Hex Binders Curse answer "when you damage a creature
+  // with a spell". `trgPrimeDamageApplied` has named a Strike's source since
+  // 3.667.0; this names a spell's, or a module's own rolled damage. Optional:
+  // a caller that names nobody reports nobody, as before. `context` defaults
+  // to `{ kind: "spell", spellName }` when a spell is named.
+  sourceUuid = "",
+  context = null
 } = {}) {
   if (!targetActor) return { packet: null, applied: 0, result: null };
+  const told = {
+    sourceUuid: String(sourceUuid ?? ""),
+    context: context ?? (String(spellName ?? "").trim() && String(sourceUuid ?? "").trim() ? { kind: "spell", spellName: String(spellName) } : null)
+  };
+
+  // A DAMAGE REACTION, BEFORE THE DEFENCES (3.681.0): Phase Familiar, Resist
+  // Magic. What it grants is read by actorDefences below. Not for damage that
+  // ignores the defences, which nothing it grants could meet.
+  const reactionLines = [];
+  if (!ignoreDefences && type) {
+    const { damageReactionsBefore } = await import("../reactions/reactions-workflow.mjs");
+    reactionLines.push(...await damageReactionsBefore(targetActor, {
+      kind: spellName ? "spell" : "other", types: [type], magical: Boolean(magical) || Boolean(spellName),
+      spellName, sourceName
+    }));
+  }
 
   if (ignoreDefences || !type) {
     const raw = Math.max(0, Math.floor(Number(amount) || 0));
     const result = raw > 0
-      ? await applyDamageAndCheckDying(targetActor, raw, { isCritical })
+      ? await applyDamageAndCheckDying(targetActor, raw, { isCritical, ...told })
       : null;
     return {
       packet: { taken: raw, immune: false, steps: [`${raw} untyped`] },
@@ -321,23 +361,34 @@ export async function applyTypedDamage(targetActor, {
   }
 
   const extra = String(extraResistance ?? "").trim();
+  // `parent` CARRIED ACROSS THE COPY (3.681.0): a reaction's granted defence
+  // is found through it (combat/granted-defences.mjs).
   const defenderSystem = extra
-    ? { ...targetActor.system, combat: { ...(targetActor.system?.combat ?? {}),
+    ? { ...targetActor.system, parent: targetActor, combat: { ...(targetActor.system?.combat ?? {}),
       resistances: [targetActor.system?.combat?.resistances, extra].filter((v) => String(v ?? "").trim()).join(", ") } }
     : targetActor.system;
   let packet = resolveAgainstDefences(defenderSystem, {
     amount, type, traits, dr, drBypassed, naturalArmourDr, area: Boolean(area), attackerIsSwarm: Boolean(attackerIsSwarm),
+    magical: Boolean(magical) || Boolean(spellName),
     creatureTypeSystem: ownedCreatureTypeSystem(targetActor),
     targetItems: Array.from(targetActor.items ?? [])
   });
   const bypass = String(ignoreImmunityTo ?? "").trim().toLowerCase();
   if (packet.immune && bypass && bypass === String(type ?? "").trim().toLowerCase()) {
     const stripped = String(defenderSystem?.combat?.immunities ?? "").split(",").map((t) => t.trim()).filter((t) => t && t.toLowerCase() !== bypass).join(", ");
-    packet = resolveAgainstDefences({ ...defenderSystem, combat: { ...(defenderSystem?.combat ?? {}), immunities: stripped } }, {
+    packet = resolveAgainstDefences({ ...defenderSystem, parent: targetActor, combat: { ...(defenderSystem?.combat ?? {}), immunities: stripped } }, {
       amount, type, traits, dr, drBypassed, naturalArmourDr, area: Boolean(area), attackerIsSwarm: Boolean(attackerIsSwarm),
+      magical: Boolean(magical) || Boolean(spellName),
       creatureTypeSystem: null, targetItems: Array.from(targetActor.items ?? [])
     });
     packet.steps = [`immunity to ${bypass} bypassed`, ...(packet.steps ?? [])];
+  }
+  // THE REACTION'S LINE, FIRST; AND ITS ONE-BLOW GRANT ENDS HERE (3.681.0):
+  // this blow has met the defences, whether or not anything is written.
+  if (reactionLines.length) packet.steps = [...reactionLines, ...(packet.steps ?? [])];
+  {
+    const { clearInstanceGrants } = await import("./granted-defences.mjs");
+    clearInstanceGrants(targetActor);
   }
   if (packet.healsInstead !== undefined) {
     packet.steps.push(await applyHealsInstead(targetActor, packet));
@@ -356,7 +407,8 @@ export async function applyTypedDamage(targetActor, {
     nonlethal: Boolean(packet.nonlethal),
     damageTypes: [String(type ?? "").trim().toLowerCase(), ...divineDamageMark(traits)].filter(Boolean),
     sourceLevel,
-    sourceName
+    sourceName,
+    ...told
   });
 
   return { packet, applied: packet.taken, result };

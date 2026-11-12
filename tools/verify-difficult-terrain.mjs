@@ -245,7 +245,9 @@ ok("W5 the warp mods reach the row",
  * itself rather than a spelling of the total.
  */
 ok("W6 THE AP CHOICE IS MADE BEFORE THE POOL IS CHECKED",
-  CAST.indexOf("apScaleChoices(spellData.apScale") < CAST.indexOf("ensureActionPoints(actor, castTimeApCost(effCastAPWithScale)"),
+  // RE-ANCHORED AT 3.684.0 (G25): a Prepared Sigil's cast asks the pool for 1 AP less.
+  CAST.indexOf("apScaleChoices(spellData.apScale") > 0
+    && CAST.indexOf("apScaleChoices(spellData.apScale") < CAST.indexOf("ensureActionPoints(actor, castTimeApCost(sigil ? totalCastTime(effCastAPWithScale, { apDelta: -1 }) : effCastAPWithScale)"),
   "a caster who picks 3 AP with two in the pool should be told now, not clamped at the end");
 equal("W7 THE EXTRA ACTIONS REACH THE COST", castTimeWithExtraActions("1 AP+", 2), 3,
   "a bigger spell for free is not what the book prints");

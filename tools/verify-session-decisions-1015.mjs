@@ -50,7 +50,8 @@ ok("D2b ...and costs no AP", /\} else if \(!isReaction && !apPaid && !offTurnFre
 ok("D2c a player's ask waits for the GM's answer; none connected is a no",
   /if \(game\.user\?\.isGM\) return askHere\(\{ who, what \}\);/.test(src.gm) && /if \(!game\.users\?\.activeGM\) \{/.test(src.gm)
   && /return allowed === true;/.test(src.gm));
-ok("D2d only the acting GM answers, and only the asker hears", /if \(data\?\.action !== ASK \|\| !isActingGM\(\)\) return;/.test(src.gm) && /if \(data\.userId !== game\.user\?\.id\) return;/.test(src.gm));
+// RE-PINNED 3.686.2: any tab of the active GM account answers (a question, not a write).
+ok("D2d only the active GM (any of its tabs) answers, and only the asker hears", /if \(data\?\.action !== ASK \|\| !isActiveGMAccount\(\)\) return;/.test(src.gm) && /if \(data\.userId !== game\.user\?\.id\) return;/.test(src.gm));
 ok("D2e the listener is registered at boot", /registerGMAuthorisation\(\);/.test(src.boot) && /from "\.\.\/module\/combat\/gm-authorisation\.mjs"/.test(src.boot));
 
 // D3
@@ -88,7 +89,7 @@ ok("D4b the spell's clock, cast id and traits travel with them", /for \(const ke
 ok("D5 the offer is whispered to each reactor's non-GM owner too", /\.filter\(\(u\) => !u\.isGM && reactors\.some\(\(\{ actor \}\) => actor\?\.testUserPermission\?\.\(u, "OWNER"\)\)\)/.test(src.opp)
   && /whisper: \[\.\.\.new Set\(\[\.\.\.ChatMessage\.getWhisperRecipients\("GM"\)\.map\(\(u\) => u\.id\), \.\.\.reactorOwners\]\)\]/.test(src.opp));
 // D6
-ok("D6 Ready asks for and spends its own AP before ending the turn", /if \(!\(await ensureActionPoints\(actor, action\.apCost, action\.name, \{ traits: action\.traits \}\)\)\) return null;\n      await spendActionCost\(actor, action\.apCost, action\.name, \{ traits: action\.traits \}\);\n      await readyActionAndEndTurn/.test(src.aw));
+ok("D6 Ready asks for and spends its own AP before ending the turn", /if \(!\(await ensureActionPoints\(actor, action\.apCost, action\.name, \{ traits: action\.traits \}\)\)\) return null;\n      await (?:spendActionCost\(actor|commitActionCost\(actor, action, readied), action\.apCost, action\.name, \{ traits: action\.traits \}\);\n      await readyActionAndEndTurn/.test(src.aw));
 // D7
 ok("D7 the Strike's chooser sorts the fist last", /\.sort\(\(a, b\) => Number\(Boolean\(a\.system\?\.natural\)\) - Number\(Boolean\(b\.system\?\.natural\)\)\);/.test(src.aw));
 

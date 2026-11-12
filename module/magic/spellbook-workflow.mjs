@@ -35,6 +35,7 @@ import { contentPack } from "../content-packs.mjs";
 import { availabilityWarning } from "./repertoire.mjs";
 
 import { castingDerives } from "../creature-ability-rules.mjs";
+import { actorPickRule, bookSlotsPerLevel, pickAllowed, traditionRuleLabel } from "./class-magic.mjs";
 const SYSTEM_ID = "trg-prime";
 
 function line(text) {
@@ -64,7 +65,9 @@ export function spellBookContext(actor) {
     // bought through Learn a Spell (flagged learnedExtra) is additional
     // and must not eat into this schedule's owed/remaining count. See
     // spellBookLadderSpells's own comment in spellbook.mjs.
-    owned: spellBookLadderSpells(actor).length
+    owned: spellBookLadderSpells(actor).length,
+    // THE CLASS'S OWN LADDER (3.680.0, D4b): the Archmage's one a level.
+    perLevel: bookSlotsPerLevel(actor.system?.progression?.classMagic)
   });
   return {
     ...state,
@@ -114,27 +117,42 @@ export function eligibilityFor(actor, { firstPick }) {
   // may learn from more traditions than its own — "any" (True Caster), or
   // arcane and ethereal (Arcadian) — and casts them as its own. The
   // eligibility test is widened; the spell's tradition is left as printed.
-  const learnTraditions = castingDerives(Array.from(actor.items ?? [])).traditions;
+  // …AND A CLASS'S OWN (3.680.0; Eldritch Arts D4): the Archmage's "all
+  // traditions", the Witch's Ethereal and Verdant. Every tradition a spell
+  // names is tried, not only its first (an "arcane, verdant" spell is a
+  // verdant spell to a Witch). See magic/class-magic.mjs.
+  const pickRule = actorPickRule(actor, castingDerives(Array.from(actor.items ?? [])).traditions);
   const casterLevel = Number(actor.system?.magic?.casterLevelValue ?? 0);
   const owned = ownedEntryIds(actor);
   return (entry) =>
     !alreadyKnownSpell(owned, entry) &&
+    pickAllowed(pickRule, entry.system?.tradition) &&
     spellBookPickEligible(
       {
         tradition: entry.system?.tradition,
         ppCost: entry.system?.ppCost,
         specialist: entry.system?.specialist
       },
-      { tradition: learnTraditions === "any" || (Array.isArray(learnTraditions) && learnTraditions.includes(String(entry.system?.tradition ?? "").split(",")[0].trim().toLowerCase())) ? "" : tradition, firstPick, casterLevel }
+      { tradition: "", firstPick, casterLevel }
     );
 }
 
 function describeFilter(actor, { firstPick }) {
-  const tradition = String(actor.system?.magic?.tradition ?? "spell");
+  // "any PP 2 spell of any tradition" for an Archmage (3.680.0, D4a).
+  const widened = actor.system?.progression?.learnTraditions;
+  const rule = widened ? actorPickRule(actor) : null;
+  const tradition = rule ? (rule === "any" ? "" : traditionRuleLabel(rule)) : String(actor.system?.magic?.tradition ?? "spell");
+  const kind = `${tradition ? `${tradition} ` : ""}spell${rule === "any" ? " of any tradition" : ""}`;
   const cap = Number(actor.system?.magic?.casterLevelValue ?? 0) + 1;
   return firstPick
-    ? `any PP 2 ${tradition} spell (opening batch)`
-    : `any ${tradition} spell of PP ${cap} or less (your castable maximum)`;
+    ? `any PP 2 ${kind} (opening batch)`
+    : `any ${kind} of PP ${cap} or less (your castable maximum)`;
+}
+
+/** "two more arrive", or the class's own number (3.680.0, D4b). */
+function perLevelWords(actor) {
+  const n = bookSlotsPerLevel(actor.system?.progression?.classMagic);
+  return n === 1 ? "one more arrives" : n === 0 ? "no more arrive" : `${n === 2 ? "two" : n} more arrive`;
 }
 
 /**
@@ -201,7 +219,7 @@ export async function openSpellBookPick(actor) {
     line(
       after.remaining
         ? `<em>${after.remaining} slot${after.remaining === 1 ? "" : "s"} still open — add again from the Magic tab.</em>`
-        : `<em>All ${after.allowed} slots filled — two more arrive at your next level.</em>`
+        : `<em>All ${after.allowed} slots filled — ${perLevelWords(actor)} at your next level.</em>`
     )
   ]);
   return created;

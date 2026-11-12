@@ -293,18 +293,25 @@ export async function rollFatigueRecovery(actor, { postCard = true } = {}) {
   const current = actor.getConditionValue?.("fatigued") ?? 0;
   const next = Math.max(0, current + delta);
 
-  if (delta !== 0) {
+  // HELD BY A CURSE (3.686.0, H17): a recovery does not lower it (a Fumble's rise still lands).
+  const { actorConditionHeld, holdsOn, heldRefusedLine } = await import("../conditions/held-conditions.mjs");
+  const heldDown = delta < 0 && actorConditionHeld(actor, "fatigued");
+  // THE CARD SAYS THE HOLD, AND THE VALUE STAYS (Block 8a review): a held
+  // fatigue printed "reduces by 1, to 2" while it stayed at 3.
+  const result = heldDown ? current : next;
+  if (delta !== 0 && !heldDown) {
     if (next > 0) await actor.toggleStatusEffect("fatigued", { value: next });
     else await actor.toggleStatusEffect("fatigued", { active: false });
   }
 
   if (postCard) {
     const lines = [];
-    if (delta < 0) lines.push(`<p style="margin:2px 0">Fatigue reduces by <strong>${-delta}</strong>, to <strong>${next}</strong>.</p>`);
+    if (heldDown) lines.push(`<p style="margin:2px 0">${heldRefusedLine(actor.name, "Fatigued", holdsOn(actor.effects, "fatigued")[0]?.label)} It stays at <strong>${current}</strong>.</p>`);
+    else if (delta < 0) lines.push(`<p style="margin:2px 0">Fatigue reduces by <strong>${-delta}</strong>, to <strong>${next}</strong>.</p>`);
     else if (delta > 0) lines.push(`<p style="margin:2px 0">Fatigue increases by <strong>${delta}</strong>, to <strong>${next}</strong>.</p>`);
     else lines.push(`<p style="margin:2px 0">Fatigue holds steady at <strong>${next}</strong>.</p>`);
 
-    const status = fatigueStatus(next);
+    const status = fatigueStatus(result);
     if (status === "unconscious") {
       lines.push('<p style="margin:2px 0"><strong>Fatigue 10+ — the GM should apply Unconscious.</strong></p>');
     } else if (status === "dead") {
@@ -317,5 +324,5 @@ export async function rollFatigueRecovery(actor, { postCard = true } = {}) {
     });
   }
 
-  return { check, delta, next };
+  return { check, delta: heldDown ? 0 : delta, next: result, ...(heldDown ? { held: true } : {}) };
 }

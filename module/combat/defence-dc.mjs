@@ -31,6 +31,8 @@
 const SYSTEM_ID = "trg-prime";
 
 import { activeStanceEffects, inAnyStance, stanceGatedRows } from "../stance-declarations.mjs";
+import { applyStacking } from "../dice/resolution.mjs";
+import { SLOT_TYPE_ALIASES } from "../bonuses/registry.mjs";
 
 /** The DCs a defender can raise. Matches ACTION_TARGETS' own names. */
 export const DEFENCE_DC_KEYS = Object.freeze([
@@ -63,6 +65,34 @@ export const DEFENCE_DC_KEYS = Object.freeze([
  * with no new comparison anywhere.
  */
 const SKILL_DC = /^skillDC:[A-Za-z][A-Za-z0-9]*$/;
+
+/** The attack kinds a defence row may name (3.684.0, G20): one-attack.mjs's. */
+const ATTACK_KINDS = Object.freeze(["weapon", "spell", "bomb", "spiritualweapon"]);
+
+/**
+ * A defence row's light levels (3.684.0, G20): a number, a list, or
+ * `{min, max}`, each 1–10; null when nothing usable is named. Pure.
+ */
+export function defenceLightLevels(value) {
+  if (value === undefined || value === null) return null;
+  const out = new Set();
+  const level = (v) => {
+    const n = Number(String(v ?? "").trim());
+    return Number.isInteger(n) && n >= 1 && n <= 10 ? n : null;
+  };
+  for (const entry of Array.isArray(value) ? value : [value]) {
+    if (entry && typeof entry === "object") {
+      const min = entry.min === undefined || entry.min === null ? 1 : level(entry.min);
+      const max = entry.max === undefined || entry.max === null ? 10 : level(entry.max);
+      if (min === null || max === null) continue;
+      for (let n = min; n <= max; n += 1) out.add(n);
+      continue;
+    }
+    const n = level(entry);
+    if (n !== null) out.add(n);
+  }
+  return out.size ? [...out].sort((a, b) => a - b) : null;
+}
 
 /** Is this a DC a defender may raise? */
 export function isDefendableDC(dc) {
@@ -126,6 +156,8 @@ export function defenceDCRowFrom(effect, spellName = "This spell", extra = 0) {
     value: Math.trunc(Number(effect?.value ?? 0)) + Math.trunc(Number(extra) || 0),
     label: effect?.label || spellName,
     scope: String(effect?.scope ?? ""),
+    // ITS TYPE TRAVELS WITH IT (3.684.1): Self Mirage's "+4 status".
+    ...(effect?.bonusType || effect?.type ? { type: String(effect.bonusType || effect.type) } : {}),
     when: { actions }
   };
   if (!normaliseDefenceDC(row, { id: "spell", name: spellName })) {
@@ -219,6 +251,18 @@ export function normaliseDefenceDC(raw, source = {}, { stanceGated = false, from
   const notSourceUuids = (Array.isArray(raw.not?.sourceUuids) ? raw.not.sourceUuids : [])
     .map((u) => String(u ?? "").trim())
     .filter(Boolean);
+  // WHAT KIND OF ATTACK (3.684.0; Eldritch Arts Block 6, G20). Shadowmantle:
+  // "+1 circumstance bonus to your DB … against spells"; Spellblade's Mark's
+  // DB. `attackKinds: ["spell"]` meets a spell attack only — a Strike's DB,
+  // which names no kind, never reads it. Not a scope on its own: an attack
+  // kind is still "every attacker", so the row needs another axis or the
+  // light below.
+  const attackKinds = list(raw.when?.attackKinds).filter((k) => ATTACK_KINDS.includes(k));
+  // THE LIGHT THE DEFENDER STANDS IN (3.684.0, G20): Shadowmantle's "while
+  // you are in an area of light level 5 or less". A number, a list, or
+  // `{min, max}`, as the conditionals' `lightLevels` axis (C4). A caller that
+  // measured no light matches no such row.
+  const lightLevels = defenceLightLevels(raw.when?.lightLevels);
 
   // NO UNSCOPED ENTRIES. An entry scoped by nothing would raise the DC
   // against everything that reads it, which is a different and much
@@ -232,11 +276,23 @@ export function normaliseDefenceDC(raw, source = {}, { stanceGated = false, from
   // A STANCE-GATED ROW (3.664.0) IS SCOPED BY ITS STANCE: Martial
   // Affinity's "+1 racial bonus to DB when in any combat stance" is read
   // only while a stance is up, which is the narrowing the rule asks for.
-  if (!stanceGated && !actions.length && !sourceTypes.length && !sourceUuids.length && !sourceAlignments.length && !sourceTraits.length && !notSourceUuids.length) return null;
+  // A LIGHT-GATED ROW (3.684.0) is scoped by the light it needs, as a
+  // stance-gated one is by its stance.
+  if (!stanceGated && !actions.length && !sourceTypes.length && !sourceUuids.length && !sourceAlignments.length && !sourceTraits.length && !notSourceUuids.length && !lightLevels) return null;
+
+  // ITS APPENDIX 1 TYPE (3.684.1) — see `stackDefenceRows`. `type` or the
+  // `bonusType` a spell row and a ward already spell it with; a row that
+  // declares neither, or a type the book does not have, is untyped and adds.
+  // Spelt as a sheet slot is ("racial", "status"), through the core's aliases.
+  // IN ANY CASE (3.684.1, review): "Status" and "naturalArmour" alike, read
+  // through a lower-cased copy of the alias table; and a blank `type` falls
+  // back to `bonusType` (`||`, not `??`), as a blank one is no declaration.
+  const type = declaredRowType(raw.type || raw.bonusType);
 
   return {
     dc,
     value,
+    type,
     kind: disadvantage ? "disadvantage" : "modifier",
     actions,
     sourceTypes,
@@ -244,6 +300,8 @@ export function normaliseDefenceDC(raw, source = {}, { stanceGated = false, from
     sourceAlignments,
     sourceTraits,
     notSourceUuids,
+    ...(attackKinds.length ? { attackKinds } : {}),
+    ...(lightLevels ? { lightLevels } : {}),
     // WHAT A STANCE GIVES (3.668.0): a row read only in a stance, or carried
     // by the stance's own effect. Formless Cut "ignores the target's active
     // stance or form bonuses".
@@ -252,6 +310,38 @@ export function normaliseDefenceDC(raw, source = {}, { stanceGated = false, from
     scope: String(raw.scope ?? ""),
     source: String(source.name ?? "")
   };
+}
+
+/** The core's slot aliases, keyed lower-case and unspaced (3.684.1, review). */
+const ROW_TYPE_ALIASES = Object.freeze(Object.fromEntries(
+  Object.entries(SLOT_TYPE_ALIASES).map(([k, v]) => [k.toLowerCase(), v])));
+
+/**
+ * A defence row's Appendix 1 type from what it declares: case, spaces,
+ * hyphens and underscores ignored ("Status", "natural armour",
+ * "naturalArmour" all read). Nothing, or a type the book does not have, is
+ * untyped.
+ */
+function declaredRowType(declared) {
+  const key = String(declared ?? "").trim().toLowerCase().replace(/[\s_-]+/g, "");
+  return Object.hasOwn(ROW_TYPE_ALIASES, key) ? ROW_TYPE_ALIASES[key] : "untyped";
+}
+
+/**
+ * The DB entries a defence row stacks against (3.684.1, review): the DB's
+ * own breakdown — or, when a condition has rebuilt the DB from part of it
+ * (Paralyzed and Unconscious keep only magic, armour and penalties), the
+ * entries it kept, which the actor records as `restrictedEntries`; a
+ * Petrified defender's DB is 0 and keeps none.
+ *
+ * @param {Actor} actor the defender
+ * @returns {object[]}
+ */
+export function defenceStackBase(actor) {
+  const defence = actor?.system?.combat?.defence;
+  if (!defence) return [];
+  if (defence.restricted) return Array.isArray(defence.restrictedEntries) ? defence.restrictedEntries : [];
+  return defence.breakdown?.entries ?? [];
 }
 
 /**
@@ -297,10 +387,18 @@ export function collectDefenceDC(actor) {
  * @param {Actor} targetActor The DEFENDER.
  * @param {string} against The DC being resolved ("fortitudeDC", …).
  * @param {string} actionKey The action being resolved against them.
- * @returns {{total: number, entries: object[]}}
+ * @returns {{total: number, entries: object[], disadvantages: object[],
+ *   notCounted: {entry: object, reason: string}[]}} `total` is stacked by
+ *   type (3.684.1), against the DB's own breakdown when `against` is "defence".
  */
-export function defenceDCBonus(targetActor, against, actionKey, attackerTypes = [], attackerUuid = "", attackerAlignments = [], attackerTraits = []) {
+export function defenceDCBonus(targetActor, against, actionKey, attackerTypes = [], attackerUuid = "", attackerAlignments = [], attackerTraits = [], { attackKind = "", lightLevel = null } = {}) {
   const key = String(actionKey ?? "").trim().toLowerCase();
+  // WHAT KIND OF ATTACK, AND THE DEFENDER'S LIGHT (3.684.0, G20): told by the
+  // caller that knows. Every attack caller names its kind (review): "weapon"
+  // (a Strike), "spell", "bomb", "action" (a Shove, a Trip). Only the spell
+  // attack knows the defender's light, so a `lightLevels` row is a spell's.
+  const kind = String(attackKind ?? "").trim().toLowerCase();
+  const light = Number.isInteger(Number(lightLevel)) && lightLevel !== null && lightLevel !== "" ? Number(lightLevel) : null;
   const types = (Array.isArray(attackerTypes) ? attackerTypes : String(attackerTypes ?? "").split(/[,;]/))
     .map((t) => String(t ?? "").trim().toLowerCase())
     .filter(Boolean);
@@ -343,6 +441,8 @@ export function defenceDCBonus(targetActor, against, actionKey, attackerTypes = 
     if ((entry.sourceTraits ?? []).length && !entry.sourceTraits.some((t) => traits.includes(t))) return false;
     // EVERYONE BUT ONE (3.668.0): the excluded creature meets nothing.
     if ((entry.notSourceUuids ?? []).length && entry.notSourceUuids.includes(uuid)) return false;
+    if ((entry.attackKinds ?? []).length && !entry.attackKinds.includes(kind)) return false;
+    if (entry.lightLevels && (light === null || !entry.lightLevels.includes(light))) return false;
     return true;
   });
 
@@ -352,5 +452,139 @@ export function defenceDCBonus(targetActor, against, actionKey, attackerTypes = 
   // other list.
   const entries = matched.filter((e) => e.kind !== "disadvantage");
   const disadvantages = matched.filter((e) => e.kind === "disadvantage");
-  return { total: entries.reduce((sum, e) => sum + e.value, 0), entries, disadvantages };
+  // TYPED, AND AGAINST THE DB ALREADY THERE (3.684.1) — see stackDefenceRows.
+  // Only the DB has its typed breakdown on the defender to stack against;
+  // a row on any other DC still stacks with the rows beside it.
+  // AGAINST WHAT THE DB KEPT (3.684.1, review): a Paralyzed, Unconscious or
+  // Petrified DB was rebuilt from part of its breakdown — see defenceStackBase.
+  const base = againsts.length === 1 && againsts[0] === "defence"
+    ? defenceStackBase(targetActor)
+    : [];
+  const stacked = stackDefenceRows(entries, base);
+  return { total: stacked.total, entries, disadvantages, notCounted: stacked.notCounted };
+}
+
+/*
+ * STATUS BONUSES TO DB DO NOT STACK (3.684.1).
+ *
+ * GRAHAM'S RULING, 4 November 2026: "Status bonuses to DB should NOT stack."
+ *
+ * THE DEFECT. `defenceDCBonus` summed every row it matched, untyped:
+ * Anticipations (+4 status to DB against the target) beside Forbidding Ward
+ * (+1 status against the same creature) gave +5, where the book gives +4.
+ * And the sum was added on top of the defender's `combat.defence.total`,
+ * which has already applied Appendix 1 to its own typed pool — so a ward's
+ * +1 status added to a Bless-style +1 status the sheet already carried.
+ *
+ * THE RULE IS THE CORE'S, NOT A NEW ONE. Every typed total in this system —
+ * attributes, saves, the DB itself — is settled by `applyStacking` in
+ * dice/resolution.mjs, through `resolveBonuses` in bonuses/registry.mjs:
+ * within a "highest" type (status, circumstance, item, luck, armour, shield,
+ * resistance, natural armour) only the greatest bonus applies and only the
+ * most severe penalty, the two cancelling; race, class, dodge and untyped
+ * always add. So the rows are handed to that same function, together with
+ * the entries of the DB's own breakdown, and what they contribute is the
+ * stacked total of both less the stacked total of the DB's entries alone.
+ * A ward's +4 status over the sheet's +1 status adds +3; a +1 under a +4
+ * adds nothing, and is named as not counting.
+ *
+ * A ROW'S TYPE is what it declares (`type`, or the `bonusType` a ward and a
+ * spell row are authored with). Storgar's and Thengar's rows declare none,
+ * and stay untyped: they add exactly as before.
+ *
+ * `entries` is unchanged — every matched row, counted or not — so a card
+ * that lists rows lists the same rows, and says beside one that lost which
+ * bonus beat it (`notCounted`).
+ *
+ * @param {object[]} rows matched defence rows, `{label, value, type}`
+ * @param {object[]} baseEntries the DB breakdown's typed entries
+ * @returns {{total: number, notCounted: {entry: object, reason: string}[],
+ *   together: number, alone: number}}
+ */
+export function stackDefenceRows(rows = [], baseEntries = []) {
+  const base = (Array.isArray(baseEntries) ? baseEntries : [])
+    .filter((e) => e && Number.isFinite(Number(e.value)) && Number(e.value) !== 0)
+    .map((e) => ({ label: e.label, value: Number(e.value), type: e.type, source: "base", stackGroup: e.stackGroup }));
+  const list = (Array.isArray(rows) ? rows : []).filter((r) => r && Number.isFinite(Number(r.value)));
+  const own = list.map((r) => ({ label: r.label, value: Number(r.value), type: r.type ?? "untyped", source: "defenceDC" }));
+  const alone = applyStacking(base).total;
+  const together = applyStacking([...base, ...own]);
+  const notCounted = [];
+  list.forEach((entry, i) => {
+    const m = together.modifiers[base.length + i];
+    if (m && m.applied === false) notCounted.push({ entry, reason: m.suppressed ?? "does not stack" });
+  });
+  // `together` and `alone` too (3.684.1, review): Formless Cut pays back the
+  // difference between two stacked DBs, with its stance and without.
+  return { total: together.total - alone, notCounted, together: together.total, alone };
+}
+
+/**
+ * FEARFUL POWER, ONE STATUS ROW AMONG THE REST (3.684.1, review). The
+ * Tenebrax's "+N status bonus to DB" was weighed only against the sheet's own
+ * status bonus, so it stacked with a status defence row. It joins the rows'
+ * stacking here, as a status row, against the same DB entries.
+ *
+ * @param {object[]} rows the defence rows that met this attack
+ * @param {object[]} baseEntries `defenceStackBase(defender)`
+ * @param {number} bonus Fearful Power's bonus (the highest frightened value)
+ * @returns {{row: object|null, fearfulDB: number, stack: object}} `fearfulDB`
+ *   is what Fearful Power adds over the rows alone; `stack` is the rows and
+ *   it stacked together (its `notCounted` names the rows, or it, that lost)
+ */
+export function stackFearfulPower(rows = [], baseEntries = [], bonus = 0) {
+  const alone = stackDefenceRows(rows, baseEntries);
+  const value = Math.max(0, Math.trunc(Number(bonus) || 0));
+  if (!value) return { row: null, fearfulDB: 0, stack: alone };
+  const row = { label: "Fearful Power", value, type: "status" };
+  const stack = stackDefenceRows([...(Array.isArray(rows) ? rows : []), row], baseEntries);
+  return { row, fearfulDB: stack.total - alone.total, stack };
+}
+
+/*
+ * THE STRIKE'S OTHER DB BONUSES, TYPED (3.684.3).
+ *
+ * GRAHAM'S ANSWER, 5 November 2026, asked "The Strike's other DB bonuses.
+ * Cover, Aid Defensive, Warden Hunter, Trap Finder and the rest still add
+ * flat, outside the typed stacking. Should they stack by type with the
+ * defence rows too?": "Yes."
+ *
+ * THE DEFECT. Until 3.684.3 the attack paths added these to the DB beside
+ * the stacked defence rows, untyped: a target in Standard cover behind a
+ * melee (+4 circumstance) who had also Taken Cover (+4 circumstance on the
+ * sheet) met +8, and an Aid Defensive's +2 circumstance beside a Warden
+ * Hunter's +1 circumstance gave +3, where Appendix 1 gives the higher.
+ *
+ * EACH IS TYPED AS ITS OWN TEXT TYPES IT, and untyped where it does not:
+ *   cover          "Standard Cover: +4 circumstance to DB" (Chapter 7)
+ *   Aid Defensive  "+N circumstance to Defence" (Chapter 4)
+ *   Warden Hunter  "+1-circumstance bonus to DB" (Ranger)
+ *   Trap Finder    "+2-circumstance bonus … to DB against attacks made by
+ *                  traps" (Rogue, Ranger)
+ *   Arrow Catching "the armour or shield increases its bonus to DB by +1"
+ *                  — an increase of a bonus already counted, so untyped:
+ *                  typed armour or shield it would lose to the very bonus
+ *                  it raises
+ *   Shielded Stride "your shield bonus to DB is increased by +4" — the same
+ *   Dragonhide     "an additional +2 DB" — no type
+ * Untyped rows always add, so those three add exactly as before; they join
+ * the stack only so the one stacked total is the only place the DB moves.
+ *
+ * Each row carries a `key`, so a card can find its own and say when it did
+ * not count. Zero bonuses give no row.
+ *
+ * @param {object} bonuses
+ * @returns {Array<{key: string, label: string, value: number, type: string}>}
+ */
+export function strikeDefenceRows({ cover = 0, aid = null, warden = 0, trapFinder = 0, arrowCatching = 0, shieldedStride = 0, dragonhide = 0 } = {}) {
+  const n = (v) => Math.trunc(Number(v) || 0);
+  return [
+    { key: "cover", label: "Standard cover (firing into melee)", value: n(cover), type: "circumstance" },
+    { key: "aid", label: String(aid?.label || "Aid Defensive"), value: n(aid?.amount), type: "circumstance" },
+    { key: "warden", label: "Warden Hunter", value: n(warden), type: "circumstance" },
+    { key: "trapFinder", label: "Trap Finder", value: n(trapFinder), type: "circumstance" },
+    { key: "arrowCatching", label: "Arrow Catching", value: n(arrowCatching), type: "untyped" },
+    { key: "shieldedStride", label: "Shielded Stride", value: n(shieldedStride), type: "untyped" },
+    { key: "dragonhide", label: "Dragonhide", value: n(dragonhide), type: "untyped" }
+  ].filter((row) => row.value !== 0);
 }

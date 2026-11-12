@@ -95,7 +95,9 @@ const uw = read("module", "uses-workflow.mjs");
 ok("G1 the daily maximum adds declared extra uses from the actor's carriers", /\+ focusExtraUses\(owner, owner\.actor \? declarationCarriers\(owner\.actor\) : \[\]\);/.test(uw));
 ok("G2 daily preparation applies the Focus flag clears", /const focusFlagUpdates = dailyFocusFlagClears\(actor\.items\);\s*if \(focusFlagUpdates\.length\) await actor\.updateEmbeddedDocuments\("Item", focusFlagUpdates\);/.test(uw));
 const rw = read("module", "combat", "refocus-workflow.mjs");
-ok("G3 Refocus asks whether a declaration restores all", /const all = item\.actor \? refocusRestoresAll\(item, declarationCarriers\(item\.actor\)\) : false;\s*const next = all\s*\? refocusRestoredUses\(itemUsesRemaining\(item\), max, true\)\s*: restoredUses\(itemUsesRemaining\(item\), max\);/.test(rw));
+// RE-PINNED 3.686.2 (Graham's 3.686.1): asked of the uses pool's OWNER, whose
+// counter it restores — a Wild Shape form alias has no counter of its own.
+ok("G3 Refocus asks whether a declaration restores all, of the pool's owner", /const owner = usesPoolItem\(item\);\s*const max = itemUsesMax\(owner\);[\s\S]*?const all = owner\.actor \? refocusRestoresAll\(owner, declarationCarriers\(owner\.actor\)\) : false;\s*const next = all\s*\? refocusRestoredUses\(itemUsesRemaining\(owner\), max, true\)\s*: restoredUses\(itemUsesRemaining\(owner\), max\);\s*await owner\.update\(\{ "system\.usesValue": next \}\);/.test(rw));
 const aw = read("module", "combat", "action-workflow.mjs");
 ok("G4 the action roll carries the ability-option rows", /\.\.\.actionAbilityRows\(\s*declarationCarriers\(actor\),\s*action\.key,/.test(aw));
 const cw = read("module", "magic", "cast-workflow.mjs");

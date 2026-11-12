@@ -21,6 +21,7 @@
  */
 
 import { emptyTraitUsage } from "../traits.mjs";
+import { isActingGM } from "../acting-gm.mjs";
 
 const SYSTEM_ID = "trg-prime";
 const ATTACK_COUNT_FLAG = "attackCount";
@@ -136,10 +137,15 @@ function combatActors(combat) {
   return out;
 }
 
-/** The end of a combat clears its per-turn records (F6). GM only. */
+/**
+ * The end of a combat clears its per-turn records (F6). The acting GM only
+ * (3.685.2): `deleteCombat` fires on every client, and with two GMs connected
+ * an `isGM` guard ran the clearing twice, both deleting the same opening
+ * Flat-Footed effects. See acting-gm.mjs.
+ */
 export function registerTurnRecordHooks() {
   Hooks.on("deleteCombat", async (combat) => {
-    if (!game.user?.isGM) return;
+    if (!isActingGM()) return;
     for (const actor of combatActors(combat)) {
       try {
         await clearAttackCount(actor);

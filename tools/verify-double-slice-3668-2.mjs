@@ -29,7 +29,7 @@ const pos = (src, needle) => src.indexOf(needle);
 /* A — the Strike's options */
 ok("A1 the Strike takes both options", /\n  noCritical = false,\n  beforeDamage = null,\n/.test(aw));
 ok("A2 a critical under noCritical is read as an ordinary hit, straight after the outcome is read",
-  /missForgiveness\n  \}\);\n  \/\/ ONE CRITICAL FOR THE PAIR \(3\.668\.2\)[^\n]*\n[^\n]*\n  const criticalDowngraded = Boolean\(noCritical\) && Boolean\(outcome\.critical\);\n  if \(criticalDowngraded\) outcome\.critical = null;/.test(aw));
+  /missForgiveness\n  \}\);\n(?:  [^\n]*\n){0,40}?  \/\/ ONE CRITICAL FOR THE PAIR \(3\.668\.2\)[^\n]*\n[^\n]*\n  const criticalDowngraded = Boolean\(noCritical\) && Boolean\(outcome\.critical\);\n  if \(criticalDowngraded\) outcome\.critical = null;/.test(aw));
 ok("A3 …before the card's summary and lines are written, and the card says so",
   pos(aw, "if (criticalDowngraded) outcome.critical = null;") < pos(aw, "  let compactSummary;\n  if (!outcome.resolved) {")
   && /if \(criticalDowngraded\) \{\n    lines\.push\(line\(`<em>\$\{optionLabel \|\| "Only one critical"\}: this critical counts as an ordinary hit — no bonus dice and no injury\.<\/em>`\)\);\n  \}\n  check\.compact = true;/.test(aw));

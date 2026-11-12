@@ -87,21 +87,27 @@ const MUTATIONS = [
     ? `, to: `  const complete = true
     ? `, breaks: "P5" },
   { file: PENDWF, name: "P: the payment writes the pool directly, past the shared-AP rule",
-    from: "    await spendActionPoints(actor, payment, `${record.spellName} \u2014 extra casting time`);",
-    to: '    await actor.update({ "system.resources.ap.value": available - payment });', breaks: "P6" },
+    // RE-ANCHORED 3.685.3: the spend's receipt is kept, and only what it spent counts.
+    from: "  const receipt = await spendActionPoints(actor, payment, `${record.spellName} \u2014 extra casting time`);",
+    to: '  const receipt = await actor.update({ "system.resources.ap.value": available - payment });', breaks: "P6" },
   { file: PENDWF, name: "P: the declaring turn stops counting as the first turn",
     from: `  const firstPayment = await payTowards(actor, record);`,
     to: `  const firstPayment = 0;`, breaks: "P6b" },
   { file: PENDWF, name: "P: progress is never written back, so every turn pays the first instalment",
-    from: `  const paid = await payTowards(actor, record);
+    // RE-ANCHORED 3.685.3: the write is made only while the window still waits.
+    from: `  if (waiting.get(actor.id) !== resolve) return null;
   await actor.setFlag(SYSTEM_ID, PENDING_CAST_FLAG, record);`,
-    to: `  const paid = await payTowards(actor, record);`, breaks: "P6c" },
+    to: `  if (waiting.get(actor.id) !== resolve) return null;`, breaks: "P6c" },
+  // NEW 3.686.2: E1 re-pinned to the resolver held before the flag.
+  { file: PENDWF, name: "E: the cast is never held on a promise",
+    from: `  waiting.set(actor.id, resolveCast);\n  const state`, to: `  const state`, breaks: "E1" }, // RE-ANCHORED 3.686.2 (third review)
   { file: PENDWF, name: "P THE GHOST: a flag left by a reload is charged AP",
     from: `  if (!waiting.has(actor.id)) return null;`, to: `  ;`, breaks: "P7" },
   { file: CASTWF, name: "P THE DOUBLE CHARGE: the lump goes back into the final spend",
-    from: `  const totalCastAP = totalCastTime(warpedCastAP, { apDelta: mm.apDelta });`,
+    // RE-ANCHORED AT 3.684.0 (G25): with a Prepared Sigil's −1 AP.
+    from: `  const totalCastAP = totalCastTime(warpedCastAP, { apDelta: mm.apDelta + sigilAP });`,
     to: `  const extraApSpent = 0;
-  const totalCastAP = totalCastTime(warpedCastAP, { extraApSpent, apDelta: mm.apDelta });`,
+  const totalCastAP = totalCastTime(warpedCastAP, { extraApSpent, apDelta: mm.apDelta + sigilAP });`,
     breaks: "P8" },
   { file: CASTWF, name: "P: the window is no longer told what the spell itself costs",
     from: `      castAP: castTimeApCost(warpedCastAP),`, to: `      castAP: 0,`, breaks: "P9" },

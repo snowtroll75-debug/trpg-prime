@@ -97,6 +97,9 @@ export function normaliseEntryCheck(raw) {
   if (raw.crossingOnly === true) out.crossingOnly = true;
   if (raw.oncePerRound === true) out.oncePerRound = true;
   if (raw.hostileOnly === true) out.hostileOnly = true;
+  // AND AT THE START OF A TURN IN IT (3.685.0, H3 (a)): Arcane Mycelium's
+  // "enter or begin their turn in the area". Absent, only movement asks.
+  if (raw.atTurnStart === true) out.atTurnStart = true;
   const gate = (Array.isArray(raw.gate) ? raw.gate : []).map(normaliseGateClause).filter(Boolean);
   if (gate.length) out.gate = gate;
   return out;

@@ -152,6 +152,41 @@ export function lightLevelForToken(tokenDocument) {
 }
 
 /**
+ * THE AMBIENT LEVEL AT A TOKEN, AS A NUMBER (3.683.0; Eldritch Arts Block 5,
+ * seam C4) — `lightLevelForToken(...).level`, for the conditionals'
+ * `lightLevels` axis and `helpers.lightLevelAt(token)`. A Token or a
+ * TokenDocument; null when there is none or it cannot be read.
+ *
+ * AMBIENT, NOT PERCEIVED (Graham, Q61): sources, Darkness, regions and
+ * weather are in `lightLevelForToken`; the roller's own Darkvision,
+ * Nightvision and Shroud (`perceivedLightShift`) are not, because "light
+ * level 5 (Dim Light) or less" is a fact about the square, not the eyes.
+ */
+export function ambientLightLevelAt(token) {
+  try {
+    const doc = token?.document ?? token ?? null;
+    if (!doc) return null;
+    const level = Number(lightLevelForToken(doc)?.level);
+    return Number.isFinite(level) ? level : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * …and at an actor's token: its own (an unlinked token's synthetic actor),
+ * else its first active one on the viewed scene. Null with none.
+ */
+export function ambientLightLevelOf(actor) {
+  try {
+    const token = actor?.token ?? actor?.getActiveTokens?.()?.[0] ?? null;
+    return token ? ambientLightLevelAt(token) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Fold every light source in reach of this token into the ambient level.
  *
  * RETURNS A RESOLUTION — `{level, source}` — BECAUSE THAT IS THE

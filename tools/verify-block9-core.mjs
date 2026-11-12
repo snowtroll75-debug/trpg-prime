@@ -227,7 +227,8 @@ const discipleClass = { type: "class", name: "Disciple" };
     [false, false]);
   equal("C7 the distance does not stop it being spent, near or far", [riders.ridersSpentBy([rider], bow, { hit: true, ctx: { distanceFeet: 10 } }).length, riders.ridersSpentBy([rider], bow, { hit: false })].map((x) => (Array.isArray(x) ? x.length : x)), [1, 1]);
   ok("C7 the Strike tells its riders how far and whether precision lands",
-    /distanceFeet: await strikeDistanceFeet\(actor, targetTokenHere\),\n\s*precisionImmune,\n\s*precisionResisted\n/.test(aw)
+    // RE-ANCHORED AT 3.684.0 (G25): the target's uuid follows, for a rider scoped to one creature.
+    /distanceFeet: await strikeDistanceFeet\(actor, targetTokenHere\),\n\s*precisionImmune,\n\s*precisionResisted,?\n/.test(aw)
     && /const \{ activeToken, distanceBetween \} = await import\("\.\/geometry\.mjs"\);/.test(aw));
   ok("C7 a declared action with no minute lays that effect", /\} else if \(action\.effect\?\.strikeRider \|\| extra\.conditionals\?\.length\) \{/.test(raw)
     && /await actor\.createEmbeddedDocuments\("ActiveEffect", \[nextStrikeEffect\(item, action, \{ \.\.\.extra, expiresRound \}\)\]\);/.test(raw));

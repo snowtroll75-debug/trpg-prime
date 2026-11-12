@@ -16,13 +16,15 @@
  * whole items, so the declaration IS this file (as declare-luminance.mjs
  * is for Luminance) and `verify-ff30-codex.mjs` reads the packs back and
  * checks each one is there. Idempotent: the same flags land the same way
- * on every run, and the two authored items keep fixed ids.
+ * on every run, and the two authored items keep fixed ids. (3.685.2: the
+ * ids were re-keyed to sixteen characters; RETIRED_ENTRY_IDS names the old
+ * keys, which this file deletes from the pack before authoring.)
  *
  *   node tools/declare-ff30-codex.mjs [--dry-run]
  */
 import path from "node:path";
 import { SYSTEM_ROOT } from "./lib/sources.mjs";
-import { CODEX_DECLARATIONS, NEW_ENTRIES, FEAT_DECLARATIONS, MODULE_OWNED_FEATS } from "./ff30-codex-declarations.mjs";
+import { CODEX_DECLARATIONS, NEW_ENTRIES, RETIRED_ENTRY_IDS, FEAT_DECLARATIONS, MODULE_OWNED_FEATS } from "./ff30-codex-declarations.mjs";
 
 const { ClassicLevel } = await import("classic-level");
 const dryRun = process.argv.includes("--dry-run");
@@ -71,6 +73,17 @@ for (const pack of ["creature-abilities", "abilities"]) {
       process.stdout.write(`  ${dryRun ? "would declare" : "declared"}  ${pack}: ${hit.value.name} — ${Object.keys(declared.flags).join(", ")}\n`);
     }
     if (pack === "creature-abilities") {
+      // 3.685.2: the two seventeen-character ids are deleted first, so the
+      // entries they held are authored again under their sixteen-character ones.
+      for (const retired of RETIRED_ENTRY_IDS) {
+        const key = `!items!${retired._id}`;
+        if ((await db.get(key).catch(() => undefined)) === undefined) { unchanged++; continue; }
+        if (!dryRun) await db.del(key);
+        const named = byName.get(retired.name.toLowerCase());
+        if (named?.key === key) byName.delete(retired.name.toLowerCase());
+        removed++;
+        process.stdout.write(`  ${dryRun ? "would remove" : "removed"}    ${pack}: ${retired.name} under its invalid id ${retired._id} (now ${retired.replacedBy})\n`);
+      }
       for (const entry of NEW_ENTRIES) {
         const key = `!items!${entry._id}`;
         const exists = byName.get(entry.name.toLowerCase());
@@ -82,6 +95,9 @@ for (const pack of ["creature-abilities", "abilities"]) {
         authored++;
         process.stdout.write(`  ${dryRun ? "would author" : "authored"}   ${pack}: ${entry.name}\n`);
       }
+      // And compacted when a retired id was deleted, so the old records leave
+      // the pack's files rather than sitting under a tombstone.
+      if (removed && !dryRun) await db.compactRange("!", "~");
     }
   } finally {
     await db.close();

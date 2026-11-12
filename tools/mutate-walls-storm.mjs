@@ -66,7 +66,7 @@ const MUTATIONS = [
   { file: WARP, name: "the aggregator drops the length warp",
     from: "    if (m.wallLength) mods.wallLength += Number(m.wallLength) * times;\n", to: "", breaks: "E15" },
   { file: CAST, name: "a wall is drawn from its (absent) area text",
-    from: "        ? await placeWall(wallSpec, actor, rangeFeet, spell.name)", to: "        ? null", breaks: "F2" },
+    from: "        ? await placeWall(wallSpec, aimFrom, rangeFeet, spell.name)", to: "        ? null", breaks: "F2" },
   { file: CAST, name: "the wall is never raised",
     from: "        for (const said of await raiseWall(region, wallSpec, placedArea, {", to: "        for (const said of await (async () => [])(region, wallSpec, placedArea, {", breaks: "F4" },
   { file: CAST, name: "the storm never strikes",
@@ -104,7 +104,15 @@ const MUTATIONS = [
     to: "  await region.setFlag(SYSTEM_ID, STORM_FLAG, { ...record, screen: Boolean(mode.screen) });", breaks: "F23" },
   { file: ACTIVE, name: "a dismissed storm leaves its cloud",
     // 3.622.2: the filter also takes the cast's light circles; the storm's half is the stamp.
-    from: "      .filter((r) => r.getFlag?.(\"trg-prime\", REGION_EXPIRY_FLAG)?.castId === id || circles.has(r.id))", to: "      .filter((r) => circles.has(r.id))", breaks: "F26" }
+    from: "      .filter((r) => r.getFlag?.(\"trg-prime\", REGION_EXPIRY_FLAG)?.castId === id || circles.has(r.id))", to: "      .filter((r) => circles.has(r.id))", breaks: "F26" },
+  { name: "A7b the height warp is not read by the wall", file: RULE,
+    from: "    heightFeet: Math.max(0, num(raw.height)) + (num(raw.height) > 0 ? Math.max(0, num(warpMods?.wallHeight)) : 0),", to: "    heightFeet: Math.max(0, num(raw.height)),", breaks: "A7b" },
+  { name: "A7b a wall that prints no height gains one", file: RULE,
+    from: "(num(raw.height) > 0 ? Math.max(0, num(warpMods?.wallHeight)) : 0)", to: "Math.max(0, num(warpMods?.wallHeight))", breaks: "A7b" },
+  { name: "A7b the engine drops the height warp", file: WARP,
+    from: "    if (m.wallHeight) mods.wallHeight += Number(m.wallHeight) * times;\n", to: "", breaks: "A7b" },
+  { name: "A7c the merge drops the second pass's height", file: WARP,
+    from: "      wallHeight: Number(a.mods?.wallHeight ?? 0) + Number(b.mods?.wallHeight ?? 0),", to: "      wallHeight: Number(a.mods?.wallHeight ?? 0),", breaks: "A7c" }
 ];
 
 const files = [...new Set(MUTATIONS.map((m) => m.file))];

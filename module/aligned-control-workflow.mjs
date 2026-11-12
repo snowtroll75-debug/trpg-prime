@@ -18,6 +18,7 @@
  * not taken and the AP is not spent.
  */
 
+import { isActingClientFor } from "./acting-gm.mjs";
 import {
   ALIGNED_CONTROL_FEATS, HOSTILE_ACTION_BREAKS_CONTROL,
   alignedControlAccess, alignedControlEligibility, alignedControlOutcome,
@@ -288,7 +289,7 @@ export function registerAlignedControlHooks() {
     if (!/controlled/i.test(String(effect.name ?? "")) && !effect.statuses?.has?.("controlled")) return;
     const by = target.getFlag?.(SYSTEM_ID, CONTROLLED_BY_FLAG);
     if (!by || by.renewing || !by.newSaveAtEnd) return;
-    if (game.users?.activeGM && game.users.activeGM.id !== game.user?.id) return;
+    if (!isActingClientFor(target)) return; // one connection of the acting GM; with no GM, one owner (3.686.2)
     offerAlignedResave(target, "The Controlled condition has run its course").catch((e) => console.error(`${SYSTEM_ID} | Aligned Control`, e));
   });
   const hostile = async (attacker, targets) => {

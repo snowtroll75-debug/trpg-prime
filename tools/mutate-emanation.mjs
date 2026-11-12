@@ -336,8 +336,9 @@ const MUTATIONS = [
   {
     file: FLOW,
     name: "the tested record is dropped on a re-record",
-    from: "  entry.emanation = { tested: entry.emanation?.tested ?? {}, ...descriptor };",
-    to: "  entry.emanation = descriptor;",
+    // Re-anchored at 3.677.1: the record also keeps `benefit`.
+    from: "  entry.emanation = { tested: entry.emanation?.tested ?? {}, benefit: entry.emanation?.benefit ?? null, ...descriptor };",
+    to: "  entry.emanation = { benefit: entry.emanation?.benefit ?? null, ...descriptor };",
     breaks: "H17 — every creature owes a fresh save on its next step"
   },
   {

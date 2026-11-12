@@ -91,8 +91,8 @@ ok("S1 the AP gate counts only what this action may draw on",
   /const kinds = useKindsOf\(actionName, \{ use, traits \}\);\n  const currentAP = apAvailable\(actor, kinds\);/.test(src.apw));
 ok("S2 the spender takes restricted points by the plan and writes what is left",
   /const plan = spendPlan\(currentAP, grant\.entries, cost, useKindsOf\(actionName, \{ use, traits \}\)\);\n    grantUpdate\[`flags\.\$\{SYSTEM_ID\}\.\$\{AP_GRANT_FLAG\}\.entries`\] = plan\.entries;/.test(src.apw)
-  && /\.\.\.grantUpdate\n  \}\);/.test(src.apw)
-  && /return spendActionPoints\(actor, apCost, actionName, \{ use, traits \}\);/.test(src.apw));
+  && /\.\.\.grantUpdate\n  \}(?:, deferNextAction \? \{ trgPrimeNextActionDeferred: true \} : \{\})?\);/.test(src.apw)
+  && /return spendActionPoints\(actor, apCost, actionName, \{ use, traits(?:, continuesSpend)? \}\);/.test(src.apw));
 ok("S3 the sheet no longer clamps away the turn's bonus AP",
   /\+ \(Number\(this\.flags\?\.\["trg-prime"\]\?\.apGrant\?\.bonus\) \|\| 0\)/.test(src.act));
 ok("S4 Phase 1 grants Fast Attack's point and records the turn's restricted points",
@@ -101,7 +101,7 @@ ok("S4 Phase 1 grants Fast Attack's point and records the turn's restricted poin
   && /loseFromRestricted\(grant\.entries, Math\.max\(0, grossPool - finalAP\)\)/.test(src.cmb)
   && /\[`flags\.\$\{SYSTEM_ID\}\.\$\{AP_GRANT_FLAG\}`\]: \{ combatId: this\.id, bonus: acting\.canAct \? grant\.bonus : 0, entries: grantEntries \}/.test(src.cmb));
 ok("S5 a Strike and a Stride say what they are, and movement measures what it may draw on",
-  /await spendActionPoints\(actor, "1", `\$\{weapon\.name\} — Strike`, \{ use: "strike" \}\);/.test(src.atk)
+  /await spendActionPoints\(actor, "1", `\$\{weapon\.name\} — Strike`, \{ use: "strike"(?:, deferNextAction: true)? \}\);/.test(src.atk)
   && /await spendActionPoints\(actor, String\(due\.apDue\), "Stride", \{ use: "stride" \}\);/.test(src.mov)
   && /apAvailable\(actor, moveKinds\) - tally\.pendingSpend/.test(src.mov));
 ok("S6 a spell's Quickened carries its source's limit, and two sources widen it",

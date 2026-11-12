@@ -22,6 +22,7 @@
  * anything — a rule hand-rolled at a second call site.
  */
 
+import { spellSaveTraditions } from "../magic/high-magic.mjs";
 import {
   SANCTUARY_FLAG, sanctuaryBlockedTurnLine, sanctuaryFumbledLine, sanctuaryPassedLine,
   sanctuaryRecordAfter, sanctuaryStillBlockedLine, sanctuaryVerdict, SANCTUARY
@@ -135,7 +136,10 @@ async function sanctuaryOnlyCheck(attacker, targetActor, sourceName = "the attac
       // was authored, offered on a sheet roll, and silently absent from the
       // one save that provoked it.
       traits: String(ward.getFlag(SYSTEM_ID, "sanctuaryTraits") ?? ""),
-      traditions: String(ward.getFlag(SYSTEM_ID, "sanctuaryTradition") ?? ""),
+      // A WARD CAST WITH HIGH MAGIC (3.683.0; Graham's Q58/Q59): every
+      // tradition to the opponent's Forbidden Magic, unless it is spared.
+      traditions: String(spellSaveTraditions(attacker, { tradition: String(ward.getFlag(SYSTEM_ID, "sanctuaryTradition") ?? "") },
+        { highMagic: ward.getFlag(SYSTEM_ID, "sanctuaryHighMagic") === true }) ?? ""),
       sourceUuid: String(ward.getFlag(SYSTEM_ID, "sanctuaryCaster") ?? ""),
       modifiers: save?.checkModifiers ?? [
         { label: "Will save", value: Number(save?.total ?? 0), type: "untyped" }
@@ -258,7 +262,8 @@ async function horrorCheck(attacker, targetActor, sourceName) {
       subject: "will",
       dc,
       traits: String(ward.getFlag(SYSTEM_ID, "horrorTraits") ?? ""),
-      traditions: String(ward.getFlag(SYSTEM_ID, "horrorTradition") ?? ""),
+      traditions: String(spellSaveTraditions(attacker, { tradition: String(ward.getFlag(SYSTEM_ID, "horrorTradition") ?? "") },
+        { highMagic: ward.getFlag(SYSTEM_ID, "horrorHighMagic") === true }) ?? ""),
       sourceUuid: String(ward.getFlag(SYSTEM_ID, "horrorCaster") ?? ""),
       modifiers: save?.checkModifiers ?? [{ label: "Will save", value: Number(save?.total ?? 0), type: "untyped" }]
     });
@@ -320,6 +325,11 @@ async function rebukeCheck(attacker, targetActor, sourceName) {
   for (const { effect, spec } of biting) {
     const roll = await new Roll(spec.formula).evaluate();
     rolls.push(roll);
+    // A DAMAGE REACTION, BEFORE THE DEFENCES (3.681.0; found in review).
+    {
+      const { spellDamageReactionsFor } = await import("../reactions/reactions-workflow.mjs");
+      lines.push(...await spellDamageReactionsFor(attacker, spec.type, { spellName: effect?.name ?? "", source: null }));
+    }
     const packet = resolveAgainstDefences(attacker.system ?? {}, {
       amount: roll.total, type: spec.type, creatureTypeSystem: ownedCreatureTypeSystem(attacker), magical: true
     });

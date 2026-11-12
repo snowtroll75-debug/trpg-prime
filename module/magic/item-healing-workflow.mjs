@@ -123,7 +123,14 @@ export async function offerOnHealedRelief(target, { spellName = "", spellTraits 
       if (!runeFrequencyAllows(runeMarkersOf(item), entry.key, frequency, now)) continue;
       const steps = (Array.isArray(spec.steps) ? spec.steps : []).filter((s) => Number(s?.minPP ?? 0) <= Number(ppRequired));
       const offered = [...new Set(steps.flatMap((s) => Array.isArray(s.conditions) ? s.conditions : []))].filter((c) => RELIEVABLE[c]);
-      const held = offered.filter((c) => Number(target.conditions?.rawValues?.get?.(c) ?? target.getConditionValue?.(c) ?? 0) > 0);
+      const standing = offered.filter((c) => Number(target.conditions?.rawValues?.get?.(c) ?? target.getConditionValue?.(c) ?? 0) > 0);
+      // A CONDITION HELD BY A CURSE IS NOT OFFERED (3.686.0, H17; Block 8a
+      // review), and said; the rune's use is not spent on it.
+      const { actorConditionHeld, holdsOn, heldRefusedLine } = await import("../conditions/held-conditions.mjs");
+      for (const c of standing.filter((x) => actorConditionHeld(target, x))) {
+        lines.push(heldRefusedLine(target.name, RELIEVABLE[c]?.label ?? c, holdsOn(target.effects, c)[0]?.label));
+      }
+      const held = standing.filter((c) => !actorConditionHeld(target, c));
       if (!held.length) continue;
       const { promptSlotChoice } = await import("./slot-choice-workflow.mjs");
       // ASKED EVEN WHEN ONLY ONE CONDITION QUALIFIES (3.626.1; found live on

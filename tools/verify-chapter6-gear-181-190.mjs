@@ -25,8 +25,10 @@ import { ClassicLevel } from "classic-level";
 import { SYSTEM_ROOT } from "./lib/sources.mjs";
 import {
   BOMB_STRIKE_AP, TANGLEFOOT_INTERACTS, bombAttackResult, bombCriticalDice, bombEffectsOf, bombRange, bombReaches,
-  bombRidersFor, bombSaveDC, onlyVsText, recurringAfterHit, tanglefootInteract
+  bombRidersFor, bombSaveDC, onlyVsText, tanglefootInteract
 } from "../module/bombs.mjs";
+// MOVED AT 3.685.0, and its rule changed (Graham's Q150): conditions/recurring.mjs.
+import { recurringAfterHit } from "../module/conditions/recurring.mjs";
 import { immuneToEffect } from "../module/traits.mjs";
 import {
   POISON_COAT_FLAG, afflictionItemData, afflictionTraits, applyHandsCheck, coatActive, coatHandsCheck, conditionLockedBy,
@@ -261,7 +263,9 @@ eq("B4 withdrawing a stage: a valued condition by what it added, a plain one onl
   const aw = code("module", "combat", "affliction-workflow.mjs");
   ok("D1 an exposure starts at a stage the affliction has",
     /startingStage: exposureStartingStage\(rolled\.startingStage, item\.system\.maxStage\)/.test(aw));
-  ok("D2 a stage's damage is dealt as poison damage (unless the stage names another type, 3.627.0)", /const type = stageDamageType\(entry\);\s*const applied = await applyTypedDamage\(actor, \{ amount: roll\.total, type, traits: type === "poison" \? \["poison"\] : \[\] \}\)/.test(aw) && /return t \|\| "poison";/.test(aw));
+  // RE-ANCHORED AT 3.682.0: the traits are `stageDamageTraits`'s, which keeps
+  // poison's and adds the affliction's kind (Eldritch Arts Q43).
+  ok("D2 a stage's damage is dealt as poison damage (unless the stage names another type, 3.627.0)", /const type = stageDamageType\(entry\);\s*const applied = await applyTypedDamage\(actor, \{ amount: roll\.total, type, traits: stageDamageTraits\(item, type\) \}\)/.test(aw) && /if \(type === "poison"\) traits\.push\("poison"\);/.test(aw) && /return t \|\| "poison";/.test(aw));
   /*
    * RE-ANCHORED AT 3.583.0, NOT WEAKENED. This named
    * `enterPoisonStage`, and 3.583.0 collapsed that function and
@@ -355,11 +359,14 @@ eq("E4 a critical adds dice of the bomb's own size; a bag with no dice adds noth
     ],
     [true, true, false, false, true]);
 }
-eq("E11 a second flask keeps the stronger recurring damage of its type; another type replaces it",
+// RE-PINNED AT 3.685.0 (Graham, 7 November 2026, Q150: "recurring damage stacks
+// with a flat check made for totals of the same damage type"): a second flask
+// ADDS to its type's total; another type is its own total and replaces nothing.
+eq("E11 a second flask adds to the recurring damage of its type; another type stands beside it",
   [recurringAfterHit({ value: 2, damageType: "acid" }, 1, "acid"), recurringAfterHit({ value: 1, damageType: "acid" }, 3, "acid"),
-    recurringAfterHit({ value: 2, damageType: "fire" }, 1, "acid"), recurringAfterHit(null, 1, "fire")],
-  [{ value: 2, damageType: "acid", replaced: false }, { value: 3, damageType: "acid", replaced: false },
-    { value: 1, damageType: "acid", replaced: true }, { value: 1, damageType: "fire", replaced: false }]);
+    recurringAfterHit({ value: 2, damageType: "fire" }, 1, "acid"), recurringAfterHit(null, 1, "fire")].map((n) => ({ value: n.value, damageType: n.damageType, replaced: n.replaced })),
+  [{ value: 3, damageType: "acid", replaced: false }, { value: 4, damageType: "acid", replaced: false },
+    { value: 1, damageType: "acid", replaced: false }, { value: 1, damageType: "fire", replaced: false }]);
 {
   const bw = code("module", "alchemical-workflow.mjs");
   ok("E12 D2: out of range is refused before the AP, then 1 AP is spent",
@@ -371,7 +378,8 @@ eq("E11 a second flask keeps the stronger recurring damage of its type; another 
     && /const attackIndex = attackCountOf\(actor\);/.test(bw));
   ok("E14 D1: rolled against the target's DB", /type: "attack",\s*dc: db,/.test(bw) && /const result = bombAttackResult\(\{/.test(bw));
   ok("E15 D1: a hit is a hit, not an object compared with a string", /const hit = result\.hits === true;/.test(bw) && !/check\.outcome !== "failure"/.test(bw));
-  ok("E16 D3: recurring damage is the Recurring condition", /await targetActor\.toggleStatusEffect\("recurring", \{ value: next\.value, damageType: next\.damageType \}\);/.test(bw));
+  ok("E16 D3: recurring damage is the Recurring condition (laid by type since 3.685.0)", /const next = await layRecurring\(targetActor, amount, damageType\);/.test(bw)
+    && /await actor\.toggleStatusEffect\("recurring", options\);/.test(code("module", "conditions", "recurring-workflow.mjs")));
   ok("E17 D3: bleed is the Bleeding condition", /applyConditionTags\(targetActor, \[\{ key: "bleeding", label: "Bleeding", value: amount \}\]\)/.test(bw));
   ok("E18 R4: a critical rolls its injury", /await rollCriticalInjury\(actor, \{\s*targetActor,\s*damageType,\s*severity: critical\.severity,/.test(bw));
   ok("E19 R5: Holy Water leaves anyone else untouched", /if \(hit && targetActor && !reaches\) \{/.test(bw));
@@ -569,7 +577,7 @@ eq("E11 a second flask keeps the stronger recurring damage of its type; another 
   const cw = code("module", "magic", "cast-workflow.mjs");
   ok("H12 the cast offers them on its prompt, and only on a cast that has one",
     /const reagentChoices = \(isItemCast \|\| isInnate \|\| noCheckCantrip\)\s*\? \[\]\s*: reagentOffers\(Array\.from\(actor\.items \?\? \[\]\), spellData, \{ tradition \}\);/.test(cw)
-    && /await promptCastingConditions\(spell, \{ extraInc, isAttack, actor, reagents: reagentChoices \}\)/.test(cw));
+    && /await promptCastingConditions\(spell, \{ extraInc, isAttack, actor, reagents: reagentChoices(?:, castOptions: castOptionOffers)? \}\)/.test(cw));
   ok("H12b and the ticks the player left are the ones it uses",
     /reagents: reagents\.filter\(\(r\) => Boolean\(form\[`reagent-\$\{r\.id\}`\]\)\)\.map\(\(r\) => r\.id\)/.test(cw)
     && /const reagentsUsed = reagentChoices\.filter\(\(r\) => \(conditions\.reagents \?\? \[\]\)\.includes\(r\.id\)\);/.test(cw));
@@ -581,7 +589,7 @@ eq("E11 a second flask keeps the stronger recurring damage of its type; another 
     && /reagentDelta: reagentBonus\.castingDC/.test(cw)
     && /if \(used\.use\.effect === "spellcraft"\) situational\.push\(/.test(cw));
   // 3.672.0: a module's spell-check gate's lines join the reagent's.
-  ok("H15 the card says which were spent", /const lines = \[\.\.\.reagentLines(, \.\.\.gateLines)?\];/.test(cw));
+  ok("H15 the card says which were spent", /const lines = \[\.\.\.reagentLines(, \.\.\.gateLines)?(\];|,)/.test(cw));
 }
 
 /* ================================================================== */

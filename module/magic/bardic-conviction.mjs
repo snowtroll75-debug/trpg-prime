@@ -28,6 +28,7 @@ import { convictionRecipients, temporaryConvictionExpiry } from "../bard.mjs";
 import { CHANGE_TYPE } from "../effect-change-types.mjs";
 import { createEffectsOn } from "../combat/target-relay-workflow.mjs";
 import { parseSpellDuration } from "./spell-effects.mjs";
+import { isActingClientFor } from "../acting-gm.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -204,12 +205,17 @@ export async function assignTemporaryConviction(caster, spell, { targetUuids = [
  * removing it by hand — so the rule is stated once.
  */
 export function registerTemporaryConvictionCleanup() {
+  // THE ACTING GM (3.685.3): `deleteActiveEffect` fires on every client, and
+  // with no guard every owning client wrote the reclaim (and a client that
+  // did not own the actor was refused). One client writes it now: the
+  // acting GM, or with no GM connected one owner (`isActingClientFor`).
   Hooks.on("deleteActiveEffect", (effect) => {
     try {
       const record = effect?.getFlag?.(SYSTEM_ID, "temporaryConviction");
       if (!record) return;
       const actor = effect.parent;
       if (!actor?.update) return;
+      if (!isActingClientFor(actor)) return;
       // STORED, for the reason given on `storedConviction`: by the time this
       // hook runs the effect that carried the extra maximum is gone, so the
       // prepared value already reads one lower and an unspent point would look

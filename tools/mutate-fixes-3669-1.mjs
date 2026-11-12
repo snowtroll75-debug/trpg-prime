@@ -12,7 +12,7 @@ const CK = m("dice", "check.mjs"), APW = m("combat", "action-points-workflow.mjs
   MW = m("combat", "movement-workflow.mjs"), SK = m("skills.mjs");
 const MUTATIONS = [
   // A
-  { name: "THE RULING UNDONE: a Blunder is not offered the reroll", file: CK, from: "&& [\"fumble\", \"blunder\"].includes(check.outcome?.degree?.key)) {", to: "&& check.outcome?.degree?.key === \"fumble\") {", breaks: "A1" },
+  { name: "THE RULING UNDONE: a Blunder is not offered the reroll", file: CK, from: "const rerollable = [\"fumble\", \"blunder\"].includes(rerollDegree)", to: "const rerollable = rerollDegree === \"fumble\"", breaks: "A1" },
   // B
   { name: "Battle Readiness's reaction is ignored when asked", file: APW, from: "  if (battleReadinessBonus(actor) > 0) {\n    return battleReadinessSpendBlock({", to: "  if (false) {\n    return battleReadinessSpendBlock({", breaks: "B1" },
   { name: "an empty pool is not a refusal", file: APW, from: "  if (Number(actor.system?.resources?.reactions?.value ?? 0) <= 0) return `${actor.name} has no reaction left this round.`;\n", to: "", breaks: "B1" },

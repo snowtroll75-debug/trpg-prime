@@ -155,15 +155,15 @@ const MUTATIONS = [
   {
     file: FW,
     name: "I2 Shadow Stance goes back to an untimed Concealed",
-    from: '      await applyConditionTags(actor, [{ key: "concealed", label: "Concealed" }], { expiresRound });',
+    from: '  await applyConditionTags(actor, [{ key: "concealed", label: "Concealed" }], { expiresRound });',
     to: '      await actor.toggleStatusEffect("concealed", { active: true });',
     breaks: "I6/I9 — a permanent -2 to be hit for one AP, until somebody notices"
   },
   {
     file: FW,
     name: "I3 the stance clock counts to the wrong boundary",
-    from: "      const expiresRound = inCombat ? Number(game.combat?.round ?? 0) + 1 : null;",
-    to: "      const expiresRound = inCombat ? Number(game.combat?.round ?? 0) : null;",
+    from: "  const expiresRound = inCombat ? Number(game.combat?.round ?? 0) + 1 : null;",
+    to: "  const expiresRound = inCombat ? Number(game.combat?.round ?? 0) : null;",
     breaks: "I7 — expiring at the current round means the sweep takes it away before the stance has done anything"
   },
   {
@@ -281,14 +281,14 @@ const MUTATIONS = [
   {
     file: FW,
     name: "J5 Shadow Stance stops consulting its own traits",
-    from: "      if (!traitGate(actor, item.system, item.name)) return;",
+    from: "  if (!traitGate(actor, asAction, item.name)) return false;",
     to: "      if (false) return;",
     breaks: "J17 — Open (be your first action) and Stance (wait a round) both go unenforced again"
   },
   {
     file: FW,
     name: "J6 the stance is entered but never recorded",
-    from: "      await recordTraitUsage(actor, item.system);",
+    from: "  await recordTraitUsage(actor, asAction);",
     to: "",
     breaks: "J18 — nothing holds the next Stance for a round if the last one was never written down"
   },

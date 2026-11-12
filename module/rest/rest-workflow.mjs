@@ -270,7 +270,9 @@ export async function performRestForActor(actor, {
     const { consumeMarker } = await import("../magic/markers.mjs");
     dreamLichen = await consumeMarker(actor, "dreamLichen");
   }
-  if (soulDrainBefore > 0 && activity === "sleeping" && wholeHours >= FULL_NIGHT_HOURS) {
+  // HELD BY A CURSE (3.686.0, H17): a night's rest does not lower a held condition.
+  const { actorConditionHeld } = await import("../conditions/held-conditions.mjs");
+  if (soulDrainBefore > 0 && activity === "sleeping" && wholeHours >= FULL_NIGHT_HOURS && !actorConditionHeld(actor, "soulDrain")) {
     const after = dreamLichen
       ? soulDrainRecovery(soulDrainRecovery(soulDrainBefore))
       : soulDrainRecovery(soulDrainBefore);
@@ -289,7 +291,7 @@ export async function performRestForActor(actor, {
   // `setDoomed` that explained why it had been left out.
   let doomedHealed = 0;
   const doomedBefore = Number(actor.getConditionValue?.("doomed") ?? 0);
-  if (doomedBefore > 0 && activity === "sleeping" && wholeHours >= FULL_NIGHT_HOURS) {
+  if (doomedBefore > 0 && activity === "sleeping" && wholeHours >= FULL_NIGHT_HOURS && !actorConditionHeld(actor, "doomed")) {
     const after = doomedRecovery(doomedBefore);
     if (after !== doomedBefore) {
       await setDoomed(actor, after);
@@ -303,7 +305,7 @@ export async function performRestForActor(actor, {
   // the GM "the final say", naming food and water — so a night without
   // either does not clear it (sustenance-workflow keeps that clock).
   let fatigueCleared = 0;
-  if (activity === "sleeping" && wholeHours >= FULL_NIGHT_HOURS && ate && drank) {
+  if (activity === "sleeping" && wholeHours >= FULL_NIGHT_HOURS && ate && drank && !actorConditionHeld(actor, "fatigued")) {
     const left = Number(actor.getConditionValue?.("fatigued") ?? 0);
     if (left > 0) {
       await actor.toggleStatusEffect("fatigued", { active: false });

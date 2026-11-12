@@ -157,12 +157,28 @@ function entry(id, name, traits, description, flags) {
   };
 }
 
+/*
+ * THE TWO IDS WERE ONE CHARACTER TOO LONG (3.685.2). Authored at 3.631.0 as
+ * "ff30ScorchingBrth" and "ff30WingBuffet001": seventeen characters, where a
+ * Foundry id is exactly sixteen alphanumerics. Foundry read both back with a
+ * null id (found live on 14.367: the pack index listed them, a third time for
+ * Scorching Breath, and neither could be opened by id). They were the only
+ * two among the core packs' documents. Nothing referred to them by id, so they
+ * are re-keyed rather than migrated, and declare-ff30-codex.mjs deletes the
+ * retired keys from the pack before it authors the new ones. A copy already
+ * dragged onto an actor has an id of its own and is untouched.
+ */
+export const RETIRED_ENTRY_IDS = [
+  { _id: "ff30ScorchingBrth", name: "Scorching Breath", replacedBy: "ff30ScorchBreath" },
+  { _id: "ff30WingBuffet001", name: "Wing Buffet", replacedBy: "ff30WingBuffet01" }
+];
+
 export const NEW_ENTRIES = [
-  entry("ff30ScorchingBrth", "Scorching Breath", "Arcane, Fire, Save",
+  entry("ff30ScorchBreath", "Scorching Breath", "Arcane, Fire, Save",
     "<p>Action Free; Trigger a target took damage from the creature’s breath weapon on its last turn.</p><p>At the beginning of the creatures turn, it must make a basic fortitude save to avoid taking half the breath weapons dice again (round up) as fire damage.</p>",
     { creatureAbility: { printedTraits: "ARCANE FIRE SAVE", printedAction: "Action Free", printedArea: "", activation: { kind: "free", trigger: "a target took damage from the creature’s breath weapon on its last turn", save: "fortitude" },
       breathRider: { kind: "nextTurnDamage", fraction: 0.5, type: "fire", save: "fortitude" } } }),
-  entry("ff30WingBuffet001", "Wing Buffet", "Air, Movement, Save",
+  entry("ff30WingBuffet01", "Wing Buffet", "Air, Movement, Save",
     "<p>Action 2 AP; Area 30-foot cone</p><p>The dragon beats its wings with tremendous force, creating a violent cone of buffeting air, dust, debris, and pressure. All creatures in the area must make a level-based Reflex save.</p><p>Critical The target is unaffected.<br>Success The target is pushed 5 feet directly away from the dragon.<br>Partial The target takes bludgeoning damage equal to the dragon’s wing attack damage and is pushed 5 feet directly away from the dragon.<br>Failure The target takes bludgeoning damage equal to the dragon’s wing attack damage, is pushed 10 feet directly away from the dragon, and falls prone.<br>Fumble The target takes bludgeoning damage equal to twice the dragon’s wing attack damage, is pushed 20 feet directly away from the dragon, and falls prone.<br>Blunder As fumble, but the target is also stunned 1.</p><p>This movement does not provoke reactions. A creature that is at least two sizes larger than the dragon treats its save result as one degree better. A flying creature that fails its save loses 10 feet of altitude; on a fumble or blunder, it loses 20 feet of altitude instead.</p>",
     { creatureAbility: { printedTraits: "AIR MOVEMENT SAVE", printedAction: "Action 2 AP", printedArea: "Area 30-foot cone",
       activation: { kind: "action", ap: 2, area: "30-foot cone", save: "reflex",

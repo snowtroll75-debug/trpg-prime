@@ -332,8 +332,9 @@ const MUTATIONS = [
   {
     file: SR,
     name: "C1 a conditional rider is announced as applied damage",
-    from: "  const rider = spec.conditional\n    ? `<strong>${spec.dice} ${spec.damageType}</strong> on ${when}`\n      + ` <em>against ${spec.against}</em> — printed on the strike card for you to apply`\n    : `<strong>+${spec.dice} ${spec.damageType}</strong> on ${when}`;",
-    to: "  const rider = `<strong>+${spec.dice} ${spec.damageType}</strong> on ${when}`;",
+    // 3.685.1: the conditional branch now follows the replacing rider's.
+    from: "    : spec.conditional\n      ? `<strong>${spec.dice} ${spec.damageType}</strong> on ${when}`\n        + ` <em>against ${spec.against}</em> — printed on the strike card for you to apply`\n      : `<strong>+${spec.dice} ${spec.damageType}</strong> on ${when}`;",
+    to: "    : `<strong>+${spec.dice} ${spec.damageType}</strong> on ${when}`;",
     breaks: "J1 — the card promises automation the spell does not have"
   },
   {

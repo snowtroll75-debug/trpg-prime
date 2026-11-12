@@ -126,8 +126,9 @@ const MUTATIONS = [
     // argument to this call. The old anchor named five and went ANCHOR
     // MISSING — silently ceasing to run, which is the failure mode this
     // project has now met four times. Dropping the uuid still drops it.
-    from: '    ? defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments, creatureTraits(actor.system ?? {}))',
-    to: '    ? defenceDCBonus(targetActor, "defence", "", attackerTypes, "", attackerAlignments, creatureTraits(actor.system ?? {}))',
+    // AND AT 3.684.0, when the Strike began naming `attackKind: "weapon"`.
+    from: '    ? defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments, creatureTraits(actor.system ?? {}), { attackKind: "weapon" })',
+    to: '    ? defenceDCBonus(targetActor, "defence", "", attackerTypes, "", attackerAlignments, creatureTraits(actor.system ?? {}), { attackKind: "weapon" })',
     breaks: "F5 — every ward silently stops working, because nothing can name the attacker"
   }
 ];

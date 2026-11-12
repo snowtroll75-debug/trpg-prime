@@ -195,7 +195,7 @@ export function harderSaveStep(degreeKey) {
   return 0;
 }
 
-export function castingOutcome(degreeKey, { basePP, warpPP = 0, waiveCritical = false, waiveSaving = false } = {}) {
+export function castingOutcome(degreeKey, { basePP, warpPP = 0, waiveCritical = false, waiveSaving = false, savingStep = 0 } = {}) {
   const base = Math.max(0, Math.floor(Number(basePP) || 0));
   const warp = Math.max(0, Math.floor(Number(warpPP) || 0));
   const total = base + warp;
@@ -216,6 +216,18 @@ export function castingOutcome(degreeKey, { basePP, warpPP = 0, waiveCritical = 
    * for both and withdraws the saving from both.
    */
   if (waiveSaving && (degree === "critical" || degree === "heroic")) degree = "success";
+  /*
+   * A SAVING ONE RUNG LESS (3.684.0; Eldritch Arts Block 6, G1 — Spellthread,
+   * sidebar 15 "Spellthread Risks": "Heroic saves half the base PP; Critical
+   * saves none"). A module metamagic's `savingStep: 1` pays a Heroic as a
+   * Critical and a Critical as a Success; the cast's DEGREE is untouched,
+   * only what it costs. 0 (every other cast) changes nothing.
+   */
+  const step = Math.max(0, Math.trunc(Number(savingStep) || 0));
+  if (step && (degree === "critical" || degree === "heroic")) {
+    const ladder = ["success", "critical", "heroic"];
+    degree = ladder[Math.max(0, ladder.indexOf(degree) - step)];
+  }
 
   switch (degree) {
     case "heroic":
@@ -380,6 +392,46 @@ export function controlLevelCap(level, abilityMod, bonusPerLevel = 0) {
   const ability = Math.floor(Number(abilityMod) || 0);
   const perLevel = Math.max(0, Math.floor(Number(bonusPerLevel) || 0));
   return lvl + ability + perLevel * lvl;
+}
+
+/**
+ * A DECLARED CONTROL-LEVEL BONUS (3.683.0; Eldritch Arts Block 5, C12).
+ *
+ * Master Binder: "You increase your control levels by 2." Block 9's two
+ * summoning weapons print the same words. `system.magic.controlLevels` is
+ * derived AFTER active effects apply (documents/actor.mjs), so an effect's
+ * change cannot reach it; the carrier says it instead, as a number on
+ * `flags.trg-prime.controlLevelBonus`, and this adds them up.
+ *
+ * WHAT CARRIES IT: an owned feat; an ability that is not switched off
+ * (`system.active === false` is a note, as `declarationCarriers` reads it);
+ * any other item only while it is EQUIPPED — a weapon in the pack controls
+ * nothing; and a live effect (the caller hands over the applied ones, so a
+ * disabled or suppressed effect is not among them).
+ *
+ * Whole numbers, summed as declared: two sources that each say "+2" are
+ * two increases, as the book prints no rule against it. Pure.
+ *
+ * @param {Array<object>} items the actor's items
+ * @param {Array<object>} [effects] the actor's applied effects
+ * @returns {number}
+ */
+export function declaredControlLevelBonus(items = [], effects = []) {
+  const read = (doc) => {
+    const n = Math.trunc(Number(doc?.flags?.["trg-prime"]?.controlLevelBonus));
+    return Number.isFinite(n) ? n : 0;
+  };
+  let total = 0;
+  for (const item of Array.from(items ?? [])) {
+    if (!item) continue;
+    if (item.type === "feat") total += read(item);
+    else if (item.type === "ability") { if (item.system?.active !== false) total += read(item); }
+    else if (item.system?.equipped === true) total += read(item);
+  }
+  for (const effect of Array.from(effects ?? [])) {
+    if (effect && !effect.disabled) total += read(effect);
+  }
+  return total;
 }
 
 /** Cantrips: no check normally; DC 10 if penalties force one. */
@@ -714,12 +766,34 @@ export function capRitualDegree(degreeKey) {
  * @param {object} spellSystem
  * @returns {boolean}
  */
-export function spellNeedsTarget(spellSystem) {
+export function spellNeedsTarget(spellSystem, spell = null) {
+  // AN OBJECT, NOT A CREATURE (3.685.1): see `spellTargetsObject`.
+  if (spellTargetsObject(spell)) return false;
   const area = String(spellSystem?.area ?? "").trim();
   if (area) return false;
   const targets = String(spellSystem?.targets ?? "").trim();
   const category = String(spellSystem?.category ?? "").trim().toLowerCase();
   return Boolean(targets) || category === "attack";
+}
+
+/**
+ * Does this spell aim at an object (an arrow, an aura, a square), not a
+ * creature? (3.685.1; Eldritch Arts 0.10.0's live test, finding 3.)
+ *
+ * Spirit Arrow's printed target is "one arrow or bolt", and the cast opened
+ * the creature picker, which warned "no creature will be affected" unless the
+ * player pressed "Continue anyway". DECLARED ON THE SPELL —
+ * `flags.trg-prime.targetsObject` — as `selfApplying` is, so the printed line
+ * is not parsed for the word "object" ("1 creature or object" still wants a
+ * creature). A spell that says so is asked for no creature: no picker, no
+ * count, no range or trait-immunity gate on whatever happens to be targeted.
+ * Its rows should land on the caster (`target: "self"`) or be notes.
+ * Default-off: a spell without the flag reads as it did.
+ *
+ * @param {object} spell the spell Item (or anything carrying its flags)
+ */
+export function spellTargetsObject(spell) {
+  return spell?.flags?.["trg-prime"]?.targetsObject === true;
 }
 
 /**

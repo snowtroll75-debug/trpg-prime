@@ -123,6 +123,11 @@ export async function applyRecurringLadders(actor, token, moment = "endOfTurn") 
       let taken = 0;
       if (!outcome.harmless && outcome.dice) {
         const roll = await new Roll(outcome.dice).evaluate();
+        // A DAMAGE REACTION, BEFORE THE DEFENCES (3.681.0; found in review).
+        {
+          const { spellDamageReactionsFor } = await import("../reactions/reactions-workflow.mjs");
+          lines.push(...await spellDamageReactionsFor(actor, spec.damageType, { spellName: name ?? "", source: null }));
+        }
         const packet = resolveAgainstDefences(actor.system ?? {}, {
           amount: roll.total,
           type: spec.damageType,

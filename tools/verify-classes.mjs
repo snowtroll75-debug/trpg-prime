@@ -1069,7 +1069,7 @@ const CHOICE_LISTS = [
     "Terrain Mastery eases EVERY move, so it must answer true with or without an armed action");
   const movement = strip(read("module", "combat", "movement-workflow.mjs"));
   ok("J6 and the movement workflow prices the step off it",
-    /const easedBy = terrainReliefName\(actor, armedKey\);/.test(movement)
+    /const easedBy = terrainReliefName\(actor, armedKey(?:, \{[\s\S]*?\})?\);/.test(movement)
       && /eases: Boolean\(easedBy\)/.test(movement));
   // The aura half must survive the fix.
   eq("J7 the aura is still 1 at 9th and 2 at 15th",
@@ -1129,7 +1129,8 @@ const CHOICE_LISTS = [
   ok("K12 off the DEFENDER's sheet, like Warden Hunter beside it",
     /trapFinderDefenceBonus\(\{\s*actor: targetActor,/.test(attack));
   ok("K13 and adds it to the DB the attack rolls against",
-    /\+ trapFinderDB \+ \(aidDefence\?\.amount \?\? 0\)/.test(attack),
+    // RE-POINTED AT 3.684.3: a circumstance row among the Strike's stacked DB bonuses (Graham, 5 November 2026).
+    /aid: aidDefence, warden: wardenDB, trapFinder: trapFinderDB,/.test(attack),
     "computed and not added is the one failure a unit test of the rule cannot see");
   ok("K14 the card says so when it fires",
     /has Trap Finder and this attack carries the trap trait/.test(attack));

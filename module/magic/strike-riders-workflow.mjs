@@ -9,7 +9,7 @@
 import { declaresUnarmedAbilities, unarmedAbilityCarriers } from "../combat/unarmed-profile.mjs";
 import { runeStrikeRiderSpecs } from "../rune-declarations.mjs";
 import {
-  STRIKE_RIDER_FLAG, normaliseStrikeRider, riderPacketsFor, ridersSpentBy, ridersBurntBy, riderConditionReaches,
+  STRIKE_RIDER_FLAG, normaliseStrikeRider, riderPacketsFor, damageReplacement, ridersSpentBy, ridersBurntBy, riderConditionReaches,
   riderLadderValue, riderLadderText,
   weaponRiderRequirement,
   enchantableWeapons
@@ -116,6 +116,16 @@ function weaponIdentity(weapon, actor = null) {
  * The secondary-damage packets this actor's riders add to a Strike with
  * this weapon, in the shape `runeDamageFor` returns.
  */
+/**
+ * THE WEAPON DAMAGE A RIDER REPLACES ON THIS STRIKE (3.685.0, H10), or null.
+ * The caster's riders only: a rune or a weapon's own riders add, they never
+ * replace.
+ */
+export function strikeDamageReplacement(actor, weapon, ctx = {}) {
+  return damageReplacement(strikeRidersOn(actor).map((entry) => entry.spec), weaponIdentity(weapon, actor),
+    { ...ctx, used: actor?.getFlag?.(SYSTEM_ID, STRIKE_RIDERS_USED_FLAG) ?? {} });
+}
+
 export function strikeRiderPackets(actor, weapon, ctx = {}) {
   return riderPacketsFor(
     [...strikeRidersOn(actor).map((entry) => entry.spec), ...weaponRuneRiders(weapon), ...elementalStrikeRiders(actor, weapon)],
@@ -214,6 +224,9 @@ export async function spendStrikeRiders(actor, weapon, { hit = true, ctx = null 
   const lines = [];
   const identity = weaponIdentity(weapon, actor);
   for (const { effectId, spec } of strikeRidersOn(actor)) {
+    // KEPT WHEN THE STRIKE NEVER USED IT (3.685.0, review): a replacing rider
+    // a caller's own override beat (a Vital Strike's dice).
+    if (Array.isArray(ctx?.keepRiderIds) && ctx.keepRiderIds.includes(String(effectId))) continue;
     if (!ridersSpentBy([spec], identity, { hit, ctx }).length) continue;
     const effect = actor?.effects?.get?.(effectId);
     if (!effect) continue;

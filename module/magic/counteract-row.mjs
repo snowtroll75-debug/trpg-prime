@@ -110,6 +110,19 @@ export function counteractCandidates(spec, has, effects = []) {
 }
 
 /**
+ * May a counteract row of these traits reach this one effect (3.686.0)? The
+ * GM's client asks it of a relayed counteract, against the effect as it
+ * stands: a row with no traits reaches no effect (only named conditions).
+ * @param {string[]} traits the row's
+ * @param {{id: string, name?: string, sourceTraits?: string|string[]}} row
+ */
+export function counteractReachesEffect(traits, row) {
+  const spec = normaliseCounteract({ kind: "counteract", traits });
+  if (!spec?.traits?.length || !row) return false;
+  return counteractCandidates(spec, () => false, [{ ...row, statuses: [] }]).length > 0;
+}
+
+/**
  * Which of the named conditions this creature actually has.
  *
  * TAKES THE TEST, not the actor, so the harness can drive every

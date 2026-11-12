@@ -305,7 +305,7 @@ const crusaderList = SPECIALISTS.filter((s) => /^crusader$/i.test(String(s.syste
   const ss = at < 0 ? "" : fw.slice(at, at + 4000);
   ok("J1 the Specialist Spell feat filters through specialistSpellAccess with the actor's aspect data",
     /const access = await specialistAccessFor\(actor\);/.test(ss) &&
-    /if \(!specialistSpellAccess\(\{\s*\.\.\.access,\s*myClasses: mine,\s*spellName: s\.name,\s*specialistClass: s\.system\?\.specialistClass\s*\}\)\) return false;/.test(ss));
+    /if \(!specialistSpellAccess\(\{\s*\.\.\.access,\s*myClasses: mine,\s*spellName: s\.name,\s*specialistClass: s\.system\?\.specialistClass\s*\}\)(?: && !\(s\.system\?\.specialist && opened\(s\)\))?\) return false;/.test(ss));
   ok("J2 the old class-tag-only test is gone", !/if \(!lists\.length \|\| !lists\.some\(\(n\) => mine\.has\(n\)\)\) return false;/.test(fw));
   ok("J3 the aspect universe reads the federated divine-aspects pack",
     /contentPack\("divine-aspects"\)/.test(code("module", "aspect-workflow.mjs")));

@@ -457,10 +457,19 @@ export async function applyConditionTags(
      * One laid on by a rule must outlive that, so only an effect carrying
      * the status counts as "already present".
      */
-    const wasAlreadyPresent = directConditionEffect(actor, tag.key) !== null;
+    // RECURRING DAMAGE IS PRESENT BY TYPE (3.685.0; Graham's Q150): fire
+    // already burning does not make an acid critical's burn "already there".
+    const recurringTag = tag.key === "recurring";
+    const recurringHere = recurringTag
+      ? (await import("../conditions/recurring.mjs")).recurringOfType(
+        (await import("../conditions/recurring.mjs")).recurringEntries(actor?.effects ?? [], SYSTEM_ID), tag.damageType)
+      : 0;
+    const wasAlreadyPresent = recurringTag ? recurringHere > 0 : directConditionEffect(actor, tag.key) !== null;
 
     if (def.valued) {
-      const existingValue = wasAlreadyPresent ? Number(actor.getConditionValue?.(tag.key) ?? 0) : 0;
+      const existingValue = recurringTag
+        ? recurringHere
+        : wasAlreadyPresent ? Number(actor.getConditionValue?.(tag.key) ?? 0) : 0;
       // VALUED CONDITIONS ADD (Graham, 19 Aug 2026). This was
       // `Math.max(existing, incoming)`, so a second critical that
       // inflicted Bleeding 2 on a target already Bleeding 2 left it at
@@ -502,7 +511,12 @@ export async function applyConditionTags(
           }
         }
       }
-      const newValue = combinedConditionValue(tag.key, existingValue, incomingValue);
+      // ONE STACKING RULE FOR RECURRING DAMAGE (3.685.0): `recurringAfterHit`,
+      // the rule a bomb, a weapon and a spell rider lay theirs by — that
+      // type's total plus this. Bleeding adds here as it always has.
+      const newValue = recurringTag
+        ? (await import("../conditions/recurring.mjs")).recurringAfterHit(existingValue, incomingValue, tag.damageType).value
+        : combinedConditionValue(tag.key, existingValue, incomingValue);
       /*
        * A TAG MAY BRING ITS OWN DAMAGE TYPE (3.589.0).
        *
@@ -521,6 +535,9 @@ export async function applyConditionTags(
       const effect = await actor.toggleStatusEffect(tag.key, {
         active: true, value: newValue,
         ...(tag.damageType ? { damageType: String(tag.damageType) } : {}),
+        // AN UNTYPED RECURRING TAG IS FIRE, AND SAYS SO (3.685.0): without a
+        // type the toggle would edit whichever recurring effect it found first.
+        ...(recurringTag && !tag.damageType ? { damageType: "fire" } : {}),
         ...(tag.ignoreImmunity ? { force: true } : {})
       });
       const timing = timingFor(tag);
@@ -548,7 +565,11 @@ export async function applyConditionTags(
       if (effect?.update && Object.keys(updates).length) {
         await effect.update(updates);
       }
-      applied.push({ key: tag.key, label: tag.label, value: newValue, wasAlreadyPresent, ...(wardedBy ? { wardedPartly: wardedBy } : {}) });
+      // WHAT THIS TAG ADDED, AND OF WHICH TYPE (3.685.0, review): a recurring
+      // tag's `value` is its type's new total; `added` is this tag's share,
+      // which is what an "until healed" record must take back off that type.
+      applied.push({ key: tag.key, label: tag.label, value: newValue, wasAlreadyPresent, ...(wardedBy ? { wardedPartly: wardedBy } : {}),
+        ...(recurringTag ? { added: Math.max(0, newValue - existingValue), damageType: (await import("../conditions/recurring.mjs")).recurringType(tag.damageType) } : {}) });
     } else {
       if (!wasAlreadyPresent) {
         await actor.toggleStatusEffect(tag.key, { active: true, ...(tag.ignoreImmunity ? { force: true } : {}) });

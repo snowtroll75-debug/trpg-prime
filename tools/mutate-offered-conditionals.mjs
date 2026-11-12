@@ -31,7 +31,7 @@ const MUTATIONS = [
   { name: "the check forgets Shift", file: CK, from: "    this.offerConditionals = config.offerConditionals !== false;", to: "    this.offerConditionals = true;", breaks: "C2" },
   { name: "the check drops an earlier answer", file: CK, from: "    this.conditionalChoices = Array.isArray(config.conditionalChoices) ? [...config.conditionalChoices] : null;", to: "    this.conditionalChoices = null;", breaks: "C2" },
   { name: "a Shift attack still asks", file: AW, from: "    offerConditionals: !skipDialog(event),\n", to: "", breaks: "C3" },
-  { name: "Alter the Thread's reroll asks again", file: AW, from: "allowConviction: false, conditionalChoices: check.conditionalChoices ?? [] });", to: "allowConviction: false });", breaks: "C4" },
+  { name: "Alter the Thread's reroll asks again", file: AW, from: "allowConviction: false, conditionalChoices: check.conditionalChoices ?? [], checkReactionsBeforeAsked: true, reactionAdvantages", to: "allowConviction: false, checkReactionsBeforeAsked: true, reactionAdvantages", breaks: "C4" },
   { name: "a Shift sheet roll asks", file: SH, from: "      offerConditionals: !skipDialog(event),\n", to: "", breaks: "C5" },
   { name: "a Shift skill action asks", file: AC, from: "    offerConditionals: !skipDialog(event),\n", to: "", breaks: "C6" }
 ];

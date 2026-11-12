@@ -27,7 +27,7 @@ const MUTATIONS = [
   { name: "the chooser puts the fist first", file: ST, from: "[...melee.filter((w) => !w.system?.natural), ...melee.filter((w) => w.system?.natural)]", to: "[...melee]", breaks: "F6a" },
   { name: "a cancelled choice still charges AP", file: AF, from: "  if (chosen === null) return null;\n  if (entry.apCost", to: "  if (entry.apCost", breaks: "F6b" },
   { name: "a readied action is charged again", file: AW, from: "resolveAction(actor, { ...storedAction, apCost: \"0\" }", to: "resolveAction(actor, { ...storedAction }", breaks: "F7a" },
-  { name: "a readied cast is charged again", file: CW, from: "  if (!apPaid) await spendActionCost(actor, totalCastAP, spell.name);", to: "  await spendActionCost(actor, totalCastAP, spell.name);", breaks: "F7c" }
+  { name: "a readied cast is charged again", file: CW, from: "  const castReceipt = apPaid ? null : await spendActionCost(actor, totalCastAP, spell.name);", to: "  const castReceipt = await spendActionCost(actor, totalCastAP, spell.name);", breaks: "F7c" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-session-faults-1014.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

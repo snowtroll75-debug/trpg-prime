@@ -227,22 +227,10 @@ export function tanglefootInteract(left) {
   return { left: after, ended: after === 0 };
 }
 
-/**
- * The recurring damage a hit applies, keeping the stronger of two of the
- * same type rather than adding them — the engine carries one Recurring
- * Damage condition per creature, and a second flask of acid does not
- * make the first one burn harder.
- *
- * @param {{value: number, damageType: string}|null} existing
- * @param {number} incoming
- * @param {string} damageType
- * @returns {{value: number, damageType: string, replaced: boolean}}
+/*
+ * THE RECURRING DAMAGE A HIT APPLIES moved to conditions/recurring.mjs at
+ * 3.685.0, and its rule changed (Graham, 7 November 2026, Q150: "recurring
+ * damage stacks with a flat check made for totals of the same damage type").
+ * Until then it kept the stronger of two of one type and let another type
+ * replace it. Every source now lays it through `layRecurring`.
  */
-export function recurringAfterHit(existing, incoming, damageType) {
-  const value = Math.max(0, Math.floor(Number(incoming) || 0));
-  if (!existing || !existing.value) return { value, damageType, replaced: false };
-  if (String(existing.damageType ?? "") === String(damageType ?? "")) {
-    return { value: Math.max(Number(existing.value) || 0, value), damageType, replaced: false };
-  }
-  return { value, damageType, replaced: true };
-}

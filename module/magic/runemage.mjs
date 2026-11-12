@@ -127,11 +127,56 @@ export function focusSatisfiesHand(components = {}) {
   return !components?.[SYMBOL_COMPONENT];
 }
 
-/** What the card says about the rune nothing can check. */
-export function symbolRoomLine(components = {}) {
+/**
+ * What the card says about the rune nothing can check.
+ *
+ * AND WHAT A FEAT CHANGES ABOUT IT (3.684.0; Eldritch Arts Block 6, G25): a
+ * Prepared Sigil's cast needs no room at all ("the Symbol was inscribed in
+ * advance"); Combat Inscription's "a hand-sized space" is the room it needs
+ * (`roomNote`, see `runemageAdjustments`). Both are still the table's call
+ * where they say so; the core enforces no space.
+ */
+export function symbolRoomLine(components = {}, { prepared = false, preparedLabel = "", roomNote = "" } = {}) {
   if (!components?.[SYMBOL_COMPONENT]) return null;
+  if (prepared) {
+    return `<em>${String(preparedLabel ?? "").trim() || "Prepared Sigil"}: the Symbol was inscribed in advance, so no room to draw it is needed.</em>`;
+  }
+  const note = String(roomNote ?? "").trim();
+  if (note) return `<em>Symbol — ${note}. The table decides whether you have it.</em>`;
   return "<em>Symbol — you must have room to draw the rune (in the air or otherwise). "
     + "The table decides whether you do.</em>";
+}
+
+/*
+ * DECLARED RUNEMAGE ADJUSTMENTS (3.684.0; Eldritch Arts Block 6, G25).
+ *
+ *   COMBAT INSCRIPTION: "When using Defensive Casting, you ignore the +2
+ *   increase to Defensive Casting DC normally imposed by the Runemage
+ *   archetype." A hand-sized space suffices to trace the rune.
+ *
+ * The +2 lives inside the core's one "Runemage, defensive" part
+ * (casting-dc.mjs), where no module option can reach it. An owned feat may
+ * declare `flags["trg-prime"].runemage = { defensiveIncrease: 0, roomNote:
+ * "a hand-sized space suffices (Combat Inscription)" }`: the lowest increase
+ * declared is the one the cast uses (2 when none is), and the room line takes
+ * the note. The free-hand rule is not touched (Graham, 10 Sep 2026).
+ */
+export function runemageAdjustments(items = []) {
+  let defensiveIncrease = 2;
+  let label = "";
+  let roomNote = "";
+  for (const item of Array.from(items ?? [])) {
+    if (!item || !["feat", "ability"].includes(item.type)) continue;
+    const raw = item.flags?.["trg-prime"]?.runemage;
+    if (!raw || typeof raw !== "object") continue;
+    const inc = Number(raw.defensiveIncrease);
+    if (Number.isFinite(inc) && Math.trunc(inc) >= 0 && Math.trunc(inc) < defensiveIncrease) {
+      defensiveIncrease = Math.trunc(inc);
+      label = String(item.name ?? "").trim();
+    }
+    if (!roomNote && String(raw.roomNote ?? "").trim()) roomNote = String(raw.roomNote).trim();
+  }
+  return { defensiveIncrease, label, roomNote };
 }
 
 /**

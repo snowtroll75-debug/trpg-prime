@@ -61,7 +61,7 @@ const MUTATIONS = [
     from: 'its ${points === 1 ? "point is" : `${points} points are`} spent.',
     to: "its ${points} points are spent.", breaks: "E4c" },
   { file: WF, name: "SETTLED AFTER THE UPDATE, which cannot see what the spend was",
-    from: `  Hooks.on("preUpdateActor", (actor, changed) => {`,
+    from: `  Hooks.on("preUpdateActor", (actor, changed, options) => {`,
     to: `  Hooks.on("updateActor", (actor, changed) => {`, breaks: "D1" },
   { file: WF, name: "the spend is measured against itself",
     from: `    const before = Number(actor.system?.resources?.pp?.value ?? 0);`,
@@ -79,10 +79,16 @@ const MUTATIONS = [
     to: `    await actor.update({ "system.resources.pp.value": 0 });
     await actor.deleteEmbeddedDocuments("Item", emptied.map((d) => d.id)).catch(() => {});`,
     breaks: "D2c" },
-  { file: WF, name: "THE RACE: every client settles, and they fight over one crystal",
-    from: `  Hooks.on("preUpdateActor", (actor, changed) => {
-    if (!game.user?.isGM) return;`,
-    to: `  Hooks.on("preUpdateActor", (actor, changed) => {`, breaks: "D4" },
+  // RE-ANCHORED 3.685.3: the spend asks `actor.isOwner`, the arrival and departure `isActingGM()`.
+  { file: WF, name: "the spend settles on a client that need not own the actor",
+    from: `  Hooks.on("preUpdateActor", (actor, changed, options) => {
+    if (!actor?.isOwner) return;`,
+    to: `  Hooks.on("preUpdateActor", (actor, changed, options) => {`, breaks: "D4" },
+  { file: WF, name: "THE 3.685.2 DEFECT: a spend asks isGM, so a player's never draws a crystal down",
+    from: `  Hooks.on("preUpdateActor", (actor, changed, options) => {
+    if (!actor?.isOwner) return;`,
+    to: `  Hooks.on("preUpdateActor", (actor, changed, options) => {
+    if (!game.user?.isGM) return;`, breaks: "D4" },
   { file: BOOT, name: "THE HOOKS ARE NEVER REGISTERED",
     from: `  registerPowerCrystalHooks();`, to: `  ;`, breaks: "D5" },
   { file: APPLIER, name: "the crystal is conjured carrying nothing",
@@ -126,7 +132,18 @@ const MUTATIONS = [
     breaks: "D3f" },
   { file: WF, name: "the arrival hook runs on every client, and they race",
     from: `  Hooks.on("createItem", (item) => {
-    if (!game.user?.isGM) return;`, to: `  Hooks.on("createItem", (item) => {`, breaks: "D4" },
+    if (!isActingGM()) return;`, to: `  Hooks.on("createItem", (item) => {`, breaks: "D4" },
+  { file: WF, name: "THE 3.685.2 DEFECT: the arrival runs on every GM",
+    from: `  Hooks.on("createItem", (item) => {
+    if (!isActingGM()) return;`, to: `  Hooks.on("createItem", (item) => {
+    if (!game.user?.isGM) return;`, breaks: "D4" },
+  { file: WF, name: "the departure hook runs on every client, and they race",
+    from: `  Hooks.on("deleteItem", (item) => {
+    if (!isActingGM()) return;`, to: `  Hooks.on("deleteItem", (item) => {`, breaks: "D4" },
+  { file: WF, name: "THE 3.685.2 DEFECT: the departure runs on every GM",
+    from: `  Hooks.on("deleteItem", (item) => {
+    if (!isActingGM()) return;`, to: `  Hooks.on("deleteItem", (item) => {
+    if (!game.user?.isGM) return;`, breaks: "D4" },
   { file: WF, name: "THE DOUBLE CHARGE: an emptied crystal dissolves with its old points on it",
     from: `    for (const d of emptied) {
       await actor.items.get(d.id)?.setFlag(SYSTEM_ID, CRYSTAL_FLAG, { pp: 0 }).catch(() => {});
@@ -149,9 +166,14 @@ const MUTATIONS = [
   { file: CONJ, name: "the clock is matched by NAME, so a second casting's crystal is taken too",
     from: `      .filter((e) => e.getFlag?.(SYSTEM_ID, "conjuredItemId") === item.id)`,
     to: `      .filter((e) => e.name === item.name)`, breaks: "E6b" },
+  // RE-ANCHORED 3.685.3: the acting GM.
   { file: CONJ, name: "every client deletes the clock, and they race",
     from: `  Hooks.on("deleteItem", (item) => {
-    if (!game.user?.isGM) return;`, to: `  Hooks.on("deleteItem", (item) => {`, breaks: "E6c" },
+    if (!isActingGM()) return;`, to: `  Hooks.on("deleteItem", (item) => {`, breaks: "E6c" },
+  { file: CONJ, name: "THE 3.685.2 DEFECT: every GM deletes the clock",
+    from: `  Hooks.on("deleteItem", (item) => {
+    if (!isActingGM()) return;`, to: `  Hooks.on("deleteItem", (item) => {
+    if (!game.user?.isGM) return;`, breaks: "E6c" },
   { file: BOOT, name: "THE CLOCK CLEANUP IS NEVER REGISTERED",
     from: `  registerConjuredItemHooks();`, to: `  ;`, breaks: "E6d" },
   { file: WARP, name: "the aggregator forgets crystalPP",

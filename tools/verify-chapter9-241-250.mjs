@@ -344,7 +344,7 @@ eq("I10 -10 for an unaltered duration",
     !/summed by hand, summed by hand/.test(src) && !/name="secondaryModifier"/.test(src));
   // R6 — a successful ritual casts the spell.
   ok("I13 a resolved ritual reaches the cast pipeline",
-    /ritual: \{ degree, ppOver, secondaryCount, check \}/.test(src),
+    /ritual: \{ degree, ppOver, secondaryCount, check(?:, variant: ritualPlan\.variant, gated: \{ modifiers: ritualGated\.modifiers, lines: \[\] \})? \}/.test(src),
     "it used to post `The spell is cast at N PP` and stop");
   ok("I14 the cast takes the ritual's degree rather than re-rolling",
     /if \(ritual\) degree = String\(ritual\.degree \?\? degree\)/.test(src));
@@ -354,7 +354,8 @@ eq("I10 -10 for an unaltered duration",
     "`ritualHeadroom = 0` left the name in place");
   // R7 — the +20 row nothing could reach.
   ok("I16 a ritual fumble reaches the Spell Fumble Table",
-    /ritual: Boolean\(ritual\)/.test(src),
+    // The fumble call's own line: since 3.678.0 the cast hooks also carry `ritual: Boolean(ritual)`.
+    /ritual: Boolean\(ritual\),\s*resonanceContext\s*\}\);/.test(src),
     "`ritual: true` was never passed by any caller");
 }
 eq("I17 and the table's Spell Ritual row is +20", SPELL_FUMBLE_MODIFIERS["Spell Ritual"], 20);
@@ -456,10 +457,12 @@ ok("L8 and the cast reads the notation rather than the trait",
   // rung's rider too (block 33's R2, Incandescence), through the same two
   // calls — so "the call appears somewhere" stopped proving this one ran.
   ok("M1 a spell's recurring rider is APPLIED, not announced",
-    /await targetActor\.toggleStatusEffect\("recurring"/.test(src),
+    // SINCE 3.685.0 (Q150) through `layRecurring`, which toggles it by type.
+    /const next = await layRecurring\(targetActor, amount, damageType\);/.test(src),
     "it printed `applies on the target's turns` and did nothing");
   ok("M2 through the one rule the bombs already use",
-    /const next = recurringAfterHit\(existing, amount, damageType\);/.test(src),
+    /import \{ layRecurring \} from "\.\.\/conditions\/recurring-workflow\.mjs";/.test(src)
+      && /const next = recurringAfterHit\(before, amount, type\);/.test(read("module", "conditions", "recurring-workflow.mjs")),
     "two spellings of a stacking rule is how they come to disagree");
   ok("M3 a critical-only rider waits for its critical",
     /persistentOn/.test(src));
@@ -618,7 +621,8 @@ ok("O15 the save path resolves a printed ladder before its own arithmetic",
 {
   const src = code("module", "magic", "cast-workflow.mjs");
   ok("R1 the ritual copies the caster's derived modifiers before adding to them",
-    /const modifiers = \[\.\.\.\(system\.magic\?\.spellcraft\?\.checkModifiers/.test(src),
+    // In the ritual itself: since 3.679.0 a variant's skill may stand in for Spellcraft.
+    /(?:const modifiers = |: )\[\.\.\.\(system\.magic\?\.spellcraft\?\.checkModifiers/.test(src.slice(src.indexOf("export async function rollMagicRitual("))),
     "`modifiers.push` was writing the secondary-caster bonus into the actor's own array; "
     + "the cast that followed read it, and so did the attack roll that came off that cast");
   ok("R2 and a ritual's cast does not roll a second check",

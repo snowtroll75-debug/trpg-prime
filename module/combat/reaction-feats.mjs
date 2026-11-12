@@ -403,7 +403,7 @@ export function offeredReactionFeats({
  */
 export function strikeOptionsFor(map) {
   return String(map) === "frozen"
-    ? { apPaid: true, mapFrozen: true, skipTargetPrompt: true }
+    ? { apPaid: true, mapFrozen: true, skipTargetPrompt: true, asReaction: true }
     : { isReaction: true, skipTargetPrompt: true };
 }
 

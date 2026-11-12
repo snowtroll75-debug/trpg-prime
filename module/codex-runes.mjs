@@ -34,6 +34,8 @@ import { runeStateOf } from "./rune-actions.mjs";
 import { isHeadResult, nextHeadResult } from "./combat/head-criticals.mjs";
 import { armourCategory, describeAP, donningTime, timeToAP } from "./donning.mjs";
 import { abilitiesVorpalWeapons } from "./creature-ability-rules.mjs";
+// THE RUNES A WEAPON CARRIES TODAY (3.682.0): its own and any infused.
+import { runeFieldOf } from "./infused-runes.mjs";
 
 const codexRune = (key) => [...CODEX_ARMOUR_RUNES, ...CODEX_WEAPON_RUNES]
   .find((rune) => rune.key === key);
@@ -54,7 +56,7 @@ export function inscribedTier(item, key) {
   const rune = codexRune(key);
   if (!rune?.tiers) return null;
   const kind = item?.type === "shield" ? "shield" : item?.type;
-  const chosen = fieldToRunes(kind, item?.system?.runes ?? "")
+  const chosen = fieldToRunes(kind, runeFieldOf(item))
     .find((entry) => entry.key === key);
   if (!chosen) return null;
   const index = Math.min(Math.max(1, chosen.tier), rune.tiers.length) - 1;
@@ -384,7 +386,7 @@ export function vorpalOn(weapon) {
   const melee = String(weapon?.system?.attackMode ?? "melee") !== "missile";
   const byAbility = kind === "weapon" && melee && abilitiesVorpalWeapons(owned);
   const byTrait = /\bvorpal\b/i.test(String(weapon?.system?.traits ?? ""));
-  const carries = byAbility || byTrait || fieldToRunes(kind, weapon?.system?.runes ?? "")
+  const carries = byAbility || byTrait || fieldToRunes(kind, runeFieldOf(weapon))
     .some((entry) => entry.key === "vorpal");
   if (!carries) return null;
   const damageType = String(weapon?.system?.damageType ?? "").trim().toLowerCase();
@@ -495,7 +497,7 @@ export function donningTimeFor(item, { fullSuit = false } = {}) {
 export function shellbackOn(shield) {
   const rune = codexRune("shellback");
   const kind = shield?.type === "shield" ? "shield" : shield?.type;
-  const carries = fieldToRunes(kind, shield?.system?.runes ?? "")
+  const carries = fieldToRunes(kind, runeFieldOf(shield))
     .some((entry) => entry.key === "shellback");
   if (!carries) return null;
   return {
@@ -538,7 +540,7 @@ export function runeAurasOf(items = []) {
  */
 export function weaponWaivesProficiency(item) {
   if (item?.type !== "weapon") return { waived: false, why: "" };
-  const carries = fieldToRunes("weapon", item?.system?.runes ?? "")
+  const carries = fieldToRunes("weapon", runeFieldOf(item))
     .some((rune) => rune.key === "ancientEchoes");
   return carries
     ? { waived: true, why: "an Ancient Echoes rune imparts the knowledge" }
@@ -663,7 +665,7 @@ export function runeUsageNotes(item) {
   const kind = item?.type === "shield" ? "shield" : item?.type;
   if (!kind) return [];
   const notes = [];
-  for (const entry of fieldToRunes(kind, item?.system?.runes ?? "")) {
+  for (const entry of fieldToRunes(kind, runeFieldOf(item))) {
     // Only the CODEX runes — Potency, Flaming and the rest of Chapter 11
     // are somebody else's panel. `codexRune` answers nothing for them,
     // which is the whole gate.

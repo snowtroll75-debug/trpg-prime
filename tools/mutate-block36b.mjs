@@ -98,7 +98,7 @@ const MUTATIONS = [
   { file: META, name: "R12 — nothing is taken from the rod",
     from: "      agg.rodSpends.push({ itemId: o.rodItemId, name: o.rodName ?? \"\", pp: Number(o.rodCost) || 0 });\n", to: "", breaks: "E2b" },
   { file: CAST, name: "R13 — the draw is offered and the pool test ignores it",
-    from: "  if (totalPP > ppPool + rodDraw) {", to: "  if (totalPP > ppPool) {", breaks: "E3c" },
+    from: "  if ((ritualSubstitutes ? 0 : totalPP) + surcharge.pp > ppPool + rodDraw) {", to: "  if ((ritualSubstitutes ? 0 : totalPP) + surcharge.pp > ppPool) {", breaks: "E3c" },
   { file: CAST, name: "R13 — the caster pays the whole cost anyway",
     from: '      "system.resources.pp.value": Math.max(0, ppPool - casterPPSpent)', to: '      "system.resources.pp.value": Math.max(0, ppPool - ppSpent)', breaks: "E3d" },
   { file: RODS, name: "R13 — a split that charges the rod more than was drawn",

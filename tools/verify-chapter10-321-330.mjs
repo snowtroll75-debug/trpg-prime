@@ -151,7 +151,9 @@ ok("W6 A CRITICAL WITH NO DICE IN FRONT OF IT STILL LANDS",
 {
   const sharedAt = cast.indexOf("saveLadder && ladderUsesSharedRoll(saveLadder) && damageFormula");
   ok("W7 a half/full ladder rolls the spell's damage ONCE, before the per-target loop",
-    sharedAt > 0 && sharedAt < cast.indexOf("for (const target of targets) {\n    const save = target.system?.combat?.saves?.[parsed.key];"));
+    // RE-POINTED AT 3.684.0 (Eldritch Arts Block 6, G14): the loop opens with
+    // the one-target Save DC (Sanguine Channel) before it reads the save.
+    sharedAt > 0 && sharedAt < cast.indexOf("for (const target of targets) {\n    const targetShift = castOptionDCFor(saveDCTargets, target?.uuid ?? \"\");"));
   ok("W7b and hands that roll to every rung", /shared: ladderUsesSharedRoll\(saveLadder\) && damageFormula \? baseDamage : null/.test(ladderBranch));
 }
 
@@ -186,7 +188,8 @@ const applier = src("module", "magic", "spell-effects.mjs");
 ok("E5 the hook is registered at init", /\n\s+registerEndSaveHooks\(\);/.test(boot));
 ok("E5b on deleteActiveEffect, so every ending owes it",
   /Hooks\.on\("deleteActiveEffect", \(effect\) => \{\n\s+try \{\n\s+const raw = effect\?\.getFlag\?\.\(SYSTEM_ID, END_SAVE_FLAG\)/.test(endWf));
-ok("E5c by the active GM only", /activeGM\.id !== game\.user\?\.id\) return;/.test(endWf));
+// RE-PINNED 3.686.2: one connection of the acting GM (the election), and with no GM one owner.
+ok("E5c by the acting client only", /if \(!isActingClientFor\(actor\)\) return;/.test(endWf) && /import \{ isActingClientFor \} from "\.\.\/acting-gm\.mjs";/.test(endWf));
 ok("E6 the applier stamps it on the GRANTED condition's effect, not the charged one",
   /recordEndSave\(target, \{[\s\S]{0,200}\}, \{ on: effect\.condition, castId \}\)/.test(applier));
 ok("E6b and with a cast id it takes that cast's effect or none",

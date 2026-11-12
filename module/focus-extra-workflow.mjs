@@ -8,17 +8,19 @@
  * created in the same batch as the carrier. Found in the live test of
  * 3.667.0: a Disciple's techniques held 1 of 2 until daily preparation.
  *
- * On the creating client only, and not for an import or duplicate
- * (`keepId`), which arrives with its counts already stored.
+ * One acting client writes the top-up. A user id does not identify a
+ * browser connection: two tabs belonging to the creator see the same
+ * createItem event. Imports and duplicates (`keepId`) already have counts.
  */
 import { focusExtraTopUps } from "./focus-declarations.mjs";
+import { isActingClientFor } from "./acting-gm.mjs";
 
 export function registerFocusExtraTopUps() {
-  Hooks.on("createItem", async (item, options, userId) => {
-    if (userId !== game.user?.id) return;
+  Hooks.on("createItem", async (item, options) => {
     if (options?.keepId) return;
     const actor = item?.parent;
     if (!actor || actor.documentName !== "Actor") return;
+    if (!isActingClientFor(actor)) return;
     const updates = focusExtraTopUps(item, Array.from(actor.items ?? []).filter((i) => i.id !== item.id));
     if (updates.length) await actor.updateEmbeddedDocuments("Item", updates);
   });

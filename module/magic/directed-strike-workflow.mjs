@@ -231,6 +231,11 @@ export async function fireDirectedStrikes(caster, casterToken) {
         amount += bonusRoll.total;
       }
 
+      // A DAMAGE REACTION, BEFORE THE DEFENCES (3.681.0; found in review).
+      {
+        const { spellDamageReactionsFor } = await import("../reactions/reactions-workflow.mjs");
+        lines.push(...await spellDamageReactionsFor(target, spec.damageType, { spellName: spec?.label ?? "", source: caster }));
+      }
       const packet = resolveAgainstDefences(target.system ?? {}, {
         amount,
         type: spec.damageType,

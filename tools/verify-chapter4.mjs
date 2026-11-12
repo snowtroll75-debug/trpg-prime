@@ -41,7 +41,7 @@ import {
   LEVEL_DC_BASE, autoCheckTotal, bonusCheckModifier, levelDC, resolveDegree
 } from "../module/dice/resolution.mjs";
 import { BASIC_ACTIONS } from "../module/data/basic-actions.mjs";
-import { SKILL_ACTIONS } from "../module/data/skill-actions.mjs";
+import { SKILL_ACTIONS, TRAINED_ACTION_KEYS } from "../module/data/skill-actions.mjs";
 import { BASIC_ACTION_STANCE_EFFECTS } from "../module/combat/basic-action-stances.mjs";
 import { collectConditionals, matchesCheck, automaticSelections } from "../module/conditionals.mjs";
 import {
@@ -410,7 +410,27 @@ eq("G5 the consumable batch DC modifier is its own printed table",
   eq("I1 exactly the actions that declare it are open to specialist skills",
     // 3.629.0: Disable a Peril too — a haunt's Disable line can name a
     // specialist Lore (Pillars of Faith's Spirit Lore).
-    specialistSkillActions(SKILL_ACTIONS).map((a) => a.name), ["Identify Power", "Disable a Peril"]);
+    // 3.675.1: Recall Knowledge too — Graham's ruling of 29 October 2026,
+    // "Specialist skills should always have the recall knowledge action".
+    specialistSkillActions(SKILL_ACTIONS).map((a) => a.name), ["Identify Power", "Recall Knowledge", "Disable a Peril"]);
+  {
+    // I1c-I1f — THE 29 OCTOBER RULING, checked as the player meets it.
+    const recall = SKILL_ACTIONS.find((a) => a.key === "recallKnowledge");
+    ok("I1c Recall Knowledge declares the specialist route", recall?.specialistSkills === true,
+      "Graham: specialist skills should ALWAYS have Recall Knowledge on their dropdown");
+    eq("I1d and its ten printed knowledge skills are unchanged",
+      recall?.skills, ["arcana", "artistry", "crafting", "culture", "linguistics", "medicine", "nature", "occultism", "planes", "religion"]);
+    ok("I1e it stays untrained, so no specialist skill is ever refused it",
+      recall?.proficiency === undefined && !TRAINED_ACTION_KEYS.has("recallKnowledge"));
+    ok("I1f and its card names the specialist route",
+      /OR any specialist skill you have/.test(String(recall?.description ?? "")),
+      "a card that contradicts the route just taken reads as the system guessing");
+    // DRIVEN: the sheet's own filter, over a set holding Recall Knowledge
+    // and an action that does not declare the route.
+    const research = SKILL_ACTIONS.find((a) => a.key === "research");
+    eq("I1g the dropdown filter keeps Recall Knowledge and leaves Research out",
+      specialistSkillActions([recall, research]).map((a) => a.key), ["recallKnowledge"]);
+  }
   const identify = SKILL_ACTIONS.find((a) => a.key === "identifyPower");
   eq("I2 and the four printed knowledge skills are still the ordinary route",
     identify.skills, ["arcana", "religion", "occultism", "nature"]);
@@ -937,6 +957,13 @@ eq("G5 the consumable batch DC modifier is its own printed table",
     ["partial", "success", "critical", "heroic"].map((d) => improveDegree(d)),
     ["success", "critical", "heroic", "heroic"]);
   eq("O23 and refuses a degree it does not know", improveDegree("aloof"), null);
+}
+
+/* Z — 3.675.1, the release that opened Recall Knowledge to specialist skills */
+{
+  const sysJson = JSON.parse(read("system.json"));
+  const [za, zb, zc] = String(sysJson.version).split(".").map(Number);
+  ok("Z1 the system is 3.675.1 or later", za > 3 || (za === 3 && (zb > 675 || (zb === 675 && zc >= 1))), sysJson.version);
 }
 
 console.log(`verify-chapter4: ${checks} checks`);

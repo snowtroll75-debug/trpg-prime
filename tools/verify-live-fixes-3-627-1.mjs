@@ -62,7 +62,7 @@ ok("E3 a dot in the affliction's name is made safe too", !da.exposureKey("Actor.
 const jumping = await import(new URL("../module/jumping.mjs", import.meta.url));
 equal("L1 the printed cost before the trade is what a checkless leap pays", [jumping.leapApCost("2 (or 1 with a +2 difficulty increase)"), jumping.leapApCost("1"), jumping.leapApCost("Free"), jumping.leapApCost("Reaction")], ["2", "1", "Free", "Reaction"]);
 const aw = read("module", "combat", "action-workflow.mjs");
-ok("L2 the leap spends that cost, not the whole string", /const leapCost = leapApCost\(action\.apCost\);\s*if \(!\(await ensureActionPoints\(actor, leapCost, action\.name(, \{ traits: action\.traits \})?\)\)\) return null;\s*await spendActionCost\(actor, leapCost, action\.name/.test(aw));
+ok("L2 the leap spends that cost, not the whole string", /const leapCost = leapApCost\(action\.apCost\);\s*if \(!\(await ensureActionPoints\(actor, leapCost, action\.name(, \{ traits: action\.traits \})?\)\)\) return null;\s*await (?:spendActionCost\(actor|commitActionCost\(actor, action, readied), leapCost, action\.name/.test(aw));
 
 /* ------------------------------------------------------------------ *
  * R — the injury records through the relay

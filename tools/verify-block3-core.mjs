@@ -63,7 +63,7 @@ equal("B8 Versatile B is bludgeoning (the first B in the game)", [atk.extractVer
 const aw = read("module", "combat", "attack-workflow.mjs");
 ok("B9 the Strike's fists are the trained ones (Fist of Rock still wins)", /const trainedFist = withUnarmedProfile\(armouredFist\.data, unarmedHere\);\s*const fistData = stoneFist \? \{ \.\.\.trainedFist, \.\.\.stoneFist \} : trainedFist;/.test(aw));
 ok("B10 at damage: the die when nothing else set one", /const unarmed = unarmedProfileFor\(actor, weaponData\);\s*if \(!damageOverride && unarmed\?\.damage\) damageOverride = unarmed\.damage;/.test(aw));
-ok("B11 the flat is total damage, added after the dice, and named on the card", /const unarmedFlat = Math\.max\(0, Math\.trunc\(Number\(unarmed\?\.flat\) \|\| 0\)\);\s*if \(unarmedFlat\) formula \+= ` \+ \$\{unarmedFlat\}`;/.test(aw) && /if \(unarmedFlat\) lines\.push\(line\(`<em>\$\{unarmed\.flatLabel\}: total unarmed damage\.<\/em>`\)\);/.test(aw));
+ok("B11 the flat is total damage, added after the dice, and named on the card", /const unarmedFlat = Math\.max\(0, Math\.trunc\(Number\(unarmed\?\.flat\) \|\| 0\)\);\s*if \(unarmedFlat\) formula \+= ` \+ \$\{unarmedFlat\}`;/.test(aw) && /if \(unarmedFlat(?: && !replacingFlat)?\) lines\.push\(line\(`<em>\$\{unarmed\.flatLabel\}: total unarmed damage\.<\/em>`\)\);/.test(aw));
 // Re-anchored at 3.671.0: a bonded weapon's magic (Soul-Bound Weapon) follows it.
 ok("B12 a trained blow that classes as magical is a magical source", /\|\| Boolean\(unarmed\?\.magical\)\n/.test(aw));
 // Re-anchored at 3.671.0: a bonded weapon's materials join them.
@@ -115,13 +115,16 @@ ok("D4 a Strike is offered once rolled, before it resolves, and rolled again who
   /let check = await TRGCheck\.roll\(attackCheckConfig\);/.test(aw)
   && /if \(targetActor && !presetDice\) \{\s*const \{ offerAttackReroll, postRerollCard \} = await import\("\.\/attack-reroll-workflow\.mjs"\);/.test(aw)
   && /const asked = await offerAttackReroll\(\{ attacker: actor, defender: targetActor, check, what: weapon\.name, db \}\);/.test(aw)
-  && /check = await TRGCheck\.roll\(\{ \.\.\.attackCheckConfig, allowConviction: false(, conditionalChoices: check\.conditionalChoices \?\? \[\])? \}\);/.test(aw)
+  // NOT OFFERED PROPHETIC WARNING AGAIN (3.681.0): the reroll says it was asked.
+  && /check = await TRGCheck\.roll\(\{ \.\.\.attackCheckConfig, allowConviction: false(, conditionalChoices: check\.conditionalChoices \?\? \[\])?(, checkReactionsBeforeAsked: true(, reactionAdvantages: check\.reactionAdvantages \?\? \[\](?:, reactionModifiers: check\.reactionModifiers \?\? \[\])?)?)? \}\);/.test(aw)
   && aw.indexOf("offerAttackReroll({ attacker: actor") > 0
-  && aw.indexOf("offerAttackReroll({ attacker: actor") < aw.indexOf("const outcome = attackOutcome({"));
+  // The outcome is a function of the check since 3.681.0 (read again after a reaction's reroll).
+  && aw.indexOf("offerAttackReroll({ attacker: actor") < aw.indexOf("const outcomeOf = (c) => attackOutcome({"));
 const cw = read("module", "magic", "cast-workflow.mjs");
 ok("D5 a spell attack is offered on every ray, of that ray's creature (B3-5: any attack roll)",
   /if \(!check\?\.rerolledFrom\) \{\s*const \{ offerAttackReroll, rerolledSpellCheck, postRerollCard \} = await import\("\.\.\/combat\/attack-reroll-workflow\.mjs"\);\s*const asked = await offerAttackReroll\(\{ attacker: actor, defender: targetActor, check, what: spell\.name, db: baseDB \}\);/.test(cw)
-  && cw.indexOf("offerAttackReroll({ attacker: actor") < cw.indexOf("const attackTotal = assembledSpellAttackTotal({"));
+  // The total is a function of the check since 3.681.0 (read again after a reaction's reroll).
+  && cw.indexOf("offerAttackReroll({ attacker: actor") < cw.indexOf("const attackTotalOf = (c) => {\n    const assembled = assembledSpellAttackTotal({"));
 const arw = read("module", "combat", "attack-reroll-workflow.mjs");
 ok("D6 the defender's player is asked; the point is spent on the defender's client, re-checked there; a timeout is a no",
   /return defenceAnswerer\(\{ actorId: defender\?\.id/.test(arw)
@@ -147,7 +150,8 @@ ok("F1 applied damage is announced after it lands, only when some was taken, wit
   && /if \(actor && taken > 0\) \{[\s\S]{0,300}Hooks\.callAll\("trgPrimeDamageApplied", \{ actor, amount: taken, isCritical, nonlethal, damageTypes, sourceUuid: String\(sourceUuid \?\? ""\), sourceName, context: context \?\? null \}\);/.test(dw)
   && dw.indexOf("applyDamageAndCheckDyingInner(actor, damage") < dw.indexOf("Hooks.callAll(\"trgPrimeDamageApplied\""));
 ok("F2 a Strike says what it was: its attacker, melee or not, its type", /sourceUuid: actor\.uuid \?\? "",\s*context: \{ kind: "strike", melee: isMelee, damageType: String\(effectiveDamageType \?\? ""\), weaponName: weapon\?\.name \?\? "" \}/.test(aw));
-equal("F3 a spell's damage says so, at every call that applies it", (cw.match(/context: \{ kind: "spell", spellName: spell\?\.name \?\? "" \}/g) ?? []).length, 5);
+// 3.684.0 (G23): three more packets name the caster — the vs-trait half, the attack's second pool, the immune alternate.
+equal("F3 a spell's damage says so, at every call that applies it", (cw.match(/context: \{ kind: "spell", spellName: spell\?\.name \?\? "" \}/g) ?? []).length, 8);
 
 /* G — declared effects, helpers -------------------------------------- */
 const de = await mod("magic", "declared-effect.mjs");
@@ -175,18 +179,27 @@ const technique = { id: "t1", name: "Burst Step", type: "ability", system: { tra
 const spentTechnique = { id: "t2", name: "Guarded Centre", type: "ability", system: { traits: "Focus, Technique", usesValue: 0, usesPerDay: "" } };
 const focusOnly = { id: "f1", name: "Impact Absorption", type: "ability", system: { traits: "Defence, Focus", usesValue: 1, usesPerDay: "1" } };
 equal("H3 Deep Focus arriving tops up the techniques already there, a spent use staying spent",
-  fd.focusExtraTopUps(deep, [technique, spentTechnique, focusOnly, deep]), [{ _id: "t1", "system.usesValue": 2 }, { _id: "t2", "system.usesValue": 1 }]);
+  // RE-PINNED 3.686.2 (finding 9): each update also records the carrier that gave it.
+  fd.focusExtraTopUps(deep, [technique, spentTechnique, focusOnly, deep]), [{ _id: "t1", "system.usesValue": 2, "flags.trg-prime.focusExtraGiven.deep": 1 }, { _id: "t2", "system.usesValue": 1, "flags.trg-prime.focusExtraGiven.deep": 1 }]);
+// NEW 3.686.2 (finding 9): the top-up is idempotent — an item that carrier
+// already topped up is not topped up again, though another carrier still may.
+equal("H3b a second run of the same carrier's top-up adds nothing; another carrier's still does",
+  [fd.focusExtraTopUps(deep, [{ ...technique, system: { ...technique.system, usesValue: 2 }, flags: { "trg-prime": { focusExtraGiven: { deep: 1 } } } }]),
+   fd.focusExtraTopUps({ ...deep, id: "deep2" }, [{ ...technique, flags: { "trg-prime": { focusExtraGiven: { deep: 1 } } } }]).length], [[], 1]);
 equal("H4 an item that declares nothing tops up nothing", fd.focusExtraTopUps({ name: "Sword" }, [technique]), []);
 const itm = read("module", "documents", "item.mjs");
 ok("H5 a Focus item arrives with its declared extra uses too",
   /const extra = owner\s*\? focusExtraUses\(\{ name: this\.name, system: \{ \.\.\.this\.system, traits: traits \?\? this\.system\?\.traits \} \}, declarationCarriers\(owner\)\)\s*: 0;\s*const full = focusUses \+ extra;\s*if \(Number\(this\.system\?\.usesValue \?\? 0\) < full\) this\.updateSource\(\{ "system\.usesValue": full \}\);/.test(itm));
 const few = read("module", "focus-extra-workflow.mjs");
-ok("H6 the top-up runs on the creating client, not for an import, and writes the updates",
-  /if \(userId !== game\.user\?\.id\) return;/.test(few) && /if \(options\?\.keepId\) return;/.test(few)
+// RE-PINNED 3.686.2 (Graham's 3.686.1): one ACTING client writes the top-up
+// (`isActingClientFor` the actor), not the creating user — a user id names
+// an account, and two tabs of it both saw the createItem.
+ok("H6 the top-up runs on the actor's one acting client, not for an import, and writes the updates",
+  /if \(!isActingClientFor\(actor\)\) return;/.test(few) && !/userId !== game\.user/.test(few) && /if \(options\?\.keepId\) return;/.test(few)
   && /const updates = focusExtraTopUps\(item, Array\.from\(actor\.items \?\? \[\]\)\.filter\(\(i\) => i\.id !== item\.id\)\);\s*if \(updates\.length\) await actor\.updateEmbeddedDocuments\("Item", updates\);/.test(few)
   && /registerFocusExtraTopUps\(\);/.test(read("scripts", "trg-prime.mjs")));
 
-const EXPECTED = 59;
+const EXPECTED = 60; // 3.686.2: H3b
 equal("Z the suite ran every check it is meant to", checks + 1, EXPECTED);
 if (failures.length) { console.log(`verify-block3-core: ${checks} checks — ${failures.length} FAILED\n`); for (const x of failures) console.log(`  ✗ ${x}`); process.exitCode = 1; }
 else console.log(`verify-block3-core: ${checks} checks — all green.`);

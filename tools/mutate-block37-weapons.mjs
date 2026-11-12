@@ -46,7 +46,7 @@ const MUTATIONS = [
   { file: USAGE, name: "a bow counts as melee", from: "    melee: mode !== \"missile\",", to: "    melee: true,", breaks: "E2" },
   { file: USAGE, name: "Razor needs no Keen", from: "  if (rule.keen && !usage?.keen) return no(\"this has no Keen trait\");", to: "", breaks: "E4" },
   { file: DAMAGE, name: "a suppressed rune still deals damage", from: "    if (!runeUsageAllows(chosen.key, usage).ok) continue;", to: "", breaks: "E8" },
-  { file: EFFECTS, name: "B12 — Courageous reads the tier written", from: "    ? Number(computeRuneModifiers({ kind, runes: item?.system?.runes ?? \"\", quality: item?.system?.quality }).attack) || 0", to: "    ? fieldToRunes(kind, item?.system?.runes ?? \"\").find((r) => r.key === \"potency\")?.tier ?? 0", breaks: "E10" },
+  { file: EFFECTS, name: "B12 — Courageous reads the tier written", from: "    ? Number(computeRuneModifiers({ kind, runes: runeFieldOf(item), quality: item?.system?.quality }).attack) || 0", to: "    ? fieldToRunes(kind, runeFieldOf(item)).find((r) => r.key === \"potency\")?.tier ?? 0", breaks: "E10" },
   { file: ACTIONS, name: "Called costs nothing again", from: "    apCost: 2,\n", to: "", breaks: "F1" },
   { file: RUNE_WF, name: "R11 — the Level DC is 10 + level", from: "  return levelDC(Math.max(0, Number(weapon?.system?.itemLevel ?? 0) || 0));", to: "  return 10 + Math.max(0, Number(weapon?.system?.itemLevel ?? 0) || 0);", breaks: "F2" },
   { file: ACTIONS, name: "a bow is a Shifting form", from: "    if (String(candidate?.attackMode ?? \"melee\").trim().toLowerCase() === \"missile\") return false;", to: "", breaks: "F5" },

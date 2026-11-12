@@ -18,6 +18,7 @@ import { SYSTEM_ROOT } from "./lib/sources.mjs";
 const C = path.join(SYSTEM_ROOT, "module", "magic", "cast-workflow.mjs");
 const E = path.join(SYSTEM_ROOT, "module", "magic", "spell-effects.mjs");
 const W = path.join(SYSTEM_ROOT, "module", "magic", "spell-warp.mjs");
+const GW = path.join(SYSTEM_ROOT, "module", "magic", "granted-warps.mjs");
 const F = path.join(SYSTEM_ROOT, "module", "feats-workflow.mjs");
 const CHECK = path.join(SYSTEM_ROOT, "tools", "verify-free-warp.mjs");
 
@@ -26,15 +27,15 @@ const MUTATIONS = [
   {
     file: C,
     name: "N1 THE DEFECT: the note names Powerful Illusion for everyone again",
-    from: "        warp.notes.push(`-${free.waived} PP: ${who} (free, no minimum)`);",
-    to: "        warp.notes.push(`-${free.waived} PP: Powerful Illusion (free, no minimum)`);",
+    from: "        warp.notes.push(`-${free.waived} PP: ${who} (free, no minimum${",
+    to: "        warp.notes.push(`-${free.waived} PP: Powerful Illusion (free, no minimum${",
     breaks: "C1/C2 — a Cleric is told a Wizard feat paid for their warping"
   },
   {
     file: C,
     name: "N2 the grant's own label is ignored",
-    from: '          .map(({ effect, scoped }) => String(scoped.label ?? effect.name ?? "").trim())',
-    to: '          .map(({ effect }) => String(effect.name ?? "").trim())',
+    from: '          .map(({ effect, scoped }) => String(scoped.label ?? effect.name ?? "").trim())\n          .filter(Boolean);',
+    to: '          .map(({ effect }) => String(effect.name ?? "").trim())\n          .filter(Boolean);',
     breaks: "C3 — the label the grant carries is the one it wants shown"
   },
   {
@@ -56,8 +57,8 @@ const MUTATIONS = [
   {
     file: E,
     name: "G1 the spell grants a flag under a name nothing reads",
-    from: "              warpFreeSchool: { school: trait, value: free, label: spell.name }",
-    to: "              warpFreeTrait: { trait, value: free, label: spell.name }",
+    from: "              warpFreeSchool: { school: trait, value: free, label: spell.name, ",
+    to: "              warpFreeTrait: { trait, value: free, label: spell.name, ",
     breaks: "B5 — the flag is written and the cast looks somewhere else"
   },
   {
@@ -75,17 +76,18 @@ const MUTATIONS = [
     breaks: "B8 — the +4 PP warp is charged and changes nothing"
   },
   {
-    file: C,
     name: "G4 the channel matches on something other than the spell's traits",
-    from: "        && spellTraits.includes(String(scoped.school).trim().toLowerCase())",
-    to: "        && true",
+    // RE-POINTED AT 3.684.0 (G25): the match lives in granted-warps.mjs.
+    file: GW,
+    from: "  return school === \"*\" || (Array.isArray(spellTraits) ? spellTraits : []).includes(school);",
+    to: "  return true;",
     breaks: "B1 — every spell gets every free warp, whatever its traits"
   },
   {
-    file: C,
     name: "G5 a zero-value grant counts as a source",
-    from: "        && (Number(scoped.value) || 0) > 0);",
-    to: "        && true);",
+    file: GW,
+    from: "  if (!school || !((Number(scoped?.value) || 0) > 0)) return false;",
+    to: "  if (!school) return false;",
     breaks: "B2 — an empty grant is named on the card as having waived nothing"
   },
   {
@@ -132,7 +134,7 @@ function run() {
   catch { return false; }
 }
 
-const guard = guardFiles([C, E, W, F, CHECK]);
+const guard = guardFiles([C, E, W, GW, F, CHECK]);
 const results = [];
 try {
   if (!run()) {

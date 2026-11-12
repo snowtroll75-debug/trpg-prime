@@ -21,6 +21,7 @@ import { regionContains } from "./surfaces.mjs";
 import { speedValue } from "./speed-pool.mjs";
 import { breathOnWaterline, underwaterFlatFooted, underwaterRegion, UNDERWATER_MARAUDER, UNDERWATER_RESISTANCES } from "./underwater.mjs";
 import { hasCreatureTrait } from "../creature-traits.mjs";
+import { isActingClientFor } from "../acting-gm.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -145,7 +146,7 @@ export async function settleSubmersion(actor, tokenDocument) {
   const flatFooted = !marauder && underwaterFlatFooted({ underwater: true, swimSpeed: swimSpeedOf(actor) });
   await actor.createEmbeddedDocuments("ActiveEffect", [{
     name: SUBMERGED_EFFECT,
-    img: "icons/svg/water.svg",
+    img: "icons/svg/waterfall.svg",
     // A COMMA-LED STRING, which is how every other source of resistance
     // in this system writes to this field — `prepareTextLists` tidies the
     // leading comma when nothing wrote first. It is a TEXT field, not a
@@ -199,10 +200,24 @@ export async function settleSubmersion(actor, tokenDocument) {
  * waterline exactly as a walked one does.
  */
 export function registerUnderwaterHooks() {
+  /*
+   * ONE CLIENT: THE ACTING GM (3.685.3). `updateToken` fires on every
+   * connected client, and this had no guard, so every client that owned
+   * the creature settled it: the GM and the owning player each put on a
+   * Submerged effect, posted a card and started the breath, and leaving the
+   * water took off only one of the two effects, so the resistances stayed.
+   * A client that did not own it was refused. Nothing here asks the moving
+   * user anything: it writes an effect, a status, the drowning flag and a
+   * card, all of which the acting GM may write.
+   *
+   * WITH NO GM CONNECTED, one owner (`isActingClientFor`): the acting GM
+   * alone would leave a player's lone session with no Submerged at all.
+   */
   Hooks.on("updateToken", (tokenDocument, changes) => {
     if (!("x" in changes) && !("y" in changes) && !("elevation" in changes)) return;
     const actor = tokenDocument?.actor ?? null;
     if (!actor) return;
+    if (!isActingClientFor(actor)) return;
     void settleSubmersion(actor, tokenDocument);
   });
 }

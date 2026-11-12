@@ -1,4 +1,6 @@
 import { TRG } from "../module/config.mjs";
+import { gmConnectionReady, gmConnectionSettled, registerGMConnection } from "../module/gm-connection.mjs";
+import { isActingGM, isActingClientFor } from "../module/acting-gm.mjs";
 import { TRGCheck } from "../module/dice/check.mjs";
 import { registerCheckCardListeners } from "../module/dice/check-card-interactions.mjs";
 import * as resolution from "../module/dice/resolution.mjs";
@@ -30,6 +32,7 @@ import { registerPartySocket } from "../module/party-socket.mjs";
 import { registerTargetRelay } from "../module/combat/target-relay-workflow.mjs";
 import { registerGMAuthorisation } from "../module/combat/gm-authorisation.mjs";
 import { registerDefenceOffers } from "../module/combat/defence-offer-workflow.mjs";
+import { registerReactionAsk } from "../module/reactions/reaction-ask-workflow.mjs";
 import { registerOwnLevelView } from "../module/combat/level-view-workflow.mjs";
 import { registerAttackRerollOffers } from "../module/combat/attack-reroll-workflow.mjs";
 import { registerFocusExtraTopUps } from "../module/focus-extra-workflow.mjs";
@@ -47,7 +50,7 @@ import { hasAfflictions, registerAfflictionConditionLock } from "../module/comba
 // THE WINDOW EXTRA CASTING TIME OPENS (3.584.0; page 237, R9).
 import {
   completePendingCast, pendingCastOf, registerPendingCastCardListeners,
-  registerPendingCastHooks, stopPendingCast
+  registerPendingCastHooks, registerPendingCastRelay, stopPendingCast
 } from "../module/magic/pending-cast-workflow.mjs";
 import { registerSustainInterruptHooks } from "../module/magic/sustain-workflow.mjs";
 // A held Power Crystal's points are DERIVED into the pool (3.594.0); these
@@ -92,6 +95,8 @@ import { registerUnderwaterHooks } from "../module/combat/underwater-workflow.mj
 // THE THIRD CLOCK (3.581.0; the pages 211-220 audit's D2): a condition that
 // ends when another condition ends, and one that arrives when another leaves.
 import { registerLinkedConditionHooks, sweepWorldTimeConditions } from "../module/combat/linked-conditions-workflow.mjs";
+import { registerHeldConditionHooks } from "../module/conditions/held-conditions-workflow.mjs";
+import { clockTurnTablesAfterCombat, clockTurnTablesOfCombatant, onTurnTableMarkerDeleted, unclockTurnTablesOfCombat, unclockTurnTablesOfCombatant } from "../module/magic/turn-table-workflow.mjs";
 import { registerEndSaveHooks } from "../module/magic/end-save-workflow.mjs";
 import { registerSwiftPursuitHooks } from "../module/combat/swift-pursuit.mjs";
 import { registerAmmunitionRecoveryHooks } from "../module/combat/ammunition-workflow.mjs";
@@ -169,6 +174,8 @@ import { registerCriticalGuardStep } from "../module/combat/critical-guard-workf
 
 Hooks.once("init", () => {
   console.info("TRG Prime | Initialising Foundry VTT V14 system");
+  // ONE WRITER PER GM ACCOUNT (3.686.1; registered here, not at import, 3.686.2).
+  registerGMConnection();
 
   // Chapter 7: "A round is a period of time approximately 6 seconds, in
   // which each character involved in the combat gets to take a turn."
@@ -266,6 +273,24 @@ Hooks.once("init", () => {
   registerControlRegisterCardListeners();
   registerUnderwaterHooks();
   registerLinkedConditionHooks();
+  // CONDITIONS HELD BY A CURSE (3.686.0, H17): a hold's end takes off what it added.
+  registerHeldConditionHooks();
+  // A TURN TABLE LEFT WHEN COMBAT ENDS (3.686.0, H18): its remaining turns on the world clock.
+  Hooks.on("deleteCombat", (combat) => {
+    clockTurnTablesAfterCombat(combat).catch((err) => console.error("TRG Prime | a turn table's end after combat", err));
+  });
+  Hooks.on("deleteCombatant", (combatant) => {
+    clockTurnTablesOfCombatant(combatant).catch((err) => console.error("TRG Prime | a turn table's end off the tracker", err));
+  });
+  Hooks.on("deleteActiveEffect", (effect) => {
+    onTurnTableMarkerDeleted(effect).catch((err) => console.error("TRG Prime | a turn table's last roll at its end", err));
+  });
+  Hooks.on("createCombatant", (combatant) => {
+    unclockTurnTablesOfCombatant(combatant).catch((err) => console.error("TRG Prime | a turn table joining combat", err));
+  });
+  Hooks.on("updateCombat", (combat, change) => {
+    unclockTurnTablesOfCombat(combat, change).catch((err) => console.error("TRG Prime | a turn table at combat's start", err));
+  });
   registerEndSaveHooks();
   registerSwiftPursuitHooks();
   registerAmmunitionRecoveryHooks();
@@ -419,7 +444,8 @@ Hooks.once("init", () => {
   // temporary HP cleared, Fatigue charged, effect removed.
   Hooks.on("updateActiveEffect", async (effect, changed) => {
     if (!Object.hasOwn(changed ?? {}, "disabled") || !effect?.disabled) return;
-    if (game.users?.activeGM && game.users.activeGM.id !== game.user?.id) return;
+    // One connection of the acting GM; with no GM, one owner (3.686.2).
+    if (!isActingClientFor(effect.parent)) return;
     const { endRageOnDisable } = await import("../module/combat/rage-workflow.mjs");
     const ended = await endRageOnDisable(effect);
     if (!ended) return;
@@ -440,7 +466,7 @@ Hooks.once("init", () => {
   // elapses in world time (the out-of-combat counterpart to the combat turn
   // sweep). One client — the active GM — performs the deletes.
   Hooks.on("updateWorldTime", async (worldTime) => {
-    if (game.users?.activeGM && game.users.activeGM.id !== game.user?.id) return;
+    if (!isActingGM()) return; // one connection of the acting GM (3.686.2)
 
     /*
      * A SPELL'S AREA ON THE WORLD CLOCK (3.500.0) — the other half of the
@@ -890,6 +916,8 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", async () => {
+  // NO AWAIT BEFORE THE LISTENERS (3.686.2, review finding 8): a request
+  // that arrives while ready is waiting must find its listener.
   console.info(`TRG Prime | Ready on Foundry ${game.version}`);
 
   // Push module registrations into the live tables before anything reads
@@ -909,6 +937,11 @@ Hooks.once("ready", async () => {
   // A REACTION TO BEING ATTACKED, ASKED BEFORE THE ROLL (3.666.1) — see
   // combat/defence-offer.mjs: Nimble Dodge, and whatever a module registers.
   registerDefenceOffers();
+  // A REACTION ASKED ACROSS THE TABLE (3.681.0; Eldritch Arts Block 3b).
+  registerReactionAsk();
+  // A CASTING HELD IN ANOTHER BROWSER (3.685.3): its turn's payment, its
+  // interruption and a GM's stop are asked of the client that holds it.
+  registerPendingCastRelay();
   // A PLAYER'S SCREEN ON THEIR OWN TOKEN'S LEVEL (3.666.3) — see
   // combat/level-view-workflow.mjs: a V14 scene opens on its default level.
   registerOwnLevelView();
@@ -944,7 +977,11 @@ Hooks.once("ready", async () => {
   // way as the schema migration below — GM only, and only the active GM if
   // several are logged in — so it runs exactly once per affected world,
   // then becomes a silent no-op forever after.
-  if (game.user?.isGM && (!game.users?.activeGM || game.users.activeGM.id === game.user.id)) {
+  //
+  // ONE CONNECTION (3.686.2): the election settles first, so a lone GM's
+  // sweep is never skipped and a second tab of the same GM does not repeat it.
+  if (!gmConnectionSettled()) await gmConnectionReady();
+  if (isActingGM()) {
     await purgeOrphanedItemsOfType("action");
   }
 

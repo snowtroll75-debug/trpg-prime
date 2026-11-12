@@ -361,12 +361,63 @@ export function hasPlantResistance(items = []) {
  * Spell Resilience: "a racial bonus equal to its class bonus to all saving
  * throws and DB against magical attacks" — the modifier row for a spell's
  * save or attack against this creature, or none.
+ *
+ * UNDER ANOTHER NAME (3.675.0; Eldritch Arts Block 1, C2). The Nyrinn's
+ * Null Aura: "This allows you to add your class bonus to all saving throws
+ * and DB vs magical effects" — the same rule, printed as its own ability.
+ * The derive may be `true` (Spell Resilience, racial) or `{label, type}`;
+ * one row per name, so an ability is never counted twice.
+ *
+ * LOWERED BY THE CASTER (3.675.0, C2). Spell Penetration: "When targeting a
+ * creature that has Spell Resilience with a spell or magical effect, you
+ * lower the ability by 2." The caster's feat or effect declares
+ * `flags.trg-prime.spellResilienceReduction = {value: 2, labels: ["Spell
+ * Resilience"]}`; a row whose name is listed is lowered (never below 0).
+ * Named, so Null Aura is not lowered by a feat that names Spell Resilience.
+ *
+ * @param {Actor} actor the creature defending
+ * @param {Actor|null} [caster] the creature whose spell it is
  */
-export function spellResilienceModifiers(actor) {
+export function spellResilienceModifiers(actor, caster = null) {
   const items = Array.from(actor?.items ?? []);
-  if (!abilityDerives(items).some(({ derives }) => derives.spellResilience === true)) return [];
   const value = Math.max(0, Math.floor(Number(actor?.system?.identity?.classBonus ?? 0) || 0));
-  return value ? [{ label: "Spell Resilience", value, type: "race" }] : [];
+  if (!value) return [];
+  const byLabel = new Map();
+  for (const { item, derives } of abilityDerives(items)) {
+    const raw = derives.spellResilience;
+    if (raw !== true && !(raw && typeof raw === "object")) continue;
+    const label = raw === true ? "Spell Resilience" : (String(raw.label ?? item?.name ?? "").trim() || "Spell Resilience");
+    const type = raw === true ? "race" : (String(raw.type ?? "race").trim() || "race");
+    if (!byLabel.has(label.toLowerCase())) byLabel.set(label.toLowerCase(), { label, value, type });
+  }
+  const rows = [...byLabel.values()];
+  const cuts = spellResilienceReductions(caster);
+  return rows
+    .map((row) => {
+      const cut = cuts.filter((c) => c.labels.includes(row.label.toLowerCase())).reduce((sum, c) => sum + c.value, 0);
+      return cut ? { ...row, value: Math.max(0, row.value - cut), reducedBy: cut } : row;
+    })
+    .filter((row) => row.value > 0);
+}
+
+/**
+ * The reductions a caster's feats and effects declare (C2).
+ * @param {Actor|null} caster
+ * @returns {Array<{value: number, labels: string[], label: string}>}
+ */
+export function spellResilienceReductions(caster) {
+  const out = [];
+  const sources = [...Array.from(caster?.items ?? []), ...Array.from(caster?.appliedEffects ?? caster?.effects ?? [])];
+  for (const source of sources) {
+    if (source?.disabled) continue;
+    if (source?.type === "ability" && source?.system?.active === false) continue;
+    const raw = source?.flags?.[SYSTEM_ID]?.spellResilienceReduction;
+    if (!raw || typeof raw !== "object") continue;
+    const value = Math.max(0, Math.floor(Number(raw.value) || 0));
+    const labels = (Array.isArray(raw.labels) ? raw.labels : ["Spell Resilience"]).map((l) => String(l ?? "").trim().toLowerCase()).filter(Boolean);
+    if (value && labels.length) out.push({ value, labels, label: String(raw.label ?? source?.name ?? "").trim() });
+  }
+  return out;
 }
 
 /**

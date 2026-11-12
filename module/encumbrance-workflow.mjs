@@ -13,8 +13,10 @@
  * exactly where it is.
  */
 
+import { gmConnectionReady, gmConnectionSettled } from "./gm-connection.mjs";
 import { isActingGM } from "./acting-gm.mjs";
 import { CONDITIONS } from "./conditions/registry.mjs";
+import { withActorConditionWriter } from "./condition-writer.mjs";
 
 const SYSTEM_ID = "trg-prime";
 const LOAD_FLAG = "immobilisedByLoad";
@@ -123,6 +125,10 @@ async function syncLoadCondition(actor, { conditionId, flag, on, notice = "" }) 
 const inFlight = new Set();
 
 export async function syncEncumbranceImmobilised(actor, { quiet = false } = {}) {
+  return withActorConditionWriter(actor, () => syncEncumbranceNow(actor, { quiet }));
+}
+
+async function syncEncumbranceNow(actor, { quiet = false } = {}) {
   if (!actor?.system?.combat?.movement) return "unchanged";
   // Only the GM writes, so five connected clients don't race to apply the
   // same condition — the same gate the migration and turn automation use.
@@ -190,7 +196,9 @@ export function registerEncumbranceHooks() {
   // exactly as it was, Encumbered by the rules and not on the sheet, until
   // the player next picked something up. QUIET, because a world with a
   // dozen overloaded NPCs should not greet its GM with a dozen banners.
-  Hooks.once("ready", () => {
+  // ONCE, SO NEVER SKIPPED (3.686.2): the GM-connection election settles first.
+  Hooks.once("ready", async () => {
+    if (!gmConnectionSettled()) await gmConnectionReady();
     for (const actor of game.actors ?? []) {
       void syncEncumbranceImmobilised(actor, { quiet: true });
     }

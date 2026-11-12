@@ -430,7 +430,7 @@
             </div>
             <div
               class="hero-stat"
-              data-tooltip="Every source of Damage Reduction you have, against an ordinary physical hit: equipped armour (after the Chapter 6 BDB multiplier), Natural Armour, and any Bonus DR. Energy types halve it and essence, force, aligned, mental and poison ignore it entirely; Armour Rending, Penetrating and a critical to an unarmoured location all cut it further. The Combat tab breaks the sources out."
+              data-tooltip="Every source of Damage Reduction you have, against an ordinary physical hit: equipped armour (after the Chapter 6 BDB multiplier) or Mage Armour / Bracers of Armour, whichever is higher, Natural Armour, and any Bonus DR. Energy types halve it and essence, force, aligned, mental and poison ignore it entirely; Armour Rending, Penetrating and a critical to an unarmoured location all cut it further. The Combat tab breaks the sources out."
             >
               <span class="hero-stat-label">Damage Reduction</span>
               <strong>{{totalDR}}</strong>
@@ -1280,13 +1280,22 @@
                   than recomputing it — `totalDR` is built once in
                   _prepareContext from damage.mjs's own function, so the
                   rows above and the number below cannot drift apart. --}}
+            {{!-- MAGE ARMOUR AND THE BRACERS (3.684.9): their Base DR, shown
+                  where the other sources are. The higher of it and the Armour
+                  DR applies (never both), and the total below already says so. --}}
+            {{#if system.combat.bracers.itemName}}
+            <label>
+              <span>{{system.combat.bracers.itemName}} DR</span>
+              <output data-tooltip="Magical armour (Mage Armour or Bracers of Armour): Base DR {{system.combat.bracers.dr}}, scaled by your BSB. The higher of it and your worn Armour DR applies, never both. Its pool: {{system.combat.bracers.hp}}/{{system.combat.bracers.max}} HP{{#if system.combat.bracers.inert}} — inert, returning within the hour{{/if}}.">{{system.combat.bracers.effective}}</output>
+            </label>
+            {{/if}}
             <label>
               <span>Bonus DR</span>
               <output data-tooltip="{{system.combat.dr.tooltip}}">{{system.combat.dr.total}}</output>
             </label>
             <label>
               <span>Damage Reduction (total)</span>
-              <output data-tooltip="Armour DR (after the Chapter 6 BDB multiplier) + Natural Armour DR + Bonus DR — the same figure as the Summary tab's headline, against an ordinary physical hit. Shield DR is excluded: it applies only through the Shield Block reaction.">{{totalDR}}</output>
+              <output data-tooltip="Armour DR (after the Chapter 6 BDB multiplier), or Mage Armour / Bracers DR if higher, + Natural Armour DR + Bonus DR — the same figure as the Summary tab's headline, against an ordinary physical hit. Shield DR is excluded: it applies only through the Shield Block reaction.">{{totalDR}}</output>
             </label>
           </div>
         </article>
@@ -2290,6 +2299,10 @@
               <span>{{item.system.range}}</span>
               <span>{{item.system.totalWeight}}</span>
               <div class="item-controls">
+                {{!-- STOW IN A STASH SACK (3.684.9): every carried row, not only gear. --}}
+                <button type="button" data-action="toggleItemStowed" data-tooltip="{{#if item.system.stowed}}Stowed in a Stash Sack — click to take out{{else}}Stow in a Stash Sack (its weight stops counting){{/if}}">
+                  <i class="fa-solid fa-sack-xmark{{#unless item.system.stowed}} muted-icon{{/unless}}"></i>
+                </button>
                 {{#if item.alwaysReady}}
                 <span class="always-ready" data-tooltip="Natural attack — always ready, and it takes no hand">
                   <i class="fa-solid fa-hand-fist"></i>
@@ -2369,6 +2382,10 @@
               <span>{{item.system.dr}}</span>
               <span>{{item.system.totalWeight}}</span>
               <div class="item-controls">
+                {{!-- STOW IN A STASH SACK (3.684.9): every carried row, not only gear. --}}
+                <button type="button" data-action="toggleItemStowed" data-tooltip="{{#if item.system.stowed}}Stowed in a Stash Sack — click to take out{{else}}Stow in a Stash Sack (its weight stops counting){{/if}}">
+                  <i class="fa-solid fa-sack-xmark{{#unless item.system.stowed}} muted-icon{{/unless}}"></i>
+                </button>
                 <button type="button" data-action="toggleItemEquipped" data-tooltip="{{#if item.system.equipped}}Worn — click to remove{{else}}Not worn — click to wear{{/if}}">
                   <i class="fa-solid fa-shirt{{#unless item.system.equipped}} muted-icon{{/unless}}"></i>
                 </button>
@@ -2398,6 +2415,10 @@
               <span>{{item.system.dr}}</span>
               <span>{{item.system.totalWeight}}</span>
               <div class="item-controls">
+                {{!-- STOW IN A STASH SACK (3.684.9): every carried row, not only gear. --}}
+                <button type="button" data-action="toggleItemStowed" data-tooltip="{{#if item.system.stowed}}Stowed in a Stash Sack — click to take out{{else}}Stow in a Stash Sack (its weight stops counting){{/if}}">
+                  <i class="fa-solid fa-sack-xmark{{#unless item.system.stowed}} muted-icon{{/unless}}"></i>
+                </button>
                 {{#if item.isBuckler}}
                   <button type="button" data-action="toggleShieldArm" data-tooltip="{{#if item.shieldArmInUse}}Shield arm is in use — {{item.bucklerPenalty}} to attack and no DB from the buckler. Click to free it.{{else}}Shield arm free — the buckler gives its full DB. Click if you are using a weapon with it.{{/if}}">
                     <i class="fa-solid {{#if item.shieldArmInUse}}fa-hand-fist{{else}}fa-shield{{/if}}"></i>
@@ -2548,6 +2569,10 @@
               <span>{{item.system.quantity}}</span>
               <span>{{item.system.totalWeight}}</span>
               <div class="item-controls">
+                {{!-- STOW IN A STASH SACK (3.684.9): every carried row, not only gear. --}}
+                <button type="button" data-action="toggleItemStowed" data-tooltip="{{#if item.system.stowed}}Stowed in a Stash Sack — click to take out{{else}}Stow in a Stash Sack (its weight stops counting){{/if}}">
+                  <i class="fa-solid fa-sack-xmark{{#unless item.system.stowed}} muted-icon{{/unless}}"></i>
+                </button>
                 {{#if item.canUseConsumable}}
                   <button type="button" data-action="useConsumable" data-tooltip="{{item.consumableVerb}} it{{#if item.consumableSpell}} — releases {{item.consumableSpell}}{{else}} — nothing is recorded on it, so its description is read out instead{{/if}}">
                     <i class="fa-solid fa-wand-sparkles{{#if item.consumableNeedsSpell}} muted-icon{{/if}}"></i>
@@ -2582,6 +2607,10 @@
               <span>{{item.system.quantity}}</span>
               <span>{{item.system.totalWeight}}</span>
               <div class="item-controls">
+                {{!-- STOW IN A STASH SACK (3.684.9): every carried row, not only gear. --}}
+                <button type="button" data-action="toggleItemStowed" data-tooltip="{{#if item.system.stowed}}Stowed in a Stash Sack — click to take out{{else}}Stow in a Stash Sack (its weight stops counting){{/if}}">
+                  <i class="fa-solid fa-sack-xmark{{#unless item.system.stowed}} muted-icon{{/unless}}"></i>
+                </button>
                 <button type="button" data-action="itemEdit"><i class="fa-solid fa-pen-to-square"></i></button>
                 {{#if ../editable}}
                   <button type="button" data-action="itemDelete"><i class="fa-solid fa-trash"></i></button>
@@ -2650,7 +2679,11 @@
               <span>{{item.system.price}}</span>
               <span>{{item.system.totalWeight}}</span>
               <div class="item-controls">
-                <button type="button" data-action="toggleItemEquipped" data-tooltip="{{#if item.system.equipped}}Held — click to stow{{else}}Stowed — click to hold{{/if}}">
+                {{!-- STOW IN A STASH SACK (3.684.9): every carried row, not only gear. --}}
+                <button type="button" data-action="toggleItemStowed" data-tooltip="{{#if item.system.stowed}}Stowed in a Stash Sack — click to take out{{else}}Stow in a Stash Sack (its weight stops counting){{/if}}">
+                  <i class="fa-solid fa-sack-xmark{{#unless item.system.stowed}} muted-icon{{/unless}}"></i>
+                </button>
+                <button type="button" data-action="toggleItemEquipped" data-tooltip="{{#if item.system.equipped}}Held — click to put away{{else}}Not held — click to hold{{/if}}">
                   <i class="fa-solid fa-hand-fist{{#unless item.system.equipped}} muted-icon{{/unless}}"></i>
                 </button>
                 {{#if item.hasInvested}}
@@ -2708,7 +2741,11 @@
               <span>{{item.system.price}}</span>
               <span>{{item.system.totalWeight}}</span>
               <div class="item-controls">
-                <button type="button" data-action="toggleItemEquipped" data-tooltip="{{#if item.system.equipped}}Worn — click to stow{{else}}Stowed — click to wear{{/if}}">
+                {{!-- STOW IN A STASH SACK (3.684.9): every carried row, not only gear. --}}
+                <button type="button" data-action="toggleItemStowed" data-tooltip="{{#if item.system.stowed}}Stowed in a Stash Sack — click to take out{{else}}Stow in a Stash Sack (its weight stops counting){{/if}}">
+                  <i class="fa-solid fa-sack-xmark{{#unless item.system.stowed}} muted-icon{{/unless}}"></i>
+                </button>
+                <button type="button" data-action="toggleItemEquipped" data-tooltip="{{#if item.system.equipped}}Worn — click to take off{{else}}Not worn — click to wear{{/if}}">
                   <i class="fa-solid fa-hand-fist{{#unless item.system.equipped}} muted-icon{{/unless}}"></i>
                 </button>
                 {{#if item.hasInvested}}
@@ -2896,7 +2933,9 @@
             Active Spells list: the entry there belongs to Spell Storing
             itself, which is PP-locked until daily preparations, while
             this is a different spell sitting in a different object. --}}
-      {{#if storedSpell}}
+      {{!-- EVERY STORE (3.684.0, G16): a Storing Rune's beside the staff's,
+            each row releasing its own host. --}}
+      {{#if storedSpells.length}}
       <article class="ornate-card stored-spell">
         <div class="item-list-header">
           <span>Stored Spell</span>
@@ -2904,15 +2943,17 @@
           <span>In</span>
           <span></span>
         </div>
+        {{#each storedSpells as |storedSpell|}}
         <div class="item-row">
           <span>{{storedSpell.name}}</span>
           <span>{{storedSpell.ppPaid}}</span>
           <span>{{storedSpell.itemName}}</span>
           <span class="spell-actions">
-            <button type="button" data-action="releaseStoredSpell"
+            <button type="button" data-action="releaseStoredSpell" data-host-id="{{storedSpell.hostId}}"
               data-tooltip="Release the stored spell ({{storedSpell.releaseLabel}}) — its targets, check and saves resolve now"><i class="fa-solid fa-wand-sparkles"></i></button>
           </span>
         </div>
+        {{/each}}
         <p class="hint" style="padding:4px 8px">Paid for at storage; releasing settles the difference against the degree rolled.</p>
       </article>
       {{/if}}
@@ -2993,7 +3034,7 @@
       <article class="ornate-card repertoire-card">
         <div class="section-heading">
           <div>
-            <span class="eyebrow">Learned once — cast at any time, no memorisation</span>
+            <span class="eyebrow">{{#if knownCantrips.fromBook}}Kept in your spell book — memorise them each day{{else}}Learned once — cast at any time, no memorisation{{/if}}</span>
             <h2>Cantrips</h2>
           </div>
           {{#if editable}}
@@ -3016,7 +3057,7 @@
           </label>
           <label>
             <span>Restriction</span>
-            <output data-tooltip="What a cantrip may be: PP 0, from your own tradition.">{{knownCantrips.tradition}} · PP 0</output>
+            <output data-tooltip="What a cantrip may be: PP 0, from your own tradition{{#if knownCantrips.slotLabel}} — the next is your {{knownCantrips.slotLabel}}{{/if}}.">{{knownCantrips.restriction}} · PP 0</output>
           </label>
         </div>
       </article>
@@ -3087,6 +3128,44 @@
         <p class="hint"><strong>Prepared today:</strong>
           {{#each arch.daily as |c|}}{{c.name}}{{#unless @last}}, {{/unless}}{{/each}}</p>
         {{/if}}
+        {{#if arch.hasLevelledBook}}
+        {{!-- The book's LEVELLED half (3.676.0): what Arcane Knight and the
+              caster-tier slots memorise from. Free additions come from the
+              tier feats; Learn a Spell (Arcana) adds more. --}}
+        <div class="section-heading archetype-book-heading">
+          <div>
+            <span class="eyebrow">Your spell slots memorise from these</span>
+            <h3>Spellbook — Levelled Spells</h3>
+          </div>
+          {{#if @root.editable}}
+          {{#if arch.freeRemaining}}
+          <div class="heading-actions">
+            <button type="button" class="gold-button" data-action="addArchetypeBookSpell"
+              data-source="{{arch.key}}"
+              data-tooltip="Write one {{arch.traditionLabel}} spell of PP {{arch.maxBookPP}} or less into your spellbook — a free addition from your caster feats.">
+              <i class="fa-solid fa-feather"></i> Add to Spellbook
+            </button>
+          </div>
+          {{/if}}
+          {{/if}}
+        </div>
+        <div class="field-grid four-column">
+          <label>
+            <span>In the book</span>
+            <output data-tooltip="Levelled spells written into this spellbook.">{{arch.levelled.length}}</output>
+          </label>
+          <label>
+            <span>Free additions</span>
+            <output data-tooltip="One for each spell slot your Minor, Major and Master caster feats grant. Arcane Knight grants none.">{{arch.freeUsed}} / {{arch.freeAllowed}}</output>
+          </label>
+        </div>
+        {{#if arch.levelled.length}}
+        <p class="hint"><strong>Spellbook:</strong>
+          {{#each arch.levelled as |b|}}{{b.name}} (PP {{b.pp}}){{#if b.memorised}} <em>— memorised</em>{{/if}}{{#unless @last}}, {{/unless}}{{/each}}</p>
+        {{else}}
+        <p class="hint"><em>No levelled spells yet.{{#if arch.freeRemaining}} Use Add to Spellbook, or{{else}} Add them with{{/if}} Learn a Spell (Arcana).</em></p>
+        {{/if}}
+        {{/if}}
       </article>
       {{/each}}
 
@@ -3131,7 +3210,7 @@
                 </button>
                 {{else}}
                 <button type="button" class="gold-button" data-action="pickFeatSlotSpell"
-                  data-slot="{{slot.id}}" data-tooltip="Memorise a spell of PP {{slot.maxPP}} or less in this slot.">
+                  data-slot="{{slot.id}}" data-tooltip="Memorise a spell of PP {{slot.maxPP}} or less in this slot{{#if slot.fromBook}}, from your spellbook{{/if}}.">
                   <i class="fa-solid fa-wand-sparkles"></i> Memorise
                 </button>
                 {{/if}}
@@ -3141,6 +3220,9 @@
             {{/each}}
           </tbody>
         </table>
+        {{/if}}
+        {{#if grp.fromBook}}
+        <p class="hint"><em>Memorised from your spellbook — a slot holds a spell already written in it. Clearing a slot leaves the spell in the book.</em></p>
         {{/if}}
         {{#if grp.orphaned}}
         <p class="hint"><strong style="color:#8a1c1c">No slot:</strong>

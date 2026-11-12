@@ -74,6 +74,90 @@
  * item data this needs; nothing here touches Foundry.
  */
 import { SKILL_LABEL_TO_KEY, parsePrerequisiteClause } from "./prerequisites.mjs";
+import { TRADITIONS } from "./config.mjs";
+
+/*
+ * ───────────────────────────────────────────────────────────────────
+ * THREE SHAPES ELDRITCH ARTS PRINTS (3.684.0; Block 6, G8). Graham's Q90 and
+ * Q91 of 4 November 2026, as proposed.
+ *
+ * "+N LEVELS" — the shape the paragraph above leaves unparsed for Archer,
+ * "levels gained SINCE taking the archetype, a delta this system has nowhere
+ * to store". Q90: the seven Pacts, Hex Weaver, Bloodmage, Blood of the Wyrm,
+ * Runeblade and Spell Duellist print "+10 levels", and it means exactly that:
+ * ten levels gained since the archetype was taken. The store is now there,
+ * but OPT-IN PER ARCHETYPE: an archetype feat declaring
+ * `flags.trg-prime.progressionSinceTaken: true` has the character's level
+ * stamped on it when it is added (`flags.trg-prime.archetypeTakenAt`,
+ * TRGItem._preCreate; see `archetypeTakenAtStamp`), and its line is read
+ * against that. The core's Archer declares nothing, so its line stays as the
+ * paragraph above describes — unparsed, never blocking — as Q90 asked. A
+ * feat that opts in but carries no stamp (taken before this release) passes
+ * open, as it did.
+ *
+ * "CANNOT PROGRESS" — Eternal Vigil's own line (EA-M3), and by Q91 the
+ * meaning of Runebreaker's, Shade Master's and Stormcaller's empty ones (the
+ * module stores the words): no later archetype, ever. The one shape that
+ * never passes; no core archetype prints it.
+ *
+ * "TRADITION SKILL +N RANKS" — Leyline Weaver. Q91: any one tradition skill
+ * (config.mjs TRADITIONS: Arcana, Religion, Occultism, Nature) at N ranks,
+ * as its prerequisite's "any one tradition skill". No core archetype prints it.
+ * ───────────────────────────────────────────────────────────────────
+ */
+
+/** The four tradition skills' keys (config.mjs), for "Tradition skill +N ranks". */
+const TRADITION_SKILL_KEYS = Object.freeze([...new Set(Object.values(TRADITIONS).map((t) => t.skill).filter(Boolean))]);
+
+/** The archetype feat's opt-in flag and its stamp (3.684.0, G8). */
+export const PROGRESSION_SINCE_TAKEN_FLAG = "progressionSinceTaken";
+export const ARCHETYPE_TAKEN_AT_FLAG = "archetypeTakenAt";
+/** WHOSE stamp it is (3.684.0, G8 — review): the owning actor's uuid. */
+const ARCHETYPE_TAKEN_BY_FLAG = "archetypeTakenBy";
+
+/**
+ * The stamp an archetype feat arriving on an actor gets (3.684.0, G8), as an
+ * update for `updateSource`, or null: only an Archetype-category feat that
+ * opts in, and carries no stamp yet or another actor's.
+ *
+ * A COPY IS RE-STAMPED (3.684.0, G8 — review, Low). The first version kept
+ * any stamp a feat arrived with, so a Pact dragged from a level-12 Warlock's
+ * sheet onto a level-3 character's arrived "taken at 12" and its "+10 levels"
+ * could not pass for nine levels — or, the other way, opened at once. The
+ * owner's uuid is stamped beside the level, and a feat arriving on a
+ * different actor than the one it names is stamped afresh. A feat arriving
+ * on the actor its stamp names (a duplicate, an undo) keeps it; so does one
+ * whose new owner is not yet known (`actorUuid` blank).
+ *
+ * @param {object} itemData the item's source (`type`, `system`, `flags`)
+ * @param {number} level the owner's character level
+ * @param {string} [actorUuid] the owner's uuid
+ */
+export function archetypeTakenAtStamp(itemData, level, actorUuid = "") {
+  if (itemData?.type !== "feat" || itemData?.system?.category !== "Archetype") return null;
+  const flags = itemData?.flags?.["trg-prime"] ?? {};
+  if (flags[PROGRESSION_SINCE_TAKEN_FLAG] !== true) return null;
+  const owner = String(actorUuid ?? "").trim();
+  const stampedBy = String(flags[ARCHETYPE_TAKEN_BY_FLAG] ?? "").trim();
+  const stamped = Number.isFinite(Number(flags[ARCHETYPE_TAKEN_AT_FLAG])) && flags[ARCHETYPE_TAKEN_AT_FLAG] !== null && flags[ARCHETYPE_TAKEN_AT_FLAG] !== "";
+  if (stamped && (!owner || stampedBy === owner)) return null;
+  const lv = Math.max(0, Math.trunc(Number(level) || 0));
+  return {
+    [`flags.trg-prime.${ARCHETYPE_TAKEN_AT_FLAG}`]: lv,
+    ...(owner ? { [`flags.trg-prime.${ARCHETYPE_TAKEN_BY_FLAG}`]: owner } : {})
+  };
+}
+
+/**
+ * What an archetype feat tells its own progression line (3.684.0, G8): whether
+ * it opts in to "+N levels", and the level it was taken at (null unstamped).
+ */
+export function archetypeProgressionContext(feat) {
+  const flags = feat?.flags?.["trg-prime"] ?? {};
+  const raw = flags[ARCHETYPE_TAKEN_AT_FLAG];
+  const takenAt = raw === null || raw === undefined || raw === "" || !Number.isFinite(Number(raw)) ? null : Math.trunc(Number(raw));
+  return { sinceTaken: flags[PROGRESSION_SINCE_TAKEN_FLAG] === true, takenAt };
+}
 
 /**
  * Parses a Progression Requirements string into a structured check, or
@@ -101,8 +185,8 @@ import { SKILL_LABEL_TO_KEY, parsePrerequisiteClause } from "./prerequisites.mjs
  * and far better than picking a reading at random.
  *
  * @param {string} text
- * @returns {{type: "ability"|"bab"|"bsb"|"level"|"grantedClassSkill", key?: string, min: number}
- *   | {type: "skillAny"|"skillAll", keys: string[], min: number} | null}
+ * @returns {{type: "ability"|"bab"|"bsb"|"level"|"grantedClassSkill"|"levelsSince", key?: string, min: number}
+ *   | {type: "skillAny"|"skillAll", keys: string[], min: number} | {type: "never"} | null}
  */
 export function parseProgressionClause(text) {
   // THE BOOKS' OWN PUNCTUATION (3.671.0, Inner Tempest Block 7). Thirteen
@@ -129,6 +213,15 @@ export function parseProgressionClause(text) {
   // caller supplies (meetsProgressionRequirement's `context.grantedSkill`).
   const gained = trimmed.match(/^Gained class skill\s*\+(\d+)\s*ranks?$/i);
   if (gained) return { type: "grantedClassSkill", min: Number(gained[1]) };
+
+  // "+N LEVELS", "CANNOT PROGRESS", "TRADITION SKILL +N RANKS" (3.684.0;
+  // Block 6, G8, Q90/Q91). See the note at the top of this file. Archer's
+  // "Any 3 feats …, +8 levels" is two clauses and matches none of these.
+  const since = trimmed.match(/^\+(\d+)\s+levels?$/i);
+  if (since) return { type: "levelsSince", min: Number(since[1]) };
+  if (/^cannot progress$/i.test(trimmed)) return { type: "never" };
+  const tradition = trimmed.match(/^(?:any\s+(?:one\s+)?)?Tradition skills?\s*\+(\d+)\s*ranks?$/i);
+  if (tradition) return { type: "skillAny", keys: [...TRADITION_SKILL_KEYS], min: Number(tradition[1]) };
 
   // BAB/BSB/ability/Level all use the identical text shape prerequisites
   // already parses ("BAB +10", "Str +2", "Level 5") — reused directly.
@@ -189,7 +282,9 @@ export function parseProgressionClause(text) {
  *   (level, bab, bsb, abilities, skillRanks).
  * @param {object} [context] For "Gained class skill" (3.671.0):
  *   `hasGrant` (the archetype has a class-skill grant) and `grantedSkill`
- *   (the skill key it chose, or empty).
+ *   (the skill key it chose, or empty). For "+N levels" (3.684.0, G8):
+ *   `sinceTaken` (the feat opts in) and `takenAt` (its stamp, or null) —
+ *   `archetypeProgressionContext(feat)`.
  * @returns {boolean}
  */
 export function meetsProgressionRequirement(progressionRequirements, actorStats = {}, context = {}) {
@@ -207,6 +302,16 @@ export function meetsProgressionRequirement(progressionRequirements, actorStats 
       if (!context.hasGrant) return true;
       if (!context.grantedSkill) return false;
       return Number(actorStats.skillRanks?.[context.grantedSkill] ?? 0) >= parsed.min;
+    // "+N levels" (3.684.0, G8, Q90): levels gained since the archetype was
+    // taken, for an archetype that opts in (`context.sinceTaken`) and was
+    // stamped (`context.takenAt`). Otherwise unparsed, as Archer's always was.
+    case "levelsSince":
+      if (!context.sinceTaken) return true;
+      if (context.takenAt === null || context.takenAt === undefined || !Number.isFinite(Number(context.takenAt))) return true;
+      return Number(actorStats.level ?? 0) - Number(context.takenAt) >= parsed.min;
+    // "cannot progress" (3.684.0, G8, Q91): no later archetype.
+    case "never":
+      return false;
     case "level":
       return Number(actorStats.level ?? 0) >= parsed.min;
     case "bab":

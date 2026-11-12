@@ -59,8 +59,21 @@ export const CONTROL_SOURCES = Object.freeze({
   conjured: "Conjured",
   undead: "Created undead",
   dominated: "Dominated",
+  // A CREATURE A MODULE'S SPELL BINDS (3.686.0, H12; Eldritch Arts' eight
+  // Bindings, Graham's Q168): "bound and serves as a minion". Summoned, not a
+  // conjured facsimile, so it is not the "Conjured" source.
+  bound: "Bound",
   other: "Other"
 });
+
+/**
+ * THE HOOK A RELEASE FIRES (3.686.0, H12). `trgPrimeControlReleased({
+ * controller, entry, creature, degree, reason })`, on the client that released
+ * it: `reason` "overflow" when the page-242 DC 20 Will save freed it (with
+ * the save's `degree`), "released" for any other release. A module that
+ * recorded the entry ends its own spell from here ("broken", Q169).
+ */
+export const CONTROL_RELEASED_HOOK = "trgPrimeControlReleased";
 
 /** Numbers we may act on — see sustain-clock.mjs for why this is a function. */
 function readable(value) {

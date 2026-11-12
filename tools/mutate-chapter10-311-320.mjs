@@ -145,7 +145,7 @@ const MUTATIONS = [
     from: `        sourceTraits: vsTraitSourceTraits(spellSourceTraits(spell), vsSpec.type)`,
     to: `        ;`, breaks: "V6e" },
   { file: CASTER, name: "the resonance trigger reads the modified total rather than the die",
-    from: `    if (resonanceFace > 0 && Number(check?.dice?.faces?.[0] ?? 0) === resonanceFace) {`,
+    from: `    if (resonanceFace > 0 && Number(check?.dice?.unmodified ?? 0) === resonanceFace) {`,
     to: `    if (resonanceFace > 0 && Number(check?.outcome?.total ?? 0) === resonanceFace) {`,
     breaks: "W1b" },
   { file: RELIEF, name: "SOUL DRAIN GOES BACK TO ONES, which the audit wrongly asked for",

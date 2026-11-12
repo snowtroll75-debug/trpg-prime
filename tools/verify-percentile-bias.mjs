@@ -340,9 +340,15 @@ ok("H1 the zero rule is written out in exactly one file",
 
 const cast = fs.readFileSync(
   path.join(SYSTEM_ROOT, "module", "magic", "cast-workflow.mjs"), "utf8");
+// THREE READS SINCE 3.678.0: the Resonance roll's disadvantage (Eldritch
+// Arts' High Magic) draws its first percentile twice, both through the owner.
+// FOUR SINCE 3.684.0 (Eldritch Arts Block 6, G5): the Spell Fumble roll can
+// be biased too (registerFumbleModifier; Mana Bound, Spellthread), so it
+// draws its first percentile twice as the Resonance roll does.
 ok("H2 the Spell Fumble and Resonance rolls read the owner",
-  (cast.match(/percentileValue\(/g) ?? []).length === 2,
-  `both top-open-ended percentile tables — found `
+  (cast.match(/percentileValue\(/g) ?? []).length === 4
+  && (cast.match(/const second = percentileValue\(await draw\(10\), await draw\(10\)\);/g) ?? []).length === 2,
+  `both top-open-ended percentile tables, the Resonance roll's twice for disadvantage — found `
   + `${(cast.match(/percentileValue\(/g) ?? []).length}`);
 ok("H3 and import it rather than restating it",
   /import \{[^}]*percentileValue[^}]*\} from "\.\.\/dice\/open-ended\.mjs"/.test(cast));

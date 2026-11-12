@@ -147,6 +147,45 @@ export function senseOf(item) {
 }
 
 /**
+ * A SENSE'S RANGE RAISED BY SOMETHING ELSE THE CREATURE HAS (3.684.0;
+ * Eldritch Arts Block 6, G13). Void Pact: "You gain Darkvision. If you
+ * already have Darkvision, its range is increased by 30-ft." The Pact grants
+ * the core's Darkvision ability (held once, as a granted copy is), and its
+ * own item declares
+ *
+ *   flags.trg-prime.senseRangeBonus: { sense: "Darkvision", feet: 30 }
+ *
+ * (or a list of them), which adds to every sense of that NAME (case aside,
+ * and any "(60 ft.)" typed into the name aside) the creature has from
+ * anywhere: after the Wisdom range and the halving of a special sense,
+ * before an Enhanced feat's doubling. One item's row counts once however many
+ * copies of it there are; two different items' rows add. Not from an
+ * unequipped item or a switched-off ability. Nothing declared, nothing moves.
+ *
+ * @param {object[]} items
+ * @returns {Map<string, number>} sense name (lower case) → feet
+ */
+export function senseRangeBonuses(items = []) {
+  const seen = new Set();
+  const out = new Map();
+  for (const item of Array.from(items ?? [])) {
+    if (!item || item.system?.equipped === false) continue;
+    if (item.type === "ability" && item.system?.active === false) continue;
+    const raw = item.flags?.["trg-prime"]?.senseRangeBonus;
+    for (const row of Array.isArray(raw) ? raw : (raw ? [raw] : [])) {
+      const sense = senseNameParts(String(row?.sense ?? "")).name.toLowerCase();
+      const feet = Math.trunc(Number(row?.feet) || 0);
+      if (!sense || !feet) continue;
+      const key = `${String(item.name ?? "").trim().toLowerCase()}|${sense}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.set(sense, (out.get(sense) ?? 0) + feet);
+    }
+  }
+  return out;
+}
+
+/**
  * Every sense a creature has, resolved to real ranges — the Senses line
  * of the Codex's stat block, which prints "each sense … along with its
  * range".
@@ -156,6 +195,8 @@ export function senseOf(item) {
  */
 export function sensesOf(items = [], wisdom = 0, { featNames = [] } = {}) {
   const doubled = new Set(enhancedModalities(featNames));
+  // A DECLARED RANGE BONUS (3.684.0, G13): Void Pact's +30 ft to Darkvision.
+  const bonuses = senseRangeBonuses(items);
   // A SENSE A WORN RUNE GRANTS (3.626.0): Pillars of Faith's Veilwatch —
   // "You gain Spirit Sense as a tertiary sense" — declared on the
   // registered rune and read off the armour it is inscribed on, while
@@ -175,12 +216,15 @@ export function sensesOf(items = [], wisdom = 0, { featNames = [] } = {}) {
       // of not guessing one.
       const enhanced = Boolean(sense.special) && Boolean(sense.modality)
         && doubled.has(sense.modality) && base !== null;
-      const rangeFeet = enhanced ? base * 2 : base;
       // A name like "Darkvision (55 ft.)" carries a range of its own.
       // Compared against the BASE rather than the doubled figure, since
       // whoever typed the label was describing the sense as printed, not
       // as an Enhanced feat leaves it.
-      const { claimedFeet } = senseNameParts(sense.name ?? item.name);
+      const { name: plainName, claimedFeet } = senseNameParts(sense.name ?? item.name);
+      // The declared bonus (3.684.0, G13), before the doubling; a touch sense has no range to raise.
+      const bonusFeet = base === null ? 0 : (bonuses.get(plainName.toLowerCase()) ?? 0);
+      const raised = base === null ? null : Math.max(0, base + bonusFeet);
+      const rangeFeet = enhanced ? raised * 2 : raised;
       return {
         name: sense.name ?? item.name,
         category: sense.category,
@@ -197,7 +241,9 @@ export function sensesOf(items = [], wisdom = 0, { featNames = [] } = {}) {
         // the rule computes. Surfaced rather than silently overridden —
         // see senseNameParts.
         claimedFeet,
-        nameRangeDisagrees: claimedFeet !== null && base !== null && claimedFeet !== base
+        nameRangeDisagrees: claimedFeet !== null && base !== null && claimedFeet !== base,
+        // Only when something raised it, so an undeclared sense reads as it did.
+        ...(bonusFeet ? { bonusFeet } : {})
       };
     })
     .filter(Boolean)

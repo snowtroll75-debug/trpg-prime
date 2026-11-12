@@ -218,7 +218,8 @@ export function opposedAuraRecordsFor(effect, opposedTo, label) {
     return { defenceDC: [], attack: [{ label: name, value, type, opposedTo: list }] };
   }
   return {
-    defenceDC: [{ dc: "defence", value, label: name, when: { sourceAlignments: list } }],
+    // ITS TYPE (3.684.1), so it stacks by Appendix 1 — see defence-dc.mjs.
+    defenceDC: [{ dc: "defence", value, type, label: name, when: { sourceAlignments: list } }],
     attack: []
   };
 }

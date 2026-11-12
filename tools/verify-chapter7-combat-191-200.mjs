@@ -827,7 +827,9 @@ eq("R2 Fortitude is the printed default, Will the GM's option",
 {
   const c = code("module", "documents", "combat.mjs");
   ok("R6 recurring damage has bleeding's lever",
-    /recurringFlatCheckReduction/.test(c) && /const recurringDC = Math\.max\(1, RECURRING_FLAT_CHECK_DC - recurringEasier\);/.test(c));
+    // BY TYPE SINCE 3.685.0: the flag is read in conditions/recurring.mjs.
+    /const recurringEasier = recurringFlatCheckEase\(actor\.appliedEffects \?\? actor\.effects \?\? \[\], entry, SYSTEM_ID\);/.test(c)
+    && /recurringFlatCheckReduction/.test(code("module", "conditions", "recurring.mjs")) && /const recurringDC = Math\.max\(1, RECURRING_FLAT_CHECK_DC - recurringEasier\);/.test(c));
   const mgr = code("module", "conditions", "manager.mjs");
   ok("R7 and the dialog can set it, on both conditions",
     /const reductionRow = \["bleeding", "recurring"\]\.includes\(id\)/.test(mgr)
@@ -841,7 +843,7 @@ eq("R2 Fortitude is the printed default, Will the GM's option",
 
 eq("S1 the engine's DC", [RECURRING_FLAT_CHECK_DC], [16]);
 ok("S2 the bomb card quotes it rather than a number of its own",
-  /until a DC \$\{RECURRING_FLAT_CHECK_DC\} flat check ends it/.test(read("module", "alchemical-workflow.mjs")));
+  /until a DC \$\{RECURRING_FLAT_CHECK_DC\} flat check ends that type's total/.test(read("module", "alchemical-workflow.mjs")));
 ok("S3 and no card says DC 15", !/DC 15 flat check/.test(read("module", "alchemical-workflow.mjs")));
 
 /* ================================================================== */

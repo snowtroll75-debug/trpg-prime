@@ -86,6 +86,13 @@ export function normaliseGrantedSpeed(raw, speedKeys = []) {
   // other number is not a share and is ignored rather than guessed at.
   const share = Number(raw.landFraction);
   const landFraction = orLand && share > 0 && share < 1 ? share : null;
+  // THE LAND SPEED PLUS SOME FEET (3.685.0, H4; Eldritch Arts' Dragon Wings:
+  // "You gain a fly Speed equal to your land Speed +10 feet", grown by its
+  // "+2 PP: increase your fly Speed by an additional 10 feet"). A whole number
+  // of feet above 0; it defers to the land Speed by itself, so `orLand` and
+  // `feet` are not needed beside it.
+  const plus = Math.trunc(Number(raw.landPlus) || 0);
+  if (plus > 0 && !landFraction) return { key, feet: 0, orLand: true, landPlus: plus };
   // A GRANT OF NOTHING IS NOT A GRANT — unless it defers to land, which
   // is Fly's shape: "equal to its land Speed or 20 feet, whichever is
   // greater" carries both a floor and the deferral, but a grant reading
@@ -127,6 +134,8 @@ export function grantedSpeedBase(grant, landSpeed = 0) {
   // HALF A 25-FOOT SPEED IS 10 FEET, not 12½: a share is rounded down to the
   // five-foot grid, the way the book rounds every other halved distance.
   const share = Number(grant.landFraction) > 0 ? Math.floor((land * Number(grant.landFraction)) / 5) * 5 : land;
+  // LAND + N (3.685.0, H4): read against the land Speed as it is now.
+  if (Number(grant.landPlus) > 0) return land + Math.trunc(Number(grant.landPlus));
   return grant.orLand ? Math.max(grant.feet, share) : grant.feet;
 }
 

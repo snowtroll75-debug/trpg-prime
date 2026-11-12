@@ -49,15 +49,16 @@ const MUTATIONS = [
   {
     name: "THE PLAUSIBLE FIX: Runemage becomes a flat -1",
     file: RULE,
-    from: '    dc += push(parts, defensive ? "Runemage, defensive" : "Runemage", -1 + (defensive ? 2 : 0));',
-    to: '    dc += push(parts, defensive ? "Runemage, defensive" : "Runemage", -1);',
+    // RE-ANCHORED AT 3.684.0 (G25): the increase is Combat Inscription's when declared, 2 otherwise.
+    from: '    dc += push(parts, defensive ? `Runemage, defensive${named}` : "Runemage", -1 + (defensive ? increase : 0));',
+    to: '    dc += push(parts, defensive ? `Runemage, defensive${named}` : "Runemage", -1);',
     breaks: "C2/C3 — defensive casting becomes cheaper for a Runemage than for anyone"
   },
   {
     name: "the Runemage label stops tracking what it did",
     file: RULE,
-    from: '    dc += push(parts, defensive ? "Runemage, defensive" : "Runemage", -1 + (defensive ? 2 : 0));',
-    to: '    dc += push(parts, "Runemage", -1 + (defensive ? 2 : 0));',
+    from: '    dc += push(parts, defensive ? `Runemage, defensive${named}` : "Runemage", -1 + (defensive ? increase : 0));',
+    to: '    dc += push(parts, "Runemage", -1 + (defensive ? increase : 0));',
     breaks: "C4 — the card reads 'Runemage' beside a number that went up"
   },
   {
@@ -65,8 +66,8 @@ const MUTATIONS = [
     // own brackets renders as "(Runemage (defensive) +1)".
     name: "a label grows brackets of its own again",
     file: RULE,
-    from: '    dc += push(parts, defensive ? "Runemage, defensive" : "Runemage", -1 + (defensive ? 2 : 0));',
-    to: '    dc += push(parts, defensive ? "Runemage (defensive)" : "Runemage", -1 + (defensive ? 2 : 0));',
+    from: '    dc += push(parts, defensive ? `Runemage, defensive${named}` : "Runemage", -1 + (defensive ? increase : 0));',
+    to: '    dc += push(parts, defensive ? `Runemage (defensive)${named}` : "Runemage", -1 + (defensive ? increase : 0));',
     breaks: "C4b — nested brackets in the subtitle"
   },
   {
@@ -105,14 +106,15 @@ const MUTATIONS = [
     name: "THE SAVE LINE GOES BACK TO ONE HAND-PICKED CLAUSE",
     file: CAST,
     // Re-anchored at 3.672.0, where a save rolled later says so after the parts.
-    from: "${describeParts(saveDCResult.parts)}${spellDefersItsSave(",
-    to: "${!fixed && clMods.saveDC ? ` (includes +${clMods.saveDC} caster-level warp)` : \"\"}${spellDefersItsSave(",
+    // And at 3.685.0, where a turned-back DC is named after them (H5).
+    from: "${describeParts(saveDCResult.parts)}${Number(warpMods?.turnBack?.saveDC)",
+    to: "${!fixed && clMods.saveDC ? ` (includes +${clMods.saveDC} caster-level warp)` : \"\"}${Number(warpMods?.turnBack?.saveDC)",
     breaks: "G7/G7b — four of five contributors silent again"
   },
   {
     name: "the card stops saying Heighten moved the base",
     file: CAST,
-    from: "${!fixed && !isInnate && savePP !== totalPP ? ` (Heighten Spell — as ${savePP} PP)` : \"\"}",
+    from: "${!fixed && !isInnate && savePP !== totalPP + freeWarpSaveDCPP ? ` (Heighten Spell — as ${savePP} PP)` : \"\"}",
     to: "",
     breaks: "G8b — a DC built from a PP the spell never cost, unexplained"
   },
@@ -128,8 +130,8 @@ const MUTATIONS = [
   {
     name: "a cantrip becomes overcastable",
     file: RULE,
-    from: '  if (!isCantrip) dc += push(parts, "Overcast", overcastDCIncrease(pp, int(casterLevel)));',
-    to: '  dc += push(parts, "Overcast", overcastDCIncrease(pp, int(casterLevel)));',
+    from: '  if (!isCantrip) dc += push(parts, "Overcast", Math.max(0, overcastDCIncrease(pp, int(casterLevel)) - 2 * Math.max(0, int(capRaise))));',
+    to: '  dc += push(parts, "Overcast", Math.max(0, overcastDCIncrease(pp, int(casterLevel)) - 2 * Math.max(0, int(capRaise))));',
     breaks: "A4/A5 — a 0 PP spell is reported as exceeding a limit"
   },
   {
@@ -137,8 +139,8 @@ const MUTATIONS = [
     // discount is the "a waiver is a discount, never a rebate" shape.
     name: "a negative armour penalty becomes a bonus",
     file: RULE,
-    from: '  dc += push(parts, "Prohibited armour", Math.max(0, int(armourPenalty)));',
-    to: '  dc += push(parts, "Prohibited armour", int(armourPenalty));',
+    from: '  dc += push(parts, armourLabel || "Prohibited armour", Math.max(0, int(armourPenalty)));',
+    to: '  dc += push(parts, armourLabel || "Prohibited armour", int(armourPenalty));',
     breaks: "B9 — rubbish input hands out an easier spell"
   },
   {
@@ -186,8 +188,8 @@ const MUTATIONS = [
   {
     name: "the spell attack total stops going through its assembly",
     file: CAST,
-    from: "  const total = attackTotal.total;",
-    to: "  const total = Number(check.outcome?.total ?? 0) + attackWarp + aggressiveMagic + specialistUplift;",
+    from: "  let total = attackTotal.total;",
+    to: "  let total = Number(check.outcome?.total ?? 0) + attackWarp + aggressiveMagic + specialistUplift;",
     breaks: "G5 — attackWarp is silent again"
   },
   {

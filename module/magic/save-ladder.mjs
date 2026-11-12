@@ -63,7 +63,9 @@ const lower = (v) => text(v).toLowerCase();
  * @returns {string|null} the rung's key, or null when the ladder prints
  *   nothing at or below this degree
  */
-function ladderDegree(ladder, rolled) {
+// EXPORTED AT 3.685.0 for the thorns' condition ladder (H1) and the turn
+// ladders (H3), so every ladder in the system reads a missing rung one way.
+export function ladderDegree(ladder, rolled) {
   const from = DEGREE_ORDER.indexOf(lower(rolled));
   if (from < 0 || !ladder || typeof ladder !== "object") return null;
   const has = (key) => Object.prototype.hasOwnProperty.call(ladder, key);

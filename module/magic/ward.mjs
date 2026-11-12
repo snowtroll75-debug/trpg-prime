@@ -126,6 +126,11 @@ export function wardFlagData({ value, bonusType, label, sourceUuids, slots } = {
     ? [{
       dc: "defence",
       value: amount,
+      // ITS TYPE (3.684.1): the ward's own bonusType, which until now reached
+      // only the saves half. Without it the DB half was untyped and stacked
+      // with every other status bonus to DB — Graham's ruling of 4 November
+      // 2026 is that status bonuses to DB do not. See defence-dc.mjs.
+      type,
       label: name,
       scope: `against ${against.length === 1 ? "one named creature" : "the named creatures"}`,
       when: { sourceUuids: against }

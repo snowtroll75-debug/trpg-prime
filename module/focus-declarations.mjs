@@ -299,8 +299,17 @@ export function focusExtraTopUps(carrier, items = []) {
   const out = [];
   for (const item of items ?? []) {
     if (!item || item === carrier || (carrier?.id && item.id === carrier.id)) continue;
+    // ONCE PER CARRIER (3.686.2, the 3.686.1 review, finding 9): the top-up
+    // adds to the current count, so a second run would add again. The item
+    // records which carrier topped it up, and a carrier that already did is
+    // not counted twice.
+    if (carrier?.id && item.flags?.[FLAG_SCOPE]?.focusExtraGiven?.[carrier.id]) continue;
     const extra = focusExtraUses(item, [carrier]);
-    if (extra > 0) out.push({ _id: item.id, "system.usesValue": Math.max(0, Math.floor(Number(item.system?.usesValue) || 0)) + extra });
+    if (extra > 0) {
+      const update = { _id: item.id, "system.usesValue": Math.max(0, Math.floor(Number(item.system?.usesValue) || 0)) + extra };
+      if (carrier?.id) update[`flags.${FLAG_SCOPE}.focusExtraGiven.${carrier.id}`] = extra;
+      out.push(update);
+    }
   }
   return out;
 }

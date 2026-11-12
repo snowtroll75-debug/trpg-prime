@@ -32,13 +32,15 @@ const CHECK = path.join(SYSTEM_ROOT, "tools", "verify-recurring-vocabulary.mjs")
 
 const MUTATIONS = [
   {
-    file: CW,
+    // RE-ANCHORED AT 3.685.0: every card's words for laid recurring damage are
+    // one function now, conditions/recurring.mjs `recurringStackLine`.
+    file: path.join(SYSTEM_ROOT, "module", "conditions", "recurring.mjs"),
     name: "V1 the cast card says the old word again",
     // RE-ANCHORED AT 3.585.0. R10 turned this line from an announcement
     // into an application, so the sentence moved; the RULE it pins — the
     // card says "recurring", never the pack field's old name — did not.
-    from: "`Plus <strong>Recurring ${next.value} ${damageType}</strong> on ${targetActor.name}`",
-    to: "`Plus <strong>Persistent ${next.value} ${damageType}</strong> on ${targetActor.name}`",
+    from: "return `Recurring ${next.value} ${next.damageType}",
+    to: "return `Persistent ${next.value} ${next.damageType}",
     breaks: "B1/C5 — and it is inside a TEMPLATE literal, which is what the reader had to learn to see"
   },
   {
@@ -65,8 +67,8 @@ const MUTATIONS = [
   {
     file: AW,
     name: "V5 the alchemical summary goes back",
-    from: "`<strong>Recurring ${next.value} ${damageType}</strong>",
-    to: "`<strong>Persistent ${next.value} ${damageType}</strong>",
+    from: "`<strong>${recurringStackLine(next)}</strong> on ${targetActor.name} — dealt in its end phase until a DC",
+    to: "`<strong>Persistent ${next.value} ${damageType}</strong> on ${targetActor.name} — dealt in its end phase until a DC",
     breaks: "B1/C7 — a template whose interpolation names the FIELD, which must not confuse the reader"
   },
   {

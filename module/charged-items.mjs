@@ -357,10 +357,15 @@ export function castFromItemOptions({
  * (magic-items.mjs) — a GM may be mid-shuffle, and refusing to let
  * someone hold a second wand would be the sheet arguing with the table.
  */
-export function chargedItemWarnings(wieldedChargedItems = []) {
+export function chargedItemWarnings(wieldedChargedItems = [], limit = 1) {
   const held = (wieldedChargedItems ?? []).filter(Boolean);
-  if (held.length <= 1) return [];
+  // A MODULE'S WIELD LIMIT (3.684.0; Eldritch Arts Block 6, G6): Dual
+  // Channel's two, Conduit Mastery's three. See charged-item-rules.mjs.
+  const most = Math.max(1, Math.trunc(Number(limit) || 1));
+  if (held.length <= most) return [];
   return [
-    `${held.length} charged items wielded (${held.join(", ")}) — a character may only wield one at a time.`
+    most === 1
+      ? `${held.length} charged items wielded (${held.join(", ")}) — a character may only wield one at a time.`
+      : `${held.length} charged items wielded (${held.join(", ")}) — this character may wield at most ${most} at a time.`
   ];
 }

@@ -24,6 +24,8 @@
  */
 import { hasTrait, traitList } from "./traits.mjs";
 import { resolveDamageTypeField, resolveImmunities, bypassMaterialsFor } from "./defences.mjs";
+import { grantedDefencesOf } from "./combat/granted-defences.mjs";
+import { ALL_DAMAGE } from "./defences.mjs";
 import { isCritImmune } from "./creature-type-rules.mjs";
 import { codexTraitImmunities } from "./codex-trait-rules.mjs";
 
@@ -282,7 +284,9 @@ export function actorDefences(actorSystem, creatureTypeSystem = null) {
   );
   const weaknessField = resolveDamageTypeField(actorSystem?.combat?.weaknesses);
   const resistanceField = resolveDamageTypeField(actorSystem?.combat?.resistances);
-  const weaknesses = weaknessField.damageTypes;
+  // A COPY (3.685.0), so a weakness a reaction granted (below) never lands in
+  // the parsed field itself.
+  const weaknesses = new Set(weaknessField.damageTypes ?? []);
 
   // Creature Type: Elemental — "often have a weakness to another elemental
   // type." Also a per-instance GM choice, folded in the same way as the
@@ -293,13 +297,27 @@ export function actorDefences(actorSystem, creatureTypeSystem = null) {
     .toLowerCase();
   if (elementalWeakness) weaknesses.add(elementalWeakness);
 
+  // A DEFENCE A REACTION GRANTED (3.681.0; Eldritch Arts Block 3b): Phase
+  // Familiar's resistance to all damage and immunity to precision for the
+  // triggering blow, Resist Magic's resistance to a spell's damage types
+  // until it resolves. Held for the actor this system belongs to, on the
+  // client resolving the damage — see combat/granted-defences.mjs. Copied
+  // into new sets, so the parsed fields are never written.
+  const granted = grantedDefencesOf(actorSystem?.parent ?? null);
+  const resistances = new Set([...(resistanceField.damageTypes ?? []), ...granted.resistances]);
+  const resistanceCategories = new Set([...(resistanceField.categories ?? []), ...(granted.resistAll ? [ALL_DAMAGE] : [])]);
+  const immunities = new Set([...(immune.damageTypes ?? []), ...granted.immunities, ...(granted.immuneAll ? [ALL_DAMAGE] : [])]);
+  // AND A WEAKNESS A REACTION GRANTED (3.685.0): Invoke True Name's "weakness
+  // to the first damage it takes from your spells".
+  for (const type of granted.weaknesses ?? []) weaknesses.add(type);
+
   return {
-    resistances: resistanceField.damageTypes,
+    resistances,
     // Categories describe the SOURCE (mundane / magic) and materials the
     // WEAPON (cold iron / silver / adamantine) — see defences.mjs. Kept
     // apart from the typed sets so no consumer has to know that "mundane"
     // is not a damage type.
-    resistanceCategories: resistanceField.categories ?? new Set(),
+    resistanceCategories,
     // A MATERIAL NAMED IN BRACKETS OVERCOMES THE RESISTANCE (3.547.1):
     // "mundane (silver)" is mundane resistance a silver weapon ignores.
     resistanceBypassMaterials: bypassMaterialsFor(actorSystem?.combat?.resistances),
@@ -323,7 +341,7 @@ export function actorDefences(actorSystem, creatureTypeSystem = null) {
     // write the longhand.
     resistanceExcept: resistanceField.except ?? new Set(),
     weaknesses,
-    immunities: immune.damageTypes,
+    immunities,
     immuneTraits: immune.traits,
     immuneConditions: immune.conditions,
     // Words that resolve, apply no mechanism, and print instead — see

@@ -174,7 +174,7 @@ const MUTATIONS = [
   {
     file: CAST,
     name: "G1 THE GATE IS NEVER REACHED",
-    from: "  if (!storingNow && spellNeedsTarget(spellData)) {",
+    from: "  if (!storingNow && spellNeedsTarget(spellData, spell)) {",
     to: "  if (false) {",
     breaks: "G1 — nothing would enforce any of it"
   },
@@ -202,8 +202,8 @@ const MUTATIONS = [
   {
     file: CAST,
     name: "G4 a stored spell is judged on stale targets",
-    from: "  if (!storingNow && spellNeedsTarget(spellData)) {",
-    to: "  if (spellNeedsTarget(spellData)) {",
+    from: "  if (!storingNow && spellNeedsTarget(spellData, spell)) {",
+    to: "  if (spellNeedsTarget(spellData, spell)) {",
     breaks: "G1 — storage picks no targets, so whatever was aimed at last would refuse it"
   },
   {

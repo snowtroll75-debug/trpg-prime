@@ -488,6 +488,11 @@ function emptyWarpMods() {
     // dice and not one. `healDice` scales like `damageDice`; `healBonus`
     // is the flat sibling for a row printing a bare constant.
     healDice: "", healBonus: 0,
+    // THE CAST'S DAMAGE, ALL OF IT, OF ANOTHER TYPE (3.684.0; Eldritch Arts
+    // Block 6, G15): Blood of the Wyrm's "+2 PP: the spells damage type
+    // changes to that of your dragon type". A state, not a count. See
+    // magic/granted-warps.mjs `warpedDamageRow`.
+    damageType: "",
     // THREE CHANNELS BLOCK 33 FOUND WARPS PRINTING AND NOTHING READING
     // (3.609.0). `persistentDice` — Incandescence's "and the persistent by
     // 1d4", which `persistent` (a bare number) could not hold.
@@ -508,6 +513,9 @@ function emptyWarpMods() {
     // of the wall by 10 feet", "+2 PP: increase the radius of the ring by
     // 5 feet", "+2 PP: the HP of each section increase by 5".
     wallLength: 0, wallRadius: 0, wallHp: 0,
+    // "…OR ITS HEIGHT BY 5 FEET" (3.686.0; Eldritch Arts' Wall of Sand, the
+    // Block 8a review): a module may offer the height as its own option.
+    wallHeight: 0,
     // WHAT A `self` ROW DOES ONCE THE SPELL HAS REACH (3.534.0). Two
     // flags rather than one because the pack says two things — "the
     // target CHANGES to" moves it, "affects ALL allies" shares it. See
@@ -592,7 +600,10 @@ function emptyWarpMods() {
     // wildMorph case — a movement type, or a special ability, in place of
     // the attack form.
     morphMovement: false,
-    morphAbility: false
+    morphAbility: false,
+    // A TURN TABLE'S RATE (3.686.0, H18): core Insanity's "+4 PP: the target
+    // is insane for 1 round per 1 failure" — a set, the smaller rate winning.
+    turnTablePer: 0
   };
 }
 
@@ -718,6 +729,8 @@ export function aggregateWarpSelection(warps, form) {
     // changed their mind rather than one who bought two spells.
     if (m.reliefConditions) mods.reliefConditions = [...m.reliefConditions];
     if (m.reliefBump) mods.reliefBump += Number(m.reliefBump) * times;
+    // NOT MULTIPLIED (3.686.0, H18): "1 round per 1 failure" is a rate, not a purchase.
+    if (m.turnTablePer) mods.turnTablePer = mods.turnTablePer ? Math.min(mods.turnTablePer, Number(m.turnTablePer)) : Number(m.turnTablePer);
     // SWAPPED, NOT ACCUMULATED — "instead ignore the injured condition"
     // states which, and buying it twice states the same one twice.
     if (m.suppressConditions) mods.suppressConditions = [...m.suppressConditions];
@@ -764,10 +777,12 @@ export function aggregateWarpSelection(warps, form) {
     if (m.persistentDice) mods.persistentDice = addDice(mods.persistentDice, scaleDice(m.persistentDice, times));
     if (m.secondaryDice) mods.secondaryDice = addDice(mods.secondaryDice, scaleDice(m.secondaryDice, times));
     if (m.stopsBleeding) mods.stopsBleeding = true;
+    if (m.damageType) mods.damageType = String(m.damageType).trim().toLowerCase();
     if (m.levelBump) mods.levelBump += Number(m.levelBump) * times;
     if (m.wallLength) mods.wallLength += Number(m.wallLength) * times;
     if (m.wallRadius) mods.wallRadius += Number(m.wallRadius) * times;
     if (m.wallHp) mods.wallHp += Number(m.wallHp) * times;
+    if (m.wallHeight) mods.wallHeight += Number(m.wallHeight) * times;
     if (m.rungDice && typeof m.rungDice === "object") {
       for (const [rung, dice] of Object.entries(m.rungDice)) {
         mods.rungDice[rung] = addDice(mods.rungDice[rung] ?? "", scaleDice(dice, times));
@@ -978,6 +993,12 @@ export function emptyWarp() {
   return { ppSpent: 0, rawPP: 0, mods: emptyWarpMods(), notes: [] };
 }
 
+/** The smaller of two positive rates, or 0 when neither is set (3.686.0, H18). */
+function smallerRate(a, b) {
+  const set = [Number(a) || 0, Number(b) || 0].filter((n) => n > 0);
+  return set.length ? Math.min(...set) : 0;
+}
+
 /**
  * Fold a second warp selection into the first.
  *
@@ -1040,6 +1061,9 @@ export function mergeWarpSelections(first, second) {
       wallLength: Number(a.mods?.wallLength ?? 0) + Number(b.mods?.wallLength ?? 0),
       wallRadius: Number(a.mods?.wallRadius ?? 0) + Number(b.mods?.wallRadius ?? 0),
       wallHp: Number(a.mods?.wallHp ?? 0) + Number(b.mods?.wallHp ?? 0),
+      wallHeight: Number(a.mods?.wallHeight ?? 0) + Number(b.mods?.wallHeight ?? 0),
+      // THE SMALLER RATE WINS (3.686.0, H18), either side.
+      turnTablePer: smallerRate(a.mods?.turnTablePer, b.mods?.turnTablePer),
       rungDice: Object.fromEntries([...new Set([
         ...Object.keys(a.mods?.rungDice ?? {}), ...Object.keys(b.mods?.rungDice ?? {})
       ])].map((rung) => [rung, addDice(a.mods?.rungDice?.[rung] ?? "", b.mods?.rungDice?.[rung] ?? "")]))

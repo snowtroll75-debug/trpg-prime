@@ -80,7 +80,7 @@ ok("B3 aligned packets meet alignment defences and report their alignment", /sou
 ok("B4 ally-aura effects are kept in step on moves and are registered", /if \("x" in changed \|\| "y" in changed \|\| "disposition" in changed \|\| "width" in changed\) syncAllyAuraEffects\(\);/.test(src.sync) && /await actor\.createEmbeddedDocuments\("ActiveEffect", delta\.add\.map\(\(g\) => allyGrantEffectData\(g\)\)\);/.test(src.sync) && /registerAllyAuraEffectHooks\(\);/.test(src.init));
 ok("B5 versus damage asks the target's alignments", /alignedTraitsOf\(targetActor\.system \?\? \{\}\)\);/.test(src.vdw));
 ok("B6 the Use button asks for the damage type when one is offered", /use\.spec = withChosenDamageType\(use\.spec, picked\);/.test(src.act));
-ok("B7 Harmonize is a codex action and its aid reaches the innate save DC", /eternalSummons, trample, draconicShifting, harmonize[,}]/.test(src.codex) && /\+ harmonyHere;/.test(src.cast) && /if \(harmonyRecord && actor\.unsetFlag\) await actor\.unsetFlag\(SYSTEM_ID, HARMONIZE_FLAG\);/.test(src.cast));
+ok("B7 Harmonize is a codex action and its aid reaches the innate save DC", /eternalSummons, trample, draconicShifting, harmonize[,}]/.test(src.codex) && /\+ harmonyHere;/.test(src.cast) && /if \(consume && harmonyRecord && actor\.unsetFlag\) await actor\.unsetFlag\(SYSTEM_ID, HARMONIZE_FLAG\);/.test(src.cast));
 
 const EXPECTED = 19;
 equal("Z the suite ran every check it is meant to", checks + 1, EXPECTED);

@@ -1,4 +1,4 @@
-import { stashCapacity } from "../stowage.mjs";
+import { itemStashCapacity, stashCapacity } from "../stowage.mjs";
 import { ALWAYS_READY_ACTOR_TYPES } from "../combat/natural-ready.mjs";
 import { coinValueInGP } from "../items.mjs";
 import { describeDefenceField } from "../defences.mjs";
@@ -45,16 +45,18 @@ import { castSpell, rollDisbelieveIllusion, rollMagicRitual, rollPowerPointRecov
 // the one place that knows what a Sustain costs and requires.
 import { activeSpellState, endActiveSpell, getActiveSpells } from "../magic/active-spells.mjs";
 import { lightShiftCanDrop } from "../magic/light-shift-workflow.mjs";
-import { readStored } from "../magic/spell-storing-workflow.mjs";
+import { readStored, readAllStored } from "../magic/spell-storing-workflow.mjs";
 import { spellAvailability } from "../magic/spell-availability.mjs";
 import { cantripContext, openCantripPick, openRepertoirePick, openRepertoireSwap, repertoireContext } from "../magic/repertoire-workflow.mjs";
 import {
   archetypeCastingContext,
   clearArchetypePrepared,
   openArchetypePermanentPick,
+  addFreeBookSpell,
   openArchetypePrepare
 } from "../magic/archetype-casting-workflow.mjs";
 import { clearFeatSlot, featSlotContext, openFeatSlotPick } from "../magic/feat-casting-workflow.mjs";
+import { liveFeatSlotIds } from "../magic/feat-casting.mjs";
 import { memorisationContext, openMemoriseCantrip, openMemoriseSpell } from "../magic/memorisation-workflow.mjs";
 import { innateAttackFor, innateSaveFor } from "../magic/innate-printed.mjs";
 import { innateAbilityKey } from "../focus-declarations.mjs";
@@ -83,7 +85,7 @@ import {
 import { spellListFilterOptions, wireSpellListFilters } from "./list-filters.mjs";
 import { rollFrightenedRecovery, rollSickenedRetch } from "../combat/conditions-workflow.mjs";
 import { chargedItemSheetWarnings } from "../charged-items-workflow.mjs";
-import { SKILL_POINT_BONUSES, companionFeatBudget, featBudget, registeredFeatPicks, featDisplayName, freeGrantSources, effectiveRaces, effectiveClasses, effectiveArchetypes, effectiveTiers, declaredClassFeatAccess, substituteSkillActions } from "../feats.mjs";
+import { SKILL_POINT_BONUSES, companionFeatBudget, featBudget, registeredFeatPicks, featDisplayName, freeGrantSources, spendsNoFeatPick, effectiveRaces, effectiveClasses, effectiveArchetypes, effectiveTiers, declaredClassFeatAccess, substituteSkillActions } from "../feats.mjs";
 import { companionEffectiveLevel, companionKindOf, companionKindSpec, companionSyncState, expectedCompanionLevel, isCompanion, masterIdOf } from "../companion.mjs";
 import {
   familiarAbilityBudget, familiarActionPoints, familiarEffectiveLevel,
@@ -323,6 +325,7 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       pickArchetypeCantrip: TRGActorSheet.pickArchetypeCantrip,
       prepareArchetypeCantrip: TRGActorSheet.prepareArchetypeCantrip,
       clearArchetypeCantrips: TRGActorSheet.clearArchetypeCantrips,
+      addArchetypeBookSpell: TRGActorSheet.addArchetypeBookSpell,
       pickFeatSlotSpell: TRGActorSheet.pickFeatSlotSpell,
       clearFeatSlotSpell: TRGActorSheet.clearFeatSlotSpell,
       swapRepertoireSpell: TRGActorSheet.swapRepertoireSpell,
@@ -696,15 +699,20 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     // and a copy here would be free to disagree with it after a
     // re-designation.
     const heldSpell = readStored(actor);
-    context.storedSpell = heldSpell
-      ? {
-        name: heldSpell.record.spellName,
-        itemName: heldSpell.item.name,
-        ppPaid: heldSpell.record.ppPaid,
-        releaseLabel: heldSpell.record.releaseCost === "free" ? "free action"
-          : heldSpell.record.releaseCost === "reaction" ? "reaction" : "1 AP"
-      }
-      : null;
+    const storedRow = (held) => ({
+      name: held.record.spellName,
+      itemName: held.item.name,
+      // THE HOST, so the row's Release reaches THIS store (3.684.0, G16).
+      hostId: held.item.id,
+      ppPaid: held.record.ppPaid,
+      releaseLabel: held.record.releaseCost === "free" ? "free action"
+        : held.record.releaseCost === "reaction" ? "reaction" : "1 AP"
+    });
+    context.storedSpell = heldSpell ? storedRow(heldSpell) : null;
+    // EVERY STORE (3.684.0; Eldritch Arts Block 6, G16 — review, Medium): a
+    // Storing Rune holds one beside the staff, and one Release reached only
+    // the staff's. One row per store, each releasing its own host.
+    context.storedSpells = readAllStored(actor).map(storedRow);
     // The instinctive repertoire (Chapter 3 x Chapter 9): the schedule
     // card only exists for a class that declares the style. A non-caster
     // has none of the three.
@@ -1106,7 +1114,10 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       armourDr: system.combat?.armour?.dr ?? 0,
       naturalArmourDr: system.combat?.naturalArmour?.dr ?? 0,
       bonusDr: system.combat?.dr?.total ?? 0,
-      bdb: system.combat?.bdb?.total ?? 0
+      bdb: system.combat?.bdb?.total ?? 0,
+      // Mage Armour / Bracers of Armour (3.684.9): the higher of them and
+      // worn armour, as the damage workflow reads it.
+      baseArmourDr: system.combat?.bracers?.effective ?? 0
     });
     // MOUNTED (3.576.0): set and cleared by Mount / Dismount. Shown so a
     // rider can see why a longbow is refused, and cleared by hand when
@@ -1340,6 +1351,8 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       Array.from(items ?? []),
       ["class", "divine-aspect", "wizard-school", "creature-type", ...FOUNDATION_ITEM_TYPES]
     );
+    // EVERY ITEM ON THE SHEET (3.684.8): a grant from any of them is its benefit.
+    const ownedIds = new Set(Array.from(items ?? []).map((i) => i?.id).filter(Boolean));
 
     // Whether THIS character is proficient with each thing they are
     // carrying. Built once, outside the loop.
@@ -1349,6 +1362,8 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     // say "you cannot use that" — the -4 simply appeared on the roll.
     const proficiency = proficiencyProfile(this.actor);
 
+    // Filled on the first Arcanist book spell the loop meets (3.676.0).
+    let bookSlotIds = null;
     for (const item of items) {
       const row = {
         id: item.id,
@@ -1424,9 +1439,11 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         // heritage gives Skill Focus the same way. Counting them as
         // spent charged a 1st-level character for the background they
         // were born with — reported live by Graham at 3.210.1.
-        row.bonusFeat = Boolean(
-          foundationIds.has(item.flags?.["trg-prime"]?.grantedBy?.sourceId)
-        );
+        // AND ANY ITEM ON THE SHEET THAT HANDED IT OVER, AND ANY ABILITY
+        // (3.684.8; Graham: "The benefits gained from an archetype feat
+        // should not charge the character an additional feat"). See
+        // feats.mjs `spendsNoFeatPick`.
+        row.bonusFeat = spendsNoFeatPick(item, { ownedIds, foundationIds });
 
         const category = item.system?.category;
         if (item.type === "feat" && category === "Racial") groups.racialFeats.push(row);
@@ -1632,7 +1649,10 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
           // had to remember to set, and that a tenth was always going to
           // miss. The only thing known-but-not-ready is a BOOK entry
           // awaiting today's preparation. See spell-availability.mjs.
-          const source = spellAvailability(item);
+          // The live slots worked out once for the whole table, not per
+          // Arcanist book spell (3.676.0).
+          bookSlotIds ??= liveFeatSlotIds(this.actor);
+          const source = spellAvailability(item, { liveSlotIds: bookSlotIds });
           row.spellSource = source.label;
           row.spellSourceKey = source.key;
           if (source.onTable) groups.spells.push(row);
@@ -2280,6 +2300,12 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     return clearArchetypePrepared(this.actor, target?.dataset?.source);
   }
 
+  // THE ARCANIST'S FREE BOOK ADDITIONS (3.676.0) — one per caster-tier
+  // slot, Graham's ruling R1 of 29 October 2026.
+  static async addArchetypeBookSpell(event, target) {
+    return addFreeBookSpell(this.actor, target?.dataset?.source);
+  }
+
   // FEAT-GRANTED LEVELLED SLOTS (3.345.0). The slot id travels on the
   // button: one character can hold a Knight's PP 2 slot and several
   // caster-tier slots at different ceilings, and a handler that guessed
@@ -2903,9 +2929,10 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
    * the same action, honour the same two warps and reach the same
    * function; until there is a reason for it, there is one.
    */
-  static async releaseStoredSpell() {
+  static async releaseStoredSpell(event, target) {
     const { releaseStoredSpell } = await import("../magic/spell-storing-workflow.mjs");
-    await releaseStoredSpell(this.actor);
+    // THE ROW'S HOST (3.684.0, G16): the staff's store or a rune's.
+    await releaseStoredSpell(this.actor, { hostId: target?.dataset?.hostId ?? "" });
     this.render();
   }
 
@@ -3036,6 +3063,12 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         ui.notifications.warn(`${item.name} is equipped — take it off before stowing it.`);
         return;
       }
+      // A SACK IS NOT STOWED IN ITSELF (3.684.9): the stow control is on
+      // every carried row now, the Stash Sacks' own wondrous rows included.
+      if (itemStashCapacity(item) > 0) {
+        ui.notifications.warn(`${item.name} is a Stash Sack — it holds things; it is not stowed.`);
+        return;
+      }
       if (!stashCapacity(Array.from(this.actor.items ?? []))) {
         ui.notifications.warn(
           `${this.actor.name} has no invested Stash Sack to stow ${item.name} in.`
@@ -3149,6 +3182,11 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     }
     const willBeEquipped = !item.system.equipped;
     const changes = { "system.equipped": willBeEquipped };
+    // TAKEN OUT OF THE SACK TO BE USED (3.684.9, review): drawing a stowed
+    // sword takes it out of the Stash Sack. The mark used to stay, so the
+    // row kept saying "Stowed in a Stash Sack" and the sword went silently
+    // back in when it was sheathed.
+    if (willBeEquipped && item.system.stowed) changes["system.stowed"] = false;
     if (willBeEquipped) {
       // Hand & a Half (Chapter 6): grip is chosen once, at equip, and stored on
       // the weapon; the attack workflow reads it silently rather than prompting
@@ -3320,10 +3358,13 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const current = Number(effect.getFlag(SYSTEM_ID, "value") ?? 1);
     const next = current + delta;
 
-    if (next < 1) return this.actor.toggleStatusEffect(conditionId, { active: false });
+    // THIS ROW'S TYPE (3.685.0, Q150): a creature may carry recurring damage
+    // of several types, one row each, and the step moves only this one.
+    const rowType = effect.getFlag(SYSTEM_ID, "damageType") ?? (conditionId === "recurring" ? "fire" : null);
+    if (next < 1) return this.actor.toggleStatusEffect(conditionId, { active: false, damageType: rowType });
     return this.actor.toggleStatusEffect(conditionId, {
       value: next,
-      damageType: effect.getFlag(SYSTEM_ID, "damageType") ?? null
+      damageType: rowType
     });
   }
 
@@ -3341,7 +3382,7 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     );
     if (!result) return;
     if (result.action === "remove") {
-      return this.actor.toggleStatusEffect(conditionId, { active: false });
+      return this.actor.toggleStatusEffect(conditionId, { active: false, damageType: effect.getFlag(SYSTEM_ID, "damageType") ?? (conditionId === "recurring" ? "fire" : null) });
     }
     return this.actor.toggleStatusEffect(conditionId, {
       value: result.value,

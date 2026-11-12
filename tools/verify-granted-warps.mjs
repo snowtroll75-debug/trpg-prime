@@ -25,7 +25,8 @@ const renewed = { match: { name: "Restoration" }, warp: { ppCost: 4, text: "Rene
 const guiding = { match: { name: "Guidance", innate: true }, warp: { ppCost: 0, text: "Guiding Luminescence: a second target", mods: { extraTargets: 1 } } };
 ok("A1 registerSpellWarps accepts well-formed entries", registerSpellWarps("Swift Mender", [swift], "test") && registerSpellWarps("Renewed Restoration", renewed, "test") && registerSpellWarps("Guiding Luminescence", [guiding], "test"));
 ok("A2 it refuses an entry with no text or no mods", !registerSpellWarps("Bad", [{ match: {}, warp: { ppCost: 1 } }], "test") && registrationProblems().some((p) => /registerSpellWarps: "Bad"/.test(p)));
-equal("A3 the record normalises the match and the warp", registeredSpellWarps("Guiding Luminescence"), [{ match: { name: "guidance", traits: [], tradition: "", innate: true }, warp: { ppCost: 0, text: "Guiding Luminescence: a second target", mods: { extraTargets: 1 }, max: 1 } }]);
+// 3.684.0 (G15): the match also carries `anyTraits` and `damaging` (Blood of the Wyrm).
+equal("A3 the record normalises the match and the warp", registeredSpellWarps("Guiding Luminescence"), [{ match: { name: "guidance", traits: [], tradition: "", innate: true, anyTraits: [], damaging: false }, warp: { ppCost: 0, text: "Guiding Luminescence: a second target", mods: { extraTargets: 1 }, max: 1 } }]);
 equal("A4 an undeclared innate axis is null", registeredSpellWarps("Swift Mender")[0].match.innate, null);
 
 const owned = [["swift mender", registeredSpellWarps("Swift Mender")], ["renewed restoration", registeredSpellWarps("Renewed Restoration")], ["guiding luminescence", registeredSpellWarps("Guiding Luminescence")]];

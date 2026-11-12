@@ -192,13 +192,13 @@ const cast = read("module", "magic", "cast-workflow.mjs");
 // creature per level" scales off the same number as max PP per cast —
 // and an ITEM cast off the consumable's level rather than the reader's.
 ok("G1 the gate exists, and knows the caster's level",
-  cast.includes("if (!storingNow && spellNeedsTarget(spellData)) {")
+  cast.includes("if (!storingNow && spellNeedsTarget(spellData, spell)) {")
   // An AP mode may name its own count since 3.611.0 (Death's Defiance).
   && cast.includes("cap: targetCapFor(apMode?.targets ?? spellData?.targets, warp.mods, casterLevel),"));
 ok("G1b and refuses out loud", cast.includes("const refusal = overTargetRefusal({")
   && cast.includes("ui.notifications.warn(refusal);"));
 
-const gateAt = cast.indexOf("if (!storingNow && spellNeedsTarget(spellData)) {");
+const gateAt = cast.indexOf("if (!storingNow && spellNeedsTarget(spellData, spell)) {");
 const warpChooser = cast.indexOf("warp = aggregateWarpSelection(warpSpell.system?.warps, form);");
 const checkAt = cast.indexOf("const check = noCheckCantrip");
 const ppAt = cast.indexOf("const outcome = castingOutcome(degree, {");

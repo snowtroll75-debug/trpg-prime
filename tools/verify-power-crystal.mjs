@@ -250,9 +250,23 @@ ok("D3f the arrival hook fires for a crystal and nothing else",
   "every item a character picks up goes through here");
 ok("D3g and the departure hook likewise",
   /Hooks\.on\("deleteItem"[\s\S]{0,300}?const points = crystalPoints\(item\);\s*if \(points <= 0\) return;/.test(wf));
-ok("D4 ALL THREE HOOKS RUN ON ONE CLIENT",
-  (wf.match(/if \(!game\.user\?\.isGM\) return;/g) ?? []).length === 3,
-  "two clients racing to delete one crystal means one of them deletes a document already gone");
+/*
+ * D4 WAS "ALL THREE ASK isGM" UNTIL 3.685.3, and pinned a guard that was
+ * wrong two ways. `createItem` and `deleteItem` fire on every client, so
+ * `isGM` let every connected GM settle the same crystal; they ask
+ * `isActingGM()` now. `preUpdateActor` fires only on the client that made
+ * the update, so `isGM` de-duplicated nothing and instead dropped every
+ * spend a player made on their own client: the crystals never drew down.
+ * It asks `actor.isOwner` now, the permission its writes need. The driven
+ * proof is verify-fixes-3685-3's K section; this pins the shape.
+ */
+ok("D4 EACH HOOK RUNS ON ONE CLIENT: the spender's for a spend, the acting GM's for an arrival or a departure",
+  /Hooks\.on\("preUpdateActor", \(actor, changed, options\) => \{\s*if \(!actor\?\.isOwner\) return;/.test(wf)
+  && /Hooks\.on\("createItem", \(item\) => \{\s*if \(!isActingGM\(\)\) return;/.test(wf)
+  && /Hooks\.on\("deleteItem", \(item\) => \{\s*if \(!isActingGM\(\)\) return;/.test(wf)
+  && /import \{ isActingGM \} from "\.\.\/acting-gm\.mjs";/.test(wf)
+  && !/\.isGM\b/.test(wf),
+  "two GMs racing to settle one crystal count it twice; a spend asked of isGM is never settled for a player");
 ok("D5 and they are registered at startup",
   /registerPowerCrystalHooks\(\);/.test(boot) && /power-crystal-workflow\.mjs/.test(boot),
   "a hook nobody registers is this project's most-repeated defect");
@@ -317,7 +331,9 @@ ok("E2 a spell that is not Power Crystal is stamped with nothing",
   ok("E6b and an item leaving early deletes its own clock",
     /Hooks\.on\("deleteItem"[\s\S]{0,400}?getFlag\?\.\(SYSTEM_ID, "conjuredItemId"\) === item\.id/.test(conj)
     && /deleteEmbeddedDocuments\("ActiveEffect", clocks\)/.test(conj));
-  ok("E6c on the GM's client alone", /export function registerConjuredItemHooks\(\)[\s\S]{0,200}?if \(!game\.user\?\.isGM\) return;/.test(conj));
+  // THE ACTING GM SINCE 3.685.3: `deleteItem` fires on every client, and isGM let every GM delete the clock.
+  ok("E6c on the acting GM's client alone", /export function registerConjuredItemHooks\(\) \{\s*Hooks\.on\("deleteItem", \(item\) => \{\s*if \(!isActingGM\(\)\) return;/.test(conj)
+    && /import \{ isActingGM \} from "\.\.\/acting-gm\.mjs";/.test(conj) && !/\.isGM\b/.test(strip(conj)));
   ok("E6d and it is registered at startup",
     /registerConjuredItemHooks\(\);/.test(boot) && /conjured-item-workflow\.mjs/.test(boot),
     "a hook nobody registers is this project's most-repeated defect");

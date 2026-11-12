@@ -29,6 +29,7 @@ import { CLASS_SKILL_GRANTS, classSkillBonuses, classSkillSources } from "./clas
 import { aspectsOf } from "./divine-aspect.mjs";
 import { skillPointBonuses } from "./feats.mjs";
 import { skillPointBudget } from "./skill-points.mjs";
+import { applyClassMagic, classMagicOf } from "./magic/class-magic.mjs";
 
 /**
  * Resolve the character's row of their class's printed table.
@@ -36,10 +37,18 @@ import { skillPointBudget } from "./skill-points.mjs";
  * Called before conditions, because conditions read the saves it feeds.
  */
 export function prepareClassProgression(system, actor) {
+  const classItem = classItemOf(actor);
   system.progression = resolveClassProgression(
-    classItemOf(actor),
+    classItem,
     system.identity?.level ?? 1
   );
+  // A CLASS'S OWN MAGIC (3.680.0; Eldritch Arts Block 3a, D4): the traditions
+  // it learns from, and a subclass's magical ability and home tradition ("Your
+  // magical ability score is determined by your birthright"). Folded in HERE,
+  // before anything reads the progression, so caster level, Spellcraft and PP
+  // see the birthright's ability through the fields they already read. See
+  // magic/class-magic.mjs.
+  if (system.progression) applyClassMagic(system.progression, classMagicOf(classItem, actor?.items ?? []));
 }
 
 /**

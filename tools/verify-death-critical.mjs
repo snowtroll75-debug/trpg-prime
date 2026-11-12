@@ -182,7 +182,13 @@ ok("R1 THE SAVE IS ROLLED, NOT JUST PRINTED",
   critBody.includes("const saveRoll = await TRGCheck.roll({"),
   "printing the DC and applying nothing is exactly what shipped for months");
 ok("R2 and the outcome decides what happens",
-  critBody.includes("const verdict = deathCriticalOutcome(save, saveRoll?.total, result);"));
+  critBody.includes("const verdict = deathCriticalOutcome(save, saveTotal, result, saveDegree ? { saved: Boolean(saveDegree.success) } : {});"));
+// FOUND LIVE (3.681.1): R2 pinned `saveRoll?.total`, which a TRGCheck does not
+// have; every Death critical read undefined and was a failed save. The total
+// is the outcome's.
+ok("R2b …and the total it reads is the check's outcome's",
+  critBody.includes("const saveTotal = saveRoll?.outcome?.total;") && !/saveRoll\??\.total\b/.test(critBody),
+  "a check has no total of its own: read off it, every save failed");
 ok("R3 A FAILURE PUSHES DYING PAST THE DEATH STATE",
   critBody.includes("const deadAt = actorDeathState(targetActor) + 1;") && critBody.includes("targetActor.toggleStatusEffect(\"dying\", { value: deadAt }));"),
   "the system has no separate dead condition; this is how the Dying Check kills too");
@@ -193,7 +199,7 @@ ok("R4b the removal is announced",
   critBody.includes("Removed from the initiative order."),
   "a token vanishing with no card is indistinguishable from a bug");
 ok("R5 the kill happens after the save, not before it",
-  before(critBody, "deathCriticalOutcome(save, saveRoll?.total, result)", "reapDead(targetActor"),
+  before(critBody, "deathCriticalOutcome(save, saveTotal, result, ", "reapDead(targetActor"),
   "a result applied before the roll that prevents it");
 ok("R6 a made save re-looks-up the lowered result",
   critBody.includes("const lowered = lookupTableRow(table, verdict.newResult);"),

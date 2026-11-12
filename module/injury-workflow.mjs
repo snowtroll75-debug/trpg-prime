@@ -26,6 +26,7 @@
  *      rest after); FR clears on eight hours' sleep; P waits for the GM.
  */
 
+import { actorConditionHeld } from "./conditions/held-conditions.mjs";
 import { isActingGM } from "./acting-gm.mjs";
 import {
   INJURY_CONDITION_IDS,
@@ -289,6 +290,8 @@ async function advanceInjuryHealing(actor, deltaSeconds) {
   if (!actor || !delta) return 0;
   const rates = healingRates(actor);
   if (!rates.fastHealing && !rates.regeneration) return 0;
+  // HELD BY A CURSE (3.686.0, H17): nothing but Remove Curse lowers it.
+  if (actorConditionHeld(actor, "injured")) return 0;
 
   const injured = Number(actor.getConditionValue?.("injured") ?? 0) || 0;
   const carried = actor.getFlag?.(SYSTEM_ID, HEALING_CLOCK_FLAG) ?? {};
@@ -337,6 +340,20 @@ async function advanceInjuryHealing(actor, deltaSeconds) {
  * @param {Actor} actor
  * @param {object} entry
  */
+/**
+ * WHAT AN "UNTIL HEALED" (or full rest, or permanent) CRITICAL RECORDS, from
+ * the conditions `applyConditionTags` applied (3.685.0, review). Recurring
+ * damage keeps its type and the increment the critical added — its `value`
+ * there is its type's new total, which healing must not take off whole.
+ * Every other condition is recorded as it always was. Immune entries are
+ * dropped.
+ */
+export function persistenceConditions(applied = []) {
+  return (Array.isArray(applied) ? applied : []).filter((a) => a && !a.immune).map((a) => (a.key === "recurring"
+    ? { key: a.key, value: a.added ?? a.value ?? 0, damageType: a.damageType ?? "" }
+    : { key: a.key, value: a.value ?? 0 }));
+}
+
 export async function recordPersistence(actor, { code = "", conditions = [], effect = "" } = {}) {
   const kind = persistenceCode(code);
   if (!["UH", "FR", "P"].includes(kind)) return false;
@@ -348,7 +365,8 @@ export async function recordPersistence(actor, { code = "", conditions = [], eff
     {
       id: foundry.utils.randomID(),
       code: kind,
-      conditions: conditions.map((c) => ({ key: String(c.key), value: Number(c.value) || 0 })),
+      // A RECURRING ENTRY KEEPS ITS TYPE (3.685.0, review).
+      conditions: conditions.map((c) => ({ key: String(c.key), value: Number(c.value) || 0, ...(c.damageType ? { damageType: String(c.damageType) } : {}) })),
       effect: String(effect)
     }
   ]);
@@ -381,6 +399,19 @@ export async function settlePersistence(actor, event = {}) {
 
   for (const entry of cleared) {
     for (const condition of entry.conditions ?? []) {
+      // RECURRING DAMAGE IS SETTLED BY ITS TYPE (3.685.0, review): its record
+      // names the type and what the critical added. A record from before
+      // 3.685.0 names no type and is read as fire, the type it was laid as.
+      if (condition.key === "recurring") {
+        const { recurringEntries, recurringOfType, recurringType } = await import("./conditions/recurring.mjs");
+        const type = recurringType(condition.damageType);
+        const had = recurringOfType(recurringEntries(actor.effects ?? [], SYSTEM_ID), type);
+        if (!had) continue;
+        const left = Math.max(0, had - (Number(condition.value) || 0));
+        if (left > 0) await actor.toggleStatusEffect("recurring", { value: left, damageType: type });
+        else await actor.toggleStatusEffect("recurring", { active: false, damageType: type });
+        continue;
+      }
       const current = Number(actor.getConditionValue?.(condition.key) ?? 0) || 0;
       const after = Math.max(0, current - (Number(condition.value) || 0));
       if (after > 0) await actor.toggleStatusEffect(condition.key, { value: after });
@@ -479,6 +510,8 @@ export async function advanceInjuryRest(actor, { hours = 0 } = {}) {
   let touched = false;
 
   for (const key of INJURY_CONDITION_IDS) {
+    // HELD BY A CURSE (3.686.0, H17): its clock does not run while the hold stands.
+    if (actorConditionHeld(actor, key)) continue;
     const value = Number(actor.getConditionValue?.(key) ?? 0) || 0;
     const band = injurySeverity(value);
     if (!band) {

@@ -151,7 +151,8 @@ ok("C6 and cites the page", /page 238/.test(interruptedLine("X", null)));
 {
   const wf = code("module", "magic", "pending-cast-workflow.mjs");
   ok("E1 the cast is suspended on a promise, not restarted",
-    /return new Promise\(\(resolve\) => \{\n\s*waiting\.set\(actor\.id, resolve\);/.test(wf),
+    // RE-PINNED 3.686.2: the resolver is held BEFORE the flag is written (the 3.686.1 review's race), and returned at the end.
+    /const held = new Promise\(\(resolve\) => \{ resolveCast = resolve; \}\);\n\s*waiting\.set\(actor\.id, resolveCast\);/.test(wf) && /\n  return held;\n\}/.test(wf),
     "replaying eight prompts' answers is a second copy of the cast's state");
   ok("E2 every settlement clears the flag and the resolver",
     /waiting\.delete\(actor\.id\);\n\s*await actor\.unsetFlag\(SYSTEM_ID, PENDING_CAST_FLAG\)/.test(wf));
@@ -354,7 +355,7 @@ eq("F5 the flag has one name", PENDING_CAST_FLAG, "pendingCast");
    * occurrence; the same shape caught `verify-basic-save` E5 this week.
    */
   ok("P6c and progress is written back to the flag",
-    /const paid = await payTowards\(actor, record\);\s*await actor\.setFlag\(SYSTEM_ID, PENDING_CAST_FLAG, record\);/
+    /const paid = await payTowards\(actor, record\);\s*if \(waiting\.get\(actor\.id\) !== resolve\) return null;\s*await actor\.setFlag\(SYSTEM_ID, PENDING_CAST_FLAG, record\);/
       .test(wf),
     "the running total lives in the flag; losing it means every turn pays the first instalment again");
   /*
@@ -404,7 +405,8 @@ eq("F5 the flag has one name", PENDING_CAST_FLAG, "pendingCast");
 
   /* ── and it is charged ONCE ───────────────────────────────────── */
   ok("P8 THE LUMP IS GONE FROM THE FINAL SPEND",
-    /const totalCastAP = totalCastTime\(warpedCastAP, \{ apDelta: mm\.apDelta \}\);/.test(cast),
+    // RE-ANCHORED AT 3.684.0 (G25): a Prepared Sigil's −1 AP joins the metamagic's delta.
+    /const totalCastAP = totalCastTime\(warpedCastAP, \{ apDelta: mm\.apDelta(?: \+ sigilAP)? \}\);/.test(cast),
     "adding extraApSpent here as well would charge the extra time twice, now that turns pay it");
   ok("P8b and nothing computes that lump any more",
     !/const extraApSpent =/.test(cast),

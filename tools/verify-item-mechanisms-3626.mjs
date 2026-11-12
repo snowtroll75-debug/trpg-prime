@@ -70,7 +70,7 @@ const se = read("module", "magic", "spell-effects.mjs");
 ok("E1 the heal case asks the items before the roll and after the heal", /const itemMax = await offerItemMaximise\(caster, \{ formula: riderPlan\.formula, castId \}\);/.test(se) && /await offerRodExtraHeal\(caster, target, \{ castId, healed, healActor \}\)/.test(se) && /await offerOnHealedRelief\(target, \{ spellName: spell\.name/.test(se));
 const ih = read("module", "magic", "item-healing-workflow.mjs");
 ok("E2 the maximise is once per cast and marks the gloves' day; the rod spends from itself", /memory\.maximised\.add\(rider\.id\);/.test(ih) && /healingRider: true/.test(ih) && /await spendFromRod\(caster, item, rider\.ppCost\)/.test(ih));
-ok("E3 Last Vigil offers only the steps the spell's PP reached, and only conditions held", /\.filter\(\(s\) => Number\(s\?\.minPP \?\? 0\) <= Number\(ppRequired\)\)/.test(ih) && /const held = offered\.filter\(/.test(ih));
+ok("E3 Last Vigil offers only the steps the spell's PP reached, and only conditions standing (3.686.0: and not held by a curse, verify-held-conditions H4)", /\.filter\(\(s\) => Number\(s\?\.minPP \?\? 0\) <= Number\(ppRequired\)\)/.test(ih) && /const standing = offered\.filter\(/.test(ih));
 const ww = read("module", "wondrous-use-workflow.mjs");
 ok("E4 a `use` ability runs the registered automation, pays its AP, and marks daily or Focus only once it ran", /if \(use\.kind === "use"\) return useRegisteredAbility\(actor, item, use\);/.test(ww) && /const ran = await automation\.use\(actor, item, use\);\s*if \(ran === false\) return null;/.test(ww) && /setFlag\(SYSTEM_ID, "wondrousFocusExpended", true\)/.test(ww));
 const ck = read("module", "dice", "check.mjs");

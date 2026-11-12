@@ -44,7 +44,8 @@ const MUTATIONS = [
   {
     name: "the reach gate stops consulting the flag",
     file: ATTACK,
-    from: "reachAlreadyEstablished ? null : distanceToTarget",
+    // RE-ANCHORED AT 3.682.0 (a spell's reach joins the flag).
+    from: "(reachAlreadyEstablished || withinReachOverride(distanceToTarget, reachOverrideFeet)) ? null : distanceToTarget",
     to: "distanceToTarget",
     breaks: "A3/A4b — the original defect, exactly as reported"
   },

@@ -171,7 +171,7 @@ const pf = read("module", "picker-filters.mjs");
     && /melee: isMelee,\n\s*unarmed: isUnarmedAttack\(weaponData\),/.test(aw));
   const srw = read("module", "magic", "strike-riders-workflow.mjs");
   ok("C6 an unarmed-scoped rider reaches it, on every rider path", /unarmed: weapon\?\.system\?\.unarmed === true \|\| abilityUnarmed,/.test(srw)
-    && (srw.match(/weaponIdentity\(weapon, actor\)/g) ?? []).length === 4 && !/weaponIdentity\(weapon\)[^,]/.test(srw));
+    && (srw.match(/weaponIdentity\(weapon, actor\)/g) ?? []).length === 5 && !/weaponIdentity\(weapon\)[^,]/.test(srw));
   ok("C6 a module asks the same question through the helpers", /unarmedAbilityWeapon: async \(actor, weapon\) => \{/.test(api));
 }
 
@@ -187,7 +187,7 @@ const pf = read("module", "picker-filters.mjs");
   ok("C7 the damage path adds it as total damage, names it, and reads its magic and materials",
     /const bonded = weaponScalingProfile\(unarmedAbilityCarriers\(actor\), weapon, Number\(actor\?\.system\?\.combat\?\.bab\?\.total \?\? 0\)\);/.test(aw)
     && /if \(bondedFlat\) formula \+= ` \+ \$\{bondedFlat\}`;/.test(aw)
-    && /if \(bondedFlat\) lines\.push\(line\(`<em>\$\{bonded\.flatLabel\}: total damage\.<\/em>`\)\);/.test(aw)
+    && /if \(bondedFlat(?: && !replacingFlat)?\) lines\.push\(line\(`<em>\$\{bonded\.flatLabel\}: total damage\.<\/em>`\)\);/.test(aw)
     && /\|\| Boolean\(bonded\?\.magical\);/.test(aw)
     && /\.\.\.\(bonded\?\.materials \?\? \[\]\)\]\.filter\(Boolean\)\.join\(", "\),/.test(aw));
 }

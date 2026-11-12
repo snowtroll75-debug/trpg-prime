@@ -108,7 +108,7 @@ const SHEET_HBS = read("templates", "actor", "actor-sheet.hbs");
     ["slowed", "stunned", "frightened", "sickened", "dazed", "weakened", "doomed"]
       .every((id) => R.combinedConditionValue(id, 2, 1) === 2 && R.combinedConditionValue(id, 1, 3) === 3));
   ok("B3 A4 — applyConditionTags combines through the rule, not by adding",
-    /const newValue = combinedConditionValue\(tag\.key, existingValue, incomingValue\);/.test(APPLY) && /let incomingValue = Number\(tag\.value \?\? 1\);/.test(APPLY)
+    /\n\s+: combinedConditionValue\(tag\.key, existingValue, incomingValue\);/.test(APPLY) && /let incomingValue = Number\(tag\.value \?\? 1\);/.test(APPLY)
     && !/const newValue = existingValue \+/.test(APPLY));
   ok("B4 A3 — the AP regain reads Slowed as applied, under Stunned",
     /const slowed = Number\(actor\.conditions\?\.direct\?\.get\?\.\("slowed"\)/.test(COMBAT)
@@ -150,10 +150,12 @@ const SHEET_HBS = read("templates", "actor", "actor-sheet.hbs");
     && (ACTOR.match(/await settle\(\);/g) ?? []).length === 2
     && /if \(id === "soulDrain"\) await soulDrainStrikes\(actor, before, after\);/.test(EVENTS));
   ok("C9 A5 — a full night's sleep, fed and watered, clears Fatigue",
-    /if \(activity === "sleeping" && wholeHours >= FULL_NIGHT_HOURS && ate && drank\) \{[\s\S]{0,200}toggleStatusEffect\("fatigued", \{ active: false \}\)/.test(REST)
+    // RE-PINNED 3.686.0 (H17): a fatigue held by a curse is not cleared.
+    /if \(activity === "sleeping" && wholeHours >= FULL_NIGHT_HOURS && ate && drank && !actorConditionHeld\(actor, "fatigued"\)\) \{[\s\S]{0,200}toggleStatusEffect\("fatigued", \{ active: false \}\)/.test(REST)
     && /fatigueCleared,/.test(REST));
   ok("C10 A6 — Weakened comes off a Strength-based damage roll",
-    /if \(weakened > 0 && isStrengthBasedAttack\(weaponData\)\) formula \+= ` - \$\{weakened\}`;/.test(ATTACK));
+    // RE-ANCHORED AT 3.684.0 (G25): not when a declared ability (Clever Damage's Intelligence) is the one added.
+    /if \(weakened > 0 && isStrengthBasedAttack\(weaponData\)(?: && !declaredDamageAbility)?\) formula \+= ` - \$\{weakened\}`;/.test(ATTACK));
   ok("C11 the sheet's Fatigue lines say what now happens",
     /Fatigue 20\+<\/strong> — the character dies\./.test(SHEET_HBS) && /Fatigue 10\+<\/strong> — Unconscious until Fatigue falls below 10\./.test(SHEET_HBS));
 }
@@ -327,7 +329,7 @@ const ffRow = (defence) => EV.attackTermsAgainst(target(defence), { conditions: 
     && !R.keepsMagicOrArmour({ type: "status", source: "Actor.x.ActiveEffect.y" }));
   ok("I3 the actor applies them after the Defence is resolved",
     /const restriction = defenceRestriction\(actor\.conditions\?\.effective\);\s*if \(restriction === "zero"\) \{\s*combat\.defence\.total = 0;/.test(ACTOR)
-    && /return keepsMagicOrArmour\(entry\) \|\| magic\.has\(entry\.source\) \? sum \+ value : sum;/.test(ACTOR));
+    && /\(\(Number\(entry\.value\) \|\| 0\) < 0 \|\| keepsMagicOrArmour\(entry\) \|\| magic\.has\(entry\.source\)\)\);/.test(ACTOR));
   ok("I4 R7 — Petrified: Hardness 8 joins the DR that always adds",
     R.PETRIFIED_HARDNESS === 8
     && /if \(actor\?\.hasCondition\?\.\("petrified"\)\) \{\s*system\.combat\.dr\.total = \(Number\(system\.combat\.dr\.total\) \|\| 0\) \+ PETRIFIED_HARDNESS;/.test(ACTOR));

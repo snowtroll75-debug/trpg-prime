@@ -239,11 +239,32 @@ export function twinParryBonus({ featNames = [], hasSecondWeapon = false, alread
  */
 export const TERRAIN_RELIEF_SCOPE_FLAG = "ignoresDifficultTerrainOn";
 
+/**
+ * THE MAGICAL KIND (3.683.0; Eldritch Arts Block 5, seam C16). Astral Drift:
+ * "you ignore magical difficult terrain". Declared as
+ *
+ *   flags.trg-prime.ignoresDifficultTerrain = "magical"
+ *
+ * and honoured ONLY on a path whose difficult ground was all made by a spell
+ * or a magical effect — the `modifyMovementCost` behaviours the cast and the
+ * storm lay carry `flags.trg-prime.magicalTerrain` (magic/difficult-terrain.mjs
+ * `MAGICAL_TERRAIN_FLAG`). Ground a GM drew, a creature's aura, or a mix of
+ * the two kinds on one path is not eased: Foundry hands this system one total
+ * cost for the path, and easing a bog because a spell's vines were also
+ * crossed would be the discount the feat does not print.
+ *
+ * Before 3.683.0 the string was merely truthy and would have eased every
+ * terrain; no core item declares it, so nothing shipped changes.
+ */
+const MAGICAL_TERRAIN_RELIEF = "magical";
+
 /** The action keys one document's flags ease: `true` for all of them,
- *  an array for a scoped carrier, or null when it carries nothing. */
+ *  an array for a scoped carrier, "magical" for the magical kind only
+ *  (3.683.0), or null when it carries nothing. */
 function terrainReliefScope(document, systemId = "trg-prime") {
   const flags = document?.flags?.[systemId];
   if (!flags) return null;
+  if (String(flags.ignoresDifficultTerrain ?? "").trim().toLowerCase() === MAGICAL_TERRAIN_RELIEF) return MAGICAL_TERRAIN_RELIEF;
   if (flags.ignoresDifficultTerrain) return true;
   const scoped = flags[TERRAIN_RELIEF_SCOPE_FLAG];
   if (Array.isArray(scoped) && scoped.length) {
@@ -297,11 +318,20 @@ export function ignoresDifficultTerrain(actor, movementKey = null) {
  * @param {string|null} [movementKey]
  * @returns {string|null} null when nothing eases this move.
  */
-export function terrainReliefName(actor, movementKey = null) {
+export function terrainReliefName(actor, movementKey = null, { magicalTerrain = false } = {}) {
   const SYSTEM_ID = "trg-prime";
   const wanted = String(movementKey ?? "").trim().toLowerCase();
+  // THE PATH'S TERRAIN IS ALL MAGICAL (3.683.0, C16): a boolean, or a
+  // function asked only when a "magical" carrier is met — the region scan
+  // behind it is not owed to every move.
+  let magicalKnown = null;
+  const pathIsMagical = () => {
+    if (magicalKnown === null) magicalKnown = Boolean(typeof magicalTerrain === "function" ? magicalTerrain() : magicalTerrain);
+    return magicalKnown;
+  };
   const carries = (document) => {
     const scope = terrainReliefScope(document, SYSTEM_ID);
+    if (scope === MAGICAL_TERRAIN_RELIEF) return pathIsMagical();
     if (scope === true) return true;
     return Array.isArray(scope) && Boolean(wanted) && scope.includes(wanted);
   };
@@ -312,6 +342,21 @@ export function terrainReliefName(actor, movementKey = null) {
     if (carries(effect)) return named(effect);
   }
   return null;
+}
+
+/**
+ * IS ALL THE DIFFICULT GROUND ON THIS PATH MAGICAL? (3.683.0, C16.) One row
+ * per Region the path crosses that charges this movement more:
+ * `{ magical }` — true when its cost behaviours were laid by a spell or a
+ * magical effect. True only when there is such ground and none of any other
+ * kind.
+ *
+ * @param {Array<{magical: boolean}>} crossed
+ * @returns {boolean}
+ */
+export function onlyMagicalTerrain(crossed = []) {
+  const rows = Array.from(crossed ?? []);
+  return rows.length > 0 && rows.every((r) => r?.magical === true);
 }
 
 export function wildStrideCost({ cost = 0, distance = 0, eases = false, magical = false } = {}) {

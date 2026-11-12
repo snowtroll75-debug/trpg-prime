@@ -27,7 +27,8 @@ const imp = (rel) => import(new URL(`../module/${rel}`, import.meta.url));
 /* A — B5-5 */
 const ck = read("module", "dice", "check.mjs");
 ok("A1 a skill check or save that comes out a Fumble or a Blunder is offered the reroll",
-  /!check\.fumbleRerolled && !check\.presetDice && \["skill", "save"\]\.includes\(check\.type\)\n\s*&& \["fumble", "blunder"\]\.includes\(check\.outcome\?\.degree\?\.key\)\) \{/.test(ck));
+  // 3.677.0 (C12): the degree is read once, and a Partial or a Failure joins it only for a reroll that names it.
+  /const rerollDegree = check\.outcome\?\.degree\?\.key;\n\s*const rerollable = \["fumble", "blunder"\]\.includes\(rerollDegree\)\n[\s\S]{0,400}!check\.fumbleRerolled && !check\.presetDice && \["skill", "save"\]\.includes\(check\.type\)\n\s*&& rerollable\) \{/.test(ck));
 
 /* B — the reaction, as spending it would see it */
 const warned = [];
@@ -81,7 +82,7 @@ ok("C3 the first check records its die",
   /check\.convictionBonusSpent = true;\n\s*check\.convictionDie = roll\.total;/.test(offer)
   && /this\.presetConvictionDie = Math\.max\(0, Math\.trunc\(Number\(config\.presetConvictionDie\) \|\| 0\)\);/.test(ck));
 const acw = read("module", "combat", "action-workflow.mjs");
-ok("C4 resolveAction hands the die on with the dice", /presetConvictionDie = 0,?\n(?:\s*\/\/[^\n]*\n)*(?:\s*presetModifiers = null\n)?\} = \{\}\) \{/.test(acw) && /\.\.\.\(presetDice \? \{ presetDice, presetConvictionDie \} : \{\}\),/.test(acw));
+ok("C4 resolveAction hands the die on with the dice", /presetConvictionDie = 0,?\n(?:\s*\/\/[^\n]*\n)*(?:\s*presetModifiers = null,?\n)?(?:\s*\/\/[^\n]*\n)*(?:\s*presetDispel = null\n)?\} = \{\}\) \{/.test(acw) && /\.\.\.\(presetDice \? \{ presetDice, presetConvictionDie \} : \{\}\),/.test(acw));
 
 /* D — an exact first */
 const df = await imp("daily-firsts.mjs");

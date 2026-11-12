@@ -187,7 +187,8 @@ ok("N2b a dropped circle reads its place off its own Region",
 // walked straight through it. What matters is what is being asked, not
 // that a branch exists somewhere below it.
 ok("N2c and a circle that is gone catches nobody",
-  em.includes("const inside = centreFeet ? emanationMembers({"),
+  // (3.677.1: the circle is `caught` first; who refused a beneficial one is taken out after.)
+  em.includes("const caught = centreFeet ? emanationMembers({"),
   "falling back to the caster would quietly reattach a cloak they put down");
 
 /* ================================================================== *

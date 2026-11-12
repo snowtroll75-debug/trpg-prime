@@ -40,6 +40,7 @@
 import { actorAbilityCollapse, collapseTransition } from "./ability-collapse.mjs";
 import { isActingGM } from "../acting-gm.mjs";
 import { reapDead } from "./death-state.mjs";
+import { withActorConditionWriter } from "../condition-writer.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -151,6 +152,10 @@ function scheduleSettle(actor) {
  * @returns {Promise<boolean>} whether anything was changed
  */
 async function settleAbilityCollapse(actor) {
+  return withActorConditionWriter(actor, () => settleAbilityCollapseNow(actor));
+}
+
+async function settleAbilityCollapseNow(actor) {
   try {
     if (!actor?.id || actor.documentName !== "Actor") return false;
     if (!isActingGM()) return false;

@@ -229,6 +229,15 @@ const MUTATIONS = [
     breaks: "H11/H12 — the sentence that described the gap this release closed"
   },
 
+  /* ---------------- the release (3.675.1) ---------------- */
+  {
+    file: path.join(SYSTEM_ROOT, "system.json"),
+    name: "Z1 the version is not raised",
+    from: "\"version\": \"3.686.2\"",
+    to: "\"version\": \"3.675.0\"",
+    breaks: "Z1 — a packaged change ships under the number it replaced"
+  },
+
   /* ---------------- Identify Power through a specialist skill ---- */
   {
     file: SKILLDATA,
@@ -245,6 +254,30 @@ const MUTATIONS = [
     from: "Ethereal/Occultism, Verdant/Nature), OR an appropriate specialist skill, which you invoke ",
     to: "Ethereal/Occultism, Verdant/Nature). You invoke ",
     breaks: "I2a — the rule would work while its own card said it did not"
+  },
+  {
+    file: SKILLDATA,
+    name: "I1c Recall Knowledge stops being open to specialist skills",
+    // Anchored on the ruling's own line, which Identify Power and Disable
+    // a Peril do not carry.
+    from: "    // gets it — Animal Lore, Barkeeping, Etiquette alike — because the\n    // ruling says \"always\", not \"the Lore ones\".\n    specialistSkills: true,",
+    to: "    // gets it — Animal Lore, Barkeeping, Etiquette alike — because the\n    // ruling says \"always\", not \"the Lore ones\".\n    specialistSkills: false,",
+    breaks: "I1/I1c/I1g — Graham's 29 October ruling, undone by one word"
+  },
+  {
+    file: SKILLDATA,
+    name: "I1f Recall Knowledge's card stops naming the specialist route",
+    from: "one of the knowledge skills, OR any specialist skill you have, which you invoke",
+    to: "one of the knowledge skills, which you invoke",
+    breaks: "I1f — the route would work while its own card said it did not"
+  },
+  {
+    file: SKILLDATA,
+    name: "I1e Recall Knowledge becomes a Trained action",
+    // Among the General Skill Actions the Set already lists as Trained.
+    from: "  \"research\", \"earnIncome\", \"identifyPower\", \"studyTarget\",",
+    to: "  \"research\", \"recallKnowledge\", \"earnIncome\", \"identifyPower\", \"studyTarget\",",
+    breaks: "I1e — a gate the page does not print, on an untrained action"
   },
   {
     file: SPECIALIST,

@@ -100,10 +100,13 @@ function sizeReach(size) {
  *   passed: "normal" for its critical ("treating its squares as normal
  *   movement"), anything else truthy for its success ("treating its
  *   squares as difficult terrain")
+ * @param {boolean} [state.incorporeal] the mover is incorporeal by an effect
+ *   (3.683.0; see `grantsIncorporealPassage`)
  * @returns {{allowed: boolean, needsTumble: boolean, multiplier: number, reason: string}}
  */
 export function passageThrough({
-  moverSize = "medium", occupantSize = "medium", ally = false, prone = false, tumbled = false, swarm = false
+  moverSize = "medium", occupantSize = "medium", ally = false, prone = false, tumbled = false, swarm = false,
+  incorporeal = false
 } = {}) {
   const steps = sizeSteps(occupantSize, moverSize);
 
@@ -113,6 +116,15 @@ export function passageThrough({
   // being in the space. `swarm` is true when either the mover or the
   // occupant is a Swarm.
   if (swarm) return { allowed: true, needsTumble: false, multiplier: 1, reason: "a swarm shares the space" };
+
+  // AN INCORPOREAL MOVER PASSES THROUGH (3.683.0; Eldritch Arts Block 5, seam
+  // C18). Astral Crossing: "you become incorporeal … allowing you to pass
+  // through objects and creatures"; Ethereal Form and Eclipsed Form the same.
+  // Any creature's square, an enemy's included, at no extra cost and with no
+  // Tumble. ENDING there is still refused: `mayEndInSquare` is not told, so
+  // "you may not end your turn in one" holds as it does for everyone. Walls
+  // are Foundry's and stay so.
+  if (incorporeal) return { allowed: true, needsTumble: false, multiplier: 1, reason: "incorporeal — passes through" };
 
   // "You may move through the occupied space of a willing ally." The
   // optional Perception rule beneath it ("Realistic Methodology") is the
@@ -152,6 +164,29 @@ export function passageThrough({
     allowed: false, needsTumble: true, multiplier: 1,
     reason: "an unwilling creature's space — Tumble (Acrobatics) first"
   };
+}
+
+/**
+ * IS THIS MOVER INCORPOREAL BY AN EFFECT? (3.683.0, seam C18.)
+ *
+ * An effect that grants the `incorporeal` trait — `flags.trg-prime.
+ * grantedTraits` (a list or a comma-separated string), the route a Form
+ * spell's trait and Block 1's Ethereal Form already take — and is neither
+ * disabled nor suppressed. ONLY BY AN EFFECT, on purpose: a creature typed
+ * incorporeal (a Fiends & Fables ghost) moves exactly as it did before this
+ * release, so a world that uses none of the module's feats is unchanged.
+ *
+ * @param {Array} effects the mover's applied effects
+ * @returns {boolean}
+ */
+export function grantsIncorporealPassage(effects = []) {
+  for (const effect of Array.from(effects ?? [])) {
+    if (!effect || effect.disabled || effect.isSuppressed === true) continue;
+    const raw = effect.flags?.["trg-prime"]?.grantedTraits;
+    const list = Array.isArray(raw) ? raw : String(raw ?? "").split(/[,;]/);
+    if (list.some((t) => String(t ?? "").trim().toLowerCase() === "incorporeal")) return true;
+  }
+  return false;
 }
 
 /**

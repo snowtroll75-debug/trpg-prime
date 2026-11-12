@@ -28,6 +28,7 @@
  * that knows a spell is still running.
  */
 
+import { actorConditionHeld } from "../conditions/held-conditions.mjs";
 import { getActiveSpells, setActiveSpells } from "./active-spells.mjs";
 import {
   emanationDelta, emanationMembers, flooredValue, untestedMembers
@@ -226,7 +227,7 @@ async function refreshEmanationNow({ actor, token, entry, emanation }) {
   const centreFeet = anchorToken
     ? tokenCentreFeet(anchorToken.document)
     : regionCentreFeet(region);
-  const inside = centreFeet ? emanationMembers({
+  const caught = centreFeet ? emanationMembers({
     centreFeet,
     radiusFeet: emanation.radiusFeet,
     subjects,
@@ -234,6 +235,46 @@ async function refreshEmanationNow({ actor, token, entry, emanation }) {
     mode: emanation.mode
   }) : [];
   const byId = new Map(subjects.map((s) => [s.id, s.token]));
+
+  // ── the help a creature may refuse (3.677.1) ──────────────────────
+  //
+  // A NYRINN'S NULL AURA, OR AN ASCENDAN'S FORBIDDEN TRADITION. Found live
+  // on 3.677.0: the cast rolled the save, the card said the spell had no
+  // effect on them, and this sweep gave them the bonus anyway. The cast's
+  // answers are in `benefit.accepted`; a latecomer who owes the save rolls
+  // it here, once (Graham, 1 November 2026, as Bane's latecomers do), and
+  // a creature that refused is left out of the circle for good.
+  let inside = caught;
+  if (emanation.benefit?.spell) {
+    const { beneficialSaveRequired, beneficialTraditionSave, benefitMembers, benefitUnasked } =
+      await import("./beneficial-save.mjs");
+    const benefit = emanation.benefit;
+    const accepted = { ...(benefit.accepted ?? {}) };
+    let asked = false;
+    for (const id of benefitUnasked(caught, accepted)) {
+      const t = byId.get(id);
+      if (!t?.actor || !beneficialSaveRequired(t.actor, benefit.spell, actor).required) continue;
+      const outcomes = new Map();
+      const lines = [];
+      await beneficialTraditionSave(actor, { name: emanation.name, system: benefit.spell },
+        { targets: [t.actor], saveDC: benefit.saveDC ?? 10, lines, outcomes });
+      accepted[id] = outcomes.get(t.actor) === true;
+      asked = true;
+      if (lines.length) {
+        await ChatMessage.create({
+          speaker: ChatMessage.getSpeaker({ actor: t.actor }),
+          content: `<div class="trg-prime">${lines.join("")}</div>`
+        });
+      }
+    }
+    if (asked) {
+      // WITHOUT RECONCILING, for the reason the entry save's write-back
+      // below gives: this runs inside this emanation's own refresh.
+      await recordEmanation(actor, entry.id, { ...emanation, benefit: { ...benefit, accepted } }, { reconcile: false });
+      emanation.benefit = { ...benefit, accepted };
+    }
+    inside = benefitMembers(caught, accepted);
+  }
 
   // ── the save an entrant owes, if the spell demands one ───────────
   //
@@ -373,7 +414,9 @@ export async function recordEmanation(actor, castId, descriptor, { reconcile = t
   // descriptor rebuilt from the spell would drop it — every creature
   // would then owe a fresh save on its next step, which is precisely the
   // ruling this map exists to honour.
-  entry.emanation = { tested: entry.emanation?.tested ?? {}, ...descriptor };
+  // `benefit` SURVIVES THE SAME WAY (3.677.1): who refused a beneficial
+  // circle's help is remembered for as long as the circle runs.
+  entry.emanation = { tested: entry.emanation?.tested ?? {}, benefit: entry.emanation?.benefit ?? null, ...descriptor };
   await setActiveSpells(actor, entries);
   // THE CAST'S OWN EFFECTS BECOME THIS EMANATION'S (3.426.0). Without
   // this the creatures caught at the cast are held by an owner that
@@ -592,6 +635,11 @@ export function conditionFloorFor(actor, condition) {
   // `flags.trg-prime.conditionFloors` by whatever inflicted it, and read
   // here beside the emanation floors so every reducer asks one question.
   let floor = effectConditionFloor(actor, condition);
+  // HELD BY A CURSE (3.686.0, H17; Graham's Q183): the floor is the value it
+  // has, so every reducer that asks this question leaves it alone.
+  if (actorConditionHeld(actor, condition)) {
+    floor = Math.max(floor, Number(actor?.conditions?.rawValues?.get?.(condition) ?? actor?.getConditionValue?.(condition) ?? 0) || 0);
+  }
   const tokens = actor?.getActiveTokens?.() ?? [];
   if (!tokens.length) return floor;
   const token = tokens.find((t) => t.controlled) ?? tokens[0];

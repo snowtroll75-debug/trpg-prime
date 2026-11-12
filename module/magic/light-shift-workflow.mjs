@@ -27,6 +27,7 @@
  * the spell works is that four subsystems already existed and agreed.
  */
 
+import { isActingGM } from "../acting-gm.mjs";
 import {
   LIGHT_SHIFT_ANCHOR_FLAG, LIGHT_SHIFT_DROPPABLE_FLAG, anchoredShiftUpdates, droppableCircles,
   lightShiftDroppedLine, tokenCentrePx
@@ -167,8 +168,8 @@ export function lightShiftCanDrop(castId) {
 export function registerLightShiftFollow() {
   Hooks.on("updateToken", async (tokenDoc, changes) => {
     if (!("x" in (changes ?? {})) && !("y" in (changes ?? {})) && !("width" in (changes ?? {}))) return;
-    const gm = game.users?.activeGM ?? null;
-    if (gm ? gm.id !== game.user?.id : !game.user?.isGM) return;
+    // One connection of the acting GM (3.686.2; the same answer as before, plus the election).
+    if (!isActingGM()) return;
     const scene = tokenDoc?.parent ?? null;
     if (!scene?.regions?.size) return;
     const regions = Array.from(scene.regions).map((r) => ({ id: r.id, flags: r.flags, shapes: r.shapes.map((sh) => sh.toObject?.() ?? sh) }));

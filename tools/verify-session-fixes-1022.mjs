@@ -60,7 +60,9 @@ const perf = await relay.performRelay({ action: relay.RELAY_ACTIONS.STATUS, uuid
 equal("A8 the GM's client lays the recurring fire it was asked to, with its value and type", [perf.ok, toggled], [true, [["recurring", { value: 2, damageType: "fire" }]]]);
 const castSrc = read("module", "magic", "cast-workflow.mjs");
 ok("A9 THE ORB OF FIRE PATH: a spell attack's recurring rider is still laid by the Actor's toggle (now relayed)",
-  /await targetActor\.toggleStatusEffect\("recurring", \{\s*value: next\.value, damageType: next\.damageType\s*\}\);/.test(castSrc));
+  // SINCE 3.685.0 (Q150) through `layRecurring`, which calls the toggle by type.
+  /const next = await layRecurring\(targetActor, amount, damageType\);/.test(castSrc)
+    && /else await actor\.toggleStatusEffect\("recurring", options\);/.test(fs.readFileSync(path.join(SYSTEM_ROOT, "module", "conditions", "recurring-workflow.mjs"), "utf8")));
 
 /* ------------------------------------------------------------------ */
 /* B — the other direct writes on a player's cast                      */
@@ -110,8 +112,9 @@ equal("C4 a negative score subtracts; Guiding Stone's Strength is unchanged",
     sda.withDamageAbility("2d6", { addAbility: "strength" }, caster, "wisdom").formula], ["1d6 - 1", "2d6 + 1"]);
 ok("C5 the spell attack hands the cast's key to the damage formula",
   /dmg, actor\.system \?\? \{\}, castingAbilityKey,\n/.test(castSrc)
-  && /extraAttackRows = \[\],\s*\/\/[^\n]*\n\s*castingAbilityKey = ""\s*\} = \{\}\) \{/.test(castSrc)
-  && /castingAbilityKey: castAbilityKey\s*\}\);/.test(castSrc));
+  // RE-ANCHORED AT 3.684.0 (G12): the cast's PP follows the key, in the signature and the call.
+  && /extraAttackRows = \[\],\s*\/\/[^\n]*\n\s*castingAbilityKey = "",?\s*(?:(?:\/\/[^\n]*\n|[a-zA-Z]+ = [^\n]*\n)\s*)*\} = \{\}\) \{/.test(castSrc)
+  && /castingAbilityKey: castAbilityKey,?\s*(?:\/\/[^\n]*\n\s*castPP\s*)?\}\);/.test(castSrc));
 ok("C6 …and that key is the innate spell's own, else the Spellcraft swap, else the sheet's",
   /const castAbilityKey = String\(\(isInnate \? innateAbilityAttr : \(swapAbility \?\? system\.magic\?\.castingAbility\)\) \?\? ""\);/.test(castSrc));
 // 3.674.0 (Graham, 28 Oct 2026: "The spell Hurling should add the casters
@@ -195,7 +198,7 @@ equal("D9 a module may register one; nonsense is refused",
   [true, false, "weapon"]);
 const awSrc = read("module", "combat", "attack-workflow.mjs");
 const iOffer = awSrc.indexOf("await offerDefences(actor, targetActor, { kind: \"weapon\", what: weapon.name });");
-const iSpend = awSrc.indexOf("await spendActionPoints(actor, \"1\", `${weapon.name} — Strike`, { use: \"strike\" });");
+const iSpend = awSrc.indexOf("await spendActionPoints(actor, \"1\", `${weapon.name} — Strike`, { use: \"strike\", deferNextAction: true });");
 const iDB = awSrc.indexOf("const typedDefence = targetActor");
 // Re-anchored at 3.667.0: the check is rolled from its config (and again if
 // the defender rerolls it).

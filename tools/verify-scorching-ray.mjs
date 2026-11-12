@@ -92,7 +92,11 @@ ok("M4 THE COUNT IS FROZEN BEFORE THE FIRST RAY",
     .test(cast),
   "every ray must roll at the penalty as it stood before the volley");
 ok("M4b and passed to each ray as `mapCount`", /mapCount: mapBefore,/.test(cast));
-ok("M5 EACH RAY DEFERS THE ADVANCE", /deferMapAdvance: true,/.test(cast));
+// RE-PINNED AT 3.684.0: G1's Echo also passes `deferMapAdvance: true,` (its
+// second creature is the same attack), so the bare pattern passed with the
+// VOLLEY's deferral removed (mutate-scorching-ray, SURVIVED — the volley was
+// intact; the check could no longer see it). Pinned on the volley's call.
+ok("M5 EACH RAY DEFERS THE ADVANCE", /targetOverride: targetActor,\n\s*mapCount: mapBefore,\n\s*deferMapAdvance: true,/.test(cast));
 ok("M5b and the single-ray path still advances it",
   /if \(!deferMapAdvance && spellCountsTowardMAP\(spellData\)\) \{/.test(cast),
   "every other attack spell in the pack must behave exactly as it did");

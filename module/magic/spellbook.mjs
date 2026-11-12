@@ -51,11 +51,15 @@ export { sourceEntryId };
  * data" convention `repertoireCategory` set, since a future arcane
  * book-caster could print a different opening batch.
  */
-export function spellBookSlots(level, firstPicks) {
+export function spellBookSlots(level, firstPicks, perLevel = 2) {
   const value = Math.floor(Number(level) || 0);
   const opening = Math.max(0, Math.floor(Number(firstPicks) || 0));
   if (value < 1) return 0;
-  return opening + 2 * (value - 1);
+  // A CLASS'S OWN LADDER (3.680.0; Eldritch Arts D4b): the Archmage "add[s]
+  // one new high magic spell to your spell book" a level, not two. Declared as
+  // `classMagic.bookPerLevel`; absent, two.
+  const per = Number.isFinite(Number(perLevel)) && Number(perLevel) >= 0 ? Math.floor(Number(perLevel)) : 2;
+  return opening + per * (value - 1);
 }
 
 /**
@@ -75,10 +79,24 @@ export function spellBookPickEligible(spell, { tradition = "", firstPick = false
 }
 
 /** The spells in the book: owned items carrying the spellBookPick flag
- * — permanent, unlike a day's memorised picks. */
+ * — permanent, unlike a day's memorised picks.
+ *
+ * NOT ITS CANTRIPS (3.680.0; Eldritch Arts D4c). The Archmage's "6 high magic
+ * cantrips in your spell book" are book entries too — castable only once
+ * memorised — but they are memorised against `cantripsPerDay`, not the
+ * levelled allowance, and they are not the ladder's slots. They carry
+ * `cantripBook` beside `spellBookPick`; see `spellBookCantrips`. */
 export function spellBookSpells(actor) {
   return Array.from(actor?.items ?? []).filter(
-    (item) => item.type === "spell" && Boolean(item.flags?.[SYSTEM_ID]?.spellBookPick)
+    (item) => item.type === "spell" && Boolean(item.flags?.[SYSTEM_ID]?.spellBookPick) &&
+      !item.flags?.[SYSTEM_ID]?.cantripBook
+  );
+}
+
+/** The cantrips kept in a book (the Archmage's six). */
+export function spellBookCantrips(actor) {
+  return Array.from(actor?.items ?? []).filter(
+    (item) => item.type === "spell" && Boolean(item.flags?.[SYSTEM_ID]?.cantripBook)
   );
 }
 
@@ -102,8 +120,8 @@ export function spellBookLadderSpells(actor) {
  *
  * @returns {{allowed, owned, remaining, firstPicksOutstanding}}
  */
-export function spellBookState({ level = 0, firstPicks = 0, owned = 0 } = {}) {
-  const allowed = spellBookSlots(level, firstPicks);
+export function spellBookState({ level = 0, firstPicks = 0, owned = 0, perLevel = 2 } = {}) {
+  const allowed = spellBookSlots(level, firstPicks, perLevel);
   const has = Math.max(0, Math.floor(Number(owned) || 0));
   return {
     allowed,

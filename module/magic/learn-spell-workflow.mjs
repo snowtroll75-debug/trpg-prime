@@ -30,9 +30,17 @@ import { alreadyKnownSpell } from "./repertoire.mjs";
 import { ownedEntryIds, spellBookContext } from "./spellbook-workflow.mjs";
 import { spellBookPickEligible } from "./spellbook.mjs";
 import { contentPack } from "../content-packs.mjs";
+import {
+  bookAdditionEligible,
+  bookArchetype,
+  bookSpellData,
+  bookTraditionLabel,
+  learnSpellRoute
+} from "./arcanist-book.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 import { castingDerives } from "../creature-ability-rules.mjs";
+import { actorPickRule, pickAllowed } from "./class-magic.mjs";
 const SYSTEM_ID = "trg-prime";
 
 /** Is this pack spell within the character's castable maximum right now?
@@ -48,30 +56,58 @@ const SYSTEM_ID = "trg-prime";
  * receiving a second identical entry.
  */
 export function eligibilityFor(actor) {
+  // THE ARCANIST'S BOOK (3.676.0) takes spells of its OWN tradition — a
+  // Cleric/Arcanist learns arcane spells into it, not divinity ones —
+  // capped by the caster level their slots are capped by.
+  const route = routeFor(actor);
+  if (route.kind === "archetype") {
+    const casterLevel = Number(actor.system?.magic?.casterLevelValue ?? 0);
+    const owned = ownedEntryIds(actor);
+    return (entry) =>
+      !alreadyKnownSpell(owned, entry) &&
+      bookAdditionEligible(
+        { tradition: entry.system?.tradition, ppCost: entry.system?.ppCost, specialist: entry.system?.specialist },
+        { tradition: route.book.tradition, casterLevel }
+      );
+  }
   const tradition = String(actor.system?.magic?.tradition ?? "");
   // ARCADIAN CASTER / TRUE CASTER (Creature Codex; 3.631.0): the creature
   // may learn from more traditions than its own — "any" (True Caster), or
   // arcane and ethereal (Arcadian) — and casts them as its own. The
   // eligibility test is widened; the spell's tradition is left as printed.
-  const learnTraditions = castingDerives(Array.from(actor.items ?? [])).traditions;
+  // …AND A CLASS'S OWN (3.680.0; Eldritch Arts D4): the Archmage's "all
+  // traditions", the Witch's Ethereal and Verdant. Every tradition a spell
+  // names is tried, not only its first (an "arcane, verdant" spell is a
+  // verdant spell to a Witch). See magic/class-magic.mjs.
+  const pickRule = actorPickRule(actor, castingDerives(Array.from(actor.items ?? [])).traditions);
   const casterLevel = Number(actor.system?.magic?.casterLevelValue ?? 0);
   const owned = ownedEntryIds(actor);
   return (entry) =>
     !alreadyKnownSpell(owned, entry) &&
+    pickAllowed(pickRule, entry.system?.tradition) &&
     spellBookPickEligible(
       {
         tradition: entry.system?.tradition,
         ppCost: entry.system?.ppCost,
         specialist: entry.system?.specialist
       },
-      { tradition: learnTraditions === "any" || (Array.isArray(learnTraditions) && learnTraditions.includes(String(entry.system?.tradition ?? "").split(",")[0].trim().toLowerCase())) ? "" : tradition, firstPick: false, casterLevel }
+      { tradition: "", firstPick: false, casterLevel }
     );
 }
 
-/** Only a book-style caster keeps a Spell Library to add to — null for
- * anyone else, same gate the Spell Book card itself already uses. */
+/**
+ * Which book Learn a Spell writes into, worked out once. See
+ * `learnSpellRoute` (arcanist-book.mjs) for the order.
+ */
+function routeFor(actor) {
+  const book = bookArchetype(Array.from(actor?.items ?? []));
+  return { kind: learnSpellRoute({ classBook: Boolean(spellBookContext(actor)), book }), book };
+}
+
+/** Only a caster who keeps a book has a Spell Library to add to — the
+ * Wizard's class book, or (3.676.0) an Arcanist's spellbook. */
 export function learnSpellEligible(actor) {
-  return Boolean(spellBookContext(actor));
+  return routeFor(actor).kind !== null;
 }
 
 async function promptSource() {
@@ -118,7 +154,10 @@ async function promptSource() {
  *   hours: number}|null>}
  */
 export async function promptLearnSpellSetup(actor) {
-  const tradition = String(actor.system?.magic?.tradition ?? "");
+  const route = routeFor(actor);
+  const tradition = route.kind === "archetype"
+    ? bookTraditionLabel(route.book).toLowerCase()
+    : String(actor.system?.magic?.tradition ?? "");
   const casterLevel = Number(actor.system?.magic?.casterLevelValue ?? 0);
   const picked = await pickFromPack("spells", {
     title: `Learn a Spell — any ${tradition || "tradition"} spell of PP ${casterLevel + 1} or less (your castable maximum)`,
@@ -142,6 +181,8 @@ export async function promptLearnSpellSetup(actor) {
   const rarityRaise = rarityDCIncrease(document.system ?? {});
   const cost = learnSpellCost(ppCost);
   return {
+    route: route.kind,
+    bookSource: route.book?.key ?? null,
     spellId: picked.itemId,
     spellName: document.name,
     ppCost,
@@ -212,7 +253,21 @@ export async function applyLearnSpellOutcome(actor, setup, degreeKey) {
     }
   }
 
-  if (outcome.learned) {
+  if (outcome.learned && setup.route === "archetype") {
+    // INTO THE ARCANIST'S BOOK (3.676.0), owned by the archetype feat like
+    // the rest of the book, and flagged "learned" so it never eats into
+    // the caster feats' free additions.
+    const feat = Array.from(actor.items ?? []).find(
+      (i) => i.type === "feat" && String(i.name ?? "").trim().toLowerCase() === setup.bookSource
+    ) ?? null;
+    const document = await contentPack("spells")?.getDocument(setup.spellId);
+    if (document) {
+      const [item] = await actor.createEmbeddedDocuments("Item", [
+        bookSpellData(packItemData(document), { feat, source: setup.bookSource, via: "learned", requested: document.name })
+      ]);
+      created = item ?? null;
+    }
+  } else if (outcome.learned) {
     const classItem = classItemOf(actor);
     const pack = contentPack("spells");
     const document = await pack?.getDocument(setup.spellId);
@@ -238,5 +293,13 @@ export async function applyLearnSpellOutcome(actor, setup, degreeKey) {
     }
   }
 
-  return { ...outcome, spellName: setup.spellName, cost: setup.cost, created, paid };
+  return {
+    ...outcome,
+    spellName: setup.spellName,
+    cost: setup.cost,
+    created,
+    paid,
+    // What the card calls the book it landed in.
+    bookLabel: setup.route === "archetype" ? "your spellbook" : "your Spell Library"
+  };
 }

@@ -223,7 +223,8 @@ ok("W6 a malformed ladder is refused out loud",
 }
 
 ok("W7 THE DC COMES FROM THE CAST, not from a `defence` string",
-  eff.includes("dc: Number(saveDC ?? rollData?.saveDC ?? 0) || 0"),
+  // SCOPED TO THE LADDER'S CALL (3.685.0): the turn ladder's row carries the same expression.
+  /await resolveSkillLadder\(spell, spec, \{\n\s+dc: Number\(saveDC \?\? rollData\?\.saveDC \?\? 0\) \|\| 0,/.test(eff),
   "the check is not a saving throw, so the spell has no defence field to read");
 
 /* ================= P. the pack ================= */

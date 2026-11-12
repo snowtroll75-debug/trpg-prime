@@ -215,7 +215,8 @@ ok("D9 Born to Ride reaches the AP cost",
   /const bornToRide = oncePerRoundFreeAction\(action\.key, effectiveApCost, actorFeatNames\)/.test(actionWork));
 ok("D10 and is spent at the point of commitment, not when the cost is worked out",
   actionWork.indexOf('await actor.setFlag(SYSTEM_ID, "bornToRideUsed", true)')
-    > actionWork.indexOf("await spendActionCost(actor, effectiveApCost"),
+    > actionWork.indexOf("await commitActionCost(actor, action, readied, effectiveApCost")
+    && actionWork.indexOf("await commitActionCost(actor, action, readied, effectiveApCost") > 0,
   "marking it earlier would burn the round's use on an action that never happened");
 // D11 FIRST ASSERTED THAT THE SENTENCE EXISTED, and a mutation that
 // disabled the branch with `false &&` left the sentence sitting in the

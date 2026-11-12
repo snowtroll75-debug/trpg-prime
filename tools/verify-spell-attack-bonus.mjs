@@ -188,7 +188,7 @@ ok("E3 suppressed rows are dropped before they reach the total",
   /\.filter\(\(row\) => row\.applied !== false\)/.test(cast),
   "applyStacking marks losers rather than removing them");
 ok("E4 the rows are handed to the assembler",
-  /assembledSpellAttackTotal\(\{[\s\S]{0,200}poolRows\s*\n?\s*\}\)/.test(cast));
+  /assembledSpellAttackTotal\(\{[\s\S]{0,400}poolRows\s*\n?\s*\}\)/.test(cast));
 
 // THE WEAPON SIDE MUST BE UNCHANGED. It already read the whole node, and
 // this release must not narrow it to the two travelling types.
@@ -242,7 +242,7 @@ ok("F5 and says why it was suppressed",
 // ORDERING: the lines must be pushed before the hit/miss line that uses
 // the total, or the card explains a number the reader has already passed.
 ok("F6 the reasons appear before the result they explain",
-  cast.indexOf("for (const row of poolRows) {") < cast.indexOf("const total = attackTotal.total;"),
+  cast.indexOf("for (const row of poolRows) {") < cast.indexOf("let total = attackTotal.total;"),
   "an explanation after the conclusion is a footnote nobody reads");
 
 /* ================================================================== */

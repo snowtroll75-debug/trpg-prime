@@ -113,8 +113,8 @@ const MUTATIONS = [
   {
     file: C,
     name: "W2 only the PP is refunded, and the turn is lost",
-    from: "            if (totalCastAP > 0) await refundActionCost(actor, totalCastAP);",
-    to: "            if (false) await refundActionCost(actor, totalCastAP);",
+    from: "            if (totalCastAP > 0) await refundActionCost(actor, totalCastAP, { receipt: castReceipt });",
+    to: "            if (false) await refundActionCost(actor, totalCastAP, { receipt: castReceipt });",
     breaks: "W2 — at three AP the unrefunded half is the expensive one"
   },
   {
@@ -142,8 +142,8 @@ const MUTATIONS = [
   {
     file: A,
     name: "W6 THE GUARD REMOVED: AP is refunded out of combat",
-    from: "async function refundActionCost(actor, apCost) {\n  if (!actorInCombat(actor)) return;",
-    to: "async function refundActionCost(actor, apCost) {",
+    from: "async function refundActionCost(actor, apCost, { receipt = null } = {}) {\n  if (!actorInCombat(actor)) return;",
+    to: "async function refundActionCost(actor, apCost, { receipt = null } = {}) {",
     breaks: "W6 — hands out AP that was never spent"
   },
   {

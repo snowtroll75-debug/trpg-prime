@@ -32,6 +32,7 @@ import {
 } from "./peril.mjs";
 import { perilEffectSpec, perilEffectOutcome, perilIncreaseRows, areaReachFeet, extraPacketLands } from "./peril-effect.mjs";
 import { tokenSquares } from "./combat/geometry.mjs";
+import { isActingGM } from "./acting-gm.mjs";
 
 const SYSTEM_ID = "trg-prime";
 /** A blank rung reads its neighbour, the way peril-effect.mjs reads a ladder. */
@@ -368,10 +369,18 @@ async function rearmSuppressedPerils(at = now()) {
   return count;
 }
 
-/** Install the world-time hook. Called once from the ready hook. */
+/**
+ * Install the world-time hook. Called once from the ready hook.
+ *
+ * THE ACTING GM, NOT EVERY GM (3.685.3). `updateWorldTime` fires on every
+ * connected client, and this asked `game.user.isGM`, so with two GMs
+ * connected both re-armed each peril and each whispered its own "armed
+ * again" card. `isActingGM()` names one; a lone GM with no active GM
+ * designated still re-arms through its fallback.
+ */
 export function registerPerilHooks() {
   Hooks.on("updateWorldTime", (worldTime) => {
-    if (!game.user?.isGM) return;
+    if (!isActingGM()) return;
     rearmSuppressedPerils(Number(worldTime)).catch((error) => console.error("TRG Prime | perils could not re-arm", error));
   });
 }

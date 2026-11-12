@@ -42,15 +42,15 @@ const MUTATIONS = [
   {
     file: D,
     name: "O3 THE FAILURE MODE: an unrollable save counts as a pass",
-    from: "  const passed = Number.isFinite(total) && Number.isFinite(dc) && total >= dc;",
-    to: "  const passed = !Number.isFinite(total) || total >= dc;",
+    from: "(Number.isFinite(total) && Number.isFinite(dc) && total >= dc);",
+    to: "(!Number.isFinite(total) || total >= dc);",
     breaks: "O6 — the deadliest row becomes the safest when something goes wrong"
   },
   {
     file: D,
     name: "O4 the save reaches on a tie instead of meeting the DC",
-    from: "total >= dc;",
-    to: "total > dc;",
+    from: "total >= dc);",
+    to: "total > dc);",
     breaks: "O2 — a save that equals its DC is made"
   },
   {
@@ -85,8 +85,15 @@ const MUTATIONS = [
   },
   {
     file: W,
+    name: "THE DEFECT (3.681.1): the total is read off the check itself",
+    from: "      const saveTotal = saveRoll?.outcome?.total;",
+    to: "      const saveTotal = saveRoll?.total;",
+    breaks: "R2b — every Death critical a failed save"
+  },
+  {
+    file: W,
     name: "R4 the kill lands before the save is consulted",
-    from: "      const verdict = deathCriticalOutcome(save, saveRoll?.total, result);",
+    from: "      const verdict = deathCriticalOutcome(save, saveTotal, result, saveDegree ? { saved: Boolean(saveDegree.success) } : {});",
     to: "      const verdict = { applies: true, died: true, newResult: null }; void deathCriticalOutcome;",
     breaks: "R2/R5 — a result applied before the roll that prevents it"
   },

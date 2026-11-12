@@ -33,6 +33,8 @@
  * it belongs here, in `perCopy`'s neighbourhood, and nowhere else.
  */
 
+import { registeredExtraUses } from "./module-api.mjs";
+
 const normalise = (name) => String(name ?? "").trim().toLowerCase();
 
 /**
@@ -67,6 +69,22 @@ export const EXTRA_USES_ABILITIES = Object.freeze(
 );
 
 /**
+ * The table this function reads: the core's three, then every module's
+ * declared row (3.684.0; Eldritch Arts Block 6, G21 — `registerExtraUses`:
+ * Extra Communion, Deep Weave, Extra Reservoir). A core feat's name keeps the
+ * core's row, as every registration in module-api.mjs leaves a core entry
+ * standing. With nothing registered this is the core's table exactly.
+ */
+export function extraUsesTable() {
+  const table = { ...EXTRA_USES_FEATS };
+  for (const [key, entry] of registeredExtraUses()) {
+    if (Object.prototype.hasOwnProperty.call(EXTRA_USES_FEATS, key)) continue;
+    table[key] = entry;
+  }
+  return table;
+}
+
+/**
  * How many extra daily uses this actor's feats grant the named ability.
  *
  * @param {string[]} featNames  every feat name on the actor (duplicates included)
@@ -80,9 +98,10 @@ export function extraUsesBonus(featNames, abilityName) {
   // can reach is a guard no mutation can prove, and an unprovable line
   // is exactly what this chapter's harness rules exist to refuse.
   const wanted = normalise(abilityName);
+  const table = extraUsesTable();
   let total = 0;
   for (const name of Array.isArray(featNames) ? featNames : []) {
-    const entry = EXTRA_USES_FEATS[normalise(name)];
+    const entry = table[normalise(name)];
     if (!entry) continue;
     // EXACT, NOT CONTAINED. A loose match would let Extra Mercy feed
     // anything with "Mercy" in its name, and Extra Wildshape feed a

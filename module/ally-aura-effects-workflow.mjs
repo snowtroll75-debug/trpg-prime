@@ -4,6 +4,7 @@
  * effects in step with where the tokens stand: after a move, a token
  * arriving or leaving, an aura source changing, and on the canvas loading.
  */
+import { gmConnectionReady, gmConnectionSettled } from "./gm-connection.mjs";
 import { isActingGM } from "./acting-gm.mjs";
 import { ALLY_GRANT_FLAG, allyGrantDelta, allyGrantEffectData, wantedAllyGrants } from "./ally-aura-effects.mjs";
 
@@ -34,7 +35,11 @@ function syncAllyAuraEffects() {
 }
 
 export function registerAllyAuraEffectHooks() {
-  Hooks.on("canvasReady", () => syncAllyAuraEffects());
+  // After the GM-connection election settles (3.686.2), so the first scene is not skipped.
+  Hooks.on("canvasReady", () => {
+    if (gmConnectionSettled()) syncAllyAuraEffects();
+    else gmConnectionReady().then(() => syncAllyAuraEffects());
+  });
   Hooks.on("updateToken", (doc, changed) => { if ("x" in changed || "y" in changed || "disposition" in changed || "width" in changed) syncAllyAuraEffects(); });
   Hooks.on("createToken", () => syncAllyAuraEffects());
   Hooks.on("deleteToken", () => syncAllyAuraEffects());

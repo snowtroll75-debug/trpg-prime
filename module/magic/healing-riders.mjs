@@ -28,7 +28,8 @@
  *     lowHalfBonus: "halfLevel" | <number>,   // +N when the target is at half HP or fewer
  *     dyingHalf: true,                         // a Dying target also regains half the heal
  *     maximiseOneDie: true,                    // the first die of the formula is maximised
- *     oncePerRound: true                       // burns a marker (maximiseOneDie's "once per round")
+ *     oncePerRound: true,                      // burns a marker (maximiseOneDie's "once per round")
+ *     perPP: 1, traits: ["healing"]            // 3.684.0: +N per PP the spell is cast at (Angelic Pact)
  *   }
  *
  * `lowHalfBonus` is "once per creature from each spell", which one heal
@@ -62,7 +63,18 @@ export function declaredHealingRiders(effects = []) {
       maximiseOneDie: Boolean(raw.maximiseOneDie),
       oncePerRound: Boolean(raw.oncePerRound)
     };
-    if (!rider.lowHalfBonus && !rider.dyingHalf && !rider.maximiseOneDie) continue;
+    // PER PP, ON A SPELL OF A TRAIT (3.684.0; Eldritch Arts Block 6, G12) —
+    // the Angelic Pact: "any spell you cast with the Healing trait heals the
+    // target of 1 HP per PP expended". `perPP` × the PP the spell is cast at
+    // (Graham's Q101; magic/cast-pp.mjs), to every creature the heal lands
+    // on; `traits`, when given, any one of them on the spell.
+    const perPP = Math.max(0, Math.trunc(Number(raw.perPP) || 0));
+    if (perPP) {
+      rider.perPP = perPP;
+      rider.traits = (Array.isArray(raw.traits) ? raw.traits : String(raw.traits ?? "").split(/[,;]/))
+        .map((t) => String(t ?? "").trim().toLowerCase()).filter(Boolean);
+    }
+    if (!rider.lowHalfBonus && !rider.dyingHalf && !rider.maximiseOneDie && !rider.perPP) continue;
     out.push(rider);
   }
   return out;
@@ -94,16 +106,25 @@ export function maximiseFirstDie(formula) {
  * @param {object} [p.used] the per-round marker map
  * @returns {{formula: string, extra: number, dyingHalf: boolean, lines: string[], burn: string[]}}
  */
-export function applyHealingRiders(riders = [], { formula = "", casterLevel = 0, targetHp = 0, targetMax = 0, targetDying = false, self = false, used = {} } = {}) {
+export function applyHealingRiders(riders = [], { formula = "", casterLevel = 0, targetHp = 0, targetMax = 0, targetDying = false, self = false, used = {}, castPP = 0, traits = [] } = {}) {
   let out = String(formula ?? "").trim();
   let extra = 0;
   let dyingHalf = false;
   const lines = [];
   const burn = [];
   const low = targetMax > 0 && targetHp <= Math.floor(targetMax / 2);
+  const pp = Math.max(0, Math.trunc(Number(castPP) || 0));
+  const spellTraits = (Array.isArray(traits) ? traits : String(traits ?? "").split(/[,;]/))
+    .map((t) => String(t ?? "").trim().toLowerCase()).filter(Boolean);
   for (const r of riders ?? []) {
     if (r.oncePerRound && used?.[r.id]) continue;
     let fired = false;
+    // PER PP (3.684.0, G12): nothing on a cantrip, nor on a spell without the trait.
+    if (r.perPP && pp > 0 && (!r.traits?.length || r.traits.some((t) => spellTraits.includes(t)))) {
+      extra += r.perPP * pp;
+      lines.push(`${r.label}: +${r.perPP * pp} (${r.perPP} per PP × ${pp} PP)`);
+      fired = true;
+    }
     if (r.lowHalfBonus && low && !self) {
       const add = r.lowHalfBonus === "halfLevel" ? Math.max(1, Math.floor(Math.max(0, Number(casterLevel) || 0) / 2)) : r.lowHalfBonus;
       extra += add;

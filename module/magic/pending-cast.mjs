@@ -272,3 +272,75 @@ export function castingProgressLine(spellName, { apOwed = 0, apPaid = 0, castAP 
     + (own > 0 ? `; its own <strong>${own} AP</strong> is spent when it is.` : ".")
     + "</em>";
 }
+
+/**
+ * Does a casting found at startup lapse? (3.685.3)
+ *
+ * A casting is held by a promise in ONE browser: the one whose user started
+ * it. The flag is only the record of that. So the question at startup is
+ * whether anybody's browser can still be holding the promise, and until
+ * 3.685.3 the answer was taken to be "no" whenever any GM loaded: every GM's
+ * `ready` cleared every flag and posted "— Lapsed", including the casting of
+ * a player still sitting at their own open browser, whose Complete button
+ * then finished a spell its card had just called lapsed.
+ *
+ *   THIS CLIENT STARTED IT   it has just loaded, so its promise is gone.
+ *                            Lapsed by this client, GM or player, which owns
+ *                            the caster because it cast with it.
+ *   SOMEBODY ELSE STARTED IT lapsed only by the acting GM, and only if that
+ *                            user is no longer connected. A connected
+ *                            user's browser is still holding it.
+ *   NOBODY IS NAMED          a record written before 3.685.3, which did not
+ *                            say who cast. Lapsed by the acting GM only when
+ *                            no player who owns the caster is connected: if
+ *                            one is, it may be theirs, and it is left for
+ *                            them (a turn charges nothing toward a flag with
+ *                            no promise behind it, so leaving it costs
+ *                            nothing). A GM's own NPC has no such player and
+ *                            lapses as it always did.
+ *
+ * @param {object} state
+ * @param {string|null} state.startedBy the record's `userId`, if it has one
+ * @param {string|null} state.thisUser this client's user id
+ * @param {boolean} state.actingGM whether this client is the acting GM
+ * @param {boolean} state.starterConnected whether `startedBy` is connected
+ * @param {boolean} state.ownerConnected whether a player owning the caster is connected
+ * @returns {boolean}
+ */
+export function pendingCastLapsesAtStartup({
+  startedBy = null, thisUser = null, actingGM = false, starterConnected = false, ownerConnected = false
+} = {}) {
+  if (startedBy && startedBy === thisUser) return true;
+  if (!actingGM) return false;
+  if (startedBy) return !starterConnected;
+  return !ownerConnected;
+}
+
+/** What the "— Lapsed" card says, for the two ways a casting is orphaned. */
+export function lapsedLine(spellName, { reloaded = true } = {}) {
+  const why = reloaded
+    ? "was still being cast when the world reloaded"
+    : "was still being cast by someone who is no longer connected";
+  return `<strong>${spellName}</strong> ${why}, so the casting lapsed. <em>No PP was spent</em> — page 237.`;
+}
+
+/**
+ * Whose client holds a casting's promise, for a relay from another client.
+ * (3.685.3)
+ *
+ * The record's `userId` when that user is connected. A record from before
+ * 3.685.3 names nobody, so the first connected player who owns the caster is
+ * asked; a GM is not, because the asking client is usually the GM and a GM
+ * who held it would have answered locally. Nobody connected: null, and the
+ * caller does what it always did.
+ *
+ * @param {object} state
+ * @param {string|null} state.startedBy the record's `userId`
+ * @param {Array<{id: string, active: boolean, isGM: boolean, owner: boolean}>} state.users
+ * @returns {string|null}
+ */
+export function pendingCastHolder({ startedBy = null, users = [] } = {}) {
+  const list = Array.isArray(users) ? users : [];
+  if (startedBy) return list.some((u) => u?.id === startedBy && u.active) ? startedBy : null;
+  return list.find((u) => u?.active && !u.isGM && u.owner)?.id ?? null;
+}

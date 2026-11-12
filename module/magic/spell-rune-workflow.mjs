@@ -37,6 +37,7 @@
 
 const SYSTEM_ID = "trg-prime";
 
+import { isGMConnectionWriter } from "../gm-connection.mjs";
 import {
   eligibleRuneItems, spellPotencyTier, spellRuneField, spellRuneOutcome,
   spellRuneLine, runeLoanChangesItem, restoredRuneField, loanBelongsTo,
@@ -208,8 +209,9 @@ export function registerSpellRuneCleanup() {
       // connected, "am I able to?" would write twice. A client that
       // cannot write defers to the designated GM rather than trying and
       // failing.
+      // 3.686.2: and only the GM's elected connection (gm-connection.mjs).
       const activeGM = game.users?.activeGM ?? null;
-      const mine = activeGM ? shouldHandleAsGM(game.user, activeGM) : item.isOwner;
+      const mine = activeGM ? shouldHandleAsGM(game.user, activeGM, isGMConnectionWriter()) : item.isOwner;
       if (!mine) return;
       item.update({
         "system.runes": restoredRuneField(loan.previousRunes),

@@ -328,3 +328,55 @@ export function rageBlocksAction(action = {}) {
 
   return { blocked: false, reason: "" };
 }
+
+/**
+ * CASTING WHILE RAGING (3.684.0; Eldritch Arts Block 6, G10). Birthrager:
+ * "you may cast spells ignoring any usual restrictions for casting spells
+ * whilst raging and using concentrate actions." Graham's Q104: casting, and
+ * the Concentrate actions that are PART OF casting or sustaining a spell;
+ * every other Concentrate action stays barred while raging, and the Defence
+ * rule stands.
+ *
+ * Declared, on a feat or ability item or an applied effect:
+ *
+ *   flags.trg-prime.castsWhileRaging: true
+ *
+ * which lifts Rage's "You cannot cast spells" (cast-workflow.mjs's two
+ * refusals, through rage-workflow.mjs `rageBarsCasting`) and, for the actions
+ * named below, its Concentrate bar. Nothing declared, nothing moves.
+ */
+/** The Concentrate actions that are part of casting or sustaining a spell (Q104). */
+export const RAGE_CASTING_ACTIONS = Object.freeze(["sustainASpell"]);
+
+/**
+ * The first carrier that lets its owner cast while raging, as its label, or
+ * "" when none does.
+ *
+ * @param {object[]} carriers the actor's items and applied effects
+ * @returns {string}
+ */
+export function castsWhileRagingFrom(carriers = []) {
+  for (const c of Array.from(carriers ?? [])) {
+    if (!c || c.disabled) continue;
+    if (c.type === "ability" && c.system?.active === false) continue;
+    if (c.flags?.["trg-prime"]?.castsWhileRaging === true) return String(c.name ?? "").trim() || "Casting while raging";
+  }
+  return "";
+}
+
+/**
+ * Whether rage's Concentrate bar lets this action through for a creature that
+ * casts while raging: only an action that is part of casting or sustaining,
+ * and only the Concentrate rule — a Defence action is still refused.
+ *
+ * @param {object} action an action definition (`key`, `traits`)
+ * @param {{blocked: boolean, reason: string}} blocked `rageBlocksAction(action)`
+ * @param {boolean} castsWhileRaging
+ */
+export function rageCastingActionAllowed(action = {}, blocked = {}, castsWhileRaging = false) {
+  if (!castsWhileRaging || !blocked?.blocked) return false;
+  if (!RAGE_CASTING_ACTIONS.includes(String(action?.key ?? ""))) return false;
+  // Only the Concentrate bar: `rageBlocksAction` answers a Defence action's
+  // own reason first, so a Defence-trait action is never let through.
+  return /concentrate/i.test(String(blocked.reason ?? ""));
+}

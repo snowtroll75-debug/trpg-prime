@@ -351,7 +351,7 @@ ok("H8 damage means the injury still rolls",
    * is unchanged: no injury without the predicate.
    */
   ok("H9b and gates the critical injury on it",
-    /if \(!ray\?\.critical \|\| !ray\.targetActor\) continue;\s*if \(!spellInflictsCriticalInjury\(spellData\)\) continue;\s*await rollCriticalInjury/
+    /if \(!ray\?\.critical \|\| !ray\.targetActor\) continue;\s*if \(!spellInflictsCriticalInjury\(spellData\)\) continue;[\s\S]{0,1400}?await rollCriticalInjury/
       .test(text),
     "the injury must be gated, not merely the predicate defined");
 }

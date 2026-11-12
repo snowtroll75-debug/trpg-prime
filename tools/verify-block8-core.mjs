@@ -148,7 +148,7 @@ const markCase = caseOf("moduleMark", "marker");
   ok("C5 a gate needs a function", mapi.registerSpellCheckGate("x", 1) === false && mapi.registerSpellCheckGate("Spiritual Distraction", async () => null, "verify-block8-core") === true && mapi.registeredSpellCheckGates().length === 1);
   equal("C5 a gate's answer is cleaned: rows with a label and a value, a known type or untyped; string lines",
     gates.normaliseGateAnswer({ modifiers: [{ label: "Spiritual Distraction", value: -4, type: "circumstance" }, { label: "", value: 2 }, { label: "zero", value: 0 }, { label: "odd", value: 1, type: "weird" }], lines: ["said", 3, " "] }),
-    { modifiers: [{ label: "Spiritual Distraction", value: -4, type: "circumstance" }, { label: "odd", value: 1, type: "untyped" }], lines: ["said"] });
+    { modifiers: [{ label: "Spiritual Distraction", value: -4, type: "circumstance" }, { label: "odd", value: 1, type: "untyped" }], lines: ["said"], disadvantage: false, innateCheck: false });
   mapi.resetModuleRegistry();
   const seen = [];
   mapi.registerSpellCheckGate("a", async (ctx) => { seen.push(ctx.spell.name); return { modifiers: [{ label: "A", value: -2, type: "circumstance" }], lines: ["A said"] }; });
@@ -162,19 +162,27 @@ const markCase = caseOf("moduleMark", "marker");
   mapi.resetModuleRegistry();
   ok("C5 the API offers it", /registerSpellCheckGate: \(key, gate, moduleId\) => registerSpellCheckGate\(key, gate, moduleId\)/.test(api));
   const drainAt = cw.indexOf("  const drain = pendingSpellDrain(actor);");
-  const gateAt = cw.indexOf("  const gated = await runSpellCheckGates({");
+  // 3.679.0: a ritual hands in the answer its own check was given.
+  const gateAt = cw.indexOf("  const gated = ritual?.gated ?? await runSpellCheckGates({");
   const rollAt = cw.indexOf("  const check = noCheckCantrip\n");
   ok("C5 THE GATE: asked after the drain and before the check, its rows join the casting check, an innate attack and an item attack",
-    drainAt > 0 && gateAt > drainAt && rollAt > gateAt && /\n  modifiers\.push\(\.\.\.gated\.modifiers\);/.test(cw)
-    && /\]\), \.\.\.gated\.modifiers\]\n\s*\}\)\)/.test(cw) && /\/\/ A MODULE'S ANSWER \(3\.672\.0\): this roll is the casting's check\.\n\s*\.\.\.gated\.modifiers\n/.test(cw)
+    // RE-ANCHORED AT 3.684.0 (G14): the rows are split first; an `attackOnly`
+    // row goes to the spell attack's pool and never onto the check.
+    drainAt > 0 && gateAt > drainAt && rollAt > gateAt && /\n  modifiers\.push\(\.\.\.gateSplit\.check\);/.test(cw)
+    && /\]\), \.\.\.gateAttackRows\]\n\s*\}\)\)/.test(cw) && /\/\/ A MODULE'S ANSWER \(3\.672\.0\): this roll is the casting's check\.\n(?:\s*\/\/[^\n]*\n)*\s*\.\.\.gateAttackRows\n/.test(cw)
+    && /const gateAttackRows = gateSplit\.check\.filter\(\(m\) => !m\.castingOnly\);/.test(cw)
     && /rollsCheck: !noCheckCantrip && !ritual\?\.check && \(isItemCast \? \(isAttack && !itemCheck\) : isInnate \? isAttack : true\)/.test(cw));
-  ok("C5 its lines reach the card", /const gateLines = gated\.lines\.map\(\(text\) => line\(text\)\);/.test(cw) && /const lines = \[\.\.\.reagentLines, \.\.\.gateLines\];/.test(cw));
+  ok("C5 its lines reach the card", /const gateLines = gated\.lines\.map\(\(text\) => line\(text\)\);/.test(cw) && /const lines = \[\.\.\.reagentLines, \.\.\.gateLines,/.test(cw));
   const payAt = cw.indexOf("      \"system.resources.pp.value\": Math.max(0, ppPool - casterPPSpent)");
   const refundAt = cw.indexOf("            castRefunded = true;");
   const settledAt = cw.indexOf("  Hooks.callAll(\"trgPrimeSpellSettled\", {");
+  // RE-ANCHORED AT 3.682.0: the spell attack's hits (`spellHits`) ride along with the rest.
   ok("C5 THE SETTLED CAST: announced last — after the charge and after the last refund (review) — with the PP actually spent (B8-5), whether refunded or innate, the level and the warps",
     payAt > 0 && refundAt > payAt && settledAt > refundAt && settledAt < cw.indexOf("  return { ...outcome, ppSpent, check, spellSave, refunded: castRefunded, warpMods };")
-    && /Hooks\.callAll\("trgPrimeSpellSettled", \{\n\s*actor, spell, spellData, degree,\n\s*cast: Boolean\(outcome\.cast\),\n\s*ppSpent,\n\s*refunded: Boolean\(castRefunded\),\n\s*innate: Boolean\(isInnate\),\n\s*itemCast: Boolean\(isItemCast\),\n\s*level: characterLevel,\n(?:\s*\/\/[^\n]*\n)*\s*warpMods\n\s*\}\);/.test(cw));
+    && /Hooks\.callAll\("trgPrimeSpellSettled", \{\n\s*actor, spell, spellData, degree,\n(?:\s*\/\/[^\n]*\n)*(?:\s*(?:chaos|castOptions|saveResults|natural|spellHits)[,:] [^\n]*\n|\s*\/\/[^\n]*\n)*\s*cast: Boolean\(outcome\.cast\),\n\s*ppSpent,\n(?:\s*\/\/[^\n]*\n|\s*stored: Boolean\(stored\)[^\n]*\n)*\s*refunded: Boolean\(castRefunded\),\n\s*innate: Boolean\(isInnate\),\n\s*itemCast: Boolean\(isItemCast\),\n\s*level: characterLevel,\n(?:\s*\/\/[^\n]*\n|\s*[a-zA-Z][\w]*(?::| \S)[^\n]*,\n|\s*[a-zA-Z][\w]*,\n)*\s*warpMods\n\s*\}\);/.test(cw));
+  // RE-ANCHORED AT 3.684.0: a released stored spell (G16), a Prepared Sigil's
+  // cast and its PP (G25, G12), the metamagic taken and the PP sources (G1,
+  // G2) ride along too, between the level and the warps.
 }
 
 /* C6 — a module's mark */

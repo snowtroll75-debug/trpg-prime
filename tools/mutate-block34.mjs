@@ -90,7 +90,7 @@ const MUTATIONS = [
     from: "          const flatTemp = Math.max(0, Math.trunc(Number(warpMods?.tempHPBonus) || 0));",
     to: "          const flatTemp = 0;", breaks: "J8" },
   { file: CAST, name: "Guiding Stone adds nothing",
-    from: "  const damageFormula = withDamageAbility(", to: "  const damageFormula = ((f) => ({ formula: f }))(", breaks: "J9" },
+    from: "  const abilityFormula = withDamageAbility(", to: "  const abilityFormula = ((f) => ({ formula: f }))(", breaks: "J9" },
   { file: CAST, name: "an AP mode's target count is ignored",
     from: "cap: targetCapFor(apMode?.targets ?? spellData?.targets, warp.mods, casterLevel),",
     to: "cap: targetCapFor(spellData?.targets, warp.mods, casterLevel),", breaks: "J11" },

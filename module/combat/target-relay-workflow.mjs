@@ -13,6 +13,7 @@
  * saying the application could not be relayed — visible failure beats a
  * silent one, which is the whole lesson of the defect this fixes.
  */
+import { isGMConnectionWriter } from "../gm-connection.mjs";
 import {
   actorCreateNeedsRelay,
   RELAY_ACTIONS,
@@ -183,11 +184,30 @@ export async function relayHeal(target, amount, options, applyDirect) {
   return reply?.ok ? Number(reply.healed) || 0 : 0;
 }
 
+/**
+ * A REFRESHED EFFECT REPLACES ITS ELDER (3.685.1): an effect carrying
+ * `flags.trg-prime.refreshKey` (a bonus group's `refresh: true`, keyed to its
+ * spell) replaces the creature's earlier effect of the same key — on the GM's
+ * client too, below. CREATED FIRST (review): the elder is removed only once
+ * the new effect exists, so a failed create loses nothing. Effects without a
+ * key are simply created. See magic/bonus-group.mjs.
+ */
+async function createRefreshing(target, data) {
+  const { refreshedEffectIds } = await import("../magic/bonus-group.mjs");
+  const elders = refreshedEffectIds(target?.effects ?? [], data);
+  const created = await target.createEmbeddedDocuments("ActiveEffect", data);
+  if (elders.length && Array.isArray(created) && created.length) {
+    await target.deleteEmbeddedDocuments("ActiveEffect", elders).catch((err) => console.warn("TRG Prime | a refreshed effect could not be removed", err));
+  }
+  return created;
+}
+
 export async function createEffectsOn(target, effects, applyDirect) {
   const data = Array.isArray(effects) ? effects : [effects];
   if (!data.length) return [];
   if (!needsRelay(target)) {
-    return applyDirect ? applyDirect() : target.createEmbeddedDocuments("ActiveEffect", data);
+    if (applyDirect) return applyDirect();
+    return createRefreshing(target, data);
   }
   const reply = await ask(RELAY_ACTIONS.EFFECTS, target, { effects: data });
   if (reply.ok) return reply.result ?? [];
@@ -220,6 +240,22 @@ export async function consumeOneAttackEffects(target, event, { direct = false } 
   if (reply.ok) return reply.result ?? [];
   await announceRelayFailure(target, null, reply.reason, "A defence that lasts one attack could not be removed");
   return [];
+}
+
+/**
+ * DELETE A COUNTERACTED EFFECT (3.686.0; Block 8a review): directly when this
+ * client owns the creature (or is the GM doing the relayed work), else through
+ * the GM, who re-checks that the row's traits reach it. A refusal or no GM is
+ * announced. Returns whether it is gone.
+ */
+export async function counteractEffectOn(target, effectId, traits, { direct = false } = {}) {
+  const effect = target?.effects?.get?.(effectId);
+  if (!effect) return false;
+  if (direct || !needsRelay(target)) { await effect.delete(); return true; }
+  const reply = await ask(RELAY_ACTIONS.COUNTERACT, target, { effectId: String(effectId), traits: (traits ?? []).map(String) });
+  if (reply.ok) return true;
+  await announceRelayFailure(target, null, reply.reason, "The counteracted effect could not be removed");
+  return false;
 }
 
 /** Treat Wounds and the other Medicine card buttons. */
@@ -426,7 +462,7 @@ async function liveDeps() {
       applyConditionTags(target, tags, { ...options, direct: true }),
     toggleStatus: (target, status, options) => target.toggleStatusEffect(status, options),
     setHpZero: (target) => target.update({ "system.resources.hp.value": 0 }),
-    createEffects: (target, effects) => target.createEmbeddedDocuments("ActiveEffect", effects),
+    createEffects: (target, effects) => createRefreshing(target, effects),
     // The GM owns the target, so `enterDyingAt` writes rather than asks again.
     enterDyingAt: async (target, finalHP, options) => {
       const { enterDyingAt } = await import("./dying-workflow.mjs");
@@ -434,6 +470,11 @@ async function liveDeps() {
     },
     // `direct` STOPS THE RELAY RECURSING — the GM already owns the target.
     consumeOneAttack: async (target, event) => consumeOneAttackEffects(target, event, { direct: true }),
+    // A COUNTERACT, ON THE GM'S CLIENT (3.686.0) — see counteractEffectAsGM.
+    counteractEffect: async (target, effectId, traits) => {
+      const { counteractEffectAsGM } = await import("../magic/counteract-relay-workflow.mjs");
+      return counteractEffectAsGM(target, effectId, traits);
+    },
     applyHealing: async (target, amount, options) => {
       const { healActor } = await import("../magic/spell-effects.mjs");
       // `direct` STOPS THE RELAY RECURSING. The GM already owns the
@@ -544,6 +585,7 @@ export function registerTargetRelay() {
         handleRelayMessage(data, {
           user: game.user,
           activeGM: game.users.activeGM ?? null,
+          connectionWriter: isGMConnectionWriter(),
           deps
         })
       )

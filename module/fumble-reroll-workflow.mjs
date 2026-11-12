@@ -15,9 +15,9 @@ const inCombatNow = (actor) => Boolean(game.combat?.started && game.combat.comba
  * combat, the reaction — or null. Asks nothing; the Strike reads it to
  * decide whether to confirm a fumble early.
  */
-export function fumbleRerollAvailable(actor, kind) {
+export function fumbleRerollAvailable(actor, kind, subject = "", degree = "fumble") {
   if (!actor?.isOwner) return null;
-  return fumbleRerollRows(Array.from(actor.items ?? []), kind).find(({ item, reaction }) => {
+  return fumbleRerollRows(Array.from(actor.items ?? []), kind, subject, degree).find(({ item, reaction }) => {
     const max = itemUsesMax(item);
     if (max !== null && max !== Infinity && !(itemUsesRemaining(item) > 0)) return false;
     // THE REACTION AS SPENDING IT WOULD SEE IT (3.669.1): none left, or only
@@ -35,8 +35,8 @@ export function fumbleRerollAvailable(actor, kind) {
  * @param {{degree?: string}} [options] the first result's degree, for the
  *   wording (3.669.2): a Blunder is called one
  */
-export async function offerFumbleReroll(actor, kind, { degree = "fumble" } = {}) {
-  const row = fumbleRerollAvailable(actor, kind);
+export async function offerFumbleReroll(actor, kind, { degree = "fumble", subject = "" } = {}) {
+  const row = fumbleRerollAvailable(actor, kind, subject, degree);
   if (!row) return null;
   const inCombat = inCombatNow(actor);
   const costs = [row.reaction && inCombat ? "your reaction" : "", itemUsesMax(row.item) !== null && itemUsesMax(row.item) !== Infinity ? "its use" : ""].filter(Boolean);

@@ -85,12 +85,14 @@ ok("E3 a declaration without traits still reaches every strike", Boolean(ma.magi
 /* F — the wiring */
 const aw = read("module", "combat", "attack-workflow.mjs");
 ok("F1 the weapon attack hands the target's traits to the conditionals", /targetTypes: creatureTypesOf\(targetActor\?\.system \?\? \{\}\),\s*(\/\/[^\n]*\n\s*)*targetTraits: creatureTraits\(targetActor\?\.system \?\? \{\}\),\s*(\/\/[^\n]*\n\s*)*attackMode: isRanged/.test(aw));
-ok("F2 …the attacker's traits to the defender's channel", aw.includes('defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments, creatureTraits(actor.system ?? {}))'));
+// F2, F5, F6 RE-POINTED AT 3.684.0 (G20 review): each caller now also names
+// its `attackKind` ("weapon", "action", "bomb") after the attacker's traits.
+ok("F2 …the attacker's traits to the defender's channel", aw.includes('defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments, creatureTraits(actor.system ?? {}), { attackKind: "weapon" })'));
 ok("F3 …and the target's traits to the magical-attack test", aw.includes('weaponName: weapon?.name ?? "", targetTraits: creatureTraits(targetActor?.system ?? {}) }))'));
 const acw = read("module", "combat", "action-workflow.mjs");
 ok("F4 an action's dialog and roll both carry the target's traits", (acw.match(/targetTypes: creatureTypesOf\(targetActor\?\.system \?\? \{\}\),\s*targetTraits: creatureTraits\(targetActor\?\.system \?\? \{\}\),/g) ?? []).length === 2);
-ok("F5 an action against a static DC tells the defender the attacker's traits", acw.includes('creatureTypesOf(actor?.system ?? {}), actor?.uuid ?? "", [], creatureTraits(actor?.system ?? {}));'));
-ok("F6 a bomb does too", /alignedTraitsOf\(actor\.system \?\? \{\}\),\s*creatureTraits\(actor\.system \?\? \{\}\)\s*\);/.test(read("module", "alchemical-workflow.mjs")));
+ok("F5 an action against a static DC tells the defender the attacker's traits", acw.includes('creatureTypesOf(actor?.system ?? {}), actor?.uuid ?? "", [], creatureTraits(actor?.system ?? {}), { attackKind: "action" });'));
+ok("F6 a bomb does too", /alignedTraitsOf\(actor\.system \?\? \{\}\),\s*creatureTraits\(actor\.system \?\? \{\}\), \{ attackKind: "bomb" \}\s*\);/.test(read("module", "alchemical-workflow.mjs")));
 const chk = read("module", "dice", "check.mjs");
 ok("F7 the check carries the axis into its automatic conditionals", /this\.targetTraits = config\.targetTraits \?\? "";/.test(chk) && /targetTraits: check\.targetTraits/.test(chk));
 ok("F8 the dialog supplies it", /sourceTypes, targetTypes, sourceUuid, targetUuid, attackMode, targetTraits/.test(read("module", "apps", "check-dialog.mjs")));

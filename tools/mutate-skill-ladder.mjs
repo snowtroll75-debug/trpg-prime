@@ -131,7 +131,8 @@ const MUTATIONS = [
       switch (effect.kind) {
         case "skillLadder": break;`, breaks: "W8b" },
   { file: EFF, name: "W THE DC IS ALWAYS ZERO, so every bystander succeeds",
-    from: `        dc: Number(saveDC ?? rollData?.saveDC ?? 0) || 0,`, to: `        dc: 0,`,
+    // RE-ANCHORED AT 3.685.0: the turn ladder's row carries the same DC expression mid-line.
+    from: `        dc: Number(saveDC ?? rollData?.saveDC ?? 0) || 0,\n`, to: `        dc: 0,\n`,
     breaks: "W7" },
   { file: KINDS, name: "the kind leaves the handled vocabulary",
     from: `  "skillLadder",`, to: `  ;`, breaks: "N0" },

@@ -302,8 +302,10 @@ ok("D11b while the alignment axis alone is scope enough",
  * ================================================================== */
 
 const attackClean = strip(attackSrc);
+// RE-POINTED AT 3.684.0 (G20 review): the Strike now also names its
+// `attackKind: "weapon"` after the traits; the alignments still reach it.
 ok("E1 the defender's channel is given the attacker's alignments",
-  attackClean.includes('defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments, creatureTraits(actor.system ?? {}))'));
+  attackClean.includes('defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments, creatureTraits(actor.system ?? {}), { attackKind: "weapon" })'));
 ok("E1b read off the attacker, not the defender",
   attackClean.includes("const attackerAlignments = alignedTraitsOf(actor.system ?? {});"));
 ok("E2 the attacker's own aura records are consulted against the target",
@@ -437,7 +439,8 @@ ok("F6g the emanation record is built from the warped rows",
   const bonusCase = from === -1 ? "" : fx.slice(from, to === -1 ? undefined : to);
   ok("F6b0 the bonus case was found", bonusCase.length > 0);
   ok("F6b and the ordinary applier asks the same function",
-    bonusCase.includes("warpedBonusValue(Number(effect.value) || 0, warpBonus, warpBonusMax)"),
+    // ITS OWN LINE (3.685.1): the bonus group's branch calls it too, so the bare call no longer proves the ordinary applier does.
+    bonusCase.includes("const value = warpedBonusValue(Number(effect.value) || 0, warpBonus, warpBonusMax);"),
     "two copies of this arithmetic would drift, and the sign rule is what drifts");
 }
 

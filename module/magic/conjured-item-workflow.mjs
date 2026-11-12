@@ -10,6 +10,7 @@
 
 import { conjuredItemName } from "./conjured-item.mjs";
 import { contentPack } from "../content-packs.mjs";
+import { isActingGM } from "../acting-gm.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -117,13 +118,19 @@ export async function conjureItemOnto(target, spec, { castId = null, expires = f
  * second casting. Effects created before 3.594.2 carry no id and are left
  * alone rather than guessed at.
  *
- * GM ONLY, for the reason every other cleanup hook in this system is: two
+ * ONE CLIENT, for the reason every other cleanup hook in this system is: two
  * clients racing to delete one effect means the loser is told it does not
  * exist.
+ *
+ * THE ACTING GM, NOT EVERY GM (3.685.3). `deleteItem` fires on every
+ * connected client, and this asked `game.user.isGM`, so with two GMs
+ * connected both deleted the clock and the second delete failed; the
+ * `.catch` below swallowed it. `isActingGM()` names one of them, and a lone
+ * GM with no active GM designated still cleans up through its fallback.
  */
 export function registerConjuredItemHooks() {
   Hooks.on("deleteItem", (item) => {
-    if (!game.user?.isGM) return;
+    if (!isActingGM()) return;
     const actor = item?.parent;
     if (!actor?.effects?.size) return;
     const clocks = actor.effects

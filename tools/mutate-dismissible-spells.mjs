@@ -253,7 +253,8 @@ const MUTATIONS = [
   {
     file: REG,
     name: "S2 and starts counting as sustained",
-    from: "  return entries.some((e) => e?.sustained);",
+    // RE-ANCHORED AT 3.684.0 (G24): a spell another creature sustains is not the caster's.
+    from: "  return entries.some((e) => e?.sustained && !sustainerOf(e));",
     to: "  return entries.length > 0;",
     breaks: "S2 — PP recovery and rest both ask this"
   }

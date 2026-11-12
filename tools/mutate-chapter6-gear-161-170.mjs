@@ -106,8 +106,8 @@ const MUTATIONS = [
   },
   {
     file: ATTACK, name: "the subdual penalty is untyped",
-    from: "      modifiers.push({ label: `Subdual (${ammo?.name ?? \"ammunition\"})`, value: SUBDUAL_SHOT_PENALTY, type: \"circumstance\" });",
-    to: "      modifiers.push({ label: `Subdual (${ammo?.name ?? \"ammunition\"})`, value: SUBDUAL_SHOT_PENALTY, type: \"untyped\" });",
+    from: "    modifiers.push({ label: `Subdual (${ammo?.name ?? \"ammunition\"})`, value: SUBDUAL_SHOT_PENALTY, type: \"circumstance\" });",
+    to: "    modifiers.push({ label: `Subdual (${ammo?.name ?? \"ammunition\"})`, value: SUBDUAL_SHOT_PENALTY, type: \"untyped\" });",
     breaks: "B3b — '-4-circumstance penalty'"
   },
   {

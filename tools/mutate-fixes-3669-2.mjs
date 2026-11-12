@@ -55,10 +55,10 @@ const MUTATIONS = [
   { name: "a declared degree may still be rerolled", file: CK, from: "        check.luckUsed = true;\n        check.saveReactionResolved = true;\n      }\n    }\n\n    // SAID WHEN A SHIFT", to: "      }\n    }\n\n    // SAID WHEN A SHIFT", breaks: "B3" },
   { name: "Fate offers to declare over a declared degree", file: CK, from: "!check.chanceUsed && !check.outcome?.declared && check.outcome?.degree?.key", to: "!check.chanceUsed && check.outcome?.degree?.key", breaks: "B5" },
   // C — the word
-  { name: "a Blunder is called a fumble", file: FR, from: "  return String(degree ?? \"\").trim().toLowerCase() === \"blunder\"", to: "  return String(degree ?? \"\").trim() === \"blunders\"", breaks: "C1" },
+  { name: "a Blunder is called a fumble", file: FR, from: "  return k === \"blunder\"\n", to: "  return k === \"blunders\"\n", breaks: "C1" }, // re-anchored at 3.677.0 (the degree is read once, for C12's words)
   { name: "the question says fumbled", file: FRW, from: "content: `<p>You ${fumbleWords(degree).verb} the ${what}.", to: "content: `<p>You fumbled the ${what}.", breaks: "C2" },
   { name: "the card says the fumble is rerolled", file: CK, from: "`${taken.label}: the ${fumbleWords(firstDegree).noun} is rerolled — ", to: "`${taken.label}: the fumble is rerolled — ", breaks: "C3" },
-  { name: "the first degree is not passed", file: CK, from: "offerFumbleReroll(check.actor, check.type, { degree: firstDegree })", to: "offerFumbleReroll(check.actor, check.type)", breaks: "C3" },
+  { name: "the first degree is not passed", file: CK, from: "offerFumbleReroll(check.actor, check.type, { degree: firstDegree, subject: check.subject })", to: "offerFumbleReroll(check.actor, check.type)", breaks: "C3" },
   // D — a defence reaction
   { name: "THE DEFECT: a refused reaction is still asked", file: DO, from: "      : inCombat && c.reactionReason\n      ? String(c.reactionReason)\n", to: "", breaks: "D1" },
   { name: "the refusal is read out of combat", file: DO, from: "      : inCombat && c.reactionReason\n", to: "      : c.reactionReason\n", breaks: "D1" },
@@ -66,7 +66,7 @@ const MUTATIONS = [
   { name: "the refusal is read without the reaction's traits", file: DOW, from: "reactionRefusal(defender, String(item.system?.traits ?? \"\"))", to: "reactionRefusal(defender, \"\")", breaks: "D2" },
   { name: "the refusal is never handed on", file: DOW, from: "has: Boolean(item), requiresReason, reactionReason, alreadyUp:", to: "has: Boolean(item), requiresReason, alreadyUp:", breaks: "D2" },
   // E
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.674.2\"", to: "\"version\": \"3.669.1\"", breaks: "E" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.686.2\"", to: "\"version\": \"3.669.1\"", breaks: "E" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-fixes-3669-2.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

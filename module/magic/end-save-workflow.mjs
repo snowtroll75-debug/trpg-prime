@@ -20,6 +20,7 @@
  * twice.
  */
 
+import { isActingClientFor } from "../acting-gm.mjs";
 import {
   END_SAVE_FLAG, endSaveLine, endSaveOutcome, normaliseEndSave
 } from "./end-save.mjs";
@@ -123,7 +124,7 @@ export function registerEndSaveHooks() {
       const actor = effect?.parent;
       if (!actor?.effects) return;
       const game = globalThis.game;
-      if (game?.users?.activeGM && game.users.activeGM.id !== game.user?.id) return;
+      if (!isActingClientFor(actor)) return; // one connection of the acting GM; with no GM, one owner (3.686.2)
       // NOT AWAITED — a hook cannot be async. Errors are caught inside.
       (async () => {
         const said = await rollEndSave(actor, raw);

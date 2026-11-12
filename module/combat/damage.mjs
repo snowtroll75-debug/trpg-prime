@@ -88,10 +88,17 @@ export function naturalArmourDR(flatValue, baseValue, bdb) {
  * @returns {number}
  */
 export function totalDamageReduction({
-  armourDr = 0, naturalArmourDr = 0, bonusDr = 0, bdb = 0
+  armourDr = 0, naturalArmourDr = 0, bonusDr = 0, bdb = 0, baseArmourDr = 0
 } = {}) {
   const nonNegative = (value) => Math.max(0, Math.floor(Number(value) || 0));
-  return effectiveDR(armourDr, bdb)
+  // MAGE ARMOUR AND THE BRACERS (3.684.9; Graham: "cast a warped Mage Armour
+  // spell and did not apply any DR to my character"). Their Base DR is
+  // armour: the higher of it and worn armour's DR, never both — the rule
+  // damage-workflow.mjs already applies to every blow (`bracersDr`). The
+  // sheet's total read worn armour only, so it showed 0 while the hits
+  // were being reduced. `baseArmourDr` is `system.combat.bracers.effective`,
+  // already scaled by BSB and capped by the armour's pool.
+  return Math.max(effectiveDR(armourDr, bdb), nonNegative(baseArmourDr))
     + nonNegative(naturalArmourDr)
     + nonNegative(bonusDr);
 }
@@ -272,7 +279,10 @@ export function resolveDamagePacket({
    * rule needs was wired at 3.547.0 for a different rule entirely.
    */
   const nonMagicalImmune = has(immunities, "non-magical") && !magical && !incorporealTouch;
-  if (has(immunities, type) || coldfire?.immune || blockingTrait || nonMagicalImmune) {
+  // IMMUNE TO ALL DAMAGE (3.681.0; Eldritch Arts Block 3b): a granted
+  // defence's "immunity" to every type for one blow (Phase Familiar warped).
+  const allImmune = has(immunities, ALL_DAMAGE);
+  if (has(immunities, type) || allImmune || coldfire?.immune || blockingTrait || nonMagicalImmune) {
     steps.push(
       nonMagicalImmune && !has(immunities, type) && !blockingTrait
         ? "immune to non-magical attack forms — no damage"

@@ -49,6 +49,11 @@ export async function tryDeathGuards(actor, { damageTypes = [], sourceLevel = nu
   for (const { spec, effect } of sources) {
     const why = deathGuardExcepted(spec, { damageTypes, weaknesses: defences.weaknesses, usedToday, massive, noDeathState });
     if (why) { lines.push(line(`<em>${spec.label} cannot answer this blow — ${why}.</em>`)); continue; }
+    // WHAT IT LEAVES THEM ON: 1 HP, or with `healTo` (3.683.0, C7; Tideweaver's
+    // Resilience) the character's level + the ability. See death-guard.mjs.
+    const healTo = deathGuardHealTo(spec, actor.system?.resources?.hp?.max, {
+      level: actor.system?.identity?.level, attributes: actor.system?.attributes
+    });
     if (deathGuardTypeUnknown(spec, damageTypes)) {
       lines.push(line(`<em>${spec.label}: the blow's damage type was not reported, so its essence and weakness exception could not be checked.</em>`));
     }
@@ -59,7 +64,7 @@ export async function tryDeathGuards(actor, { damageTypes = [], sourceLevel = nu
       if (refused) { lines.push(line(`<em>${spec.label} cannot answer — ${refused}</em>`)); continue; }
       const content = `<p><strong>${actor.name}</strong> would be reduced to 0 HP${sourceName ? ` by ${sourceName}` : ""}. `
         + `Use <strong>${spec.label}</strong>${spec.frequency === "daily" ? " (once per day)" : ""}${spec.reaction ? " (a reaction)" : ""}`
-        + `${spec.spell ? ` — become as if affected by ${spec.spell}` : ""} and stay at 1 HP?</p>`;
+        + `${spec.spell ? ` — become as if affected by ${spec.spell}` : ""} and stay at ${healTo} HP?</p>`;
       let yes;
       if (spec.askOwner) {
         const { askOwner } = await import("../owner-query-workflow.mjs");
@@ -73,7 +78,7 @@ export async function tryDeathGuards(actor, { damageTypes = [], sourceLevel = nu
       lines.push(line(`<strong>${spec.label}</strong> is used.`));
     } else if (spec.auto) {
       // Second Heart (3.630.0): no save, no question — it holds.
-      lines.push(line(`<strong>${spec.label}</strong> — ${actor.name} stays at <strong>1 HP</strong> instead of falling, and does not gain Dying from this blow.`));
+      lines.push(line(`<strong>${spec.label}</strong> — ${actor.name} stays at <strong>${healTo} HP</strong> instead of falling, and does not gain Dying from this blow.`));
     } else {
       const { dc, level, from } = deathGuardDC(sourceLevel, actor.system?.identity?.level ?? 0, levelDC);
       const save = spec.save;
@@ -93,18 +98,21 @@ export async function tryDeathGuards(actor, { damageTypes = [], sourceLevel = nu
         lines.push(line(`<strong>${spec.label}</strong> — ${save} save ${degree?.label ?? "failed"} against DC ${dc}: the blow lands.`));
         continue;
       }
-      lines.push(line(`<strong>${spec.label}</strong> — ${save} save <strong>${degree?.label ?? "Success"}</strong> against DC ${dc}: ${actor.name} drops to <strong>1 HP</strong> instead.`));
+      lines.push(line(`<strong>${spec.label}</strong> — ${save} save <strong>${degree?.label ?? "Success"}</strong> against DC ${dc}: ${actor.name} drops to <strong>${healTo} HP</strong> instead.`));
     }
 
     if (spec.frequency === "daily") {
       await actor.setFlag(SYSTEM_ID, DECLARED_USED_TODAY_FLAG, { ...usedToday, [spec.label]: true });
     }
-    await actor.update({ "system.resources.hp.value": 1 });
+    await actor.update({ "system.resources.hp.value": healTo });
+    if (spec.healTo && spec.offer) lines.push(line(`${actor.name} stays conscious at <strong>${healTo} HP</strong> and does not gain Dying.`));
     if (spec.spell) lines.push(...await applyGuardSpell(actor, spec));
     if (spec.grants) lines.push(...await applyGuardGrants(actor, spec));
     if (spec.once) lines.push(...await spendGuard(actor, effect, spec));
     await postGuardCard(actor, spec.label, lines);
-    return { case: "death-guard", guard: spec.label, newHP: 1 };
+    // IT HELD, AND SAYS SO (3.684.0, G7): Pact Ascendant (Demonic)'s burst.
+    Hooks.callAll("trgPrimeDeathGuardHeld", { actor, label: spec.label, hp: healTo, trigger: "zeroHp" });
+    return { case: "death-guard", guard: spec.label, newHP: healTo };
   }
 
   if (lines.length) await postGuardCard(actor, "Death guards", lines);
@@ -170,17 +178,23 @@ export async function trySparingGuards(actor) {
       });
       if (!yes) continue;
     }
-    const hp = deathGuardHealTo(spec, actor.system?.resources?.hp?.max);
+    const hp = deathGuardHealTo(spec, actor.system?.resources?.hp?.max, {
+      level: actor.system?.identity?.level, attributes: actor.system?.attributes
+    });
+    // A module's waiver of the fatigue (3.683.0, C8) joins this card.
+    const waived = [];
     await actor.update({ "system.resources.hp.value": hp });
     await actor.toggleStatusEffect("dying", { value: 1 });
-    const state = await applyDyingRecovery(actor);
+    const state = await applyDyingRecovery(actor, { route: "deathGuard", lines: waived });
     await clearUnconsciousIfConscious(actor);
     if (spec.frequency === "daily") await actor.setFlag(SYSTEM_ID, DECLARED_USED_TODAY_FLAG, { ...usedToday, [spec.label]: true });
     const lines = [line(`<strong>${spec.label}</strong> — ${actor.name} does not die. Dying is reduced to 0 and they regain <strong>${hp} HP</strong>`
-      + `${state?.fatigued ? `; Fatigued ${state.fatigued}, as for recovering from Dying` : ""}.`)];
+      + `${state?.fatigueWaived ? "; no Fatigued for leaving Dying" : state?.fatigued ? `; Fatigued ${state.fatigued}, as for recovering from Dying` : ""}.`)];
+    lines.push(...waived);
     if (state?.blocked) lines.push(line(`<em>${state.note ?? "A fatal injury keeps them Dying."}</em>`));
     if (spec.once) lines.push(...await spendGuard(actor, effect, spec));
     await postGuardCard(actor, spec.label, lines);
+    Hooks.callAll("trgPrimeDeathGuardHeld", { actor, label: spec.label, hp, trigger: "death" });
     return { label: spec.label, hp };
   }
   return null;

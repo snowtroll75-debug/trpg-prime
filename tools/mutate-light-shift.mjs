@@ -135,8 +135,9 @@ const MUTATIONS = [
   {
     file: EM,
     name: "N4 a vanished circle falls back to catching everyone near the caster",
-    from: "  const inside = centreFeet ? emanationMembers({",
-    to: "  const inside = true ? emanationMembers({",
+    // Re-anchored at 3.677.1 (the circle is `caught` first).
+    from: "  const caught = centreFeet ? emanationMembers({",
+    to: "  const caught = true ? emanationMembers({",
     breaks: "N2c — a circle that is not there catches nobody"
   },
 

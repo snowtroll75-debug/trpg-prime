@@ -131,7 +131,7 @@ const MUTATIONS = [
   {
     file: CAST,
     name: "G1 THE SHIPPED DEFECT: nothing is ever stored",
-    from: "  const storingNow = !stored && !isStoringSpell && Boolean(readArmed(actor));",
+    from: "  const storingNow = !stored && !isStoringSpell && !ritual && Boolean(readArmed(actor));",
     to: "  const storingNow = false;",
     breaks: "G1 — the spell does nothing at all"
   },
@@ -146,15 +146,15 @@ const MUTATIONS = [
     file: CAST,
     name: "G3 TARGETS ARE PICKED AT STORAGE, a round before they are needed",
     // RE-ANCHORED 3.612.0: the line also skips a reaction cast's preset target.
-    from: "  if (spellNeedsTarget(spellData) && !storingNow && !reaction?.presetTargets && !presetTargets) {",
-    to: "  if (spellNeedsTarget(spellData) && !reaction?.presetTargets && !presetTargets) {",
+    from: "  if (spellNeedsTarget(spellData, spell) && !storingNow && !reaction?.presetTargets && !presetTargets) {",
+    to: "  if (spellNeedsTarget(spellData, spell) && !reaction?.presetTargets && !presetTargets) {",
     breaks: "G3 — a target chosen now has had a round to move"
   },
   {
     file: CAST,
     name: "G4 THE WARP CHOOSER IS OFFERED AGAIN AT RELEASE",
-    from: "  if (!isCantrip && !isItemCast && !stored && (!isInnate || innateBudget > 0)) {",
-    to: "  if (!isCantrip && !isItemCast && (!isInnate || innateBudget > 0)) {",
+    from: "  const warpChooserOpen = !isCantrip && !isItemCast && !stored && (!isInnate || innateBudget > 0) && !threaded;",
+    to: "  const warpChooserOpen = !isCantrip && !isItemCast && (!isInnate || innateBudget > 0) && !threaded;",
     breaks: "G4 — a 1 PP spell could be released as a 20 PP one, for free"
   },
   {
@@ -272,8 +272,9 @@ const MUTATIONS = [
     // "1 PP locked" line, on the very first cast.
     file: SE,
     name: "E5 THE CARD CONTRADICTS ITSELF: the cast promises nothing was spent",
-    from: "            lines.push(line(noBondCastLine(spell.name)));",
-    to: "            lines.push(line(noBondLine(spell.name)));",
+    // RE-ANCHORED AT 3.684.0 (G16): the bond's line is now the `byBond` branch.
+    from: "            if (byBond) lines.push(line(noBondCastLine(spell.name)));",
+    to: "            if (byBond) lines.push(line(noBondLine(spell.name)));",
     breaks: "E5b — \"no PP was spent\" two lines above \"1 PP locked\""
   },
   {

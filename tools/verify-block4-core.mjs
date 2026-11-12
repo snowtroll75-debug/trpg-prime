@@ -108,7 +108,9 @@ equal("F1 considered flanked: the flanking bonus unless flanked already or unfla
 equal("F2 treated as flat-footed: the Dexterity and dodge it would lose", [
   so.flatFootedLoss({ ability: 3, breakdown: { byType: { dodge: 2 } } }), so.treatedFlatFootedRow({ loses: 5 })?.value, so.treatedFlatFootedRow({ alreadyFlatFooted: true, loses: 5 })], [5, 5, null]);
 const ignored = so.stanceDefenceOf({
-  breakdown: [{ label: "Iron Tortoise", value: 2, applied: true, source: "statRow", carrierUuid: "A.E1" }, { label: "Echoing Crane", value: 3, applied: true, source: "A.E2" }, { label: "Armour", value: 4, applied: true, source: "sheet" }, { label: "Old", value: 1, applied: false, source: "A.E1" }],
+  // (3.684.1) typed, as a real breakdown is: "Old" is a status bonus the
+  // breakdown's own stacking suppressed, and restacked it still adds nothing.
+  breakdown: [{ label: "Iron Tortoise", value: 2, type: "status", applied: true, source: "statRow", carrierUuid: "A.E1" }, { label: "Echoing Crane", value: 3, applied: true, source: "A.E2" }, { label: "Armour", value: 4, type: "armour", applied: true, source: "sheet" }, { label: "Old", value: 1, type: "status", applied: false, source: "A.E1" }],
   stanceUuids: ["A.E1", "A.E2"], dcEntries: [{ label: "Stance row", value: 1, fromStance: true }, { label: "Ward", value: 2 }] });
 equal("F3 a stance's DB, ignored: its own changes, its stat rows and its stance rows, and nothing else", ignored.total, 6);
 equal("F4 a group's trait, one-handed only", [

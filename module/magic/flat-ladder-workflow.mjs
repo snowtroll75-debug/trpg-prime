@@ -77,6 +77,11 @@ export async function applyFlatLadder(caster, spec, target, degree, castId = nul
 
   let taken = resolution.damage;
   if (resolution.damage > 0) {
+    // A DAMAGE REACTION, BEFORE THE DEFENCES (3.681.0; found in review).
+    {
+      const { spellDamageReactionsFor } = await import("../reactions/reactions-workflow.mjs");
+      lines.push(...await spellDamageReactionsFor(target, spec.damageType, { spellName: spec?.label ?? "", source: caster }));
+    }
     const packet = resolveAgainstDefences(target.system ?? {}, {
       amount: resolution.damage,
       type: spec.damageType,

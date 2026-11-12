@@ -29,6 +29,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { SYSTEM_ROOT } from "./lib/sources.mjs";
 import { applyFreeWarp, warpedBonusValue } from "../module/magic/spell-warp.mjs";
+import { freeWarpSchoolMatches } from "../module/magic/granted-warps.mjs";
 
 let checks = 0;
 const failures = [];
@@ -90,11 +91,19 @@ const freeBlock = (() => {
   return from === -1 ? "" : castClean.slice(from, to === -1 ? undefined : to);
 })();
 ok("B0b the cast's free-warp block was found", freeBlock.length > 0);
+// RE-POINTED AT 3.684.0 (Eldritch Arts Block 6, G25): the match moved into
+// granted-warps.mjs `freeWarpSchoolMatches`, which also reads `school: "*"`
+// (every spell, Resonance Surge). Asked of the function now, and the cast
+// is asked to call it.
 ok("B1 the channel matches on the SPELL'S OWN TRAITS",
-  freeBlock.includes("spellTraits.includes(String(scoped.school).trim().toLowerCase())"),
+  freeBlock.includes("freeWarpSchoolMatches(scoped, spellTraits)")
+  && freeWarpSchoolMatches({ school: "Shadow", value: 2 }, ["illusion", "shadow"]) === true
+  && freeWarpSchoolMatches({ school: "Shadow", value: 2 }, ["fire"]) === false
+  && freeWarpSchoolMatches({ school: "*", value: 2 }, ["fire"]) === true,
   "scoped by trait despite the field's name — which is why the spell needed no new axis");
 ok("B2 a zero-value grant is not a source",
-  freeBlock.includes("(Number(scoped.value) || 0) > 0"),
+  freeWarpSchoolMatches({ school: "Shadow", value: 0 }, ["shadow"]) === false
+  && freeWarpSchoolMatches({ school: "*", value: 0 }, ["shadow"]) === false,
   "otherwise an empty grant would be named on the card as having waived nothing");
 ok("B3 disabled effects grant nothing",
   /\.filter\(\(e\) => !e\.disabled\)/.test(freeBlock),
@@ -104,7 +113,7 @@ ok("B4 the credit is the sum of every live source",
   "a Wizard-Cleric under both should get both");
 
 ok("B5 the spell grants the same flag the feat does",
-  freeWarpCase.includes("warpFreeSchool: { school: trait, value: free, label: spell.name }"));
+  freeWarpCase.includes("warpFreeSchool: { school: trait, value: free, label: spell.name, ...(effect.raisesSaveDC === true ? { raisesSaveDC: true } : {}) }"));
 ok("B6 and places no sheet change for it",
   /changes: \[\],\s*flags\s*$/m.test(fxClean) || fxClean.includes("changes: [],"),
   "there is no sheet field for \"your next warp is cheaper\"");
@@ -126,12 +135,13 @@ ok("B8b and its cap is the total, matching Bless",
  * ================================================================== */
 
 ok("C1 the note names the grant rather than a fixed feat",
-  castClean.includes("`-${free.waived} PP: ${who} (free, no minimum)`"));
+  castClean.includes("`-${free.waived} PP: ${who} (free, no minimum${freeWarpSaveDCPP ? `; the Save DC still counts ${freeWarpSaveDCPP}` : \"\"})`"));
 ok("C2 and no longer hard-codes Powerful Illusion",
   !castClean.includes("PP: Powerful Illusion (free, no minimum)"),
   "a Cleric under Healer's Grace was told a Wizard feat waived their PP");
 ok("C3 the name comes from the grant, falling back to the effect",
-  castClean.includes("String(scoped.label ?? effect.name ?? \"\").trim()"));
+  // SCOPED TO THE NOTE'S OWN NAMES (3.685.0): the Save line's label repeats the text.
+  /const named = freeWarpSources\s*\.map\(\(\{ effect, scoped \}\) => String\(scoped\.label \?\? effect\.name \?\? ""\)\.trim\(\)\)/.test(castClean));
 ok("C4 and to a neutral phrase rather than a wrong one",
   castClean.includes('"a free-warp effect"'));
 ok("C5 Powerful Illusion labels its own grant",

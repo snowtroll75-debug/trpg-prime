@@ -252,7 +252,26 @@ export const SCOPE_AXES = Object.freeze([
   // Refocus (Mental Focus) checks made to restore an expended Ghost Art").
   // The item named before the roll: its category ("ghost art") and its
   // name, lowercased. Blank on every other roll.
-  "restores"
+  "restores",
+  // THE LIGHT WHERE THE ROLLER STANDS (3.683.0; Eldritch Arts Block 5, seam
+  // C4). Six racial feats print a bonus that holds only in the dark: Veil of
+  // Silence ("If the light level is Dim or less … +2 racial bonus to Stealth
+  // checks and Reflex saves"), Moonlight Precision ("When in Dim Light or
+  // Twilight (light levels 5 & 6)"), Shadow Initiate, Silent Veil, Veilstride
+  // and Ghostscale. Authored as a list of levels (`[5, 6]`) or a range
+  // (`{ max: 5 }`, `{ min: 5, max: 6 }`), normalised to the list of levels
+  // it covers (`lightLevelList`).
+  //
+  // THE AMBIENT LEVEL (Graham, Q61, 3 November 2026): "the ambient level
+  // where your token stands (sources, Darkness, regions and weather
+  // included), not raised by your own Darkvision or Nightvision". So the
+  // context carries `lightLevelForToken(...).level` at the roller's token
+  // (light-workflow.mjs `ambientLightLevelOf`), on both paths — an attack's
+  // check is the attacker's roll, so Moonlight Precision reads the
+  // attacker's square. Blank when the roller has no token or no scene, at
+  // which point a light-scoped entry matches nothing rather than assuming
+  // the dark.
+  "lightLevels"
 ]);
 
 /**
@@ -282,8 +301,50 @@ export const AXIS_CONTEXT_KEYS = Object.freeze({
   rangeBands: "rangeBand",
   targetStates: "targetStates",
   sheathedGroups: "sheathedGroups",
-  restores: "restores"
+  restores: "restores",
+  lightLevels: "lightLevel"
 });
+
+/**
+ * THE LIGHT LEVELS AN ENTRY COVERS (3.683.0; seam C4), as the list of level
+ * numbers (strings, like every other axis value), or null when it names
+ * none. The ladder is 1 (Abyssal Darkness) to 10 (Blinding Light), light.mjs.
+ *
+ *   5            one level
+ *   [5, 6]       Moonlight Precision's "light levels 5 & 6"
+ *   { max: 5 }   "light level 5 (Dim Light) or less": 1 to 5
+ *   { min: 5, max: 6 }
+ *   "*"          kept, for `not`'s "whenever the light is known"
+ *
+ * A level off the ladder is dropped; a range that holds no level is null,
+ * so the entry is dropped as scopeless rather than matching every roll.
+ * Read by `normaliseConditional` (the authored side) and `matchesCheck` (the
+ * roll's one level), so both ends agree.
+ */
+const LIGHT_LEVEL_MIN = 1;
+const LIGHT_LEVEL_MAX = 10;
+function lightLevelList(value) {
+  if (value === undefined || value === null) return null;
+  const out = new Set();
+  const level = (v) => {
+    const n = Number(String(v ?? "").trim());
+    return Number.isInteger(n) && n >= LIGHT_LEVEL_MIN && n <= LIGHT_LEVEL_MAX ? n : null;
+  };
+  for (const entry of Array.isArray(value) ? value : [value]) {
+    if (entry && typeof entry === "object") {
+      const min = entry.min === undefined || entry.min === null ? LIGHT_LEVEL_MIN : level(entry.min);
+      const max = entry.max === undefined || entry.max === null ? LIGHT_LEVEL_MAX : level(entry.max);
+      if (min === null || max === null) continue;
+      for (let n = min; n <= max; n += 1) out.add(n);
+      continue;
+    }
+    if (String(entry ?? "").trim() === "*") { out.add("*"); continue; }
+    const n = level(entry);
+    if (n !== null) out.add(n);
+  }
+  if (!out.size) return null;
+  return [...out].sort((a, b) => (a === "*" ? -1 : b === "*" ? 1 : a - b)).map(String);
+}
 
 /**
  * @param {*} value
@@ -397,7 +458,7 @@ export function normaliseConditional(raw, source = {}, index = 0, scaling = {}) 
   const when = raw.when && typeof raw.when === "object" ? raw.when : {};
   const scope = {};
   for (const axis of SCOPE_AXES) {
-    const list = cleanList(when[axis], !CASE_SENSITIVE_AXES.includes(axis));
+    const list = axis === "lightLevels" ? lightLevelList(when[axis]) : cleanList(when[axis], !CASE_SENSITIVE_AXES.includes(axis));
     if (list) scope[axis] = list;
   }
 
@@ -410,7 +471,7 @@ export function normaliseConditional(raw, source = {}, index = 0, scaling = {}) 
   const notWhen = when.not && typeof when.not === "object" ? when.not : {};
   const exclude = {};
   for (const axis of SCOPE_AXES) {
-    const list = cleanList(notWhen[axis], !CASE_SENSITIVE_AXES.includes(axis));
+    const list = axis === "lightLevels" ? lightLevelList(notWhen[axis]) : cleanList(notWhen[axis], !CASE_SENSITIVE_AXES.includes(axis));
     if (list) exclude[axis] = list;
   }
 
@@ -531,7 +592,9 @@ export function collectConditionals(items = [], effects = [], declared = [], sca
   const stanced = inAnyStance(effects);
   const harvest = (documents, kind) => {
     for (const document of documents ?? []) {
-      if (kind === "effect" && document?.disabled) continue;
+      // OR SWITCHED OFF WITHOUT BEING DISABLED (3.678.0): an effect a module
+      // suppresses (an antimagic zone, D14) or one on a broken item.
+      if (kind === "effect" && (document?.disabled || document?.isSuppressed === true)) continue;
       // EQUIPMENT COUNTS ONLY WHILE WORN OR HELD (3.607.0). Pillars of
       // Faith's Chapter 6 is the first to put a conditional on armour, a
       // shield, a weapon or a kit ("+1 item bonus to Fortitude saves
@@ -738,6 +801,10 @@ export function matchesCheck(entry, context = {}) {
   if (excludes(excluded.targetStates, targetStates)) return false;
   if (excludes(excluded.sheathedGroups, sheathedGroups)) return false;
   if (excludes(excluded.restores, restores)) return false;
+  // THE AMBIENT LIGHT AT THE ROLLER (3.683.0; seam C4): one level, or none.
+  const lightLevels = context.lightLevel === undefined || context.lightLevel === null
+    || String(context.lightLevel).trim() === "" ? [] : (lightLevelList(context.lightLevel) ?? []).filter((v) => v !== "*");
+  if (excludes(excluded.lightLevels, lightLevels)) return false;
 
   if (entry.always) return true;
 
@@ -753,7 +820,8 @@ export function matchesCheck(entry, context = {}) {
     rangeBands: wantedRangeBands,
     targetStates: wantedTargetStates,
     sheathedGroups: wantedSheathedGroups,
-    restores: wantedRestores
+    restores: wantedRestores,
+    lightLevels: wantedLightLevels
   } = entry.when ?? {};
 
   if (checkTypes && !checkTypes.includes(checkType)) return false;
@@ -788,6 +856,9 @@ export function matchesCheck(entry, context = {}) {
   if (wantedTargetStates && !wantedTargetStates.some((t) => targetStates.includes(t))) return false;
   if (wantedSheathedGroups && !wantedSheathedGroups.some((t) => sheathedGroups.includes(t))) return false;
   if (wantedRestores && !wantedRestores.some((t) => restores.includes(t))) return false;
+  // NO LIGHT KNOWN, NO MATCH: a roll with no token on a scene is not "in Dim
+  // Light", and Veil of Silence's +2 is not handed to it.
+  if (wantedLightLevels && !wantedLightLevels.some((t) => lightLevels.includes(t))) return false;
 
   return true;
 }

@@ -107,7 +107,8 @@ ok("R7c no bypass is no bypass", armourBypassCategories("", 2).length === 0);
 ok("R7d the table does not see bypassed armour", itemsSeenByCritical([...plate, ...leather], ["light"]).length === 1);
 ok("R8 the result carries the bypass", /const armourBypass = armourBypassCategories\(dmg\.critArmourBypass, warpMods\?\.armourStep\);/.test(cast));
 ok("R8b the injury roll is handed it", /armourBypass: ray\.armourBypass \?\? \[\],/.test(cast));
-ok("R8c and reads the struck location from what is left", /armourAtLocation\(seenItems, hitLocation\)/.test(attackWf));
+// BOTH READINGS (3.685.0): the first, and H7's re-read at a lower severity.
+ok("R8c and reads the struck location from what is left", (attackWf.match(/withWholeBodyArmour\(armourAtLocation\(seenItems, hitLocation\)/g) ?? []).length === 2);
 {
   const once = aggregateWarpSelection(PLAN["Sonic Bolt"].warps, { "warp-1": 1 }).mods.armourStep;
   const twice = aggregateWarpSelection(PLAN["Sonic Bolt"].warps, { "warp-1": 2 }).mods.armourStep;
@@ -297,7 +298,7 @@ ok("X8 the weapon's formula takes it", /if \(versus\.value > 0\) formula \+= ` \
  * ================================================================== */
 
 ok("F1 a condition only granted is not 'already present'",
-  /const wasAlreadyPresent = directConditionEffect\(actor, tag\.key\) !== null;/
+  /const wasAlreadyPresent = recurringTag \? recurringHere > 0 : directConditionEffect\(actor, tag\.key\) !== null;/
     .test(src("module", "combat", "effect-application-workflow.mjs")));
 ok("F2 a save ladder, terrain and a zone speak for themselves",
   ["saveLadder", "difficultTerrain", "zone"].every((k) => SELF_REPORTING_KINDS.includes(k)));

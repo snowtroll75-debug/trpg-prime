@@ -116,7 +116,7 @@ ok("C2 the check carries whether to ask, and an earlier answer",
 const aw = read("module", "combat", "attack-workflow.mjs");
 const config = aw.slice(aw.indexOf("  const attackCheckConfig = {"), aw.indexOf("  let check = await TRGCheck.roll(attackCheckConfig);"));
 ok("C3 a weapon attack asks, unless Shift", /\n    offerConditionals: !skipDialog\(event\),\n/.test(config));
-ok("C4 Alter the Thread's reroll keeps the answer", /check = await TRGCheck\.roll\(\{ \.\.\.attackCheckConfig, allowConviction: false, conditionalChoices: check\.conditionalChoices \?\? \[\] \}\);/.test(aw));
+ok("C4 Alter the Thread's reroll keeps the answer", /check = await TRGCheck\.roll\(\{ \.\.\.attackCheckConfig, allowConviction: false, conditionalChoices: check\.conditionalChoices \?\? \[\](?:, checkReactionsBeforeAsked: true(?:, reactionAdvantages: check\.reactionAdvantages \?\? \[\](?:, reactionModifiers: check\.reactionModifiers \?\? \[\])?)?)? \}\);/.test(aw));
 ok("C5 a sheet roll skipped with Shift is not asked", /conditionalsResolved: Boolean\(situational\?\.conditionalsResolved\),\s*\/\/[^\n]*\n\s*\/\/[^\n]*\n\s*offerConditionals: !skipDialog\(event\),/.test(read("module", "sheets", "actor-sheet.mjs")));
 ok("C6 …nor a skill action", /conditionalsResolved: Boolean\(situational\?\.conditionalsResolved\),\s*\/\/[^\n]*\n\s*offerConditionals: !skipDialog\(event\),/.test(read("module", "combat", "action-workflow.mjs")));
 

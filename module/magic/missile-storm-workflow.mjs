@@ -32,7 +32,7 @@ import { automaticHitNoteApplies } from "./cast-result-line.mjs";
  * @param {Actor[]} targets the actors the template caught
  * @returns {Promise<string[]>} lines for the cast card
  */
-export async function applyMissileStorm(row, targets) {
+export async function applyMissileStorm(row, targets, { spell = null, caster = null } = {}) {
   const spec = normaliseMissileStorm(row);
   if (!spec) return [];
 
@@ -82,6 +82,15 @@ export async function applyMissileStorm(row, targets) {
       continue;
     }
 
+    // A DAMAGE REACTION, BEFORE THE DEFENCES (3.681.0; found in review):
+    // Resist Magic and Phase Familiar are asked of each creature caught, as
+    // at every other spell-damage site.
+    const { damageReactionsBefore } = await import("../reactions/reactions-workflow.mjs");
+    const reacted = await damageReactionsBefore(target, {
+      kind: "spell", types: [String(spec.damageType ?? "").toLowerCase()].filter(Boolean), magical: true,
+      spellName: spell?.name ?? String(row?.label ?? ""), sourceName: caster?.name ?? "", sourceUuid: caster?.uuid ?? "", source: caster ?? null
+    });
+    lines.push(...reacted);
     const damageRoll = await new Roll(formula).evaluate();
     const packet = resolveAgainstDefences(target.system ?? {}, {
       amount: damageRoll.total,

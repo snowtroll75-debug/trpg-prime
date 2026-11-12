@@ -60,7 +60,21 @@ async function postCard(actor, title, lines) {
 export async function applyDamageAndCheckDying(
   actor, damage, { isCritical = false, nonlethal = false, redirected = false, damageTypes = [], sourceLevel = null, sourceName = "", sourceUuid = "", context = null } = {}
 ) {
+  // WHO IS ABOUT TO HURT THIS CREATURE (3.684.0; Eldritch Arts Block 6, G26):
+  // noted before the hit points move, so an extra-casting-time window the
+  // blow interrupts can say who struck (Magical Retribution). See
+  // magic/pending-cast-steps.mjs.
+  if (Number(damage) > 0) {
+    const { noteDamageSource } = await import("../magic/pending-cast-steps.mjs");
+    noteDamageSource(actor, { sourceUuid, sourceName, context });
+  }
   const result = await applyDamageAndCheckDyingInner(actor, damage, { isCritical, nonlethal, redirected, damageTypes, sourceLevel, sourceName });
+  // A ONE-BLOW DEFENCE A REACTION GRANTED ENDS WITH THE BLOW (3.681.0; Phase
+  // Familiar's "this applies only against the triggering damage").
+  {
+    const { clearInstanceGrants } = await import("./granted-defences.mjs");
+    clearInstanceGrants(actor);
+  }
   // DAMAGE, FOR WHOEVER LISTENS (3.667.0): Inner Tempest's Flame Within —
   // "Trigger you take damage … resets when you end your turn without taking
   // or dealing damage". Called on the client that applied it, after the HP
@@ -459,6 +473,21 @@ async function applyDamageDirect(
   }
 
   // This damage reaches or passes 0 HP.
+
+  // "WHEN YOU WOULD FALL UNCONSCIOUS" (3.684.0; Eldritch Arts Block 6, G7):
+  // Subconscious Casting's cast, Eternal Vigil's Touch of Healing. Asked
+  // before the subdual knock-out and the death guards, with the blow landed;
+  // a creature they leave above 0 neither falls nor is Dying. Nothing
+  // registered, nothing asked. See combat/zero-hp-moment.mjs.
+  {
+    const { tryUnconsciousOffers } = await import("./zero-hp-moment-workflow.mjs");
+    const standing = await tryUnconsciousOffers(actor, {
+      damageTypes, sourceName, subdual: nonlethal, hpBefore, amount,
+      massive: massiveDamageInstantDeath(amount, hpBefore, maxHP),
+      noDeathState: hasNoDeathState(creatureTypeSystem)
+    });
+    if (standing) return standing;
+  }
 
   // Subdual (Chapter 7): "any target you reduce to 0 hit points gains the
   // unconscious condition and does not gain the dying condition." Checked

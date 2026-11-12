@@ -46,11 +46,11 @@ const MUTATIONS = [
   // C5
   { name: "a gate need not be a function", file: MA, from: "if (!k || typeof gate !== \"function\") { problem(", to: "if (!k) { problem(", breaks: "C5" },
   { name: "the API does not offer it", file: API, from: "    registerSpellCheckGate: (key, gate, moduleId) => registerSpellCheckGate(key, gate, moduleId),\n", to: "", breaks: "C5" },
-  { name: "an unknown type is kept", file: GT, from: "type: BONUS_TYPES[type] ? type : \"untyped\" });", to: "type });", breaks: "C5" },
+  { name: "an unknown type is kept", file: GT, from: "type: BONUS_TYPES[type] ? type : \"untyped\", ...(row?.castingOnly", to: "type, ...(row?.castingOnly", breaks: "C5" },
   { name: "a failing gate stops the others", file: GT, from: "      lines.push(\"<em>A module's answer to this casting failed — see the console.</em>\");\n    }", to: "      lines.push(\"<em>A module's answer to this casting failed — see the console.</em>\");\n      break;\n    }", breaks: "C5" },
-  { name: "THE GAP: the gate's rows never reach the casting check", file: CW, from: "  modifiers.push(...gated.modifiers);\n  const gateLines", to: "  const gateLines", breaks: "C5" },
-  { name: "an innate attack spell misses the gate's rows", file: CW, from: "            // A MODULE'S ANSWER (3.672.0): this roll is the casting's check.\n            ...gated.modifiers\n", to: "", breaks: "C5" },
-  { name: "the gate's lines never reach the card", file: CW, from: "  const lines = [...reagentLines, ...gateLines];", to: "  const lines = [...reagentLines];", breaks: "C5" },
+  { name: "THE GAP: the gate's rows never reach the casting check", file: CW, from: "  modifiers.push(...gateSplit.check);\n  // A ROW ON THE CASTING DC ONLY", to: "  // A ROW ON THE CASTING DC ONLY", breaks: "C5" },
+  { name: "an innate attack spell misses the gate's rows", file: CW, from: "            // A MODULE'S ANSWER (3.672.0): this roll is the casting's check.\n            // Not a casting-DC row (3.675.0): an innate attack has no casting DC.\n            ...gateAttackRows\n", to: "", breaks: "C5" },
+  { name: "the gate's lines never reach the card", file: CW, from: "  const lines = [...reagentLines, ...gateLines,", to: "  const lines = [...reagentLines,", breaks: "C5" },
   { name: "the settled cast is not announced", file: CW, from: "  Hooks.callAll(\"trgPrimeSpellSettled\", {", to: "  void ({", breaks: "C5" },
   { name: "the settled cast is announced before a refund (review)", file: CW, from: "  /*\n   * THE CASTING, PAID FOR AND OVER", to: "  return { ...outcome, ppSpent, check, spellSave, refunded: castRefunded, warpMods };\n  /*\n   * THE CASTING, PAID FOR AND OVER", breaks: "C5" },
   { name: "a gate's penalty is promised to an item spell that rolls none (review)", file: CW, from: "(isItemCast ? (isAttack && !itemCheck) : isInnate ? isAttack : true)", to: "true", breaks: "C5" },
@@ -109,7 +109,7 @@ const MUTATIONS = [
   { name: "a skill DC keeps its prefix", file: DD, from: "SKILL_DC.test(key) ? key.slice(\"skillDC:\".length) : key", to: "key", breaks: "F1" },
   { name: "the card goes back to the raw key", file: SE, from: "            + `${defenceDCKeyText(dcKey)} anyone rolls against to `", to: "            + `${dcKey.replace(/^skillDC:/, \"\")} DC anyone rolls against to `", breaks: "F1" },
   // version
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.674.2\"", to: "\"version\": \"3.671.1\"", breaks: "Z0" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.686.2\"", to: "\"version\": \"3.671.1\"", breaks: "Z0" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-block8-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

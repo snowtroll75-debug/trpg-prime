@@ -19,6 +19,23 @@ async function postCard(actor, title, lines) {
 }
 
 /**
+ * WHY AN ITEM CANNOT BE INVESTED NOW, or "" (3.675.0; Eldritch Arts'
+ * Quickbind, "instead of using the Invest Item action"): the one-Staff rule
+ * and the slot limit, as `investItem` applies them. An item already invested
+ * is refused too: there is nothing to invest.
+ */
+export async function investRefusal(actor, item) {
+  if (item?.system?.invested) return `${item.name} is already invested`;
+  const { staffInvestRefusal } = await import("./trait-rules.mjs");
+  const staff = staffInvestRefusal(item, Array.from(actor?.items ?? []));
+  if (staff) return staff;
+  const invested = Array.from(actor?.items ?? []).filter((i) => i.system?.invested).length;
+  const slots = Number(actor?.system?.magic?.investmentSlots ?? 3);
+  if (invested >= slots) return `${actor.name} is already invested in ${invested} of ${slots} items`;
+  return "";
+}
+
+/**
  * Invest Item (Chapter 11, Investment): Concentrate, 10 minutes.
  * Toggles the item's own Invested flag, warning (but not blocking —
  * the GM has final say) if it would exceed the actor's investment
@@ -116,12 +133,25 @@ export async function activateItem(actor, item) {
  * reduced below 0. A plain d100 (not open-ended, per the rulebook's own
  * table format) against the Item Depletion table.
  */
-export async function rollItemDepletion(actor, item) {
+export async function rollItemDepletion(actor, item, { bias = "" } = {}) {
+  /*
+   * WITH A BIAS (3.684.0; Eldritch Arts Block 6, G6): Weave Infusion's "roll
+   * on the Item Depletion table after the spell has been cast with
+   * disadvantage". LOW IS WORSE on this table (01–10 explode), so Graham's
+   * Q131: disadvantage keeps the LOWER of two d100, advantage the higher. See
+   * charged-item-rules.mjs `depletionKept`. No bias: one d100, as always.
+   */
+  const biased = bias === "disadvantage" || bias === "advantage";
   const roll = await new Roll("1d100").evaluate();
-  const row = itemDepletionResult(roll.total);
+  const second = biased ? await new Roll("1d100").evaluate() : null;
+  const { depletionKept } = await import("./charged-item-rules.mjs");
+  const kept = second ? depletionKept(roll.total, second.total, bias) : roll.total;
+  const row = itemDepletionResult(kept);
 
   const lines = [
-    line(`Rolled <strong>${roll.total}</strong>.`),
+    line(second
+      ? `Rolled <strong>${roll.total}</strong> and <strong>${second.total}</strong> with ${bias} — <strong>${kept}</strong> kept (low is worse on this table).`
+      : `Rolled <strong>${roll.total}</strong>.`),
     line(`<em>${row.effect}</em>`)
   ];
 
@@ -189,7 +219,7 @@ export async function rollItemDepletion(actor, item) {
       modifiers: { extra: 20 }
     });
   }
-  return { roll: roll.total, row };
+  return { roll: kept, row, ...(second ? { rolls: [roll.total, second.total], bias } : {}) };
 }
 
 /**

@@ -2,6 +2,8 @@
 // daily-study.mjs; this is the one place that already answers "can I cast
 // this?", so it is the one place that asks.
 import { castingLimitToday } from "./daily-study.mjs";
+import { archetypeBookMark, bookSpellSlotted } from "./arcanist-book.mjs";
+import { liveFeatSlotIds } from "./feat-casting.mjs";
 /**
  * WHAT IS ON THE SPELLS TABLE, AND WHY — the one answer to "can I cast
  * this?".
@@ -95,6 +97,9 @@ const flag = (item, name) => item?.flags?.[SYSTEM_ID]?.[name];
  */
 export function isBookPoolSpell(item) {
   if (flag(item, "spellBookPick")) return true;
+  // THE ARCANIST'S LEVELLED SPELLS (3.676.0) — a third book entry, ready
+  // only while memorised in a feat slot. See arcanist-book.mjs.
+  if (archetypeBookMark(item)) return true;
   const archetype = flag(item, "archetypeCantrip");
   return String(archetype?.kind ?? "").trim().toLowerCase() === "book";
 }
@@ -110,8 +115,15 @@ export function isBookPoolSpell(item) {
  * @param {object} item a spell item
  * @returns {{key: string, label: string, onTable: boolean, castable: boolean}}
  */
-export function spellAvailability(item) {
+export function spellAvailability(item, { liveSlotIds = null } = {}) {
   const at = (source, onTable, castable) => ({ ...source, onTable, castable });
+
+  // AN ABSORBED SPELL IS CASTABLE, FOR ITS RELEASE (3.684.0; Eldritch Arts
+  // Block 6, G16 — review). Runebreaker's copy is stripped of its caster's
+  // book and preparation marks (spell-storing.mjs `foreignSpellCopyData`);
+  // this says it outright, so a mark the strip missed cannot hide it. The
+  // cast workflow refuses it to anything but its release.
+  if (flag(item, "storedForeign")) return at(SPELL_SOURCES.added, true, true);
 
   // INNATE IS UNAFFECTED BY ALL OF THIS, in Graham's words. It has its
   // own table, its own attack and DC formulas, and costs no PP.
@@ -122,6 +134,19 @@ export function spellAvailability(item) {
   // them in and because a specialist spell that also sat in a book would
   // otherwise be hidden by it.
   if (item?.system?.specialist) return at(SPELL_SOURCES.specialist, true, true);
+
+  // AN ARCANIST'S LEVELLED BOOK SPELL IS READY WHILE A SLOT HOLDS IT
+  // (3.676.0) — derived from the slot existing NOW, not from a stamp, so
+  // a removed feat or a lost level takes castability with it and nothing
+  // has to remember to write that down. `liveSlotIds` lets a caller that
+  // asks about many spells work the slots out once; without it they are
+  // read off the spell's own actor.
+  if (archetypeBookMark(item)) {
+    const live = liveSlotIds ?? liveFeatSlotIds(item?.parent);
+    return bookSpellSlotted(item, live)
+      ? at(SPELL_SOURCES.memorised, true, true)
+      : at(SPELL_SOURCES.book, false, false);
+  }
 
   // THE ONLY THING THAT IS KNOWN BUT NOT READY.
   if (isBookPoolSpell(item)) {
@@ -170,6 +195,16 @@ export function spellAvailability(item) {
  */
 export function spellCastBlocked(item) {
   /*
+   * AN ABSORBED SPELL IS NEVER REFUSED (3.684.0; Eldritch Arts Block 6, G16 —
+   * review, Medium-low). Runebreaker's copy (`storedForeign`) can be cast
+   * only by its release — `castSpell` refuses any other cast of it before it
+   * reaches this gate — and `releaseStoredSpell` clears the record BEFORE
+   * that cast, so it cannot be released twice. A refusal here (the storer's
+   * cantrips-only day; a book mark the copy carried) would lose the spell
+   * with nothing cast. It is not a spell the storer knows or prepares.
+   */
+  if (flag(item, "storedForeign")) return null;
+  /*
    * CANTRIPS ONLY, WHEN THE STUDY WAS NOT DONE (3.583.0; page 235,
    * Graham's R12).
    *
@@ -197,5 +232,8 @@ export function spellCastBlocked(item) {
 
   const source = spellAvailability(item);
   if (source.castable) return null;
+  if (archetypeBookMark(item)) {
+    return `${item?.name ?? "That spell"} is in your spellbook but is not memorised in a spell slot — memorise it from the Spell Slots card on the Magic tab.`;
+  }
   return `${item?.name ?? "That spell"} is in your spellbook but is not prepared today — prepare it on the Magic tab.`;
 }

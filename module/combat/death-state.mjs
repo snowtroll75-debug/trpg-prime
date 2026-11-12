@@ -467,19 +467,40 @@ export function needsReaping(dead, alreadySkulled) {
  * Dying passes through here, which is why the guard is here and not in
  * each of the four callers.
  *
+ * A MODULE MAY WAIVE THE FATIGUE (3.683.0; Eldritch Arts Block 5, C8). See
+ * `dyingRecoveryModifiersFor`: asked here, once the recovery is allowed and
+ * only when the caller has not already waived it.
+ *
  * @param {Actor} actor
- * @returns {Promise<{unconscious: boolean, fatigued: number, blocked?: boolean, note?: string}>}
+ * @param {{noFatigue?: boolean, route?: string, lines?: string[]|null}} [options]
+ *   `route`: how the creature is leaving Dying ("recoveryCheck", "healing",
+ *   "relief", "medicine", "deathGuard"; "" when the caller does not say), for
+ *   a modifier to read. `lines`: the caller's card, which a modifier's line
+ *   joins; with none, the line is posted on its own card.
+ * @returns {Promise<{unconscious: boolean, fatigued: number, blocked?: boolean, note?: string, fatigueWaived?: string}>}
+ *   `fatigueWaived`: the modifier's key, when one waived the fatigue.
  */
-export async function applyDyingRecovery(actor, { noFatigue = false } = {}) {
+export async function applyDyingRecovery(actor, { noFatigue = false, route = "", lines = null } = {}) {
   const hp = Number(actor?.system?.resources?.hp?.value ?? 0);
   const current = Number(actor?.getConditionValue?.("fatigued") ?? 0) || 0;
   // A RECOVERY THAT COSTS NO FATIGUE (3.611.0) — Death's Defiance: "If the
   // target had the Dying condition, coming back from dying due to this
   // healing doesn't increase its Fatigued condition."
   const recovered = recoveryState(hp, current);
+  const { mayLeaveDying, fatalBlockNote } = await import("../injury-workflow.mjs");
+  // …OR A MODULE'S MODIFIER (3.683.0, C8): Relentless Will. Not asked when a
+  // fatal injury holds them in Dying, nor when the fatigue is already waived,
+  // so a "first time each day" is not spent on a recovery that cost nothing.
+  let waiver = null;
+  if (!noFatigue && mayLeaveDying(actor)) {
+    const { registeredDyingRecoveryModifiers } = await import("../module-api.mjs");
+    waiver = await dyingRecoveryModifiersFor(registeredDyingRecoveryModifiers(), {
+      actor, route: String(route ?? ""), hp, fatigued: current, unconscious: recovered.unconscious
+    });
+    if (waiver.noFatigue) noFatigue = true;
+  }
   const state = noFatigue ? { ...recovered, fatigued: current } : recovered;
 
-  const { mayLeaveDying, fatalBlockNote } = await import("../injury-workflow.mjs");
   if (!mayLeaveDying(actor)) {
     await actor.toggleStatusEffect("dying", { value: 1 });
     return { unconscious: true, fatigued: Number(actor?.getConditionValue?.("fatigued") ?? 0) || 0,
@@ -495,7 +516,55 @@ export async function applyDyingRecovery(actor, { noFatigue = false } = {}) {
   // no-op, and for a character with none it CREATED "Fatigued 0", which
   // reads as fatigued 1.
   if (!noFatigue) await actor.toggleStatusEffect("fatigued", { value: state.fatigued });
+  if (waiver?.noFatigue) state.fatigueWaived = waiver.key;
+  if (waiver?.lines?.length) {
+    const said = waiver.lines.map((text) => `<p style="margin:2px 0">${text}</p>`);
+    if (Array.isArray(lines)) lines.push(...said);
+    else await globalThis.ChatMessage?.create?.({
+      speaker: globalThis.ChatMessage.getSpeaker?.({ actor }),
+      content: `<div class="trg-prime trg-check-card">${said.join("")}</div>`
+    });
+  }
   return state;
+}
+
+/**
+ * DYING RECOVERY MODIFIERS (3.683.0; Eldritch Arts Block 5, C8). Relentless
+ * Will (Human): "The first time each day that you gain the dying condition,
+ * you do not gain a point of fatigued when leaving it. Furthermore, you gain
+ * advantage on the next saving throw that you make within 1 minute of
+ * triggering this ability (going above 0 HP)."
+ *
+ * The fatigue for leaving Dying was waivable only by the caller (Death's
+ * Defiance's `noFatigue`), never by something the creature owns. A module
+ * registers `registerDyingRecoveryModifier(key, ctx => ({ noFatigue, line }) | null)`;
+ * each is asked in turn with `{ actor, route, hp, fatigued, unconscious }`
+ * (the HP and Fatigued before the recovery; `unconscious` false when they
+ * leave Dying above 0 HP). The MODULE decides "the first time each day".
+ * The first answer with `noFatigue: true` waives it and no later modifier is
+ * asked, so two such feats never spend two uses on one recovery. Every
+ * `line` answered is said on the card. A throwing modifier is skipped.
+ * Foundry-free, so the harness drives it.
+ *
+ * @param {Array<{key: string, modify: Function}>} modifiers
+ * @param {object} ctx
+ * @returns {Promise<{noFatigue: boolean, key: string, lines: string[]}>}
+ */
+export async function dyingRecoveryModifiersFor(modifiers = [], ctx = {}) {
+  const out = { noFatigue: false, key: "", lines: [] };
+  for (const { key, modify } of Array.from(modifiers ?? [])) {
+    if (typeof modify !== "function") continue;
+    try {
+      const answer = await modify(ctx);
+      if (!answer || typeof answer !== "object") continue;
+      const text = String(answer.line ?? "").trim();
+      if (text) out.lines.push(text);
+      if (answer.noFatigue === true) { out.noFatigue = true; out.key = String(key ?? ""); break; }
+    } catch (error) {
+      console.error(`TRG Prime | dying recovery modifier "${key}"`, error);
+    }
+  }
+  return out;
 }
 
 /**
@@ -582,9 +651,14 @@ export { SYSTEM_ID as DEATH_STATE_SYSTEM_ID };
  * @param {object|null} save what `deathOrFatalSave` returned, or null
  * @param {number} saveTotal the save roll's total
  * @param {number} result the critical result that was rolled
+ * @param {{saved?: boolean}} [verdict] the save's own verdict, when the check
+ *   gave one: its degree, which a conversion (Iron Will of the Tomb), a
+ *   declared degree or a degree shift (Fateful Temptation) may have moved
+ *   without moving its total (3.681.1, found in review). Absent, the total
+ *   against the DC decides.
  * @returns {{applies: boolean, died: boolean, newResult: number|null}}
  */
-export function deathCriticalOutcome(save, saveTotal, result) {
+export function deathCriticalOutcome(save, saveTotal, result, { saved = undefined } = {}) {
   if (!save) return { applies: false, died: false, newResult: null };
   const total = Number(saveTotal);
   const dc = Number(save.dc);
@@ -592,7 +666,7 @@ export function deathCriticalOutcome(save, saveTotal, result) {
   // rolled by this system; if it could not be rolled the creature has not
   // resisted anything, and treating that as a pass would make the
   // deadliest row in the game safer when something goes wrong.
-  const passed = Number.isFinite(total) && Number.isFinite(dc) && total >= dc;
+  const passed = typeof saved === "boolean" ? saved : (Number.isFinite(total) && Number.isFinite(dc) && total >= dc);
   if (passed) {
     const lowered = Math.max(1, Math.floor(Number(result) || 0) - Number(save.reduction ?? 10));
     return { applies: true, died: false, newResult: lowered };

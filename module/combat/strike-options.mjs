@@ -12,39 +12,41 @@
  * Pure: no Foundry.
  */
 
+import { stackDefenceRows } from "./defence-dc.mjs";
+
 /**
  * What a target's stances give its DB against this attacker, to be paid
  * back as a bonus on the attack, as Surprise Attack pays "flat-footed to
  * you": the stance's own effect changes to DB, any stat row a stance's
  * effect carries, and the defence rows read only in a stance.
  *
+ * STACKED BOTH WAYS (3.684.1, review). Since defence rows stack by type
+ * with the DB's own entries, a stance's bonus may raise the DB by less than
+ * its value (a +4 status stance row over a +1 status on the sheet adds +3),
+ * and may hold another bonus down (a +2 status ward under it adds nothing
+ * while the stance is up, and +2 once it is ignored). So what is paid back
+ * is the stacked DB with the stance less the stacked DB without it — the
+ * same `stackDefenceRows` both times — and never below 0.
+ *
  * @param {object} args
- * @param {object[]} args.breakdown the target's DB breakdown entries
+ * @param {object[]} args.breakdown the DB entries the rows stack against
+ *   (`defenceStackBase`: the breakdown, or what a restricted DB kept)
  * @param {string[]} args.stanceUuids the uuids of its active stance effects
- * @param {object[]} args.dcEntries the defence rows that met this attack
+ * @param {object[]} args.dcEntries every defence row that met this attack,
+ *   and any other row stacked with them (Fearful Power's status row)
  * @returns {{total: number, labels: string[]}}
  */
 export function stanceDefenceOf({ breakdown = [], stanceUuids = [], dcEntries = [] } = {}) {
   const uuids = new Set((stanceUuids ?? []).map(String));
-  let total = 0;
-  const labels = [];
-  for (const entry of breakdown ?? []) {
-    if (!entry?.applied) continue;
-    const from = String(entry.carrierUuid ?? entry.source ?? "");
-    if (!uuids.has(from)) continue;
-    const value = Number(entry.value) || 0;
-    if (value <= 0) continue;
-    total += value;
-    labels.push(`${entry.label} +${value}`);
-  }
-  for (const entry of dcEntries ?? []) {
-    if (!entry?.fromStance) continue;
-    const value = Number(entry.value) || 0;
-    if (value <= 0) continue;
-    total += value;
-    labels.push(`${entry.label} +${value}`);
-  }
-  return { total, labels };
+  const base = Array.from(breakdown ?? []).filter(Boolean);
+  const rows = Array.from(dcEntries ?? []).filter(Boolean);
+  const stanceBase = (entry) => uuids.has(String(entry.carrierUuid ?? entry.source ?? "")) && (Number(entry.value) || 0) > 0;
+  const stanceRow = (entry) => Boolean(entry.fromStance) && (Number(entry.value) || 0) > 0;
+  const labels = [...base.filter(stanceBase), ...rows.filter(stanceRow)].map((e) => `${e.label} +${Number(e.value) || 0}`);
+  if (!labels.length) return { total: 0, labels };
+  const withStance = stackDefenceRows(rows, base).together;
+  const without = stackDefenceRows(rows.filter((e) => !stanceRow(e)), base.filter((e) => !stanceBase(e))).together;
+  return { total: Math.max(0, withStance - without), labels };
 }
 
 /**
