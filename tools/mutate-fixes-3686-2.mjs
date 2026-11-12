@@ -64,9 +64,9 @@ const MUTATIONS = [
   { name: "(a): another tab's answer leaves this tab's dialog open", file: M("combat", "gm-authorisation.mjs"), from: "      if (open) { open.closedByOther = true; try { open.dialog?.close?.(); } catch (_err) { /* already closed */ } }\n", to: "", breaks: "S5" },
   { name: "(a): a dialog closed by another tab's answer still answers", file: M("combat", "gm-authorisation.mjs"), from: "    if (open?.closedByOther) return;\n", to: "", breaks: "S5" },
   { name: "(b): a merged state reads only its next-turn half", file: M("combat", "refocus.mjs"), from: "  if (state.nextTurn && ownTurnStarted) return true;", to: "  if (state.nextTurn) return Boolean(ownTurnStarted);", breaks: "R8" },
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.686.2\"", to: "\"version\": \"3.686.1\"", breaks: "Z1" },
-  { name: "the download names the last release", file: SJ, from: "releases/download/v3.686.2/trg-prime.zip", to: "releases/download/v3.686.1/trg-prime.zip", breaks: "Z1" },
-  { name: "package.json is left behind", file: PJ, from: "\"version\": \"3.686.2\"", to: "\"version\": \"3.686.1\"", breaks: "Z2" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.686.1\"", breaks: "Z1" },
+  { name: "the download names the last release", file: SJ, from: "releases/download/v3.687.1/trg-prime.zip", to: "releases/download/v3.686.1/trg-prime.zip", breaks: "Z1" },
+  { name: "package.json is left behind", file: PJ, from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.686.1\"", breaks: "Z2" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-fixes-3686-2.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

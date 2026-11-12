@@ -6,9 +6,10 @@
  */
 
 import {
-  STORM_FLAG, THUNDER_IMMUNE_FLAG, normaliseStorm, spanSeconds, stormModesOffered,
-  stormStrikeLine, stormStruckThisRound, thunderImmune
+  STORM_FLAG, THUNDER_IMMUNE_FLAG, normaliseStorm, spanSeconds, stormDie, stormExpired, stormModeForFace,
+  stormModesOffered, stormStrikeLine, stormStruckThisRound, thunderImmune
 } from "./storm.mjs";
+import { isActingGM } from "../acting-gm.mjs";
 
 const SYSTEM_ID = "trg-prime";
 const STORM_TERRAIN_FLAG = "stormTerrain";
@@ -25,6 +26,20 @@ async function promptStormMode(spec, last, label) {
     rejectClose: false
   });
   return offered.find((m) => m.key === picked) ?? null;
+}
+
+/**
+ * THIS STRIKE'S MODE (3.687.0, H16): chosen, as Storm of Vengeance's are, or
+ * rolled on the storm's die (Storm of Unmaking's 1d6), the face said first.
+ *
+ * @returns {Promise<{mode: object|null, lines: string[]}>}
+ */
+async function strikeMode(spec, last, label) {
+  if (spec.pick !== "roll") return { mode: await promptStormMode(spec, last, label), lines: [] };
+  const die = stormDie(spec);
+  const roll = await new Roll(die).evaluate();
+  const mode = stormModeForFace(spec, roll.total);
+  return { mode, lines: [`${label}: the storm's ${die} — <strong>${roll.total}</strong>${mode ? `, ${mode.label}` : ""}.`] };
 }
 
 /** The weather of Rain and Wind: put down, or taken away. */
@@ -161,15 +176,26 @@ async function stormStrike(caster, region, record, mode) {
  *
  * @returns {Promise<string[]>} card lines
  */
-export async function castStorm(region, row, { caster, castId, dc, spellName, baseDamage }) {
+export async function castStorm(region, row, { caster, castId, dc, spellName, baseDamage, follow = null, until = null }) {
   const spec = normaliseStorm(row);
   if (!spec) return [`<em>${spellName} declares a malformed storm.</em>`];
+  // WHAT IT FOLLOWS AND WHEN IT ENDS (3.687.0, H16): the caster's token, when
+  // the row (or the module raising it) says it follows; a module's storm keeps
+  // its own clock, since no cast of it is running.
+  const follows = follow === null ? spec.follow : follow === true;
+  const casterToken = caster?.getActiveTokens?.()[0]?.document ?? caster?.token ?? null;
   const record = { castId, casterUuid: caster?.uuid ?? "", label: spellName, dc: Number(dc) || 0,
-    baseDamage: String(baseDamage ?? ""), spec: row, last: "", screen: false };
+    baseDamage: String(baseDamage ?? ""), spec: row, last: "", screen: false,
+    ...(follows && casterToken?.id ? { followTokenId: casterToken.id } : {}),
+    ...(Number.isFinite(Number(until)) && until !== null ? { ownExpiry: true, until: Number(until) } : {}) };
   await region.setFlag(SYSTEM_ID, STORM_FLAG, record);
-  const mode = await promptStormMode(spec, "", spellName);
-  if (!mode) return [`<em>${spellName}: no effect chosen this round — choose one when you Sustain it.</em>`];
-  return stormStrike(caster, region, record, mode);
+  const { mode, lines } = await strikeMode(spec, "", spellName);
+  if (!mode) {
+    return [...lines, spec.strikes === "turnStart"
+      ? `<em>${spellName}: no effect this time — it strikes again at the start of your next turn.</em>`
+      : `<em>${spellName}: no effect chosen this round — choose one when you Sustain it.</em>`];
+  }
+  return [...lines, ...await stormStrike(caster, region, record, mode)];
 }
 
 /**
@@ -184,6 +210,9 @@ export async function stormOnSustain(actor, castId) {
   const record = region.getFlag(SYSTEM_ID, STORM_FLAG);
   const spec = normaliseStorm(record.spec);
   if (!spec) return [];
+  // A STORM THAT STRIKES AT ITS CASTER'S TURN START (3.687.0, H16) strikes
+  // nothing on a Sustain.
+  if (spec.strikes === "turnStart") return [];
   // "THE FIRST TIME EACH ROUND you Sustain the Spell" (3.610.1, F2 of the
   // 3.610.0 drive). Nothing stops a second Sustain in a round, and this
   // struck on every one. Out of combat there are no rounds to count, so
@@ -198,4 +227,135 @@ export async function stormOnSustain(actor, castId) {
   if (round !== null) record.sustainRound = round;
   const lines = await stormStrike(actor, region, record, mode);
   return lines.map((l) => `<p style="margin:2px 0">${l}</p>`);
+}
+
+/* ------------------------------------------------------------------ */
+/* 3.687.0, H16: the turn-start strike, the follower, a module's storm  */
+/* ------------------------------------------------------------------ */
+
+/** The storms on a scene: [{ region, record, spec }]. */
+function stormsOn(scene) {
+  const out = [];
+  for (const region of Array.from(scene?.regions ?? [])) {
+    const record = region.getFlag?.(SYSTEM_ID, STORM_FLAG);
+    const spec = record ? normaliseStorm(record.spec) : null;
+    if (spec) out.push({ region, record, spec });
+  }
+  return out;
+}
+
+/** Is the cast that raised this storm still running? (A module's storm keeps its own clock.) */
+async function stormCastRunning(caster, record) {
+  if (record.ownExpiry === true) return true;
+  if (!record.castId) return true;
+  const { getActiveSpells } = await import("./active-spells.mjs");
+  return getActiveSpells(caster).some((e) => e.id === record.castId);
+}
+
+/**
+ * AT THE START OF EACH OF ITS CASTER'S TURNS (3.687.0, H16; Storm of
+ * Unmaking: "When you initially cast the spell and then at the beginning of
+ * each of your turns, roll 1d6"). Called from the turn start, on the acting
+ * GM; a storm whose own clock has run out is taken away instead.
+ *
+ * @returns {Promise<string[]>} card lines
+ */
+export async function applyStormTurnStarts(actor) {
+  const lines = [];
+  try {
+    if (!actor) return lines;
+    const now = Number(game.time?.worldTime ?? 0);
+    for (const { region, record, spec } of stormsOn(canvas?.scene)) {
+      if (spec.strikes !== "turnStart" || String(record.casterUuid ?? "") !== String(actor.uuid ?? "")) continue;
+      if (stormExpired(record, now)) {
+        await region.delete().catch(() => {});
+        lines.push(`<em>${record.label}: the storm passes.</em>`);
+        continue;
+      }
+      if (!(await stormCastRunning(actor, record))) continue;
+      const { mode, lines: said } = await strikeMode(spec, record.last, record.label);
+      lines.push(...said);
+      if (!mode) { lines.push(`<em>${record.label}: no effect this turn.</em>`); continue; }
+      lines.push(...await stormStrike(actor, region, region.getFlag(SYSTEM_ID, STORM_FLAG) ?? record, mode));
+    }
+  } catch (error) {
+    console.error("TRG Prime | a storm could not strike this turn", error);
+  }
+  return lines;
+}
+
+/** A module's storms whose own clock has run out, on every scene (the acting GM). */
+export async function expireStorms(worldTime = Number(game.time?.worldTime ?? 0)) {
+  if (!isActingGM()) return 0;
+  let n = 0;
+  for (const scene of Array.from(game.scenes ?? [])) {
+    const gone = stormsOn(scene).filter(({ record }) => stormExpired(record, worldTime)).map(({ region }) => region.id);
+    if (gone.length) await scene.deleteEmbeddedDocuments("Region", gone).catch(() => {});
+    n += gone.length;
+  }
+  return n;
+}
+
+/**
+ * A FOLLOWING STORM MOVES WITH ITS CASTER (3.687.0, H16). Where the move ends
+ * is read from the change, not the document (an animated move's document is
+ * still at its start when the hook fires).
+ */
+export async function followStorms(tokenDocument, changed = {}) {
+  if (!isActingGM()) return 0;
+  if (changed?.x === undefined && changed?.y === undefined) return 0;
+  const scene = tokenDocument?.parent;
+  const size = Number(scene?.grid?.size ?? canvas?.grid?.size ?? 100);
+  const x = Number(changed.x ?? tokenDocument.x ?? 0) + (Math.max(1, Number(tokenDocument.width ?? 1)) * size) / 2;
+  const y = Number(changed.y ?? tokenDocument.y ?? 0) + (Math.max(1, Number(tokenDocument.height ?? 1)) * size) / 2;
+  let n = 0;
+  for (const { region, record } of stormsOn(scene)) {
+    if (!record.followTokenId || record.followTokenId !== tokenDocument.id) continue;
+    const shape = region.shapes?.[0];
+    if (!shape || shape.type !== "circle") continue;
+    const data = typeof shape.toObject === "function" ? shape.toObject() : { ...shape };
+    await region.update({ shapes: [{ ...data, x, y }] }).catch(() => {});
+    n += 1;
+  }
+  return n;
+}
+
+/**
+ * A STORM A MODULE RAISES (3.687.0, H16; helpers.placeStorm) — Storm of
+ * Unmaking's fumble: "storm appears above you and follows you wherever you
+ * go". A circle of `radiusFeet` centred on `centre` (the caster's token by
+ * default), striking at once as a cast's storm would, with its own clock of
+ * `seconds`. `row` is a `storm` row; `follow` overrides the row's own.
+ *
+ * @returns {Promise<{regionId: string|null, lines: string[]}>}
+ */
+export async function placeStorm(actor, row, { centre = null, radiusFeet = 0, follow = null, dc = 0, castId = "", seconds = 60, spellName = "", baseDamage = "" } = {}) {
+  const spec = normaliseStorm(row);
+  const label = String(spellName || spec?.label || "Storm");
+  if (!spec) return { regionId: null, lines: [`<em>${label} declares a malformed storm.</em>`] };
+  const scene = canvas?.scene;
+  const token = actor?.getActiveTokens?.()[0] ?? null;
+  const at = centre ?? token?.center ?? null;
+  const feet = Math.max(0, Number(radiusFeet) || 0);
+  if (!scene || !at || !feet) return { regionId: null, lines: [`<em>${label}: no token or radius to raise the storm on — the GM places it.</em>`] };
+  const pxPerFt = Number(canvas.dimensions?.size ?? 100) / Number(canvas.dimensions?.distance ?? 5);
+  const [region] = await scene.createEmbeddedDocuments("Region", [{
+    name: label, color: game.user?.color?.css ?? "#5a3fa0",
+    visibility: CONST.REGION_VISIBILITY.ALWAYS,
+    shapes: [{ type: "circle", x: Number(at.x), y: Number(at.y), radius: feet * pxPerFt, hole: false }]
+  }]);
+  if (!region) return { regionId: null, lines: [`<em>${label}: the storm's area could not be made.</em>`] };
+  const until = Number(game.time?.worldTime ?? 0) + Math.max(1, Math.trunc(Number(seconds) || 60));
+  const lines = await castStorm(region, row, { caster: actor, castId, dc, spellName: label, baseDamage, follow, until });
+  return { regionId: region.id, lines };
+}
+
+/** The follower and the clock (the acting GM). */
+export function registerStorms() {
+  Hooks.on("updateToken", (tokenDocument, changed) => {
+    followStorms(tokenDocument, changed).catch((error) => console.error("TRG Prime | a storm could not follow", error));
+  });
+  Hooks.on("updateWorldTime", (worldTime) => {
+    expireStorms(worldTime).catch((error) => console.error("TRG Prime | a storm could not end", error));
+  });
 }

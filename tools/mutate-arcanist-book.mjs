@@ -63,7 +63,7 @@ const MUTATIONS = [
   { name: "the card stops listing the book", file: HBS, from: "{{#each arch.levelled as |b|}}", to: "{{#each arch.nothing as |b|}}", breaks: "G16" },
   { name: "Learn a Spell's text forgets the Arcanist", file: SKD, from: "an Arcanist's spellbook (arcane spells", to: "a second book (spells", breaks: "G17" },
   // Z
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.686.2\"", to: "\"version\": \"3.676.0\"", breaks: "Z" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.676.0\"", breaks: "Z" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-arcanist-book.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 function runCheck() {

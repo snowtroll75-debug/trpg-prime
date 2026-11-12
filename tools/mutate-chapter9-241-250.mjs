@@ -181,7 +181,7 @@ const MUTATIONS = [
     from: "    (sum, key) => sum + magicRitualSecondaryModifier(key), 0);",
     to: "    (sum) => sum + 0, 0);", breaks: "I11" },
   { file: CASTWF, name: "I THE SHIPPED DEFECT: a successful ritual posts a card and casts nothing",
-    from: "      ritual: { degree, ppOver, secondaryCount, check, variant: ritualPlan.variant, gated: { modifiers: ritualGated.modifiers, lines: [] } }",
+    from: "      ritual: { degree, ppOver, secondaryCount, check, variant: ritualPlan.variant, partialCasts, alone, gated: { modifiers: ritualGated.modifiers, lines: [] } }", // RE-ANCHORED 3.687.0
     to: "      stored: null", breaks: "I13" },
   { file: CASTWF, name: "I: the cast re-rolls its own check instead of taking the ritual's degree",
     from: "  if (ritual) degree = String(ritual.degree ?? degree);", to: "", breaks: "I14" },

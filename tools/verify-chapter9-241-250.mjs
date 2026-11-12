@@ -344,7 +344,8 @@ eq("I10 -10 for an unaltered duration",
     !/summed by hand, summed by hand/.test(src) && !/name="secondaryModifier"/.test(src));
   // R6 — a successful ritual casts the spell.
   ok("I13 a resolved ritual reaches the cast pipeline",
-    /ritual: \{ degree, ppOver, secondaryCount, check(?:, variant: ritualPlan\.variant, gated: \{ modifiers: ritualGated\.modifiers, lines: \[\] \})? \}/.test(src),
+    // RE-ANCHORED 3.687.0: the ritual also tells the cast whether its Partial casts and whether it was alone (H13, H14).
+    /ritual: \{ degree, ppOver, secondaryCount, check(?:, variant: ritualPlan\.variant, partialCasts, alone, gated: \{ modifiers: ritualGated\.modifiers, lines: \[\] \})? \}/.test(src),
     "it used to post `The spell is cast at N PP` and stop");
   ok("I14 the cast takes the ritual's degree rather than re-rolling",
     /if \(ritual\) degree = String\(ritual\.degree \?\? degree\)/.test(src));

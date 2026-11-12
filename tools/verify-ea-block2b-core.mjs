@@ -104,7 +104,7 @@ const quiet = (fn) => async (...a) => { const e = console.error; console.error =
     /const ritualPlan = await prepareRitual\(\{\n\s*\.\.\.ritualContext, form: result, variant: String\(result\.ritualVariant \?\? ""\),/.test(ritualFn)
     && /if \(ritualPlan\.refused\) \{\n\s*ui\.notifications\.warn\(`\$\{spell\.name\}: \$\{ritualPlan\.refused\}`\);\n\s*return null;/.test(ritualFn)
     && /const secondaryCount = degrees\.length \+ ritualPlan\.seats;\n\s*const overcastLimit = magicRitualOvercastLimit\(secondaryCount\);/.test(ritualFn)
-    && ritualFn.indexOf("const ritualPlan = ") < ritualFn.indexOf("if (!secondaryCount) {"));
+    && ritualFn.indexOf("const ritualPlan = ") < ritualFn.indexOf("if (!secondaryCount && !alone) {")); // RE-ANCHORED 3.687.0 (H14)
   ok("RW the DC: the variant's base or the casting DC, the core's modifiers (Q5), High Magic's Hard (Q14) and the rows",
     /const ritualBase = ritualPlan\.dc \? ritualPlan\.dc\.value : castingDC\(basePP\);/.test(ritualFn)
     && /\.\.\.\(highMagicCastingDCStep\(hmCast\) \? \[\{ label: "High Magic, Hard", value: highMagicCastingDCStep\(hmCast\) \}\] : \[\]\),\n\s*\.\.\.ritualPlan\.dcRows/.test(ritualFn)
@@ -117,8 +117,8 @@ const quiet = (fn) => async (...a) => { const e = console.error; console.error =
     /const ritualGated = await runSpellCheckGates\(\{\n\s*actor, spell, spellData, innate: false, itemCast: false, attack: false,\n\s*highMagic: hmCast\.highMagic, ritual: true, rollsCheck: true\n\s*\}\);\n\s*modifiers\.push\(\.\.\.ritualGated\.modifiers\);/.test(ritualFn)
     && /rollsCheck: !noCheckCantrip && !ritual\?\.check &&/.test(cw));
   ok("RW M30: a lifted cap keeps the degree, and better than Success casts",
-    /const degree = capLifted \? rawDegree : capRitualDegree\(rawDegree\);\n\s*const cast = ritualCasts\(degree\);/.test(ritualFn));
-  ok("RW the cast is told the variant", /ritual: \{ degree, ppOver, secondaryCount, check, variant: ritualPlan\.variant, gated: /.test(ritualFn));
+    /const degree = capLifted \? rawDegree : capRitualDegree\(rawDegree\);\n(\s*\/\/[^\n]*\n)*\s*const partialCasts = degree === "partial" && await ritualPartialCasts\(\{ \.\.\.ritualContext, degree \}\);\n\s*const cast = ritualCasts\(degree, \{ partial: partialCasts \}\);/.test(ritualFn)); // RE-ANCHORED 3.687.0 (H13)
+  ok("RW the cast is told the variant", /ritual: \{ degree, ppOver, secondaryCount, check, variant: ritualPlan\.variant, partialCasts, alone, gated: /.test(ritualFn)); // RE-ANCHORED 3.687.0 (H13, H14)
   ok("RW the card carries the modules' and the gates' lines", /const lines = \[\.\.\.ritualPlan\.lines\.map\(\(text\) => line\(text\)\), \.\.\.ritualGated\.lines\.map\(\(text\) => line\(text\)\)\];/.test(ritualFn));
   ok("RW castSpell: a variant's PP are substituted; a non-caster primary is not asked to have prepared (Q10)",
     /const ritualSubstitutes = Boolean\(ritual\?\.variant\);\n\s*const ritualNonCaster = ritualSubstitutes && Number\(system\?\.magic\?\.casterLevelValue \?\? 0\) <= 0;/.test(cw)
@@ -141,10 +141,10 @@ const quiet = (fn) => async (...a) => { const e = console.error; console.error =
   ok("RW review: a ritual's casting is never stored", /const storingNow = !stored && !isStoringSpell && !ritual && Boolean\(readArmed\(actor\)\);/.test(cw));
   ok("RW review: the gates are asked once — the ritual's answer is handed to the cast, its lines on the ritual's card",
     /const gated = ritual\?\.gated \?\? await runSpellCheckGates\(\{/.test(cw)
-    && /variant: ritualPlan\.variant, gated: \{ modifiers: ritualGated\.modifiers, lines: \[\] \} \}/.test(ritualFn)
+    && /variant: ritualPlan\.variant, partialCasts, alone, gated: \{ modifiers: ritualGated\.modifiers, lines: \[\] \} \}/.test(ritualFn) // RE-ANCHORED 3.687.0
     && /if \(check && castingOnlyTotal && !isItemCast && !isInnate\) check\.castingOnlyTotal = castingOnlyTotal;/.test(cw));
   ok("RW review: a failed ritual's cast asks nothing that could be cancelled away",
-    /const ritualFailed = Boolean\(ritual\) && !\["success", "critical", "heroic"\]\.includes\(String\(ritual\.degree\)\);/.test(cw)
+    /const ritualFailed = Boolean\(ritual\) && !\["success", "critical", "heroic"\]\.includes\(String\(ritual\.degree\)\)\n\s*&& !\(ritual\.partialCasts === true && String\(ritual\.degree\) === "partial"\);/.test(cw) // RE-ANCHORED 3.687.0 (H13: a cast Partial is not a failed ritual)
     && /const conditions = \(isItemCast \|\| isInnate \|\| noCheckCantrip \|\| ritualFailed\)/.test(cw));
   ok("RW review: a variant is checked before its roll — a caster's preparation (Q10), the cap and headroom (Q9)",
     /if \(ritualPlan\.variant\) \{\n\s*const leaderCL = casterLevelOf\(actor\.system \?\? \{\}\);\n\s*if \(leaderCL > 0\) \{\n\s*const blocked = spellCastBlocked\(spell\);/.test(ritualFn)

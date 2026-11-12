@@ -869,6 +869,10 @@ export class TRGCombat extends Combat {
       for (const said of await applyTurnLadders(actor, combatant.token?.object ?? null)) {
         lines.push(TRGCombat.#chatLine(said));
       }
+      // AND A STORM THAT STRIKES AT ITS CASTER'S TURN START (3.687.0, H16):
+      // Storm of Unmaking's 1d6, rolled "at the beginning of each of your turns".
+      const { applyStormTurnStarts } = await import("../magic/storm-workflow.mjs");
+      for (const said of await applyStormTurnStarts(actor)) lines.push(TRGCombat.#chatLine(said));
       // AND A TABLE ROLLED AT THE START OF EACH OF ITS TURNS (3.686.0, H18):
       // core Insanity's d10, before AP are regained so its stun and slow bite now.
       const { applyTurnTables } = await import("../magic/turn-table-workflow.mjs");

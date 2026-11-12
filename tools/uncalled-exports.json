@@ -149,7 +149,12 @@
     "module/magic/sustain-workflow.mjs#invalidateSustainerIndex": "Harness seam (3.684.0, G24 review): exported only so verify-ea-block6d-core S7 can drive the sustainer index the preUpdateActor HP hook in this file reads; the hook is its one in-system caller.",
     "module/fearful-power.mjs#statusBonusOver": "No longer called at 3.684.1 (review): the Strike stacks Fearful Power as a status row with the defence rows through stackFearfulPower in combat/defence-dc.mjs, so a status ward no longer stacks with it. Kept because verify-ff30-block28 B8 and its mutations still pin the two-number rule; remove with them.",
     "module/combat/movement-workflow.mjs#onApWriteLapse": "Harness seam (3.684.5, Agile Display's next-action rule): its one caller is registerMovementHooks' updateActor hook in this same file. Exported so verify-agile-display N4 can drive an AP write the way the hook does.",
-    "module/combat/movement-workflow.mjs#armedApCost": "Harness seam (3.684.7, Sudden Charge): its callers are the move handler (onPreMoveToken) and armedMovementSummary in this same file. Exported so verify-sudden-charge C1 can drive the reduction directly."
+    "module/combat/movement-workflow.mjs#armedApCost": "Harness seam (3.684.7, Sudden Charge): its callers are the move handler (onPreMoveToken) and armedMovementSummary in this same file. Exported so verify-sudden-charge C1 can drive the reduction directly.",
+    "module/magic/storm-workflow.mjs#followStorms": "Harness seam (3.687.0, H16): its one caller is registerStorms' updateToken hook in this same file. Exported so verify-block8b-core can move a following storm the way the hook does.",
+    "module/magic/storm-workflow.mjs#expireStorms": "Harness seam (3.687.0, H16): its one caller is registerStorms' updateWorldTime hook in this same file. Exported so verify-block8b-core can end a module's storm on the world clock directly.",
+    "module/magic/storm-workflow.mjs#placeStorm": "Module API (3.687.0, H16): called by modules through helpers.placeStorm (module-api-workflow.mjs, a dynamic import the scan does not follow) — Eldritch Arts' Storm of Unmaking fumble.",
+    "module/rest/rest-rate.mjs#REST_RATE_FLAG": "Module contract (3.687.0, H15): the flag name an effect carries its rest rate on, exported so a module names it rather than spelling the string; read here by restRatesOf.",
+    "module/rest/rest-rate.mjs#normaliseRestRate": "Harness seam (3.687.0, H15): its caller is restRatesOf in this same file. Exported so verify-block8b-core can pin what a rate record reads as."
   },
   "orphans": [
     "module/afflictions.mjs#STAGE_DELTA",

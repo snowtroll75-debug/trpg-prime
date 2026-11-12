@@ -118,6 +118,7 @@ import { registerAuraHooks } from "../module/creature-aura-workflow.mjs";
 import { registerDistanceTriggers } from "../module/magic/distance-trigger-workflow.mjs";
 import { registerInscribedRunes } from "../module/magic/inscribed-rune-workflow.mjs";
 import { registerEmanations } from "../module/magic/emanation-workflow.mjs";
+import { registerStorms } from "../module/magic/storm-workflow.mjs";
 import { registerPlacedLights } from "../module/magic/placed-light-workflow.mjs";
 import { registerWardZones } from "../module/combat/ward-zone-workflow.mjs";
 import { registerHazardTerrain } from "../module/magic/hazard-terrain-workflow.mjs";
@@ -313,6 +314,8 @@ Hooks.once("init", () => {
   // you are inside it (3.426.0) — the same Region machinery auras use,
   // registered beside them for that reason. See magic/emanation.mjs.
   registerEmanations();
+  // A FOLLOWING STORM, AND A MODULE'S STORM'S OWN CLOCK (3.687.0, H16).
+  registerStorms();
   // A WARD ZONE (3.666.0) — see module/combat/ward-zone-workflow.mjs.
   registerWardZones();
   // A PLAYER'S PLACED LIGHT, MOVED OR REMOVED BY THE ACTING GM (3.669.0;

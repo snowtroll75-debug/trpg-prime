@@ -35,7 +35,7 @@ const MUTATIONS = [
   { file: M, name: "C2 the end square is crossed", from: "  return (squares ?? []).slice(0, -1).filter((s) => !s.landing);", to: "  return (squares ?? []).filter((s) => !s.landing);", breaks: "C1" },
   { file: W, name: "W1 the workflow keeps its own sampler", from: "    return pathSquaresOf([\n      ...(movement?.passed?.waypoints ?? []),\n      ...(movement?.pending?.waypoints ?? [])\n    ], canvas?.grid?.size ?? 100);", to: "    return [];", breaks: "W1" },
   { file: W, name: "W3 page 198 crosses every square but the last again", from: "  const crossed = crossedSquares(squares);", to: "  const crossed = squares.slice(0, -1);", breaks: "W3" },
-  { file: SJ, name: "Z the version is not raised", from: "\"version\": \"3.686.2\"", to: "\"version\": \"3.680.0\"", breaks: "Z" }
+  { file: SJ, name: "Z the version is not raised", from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.680.0\"", breaks: "Z" }
 ];
 
 function run() {

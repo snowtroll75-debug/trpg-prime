@@ -101,7 +101,7 @@ const MUTATIONS = [
   { name: "an HP grant goes to PP", file: m("feats-workflow.mjs"), from: "      path: hp ? \"system.resources.hp.other\" : \"system.resources.pp.base\",", to: "      path: \"system.resources.pp.base\",", breaks: "G1" },
   { name: "the registry forgets the stat", file: API, from: "  const stat = String(spec?.stat ?? \"pp\").trim().toLowerCase() === \"hp\" ? \"hp\" : \"pp\";", to: "  const stat = \"pp\";", breaks: "G1" },
   // Z
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.686.2\"", to: "\"version\": \"3.681.2\"", breaks: "Z1" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.681.2\"", breaks: "Z1" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-ea-block4-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

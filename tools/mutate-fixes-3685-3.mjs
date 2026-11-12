@@ -50,8 +50,8 @@ const MUTATIONS = [
   { name: "isActingGM does not compare the active GM with this client", file: AGM, from: "  if (activeGM && activeGM.id !== game.user?.id) return false;\n", to: "" /* RE-ANCHORED 3.686.2 on Graham's 3.686.1 form */, breaks: "C1/K5/P1/Q2" },
   { name: "a lone GM with no active GM does nothing", file: AGM, from: "  return Boolean(game?.user?.isGM) && isGMConnectionWriter();", to: "  return false;" /* RE-ANCHORED 3.686.2 */, breaks: "C3/K8/P3" },
   // Z
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.686.2\"", to: "\"version\": \"3.685.2\"", breaks: "Z1/Z2" },
-  { name: "the download names the last release", file: SJ, from: "releases/download/v3.686.2/trg-prime.zip", to: "releases/download/v3.685.2/trg-prime.zip", breaks: "Z2" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.685.2\"", breaks: "Z1/Z2" },
+  { name: "the download names the last release", file: SJ, from: "releases/download/v3.687.1/trg-prime.zip", to: "releases/download/v3.685.2/trg-prime.zip", breaks: "Z2" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-fixes-3685-3.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

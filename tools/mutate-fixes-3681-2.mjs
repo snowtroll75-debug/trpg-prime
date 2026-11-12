@@ -28,7 +28,7 @@ const MUTATIONS = [
     from: "return `${escapeName(name)} takes", to: "return `${name} takes", breaks: "S5" },
   { name: "the damage step's target is read from somewhere else", file: AW,
     from: "  const targetTokenHere = targetTokenOverride ?? firstTargetToken() ?? null;", to: "  const targetTokenHere = firstTargetToken() ?? targetTokenOverride ?? null;", breaks: "W5" },
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.686.2\"", to: "\"version\": \"3.681.1\"", breaks: "Z" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.681.1\"", breaks: "Z" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-fixes-3681-2.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

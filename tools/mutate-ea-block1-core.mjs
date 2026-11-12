@@ -103,7 +103,7 @@ const MUTATIONS = [
   { name: "the caster-level step is not added", file: CAST, from: "      const flat = Math.max(0, Math.floor(Number(clMods?.secondary ?? 0)));", to: "      const flat = 0;", breaks: "C9" },
   { name: "the caster-level step is not counted", file: CLM, from: "    if (mod?.secondary) out.secondary += Number(mod.secondary) * steps;", to: "", breaks: "C9" },
   // Z
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.686.2\"", to: "\"version\": \"3.674.2\"", breaks: "Z" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.674.2\"", breaks: "Z" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-ea-block1-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

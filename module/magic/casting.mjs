@@ -195,7 +195,7 @@ export function harderSaveStep(degreeKey) {
   return 0;
 }
 
-export function castingOutcome(degreeKey, { basePP, warpPP = 0, waiveCritical = false, waiveSaving = false, savingStep = 0 } = {}) {
+export function castingOutcome(degreeKey, { basePP, warpPP = 0, waiveCritical = false, waiveSaving = false, savingStep = 0, castsPartial = false } = {}) {
   const base = Math.max(0, Math.floor(Number(basePP) || 0));
   const warp = Math.max(0, Math.floor(Number(warpPP) || 0));
   const total = base + warp;
@@ -247,7 +247,9 @@ export function castingOutcome(degreeKey, { basePP, warpPP = 0, waiveCritical = 
     case "success":
       return { cast: true, ppSpent: total, fumbleRoll: false, fumbleModifier: 0 };
     case "partial":
-      return { cast: false, ppSpent: 0, fumbleRoll: false, fumbleModifier: 0 };
+      // A RITUAL SPELL'S PARTIAL THAT TAKES EFFECT (3.687.0, H13; Graham's
+      // Q171): cast, and still "no PP lost". Only a ritual says so.
+      return { cast: castsPartial === true, ppSpent: 0, fumbleRoll: false, fumbleModifier: 0 };
     case "failure":
       return {
         cast: false,

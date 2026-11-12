@@ -710,6 +710,13 @@ export function buildModuleApi() {
       recordControlled: async (...args) => (await import("./magic/control-register-workflow.mjs")).recordControlled(...args),
       releaseControlled: async (...args) => (await import("./magic/control-register-workflow.mjs")).releaseControlled(...args),
       controlledOf: async (actor) => (await import("./magic/control-register-workflow.mjs")).controlledOf(actor),
+      // A STORM A MODULE RAISES (3.687.0, H16; Eldritch Arts' Storm of
+      // Unmaking fumble, "storm appears above you and follows you wherever you
+      // go"): `placeStorm(actor, row, { centre, radiusFeet, follow, dc, castId,
+      // seconds, spellName, baseDamage })` — a circle of a `storm` row, struck
+      // at once, then at the start of each of the caster's turns while its own
+      // clock runs. Answers `{ regionId, lines }`.
+      placeStorm: async (...args) => (await import("./magic/storm-workflow.mjs")).placeStorm(...args),
       controlledCreature: async (entry) => { const { controlledCreature } = await import("./magic/control-register-workflow.mjs"); return controlledCreature(entry); },
       // CONDITIONS HELD BY A CURSE (3.686.0, H17): is this condition held on
       // this creature (an effect carrying `flags.trg-prime.heldConditions`)?

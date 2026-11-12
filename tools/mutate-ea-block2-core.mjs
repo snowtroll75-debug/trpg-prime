@@ -70,7 +70,7 @@ const MUTATIONS = [
   { name: "THE GAP: a release check says nothing", file: CIW, from: "  globalThis.Hooks?.callAll?.(\"trgPrimeReleaseRolled\", {", to: "  globalThis.Hooks?.callAll?.(\"trgPrimeReleaseRolledX\", {", breaks: "D7b" },
   { name: "the identification line is lost", file: CAST, from: "it registers simply as magic, and identifying it is Very Hard (DC +5).", to: "it registers simply as magic.", breaks: "D1" },
   // Z
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.686.2\"", to: "\"version\": \"3.677.1\"", breaks: "Z" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.677.1\"", breaks: "Z" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-ea-block2-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

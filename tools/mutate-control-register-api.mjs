@@ -26,7 +26,7 @@ const MUTATIONS = [
   { name: "L1 until dismissed locks nothing", file: AS, from: "  if (/until dismissed/.test(t)) return \"unlimited\";\n", to: "", breaks: "L1/L3" },
   { name: "L1 until dismissed locks to the daily preparation", file: AS, from: "  if (/until dismissed/.test(t)) return \"unlimited\";", to: "  if (/until dismissed/.test(t)) return \"dailyPrep\";", breaks: "L1" },
   { name: "L2 a (D) locks too", file: AS, from: "  if (/until dismissed/.test(t)) return \"unlimited\";", to: "  if (/until dismissed|\\(d\\)/.test(t)) return \"unlimited\";", breaks: "L2" },
-  { name: "Z1 the version is not raised", file: SJ, from: "\"version\": \"3.686.2\"", to: "\"version\": \"3.685.3\"", breaks: "Z1" }
+  { name: "Z1 the version is not raised", file: SJ, from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.685.3\"", breaks: "Z1" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-control-register-api.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

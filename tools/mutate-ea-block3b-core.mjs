@@ -131,7 +131,7 @@ const MUTATIONS = [
   { name: "Conviction is spent past the round's limit", file: APW, from: "        if (!getConvictionState(actor).ok) return false;\n        await markConvictionSpent(actor);", to: "        await markConvictionSpent(actor);", breaks: "W26" },
   { name: "castAsReaction is not exported", file: SRS, from: "export async function castAsReaction(caster, spell, targetTokenIds = []) {", to: "async function castAsReaction(caster, spell, targetTokenIds = []) {", breaks: "W27" },
   // Z
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.686.2\"", to: "\"version\": \"3.680.1\"", breaks: "Z" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.680.1\"", breaks: "Z" }
 ];
 
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-ea-block3b-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }

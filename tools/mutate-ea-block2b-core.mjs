@@ -25,7 +25,7 @@ const MUTATIONS = [
   { name: "a variant with no skill goes ahead", file: RR, from: "  if (out.variant && (!out.dc || !out.skill) && !out.refused) out.refused = \"the ritual variant gave no check to roll\";", to: "", breaks: "R" },
   { name: "a failing owner lets the ritual go ahead", file: RR, from: "      if (mine) out.refused = \"the ritual's rules failed (see the console)\";", to: "", breaks: "R" },
   { name: "M30 undone: any truthy answer lifts the cap", file: RR, from: "      if ((await spec.liftsCap(ctx)) === true) return true;", to: "      if (await spec.liftsCap(ctx)) return true;", breaks: "R" },
-  { name: "a lifted ritual does not cast on a Critical", file: RR, from: "  return [\"success\", \"critical\", \"heroic\"].includes(str(degree));", to: "  return str(degree) === \"success\";", breaks: "R" },
+  { name: "a lifted ritual does not cast on a Critical", file: RR, from: "  return [\"success\", \"critical\", \"heroic\"].includes(d) || (partial === true && d === \"partial\");", to: "  return d === \"success\" || (partial === true && d === \"partial\");" /* RE-ANCHORED 3.687.0 (H13) */, breaks: "R" },
   // RW — the ritual wired
   { name: "THE GAP: the ritual is not refused (rolled, then refused)", file: CAST, from: "    if (ritualRefused) {\n", to: "    if (false) {\n", breaks: "RW" },
   { name: "the variant select is never shown", file: CAST, from: "        ${ritualVariants.length ? `<hr><div class=\"form-group\">", to: "        ${false ? `<hr><div class=\"form-group\">", breaks: "RW" },
@@ -38,7 +38,7 @@ const MUTATIONS = [
   { name: "the modules' check rows are dropped", file: CAST, from: "  modifiers.push(...ritualPlan.modifiers);\n", to: "", breaks: "RW" },
   { name: "THE GAP: suppression's penalty misses the ritual check", file: CAST, from: "  modifiers.push(...ritualGated.modifiers);\n", to: "", breaks: "RW" },
   { name: "the cap is lifted for every ritual", file: CAST, from: "  const degree = capLifted ? rawDegree : capRitualDegree(rawDegree);", to: "  const degree = rawDegree;", breaks: "RW" },
-  { name: "the cast is not told the variant (the primary pays PP)", file: CAST, from: "      ritual: { degree, ppOver, secondaryCount, check, variant: ritualPlan.variant, gated:", to: "      ritual: { degree, ppOver, secondaryCount, check, gated:", breaks: "RW" },
+  { name: "the cast is not told the variant (the primary pays PP)", file: CAST, from: "      ritual: { degree, ppOver, secondaryCount, check, variant: ritualPlan.variant, partialCasts, alone, gated:", to: "      ritual: { degree, ppOver, secondaryCount, check, partialCasts, alone, gated:" /* RE-ANCHORED 3.687.0 */, breaks: "RW" },
   { name: "Q10 undone: a non-caster primary must have prepared it", file: CAST, from: "  const castBlocked = ritualNonCaster ? \"\" : spellCastBlocked(spell);", to: "  const castBlocked = spellCastBlocked(spell);", breaks: "RW" },
   { name: "Q10 widened: a caster leading a variant is not asked either", file: CAST, from: "  const ritualNonCaster = ritualSubstitutes && Number(system?.magic?.casterLevelValue ?? 0) <= 0;", to: "  const ritualNonCaster = ritualSubstitutes;", breaks: "RW" },
   { name: "the pool is tested for substituted PP", file: CAST, from: "  if ((ritualSubstitutes ? 0 : totalPP) + surcharge.pp > ppPool + rodDraw) {", to: "  if (totalPP + surcharge.pp > ppPool + rodDraw) {", breaks: "RW" },
@@ -49,7 +49,7 @@ const MUTATIONS = [
   { name: "REVIEW: a held rod pays as well as the sacrifice", file: CAST, from: "stored || totalPP <= 0 || ritualSubstitutes)", to: "stored || totalPP <= 0)", breaks: "RW" },
   { name: "REVIEW: a ritual's casting may be stored", file: CAST, from: "  const storingNow = !stored && !isStoringSpell && !ritual && Boolean(readArmed(actor));", to: "  const storingNow = !stored && !isStoringSpell && Boolean(readArmed(actor));", breaks: "RW" },
   { name: "REVIEW: the gates are asked twice per ritual", file: CAST, from: "  const gated = ritual?.gated ?? await runSpellCheckGates({", to: "  const gated = await runSpellCheckGates({", breaks: "RW" },
-  { name: "REVIEW: the ritual's gate answer is not handed in", file: CAST, from: "variant: ritualPlan.variant, gated: { modifiers: ritualGated.modifiers, lines: [] } }", to: "variant: ritualPlan.variant }", breaks: "RW" },
+  { name: "REVIEW: the ritual's gate answer is not handed in", file: CAST, from: "variant: ritualPlan.variant, partialCasts, alone, gated: { modifiers: ritualGated.modifiers, lines: [] } }", to: "variant: ritualPlan.variant, partialCasts, alone }" /* RE-ANCHORED 3.687.0 */, breaks: "RW" },
   { name: "REVIEW: a failed ritual's prompt can be cancelled away", file: CAST, from: "  const conditions = (isItemCast || isInnate || noCheckCantrip || ritualFailed)", to: "  const conditions = (isItemCast || isInnate || noCheckCantrip)", breaks: "RW" },
   { name: "REVIEW: an unprepared spell is found only after a Success", file: CAST, from: "    if (leaderCL > 0) {\n      const blocked = spellCastBlocked(spell);", to: "    if (false) {\n      const blocked = spellCastBlocked(spell);", breaks: "RW" },
   { name: "REVIEW: the cap is found only after the roll", file: CAST, from: "    if (basePP > capNow) {", to: "    if (false) {", breaks: "RW" },
@@ -76,7 +76,7 @@ const MUTATIONS = [
   { name: "THE GAP: vital sacrifice's damage is reduced by DR and resistance", file: m("magic", "area-save-workflow.mjs"), from: "    const packet = ignoreDefences ? { taken: dealt, immune: false } : resolveAgainstDefences(target.system ?? {}, {", to: "    const packet = resolveAgainstDefences(target.system ?? {}, {", breaks: "H" },
   { name: "the bypass ignores the save", file: m("magic", "area-save-workflow.mjs"), from: "    const packet = ignoreDefences ? { taken: dealt, immune: false }", to: "    const packet = ignoreDefences ? { taken: base, immune: false }", breaks: "H" },
   // Z
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.686.2\"", to: "\"version\": \"3.678.0\"", breaks: "Z" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.678.0\"", breaks: "Z" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-ea-block2b-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

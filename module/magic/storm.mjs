@@ -61,17 +61,53 @@ function normaliseMode(raw) {
   };
 }
 
-/** A `storm` row, or null. */
+/**
+ * A `storm` row, or null.
+ *
+ * AND HOW IT STRIKES (3.687.0, H16; Eldritch Arts Block 8b — Storm of
+ * Unmaking: "When you initially cast the spell and then at the beginning of
+ * each of your turns, roll 1d6"; its fumble, "storm appears above you and
+ * follows you wherever you go"). All three default to Storm of Vengeance's
+ * reading, so a row that says none of them is unchanged:
+ *   pick     "choose" (the caster picks, never the same twice running) or
+ *            "roll" (a die over the modes, in order; repeats allowed);
+ *   strikes  "sustain" (the cast and the first Sustain each round) or
+ *            "turnStart" (the cast and the start of each of the caster's
+ *            turns; a Sustain strikes nothing);
+ *   follow   true: the storm's circle moves with its caster's token.
+ */
 export function normaliseStorm(raw) {
   if (!raw || typeof raw !== "object" || text(raw.kind) !== "storm") return null;
   const modes = (Array.isArray(raw.modes) ? raw.modes : []).map(normaliseMode).filter(Boolean);
   if (modes.length < 2) return null;
-  return { label: text(raw.label) || "Storm", modes };
+  const pick = text(raw.pick).toLowerCase() === "roll" ? "roll" : "choose";
+  const strikes = text(raw.strikes) === "turnStart" ? "turnStart" : "sustain";
+  return { label: text(raw.label) || "Storm", modes, pick, strikes, follow: raw.follow === true };
 }
 
-/** What may be chosen now: everything but the last. */
+/** What may be chosen now: everything but the last (a rolled storm may repeat). */
 export function stormModesOffered(spec, last = "") {
+  if (spec?.pick === "roll") return [...(spec?.modes ?? [])];
   return (spec?.modes ?? []).filter((m) => m.key !== text(last));
+}
+
+/** The die a rolled storm rolls: one face a mode ("1d6" for six). */
+export function stormDie(spec) {
+  const n = (spec?.modes ?? []).length;
+  return n >= 2 ? `1d${n}` : "";
+}
+
+/** The mode a face of that die names, in printed order; null off the die. */
+export function stormModeForFace(spec, face) {
+  const n = Math.trunc(Number(face));
+  const modes = spec?.modes ?? [];
+  return Number.isFinite(n) && n >= 1 && n <= modes.length ? modes[n - 1] : null;
+}
+
+/** Has a storm with its own clock (one a module raised, H16) run out? */
+export function stormExpired(record, worldTime) {
+  const until = Number(record?.until);
+  return record?.ownExpiry === true && Number.isFinite(until) && Number(worldTime) >= until;
 }
 
 /** Is this creature still immune to thunderclaps? */

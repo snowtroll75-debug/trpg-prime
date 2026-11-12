@@ -1346,11 +1346,19 @@ export function registeredHighMagicRules() {
  *                    modifiers: [{label, value, type}], seats, lines,
  *                    refused }`. `dc` and `skill` are read from the rules
  *                    that offered the chosen variant only;
- *   liftsCap(ctx)  → true when this spell's ritual is not capped at Success.
+ *   liftsCap(ctx)  → true when this spell's ritual is not capped at Success;
+ *   partialCasts(ctx) → true when this spell's ritual Partial takes effect
+ *                    (3.687.0, H13): `castSpell` is called with the Partial,
+ *                    which casts, spends no PP and applies no ritual
+ *                    consequences, so `trgPrimeSpellSettled` carries
+ *                    `degree: "partial"`, `ritual: true`, `cast: true`;
+ *   minSecondaries(ctx) → 0 when this ritual may be performed by its primary
+ *                    alone (3.687.0, H14); the overcasting room is still 2 PP
+ *                    a secondary.
  */
 export function registerRitualRules(key, spec, moduleId = null) {
   const k = registryKey(key);
-  const fns = ["variants", "fields", "prepare", "liftsCap"];
+  const fns = ["variants", "fields", "prepare", "liftsCap", "partialCasts", "minSecondaries"];
   const ok = spec && typeof spec === "object"
     && fns.some((f) => typeof spec[f] === "function")
     && fns.every((f) => spec[f] === undefined || typeof spec[f] === "function");

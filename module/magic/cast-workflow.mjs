@@ -2684,7 +2684,9 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
   // NOR A RITUAL THAT FAILED (3.679.0, review): its check is rolled, nothing
   // on the prompt can change a spell that does not take effect, and a cancel
   // there would let a Fumble escape its consequences.
-  const ritualFailed = Boolean(ritual) && !["success", "critical", "heroic"].includes(String(ritual.degree));
+  // A ritual's Partial that takes effect (3.687.0, H13) is not a failed ritual.
+  const ritualFailed = Boolean(ritual) && !["success", "critical", "heroic"].includes(String(ritual.degree))
+    && !(ritual.partialCasts === true && String(ritual.degree) === "partial");
   const castOptionOffers = (isItemCast || isInnate || noCheckCantrip || ritualFailed) ? [] : await offeredCastOptions(castOptionContext);
   const conditions = (isItemCast || isInnate || noCheckCantrip || ritualFailed)
     ? { defensive: false, extraIncrements: 0, interference: false, motion: "", weather: 0, targetInMelee: false, touchUnwilling: false, bardicPerform: false, reagents: [], castOptions: [] }
@@ -3555,7 +3557,8 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
   // PP equal to the base cost of the spell to change the result to a
   // success." Offered post-roll, before the outcome is settled.
   let variableSuccessPP = 0;
-  if (degree === "partial" && !isCantrip && !threaded &&
+  // Not on a ritual's Partial (3.687.0, H13): the ritual decided that degree.
+  if (degree === "partial" && !isCantrip && !threaded && !ritual &&
     Array.from(actor.items ?? []).some(
       (i) => i.type === "feat" && String(i.name).trim().toLowerCase() === "variable success"
     ) && ppPool >= totalPP + basePP) {
@@ -3793,7 +3796,16 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
 
   // A METAMAGIC'S BASE PP AND ITS SAVING ONE RUNG LESS (3.684.0, G1;
   // Spellthread's sidebar 15). Both 0 for every cast that takes none.
+  /*
+   * A RITUAL SPELL'S PARTIAL THAT TAKES EFFECT (3.687.0, H13; Graham's Q171: "A
+   * Ritual spell's printed Partial takes effect, and no PP is lost"). Cast, as
+   * a Partial spends nothing, with no fumble roll. Asked of the degree as it
+   * stands here, after the remaps: a Magic Suppression area's "partial …
+   * classed as a failure" still makes it one.
+   */
+  const ritualPartial = ritual?.partialCasts === true && degree === "partial";
   const outcome = castingOutcome(degree, {
+    castsPartial: ritualPartial,
     basePP: basePP + mmx.basePPAdd,
     warpPP: warpPP + metamagicPP + manipulationPP,
     waiveCritical,
@@ -3811,6 +3823,7 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
   const paidOutcome = paidReduction > 0
     ? castingOutcome(degree, {
       ...discountedParts(basePP + mmx.basePPAdd, warpPP + metamagicPP + manipulationPP, paidReduction),
+      castsPartial: ritualPartial,
       waiveCritical,
       waiveSaving: harderSaveRule && harderSaveDCStep > 0,
       savingStep: mmx.savingStep
@@ -5044,8 +5057,22 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
         const region = canvas.scene?.regions?.get(placedArea.regionId) ?? null;
         if (!region) continue;
         const { castStorm } = await import("./storm-workflow.mjs");
+        const { normaliseStorm } = await import("./storm.mjs");
+        /*
+         * A STORM THAT STRIKES AT ITS CASTER'S TURN START KEEPS ITS OWN CLOCK
+         * (3.687.0, found live): Storm of Unmaking's "1 minute" is not a
+         * duration the active-spell registry records (not sustained, not
+         * dismissible, no lock), so a turn-start storm tied to its cast id saw
+         * no running cast, never struck again and never passed. Its clock is
+         * the duration as cast, warps included; a Sustain storm (Storm of
+         * Vengeance) is unchanged, its cast being a sustained entry.
+         */
+        const stormSeconds = normaliseStorm(row)?.strikes === "turnStart"
+          ? Number(parseSpellDuration(warpedDurationText(spellData.duration, warpMods))?.seconds ?? 0)
+          : 0;
+        const stormUntil = stormSeconds > 0 ? Number(game.time?.worldTime ?? 0) + stormSeconds : null;
         for (const said of await castStorm(region, row, {
-          caster: actor, castId, dc: nominalSaveDC, spellName: spell.name, baseDamage: spellData.baseDamage ?? ""
+          caster: actor, castId, dc: nominalSaveDC, spellName: spell.name, baseDamage: spellData.baseDamage ?? "", until: stormUntil
         })) lines.push(line(said));
       }
       /*
@@ -8867,6 +8894,16 @@ export async function rollPowerPointRecovery(actor) {
     gained = sleepingPPRecovery(Number(pp.max ?? 0), amount);
     label = `Sleeping (${amount} half-night${amount === 1 ? "" : "s"})`;
   }
+  // REST RATES FROM AN EFFECT (3.687.0, H15; the review): this dialog's PP
+  // recovery is the rest's too — Eternal Invocation's "Double PP recovery".
+  {
+    const { applyRestRates, restRatesOf, restRateLine } = await import("../rest/rest-rate.mjs");
+    const rates = restRatesOf(Array.from(actor.appliedEffects ?? actor.effects ?? []));
+    if (rates.pp !== 1) {
+      gained = applyRestRates({ hp: 0, pp: gained }, rates).pp;
+      label += ` — ${restRateLine({ ...rates, hp: 1 }).replace(/\.$/, "")}`;
+    }
+  }
 
   const newValue = Math.min(Number(pp.max ?? 0), Number(pp.value ?? 0) + gained);
   await actor.update({ "system.resources.pp.value": newValue });
@@ -9019,7 +9056,7 @@ export async function rollMagicRitual(actor, spell) {
   const hmCast = highMagicCast(actor, spellData);
   // A SOURCEBOOK'S RITUAL RULES (3.679.0, D13): its other ways to pay the PP
   // and its own fields (a Ritual Censor, Ritual Experts among the casters).
-  const { prepareRitual, ritualCapLifted, ritualCasts, ritualFieldsFor, ritualVariantsFor } = await import("./ritual-rules.mjs");
+  const { prepareRitual, ritualAloneAllowed, ritualCapLifted, ritualCasts, ritualFieldsFor, ritualPartialCasts, ritualVariantsFor } = await import("./ritual-rules.mjs");
   const ritualContext = { actor, spell, spellData, highMagic: hmCast.highMagic };
   const ritualVariants = await ritualVariantsFor(ritualContext);
   const ritualFields = await ritualFieldsFor(ritualContext);
@@ -9150,7 +9187,10 @@ export async function rollMagicRitual(actor, spell) {
     }
   }
 
-  if (!secondaryCount) {
+  // A RITUAL BY ITS PRIMARY ALONE (3.687.0, H14; Graham's Q172), when a
+  // sourcebook says this one may be: no secondary, so no overcasting room.
+  const alone = !secondaryCount && await ritualAloneAllowed(ritualContext);
+  if (!secondaryCount && !alone) {
     ui.notifications.warn("A magic ritual needs at least one secondary caster.");
     return null;
   }
@@ -9253,11 +9293,19 @@ export async function rollMagicRitual(actor, spell) {
   // A RITUAL SPELL "IGNORES THE CORE CAP" (Eldritch Arts, Appendix; Graham's
   // M30): when a sourcebook says so, the degree stands and casts.
   const degree = capLifted ? rawDegree : capRitualDegree(rawDegree);
-  const cast = ritualCasts(degree);
+  // A RITUAL SPELL'S PARTIAL TAKES EFFECT (3.687.0, H13; Graham's Q171), when a
+  // sourcebook says so: cast, with no PP lost and no consequences.
+  const partialCasts = degree === "partial" && await ritualPartialCasts({ ...ritualContext, degree });
+  const cast = ritualCasts(degree, { partial: partialCasts });
   const consequences = degree === "failure" || degree === "fumble" || degree === "blunder";
 
   const lines = [...ritualPlan.lines.map((text) => line(text)), ...ritualGated.lines.map((text) => line(text))];
-  if (cast) {
+  if (alone) lines.push(line("<em>Performed by the primary caster alone, as this ritual allows: no secondary casters, so no PP over the maximum.</em>"));
+  if (partialCasts) {
+    // (The review: a ritual that prints no Partial reads it as its Failure line,
+    // m42 — the module's own card says what follows; the core says only the price.)
+    lines.push(line("<strong>Partial: the ritual's partial result is applied.</strong> No PP is lost; what the result does is the spell's own, on its card."));
+  } else if (cast) {
     lines.push(line(`<strong>The ritual succeeds${degree !== "success" ? ` (${degree})` : ""}.</strong> The spell is cast at ${basePP + ppOver} PP${ritualPlan.variant ? ", paid in its stead" : ""}.`));
   } else if (consequences) {
     lines.push(line("<strong>The ritual fails.</strong> All participants are subject to the consequences."));
@@ -9299,7 +9347,7 @@ export async function rollMagicRitual(actor, spell) {
     const castResult = await castSpell(actor, spell, {
       // The gates' answer, asked once above (3.679.0, review); their lines are
       // on this card already.
-      ritual: { degree, ppOver, secondaryCount, check, variant: ritualPlan.variant, gated: { modifiers: ritualGated.modifiers, lines: [] } }
+      ritual: { degree, ppOver, secondaryCount, check, variant: ritualPlan.variant, partialCasts, alone, gated: { modifiers: ritualGated.modifiers, lines: [] } }
     });
     // A FAILED RITUAL'S CAST STOPPED SHORT (a cancelled target or warp): its
     // consequences were not applied, and the table should know.
@@ -9308,5 +9356,5 @@ export async function rollMagicRitual(actor, spell) {
     }
   }
 
-  return { check, degree, ppOver, secondaryCount, secondaryModifier, variant: ritualPlan.variant, capLifted };
+  return { check, degree, ppOver, secondaryCount, secondaryModifier, variant: ritualPlan.variant, capLifted, partialCasts, alone };
 }

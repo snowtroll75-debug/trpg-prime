@@ -222,6 +222,16 @@ export async function performRestForActor(actor, {
     }
   }
 
+  /*
+   * REST RATES FROM AN EFFECT (3.687.0, H15; Eldritch Arts Block 8b — Eternal
+   * Invocation's "Double natural HP recovery / Double PP recovery", and its
+   * halves). Every live `restRate` multiplies the totals, as Quick Recovery
+   * does; rounded down. See rest/rest-rate.mjs.
+   */
+  const { applyRestRates, restRatesOf } = await import("./rest-rate.mjs");
+  const restRates = restRatesOf(Array.from(actor.appliedEffects ?? actor.effects ?? []));
+  ({ hp: hpHealed, pp: ppRecovered } = applyRestRates({ hp: hpHealed, pp: ppRecovered }, restRates));
+
   const hp = actor.system?.resources?.hp;
   const pp = actor.system?.resources?.pp;
   const oldHPValue = Number(hp?.value ?? 0);
@@ -392,7 +402,8 @@ export async function performRestForActor(actor, {
     soulDrainRemaining: Math.max(0, soulDrainBefore - soulDrainHealed),
     doomedHealed,
     doomedRemaining: Math.max(0, doomedBefore - doomedHealed),
-    dreamLichen
+    dreamLichen,
+    restRates
   };
 }
 
@@ -593,6 +604,12 @@ export async function postRestSummaryCard(summary) {
       "<strong>Haunted</strong>: a spirit torments them through every hour of it — no rest or "
       + "respite, and <strong>nothing is recovered</strong> (Speak With Dead)."
     ));
+  }
+  // A RATE FROM AN EFFECT (3.687.0, H15), said before what it changed.
+  if (summary.restRates) {
+    const { restRateLine } = await import("./rest-rate.mjs");
+    const said = restRateLine(summary.restRates);
+    if (said) lines.push(summaryLine(`<em>${said}</em>`));
   }
   if (hpHealedActual > 0) lines.push(summaryLine(`Natural Healing: <strong>+${hpHealedActual} HP</strong>.`));
   if (ppRecoveredActual > 0) lines.push(summaryLine(`PP Recovery: <strong>+${ppRecoveredActual} PP</strong>.`));

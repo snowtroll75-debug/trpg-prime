@@ -132,7 +132,49 @@ export async function ritualCapLifted(ctx) {
   return false;
 }
 
-/** The degrees a ritual casts the spell on: Success, or better when the cap is lifted. */
-export function ritualCasts(degree) {
-  return ["success", "critical", "heroic"].includes(str(degree));
+/**
+ * A RITUAL SPELL'S PARTIAL TAKES EFFECT (3.687.0, H13; Eldritch Arts Block 8b,
+ * Graham's Q171: "A Ritual spell's printed Partial takes effect, and no PP is
+ * lost"). True when any module's `partialCasts(ctx)` answers true. The core's
+ * own rituals (none answers) keep "The spell fails, but no PP is lost".
+ */
+export async function ritualPartialCasts(ctx) {
+  for (const { key, spec } of registeredRitualRules()) {
+    if (typeof spec.partialCasts !== "function") continue;
+    try {
+      if ((await spec.partialCasts(ctx)) === true) return true;
+    } catch (err) {
+      console.error(`TRG Prime | ritual rules "${key}": partialCasts failed`, err);
+    }
+  }
+  return false;
+}
+
+/**
+ * A RITUAL PERFORMED BY ITS PRIMARY ALONE (3.687.0, H14; Eldritch Arts Block
+ * 8b, Graham's Q172: Elemental Convergence, Essence Reforging and Eternal
+ * Invocation print no secondary casters). True when any module's
+ * `minSecondaries(ctx)` answers 0. The overcasting room is unchanged — 2 PP a
+ * secondary, so none when alone — and the cap per cast stands.
+ */
+export async function ritualAloneAllowed(ctx) {
+  for (const { key, spec } of registeredRitualRules()) {
+    if (typeof spec.minSecondaries !== "function") continue;
+    try {
+      const n = await spec.minSecondaries(ctx);
+      if (n !== null && n !== undefined && n !== "" && Number(n) === 0) return true;
+    } catch (err) {
+      console.error(`TRG Prime | ritual rules "${key}": minSecondaries failed`, err);
+    }
+  }
+  return false;
+}
+
+/**
+ * The degrees a ritual casts the spell on: Success, or better when the cap is
+ * lifted; and a Partial when a module says it takes effect (H13).
+ */
+export function ritualCasts(degree, { partial = false } = {}) {
+  const d = str(degree);
+  return ["success", "critical", "heroic"].includes(d) || (partial === true && d === "partial");
 }

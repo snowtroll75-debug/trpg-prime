@@ -70,7 +70,7 @@ const MUTATIONS = [
   { name: "THE DEFECT: a holder on another combat pays anyway", file: PEND, from: "  if (combatId && game.combat?.id !== combatId) {", to: "  if (false) {", breaks: "Q18" },
   { name: "THE DEFECT: AP the spender did not take is counted", file: PEND, from: "  if (!receipt) return 0;\n", to: "", breaks: "Q19" },
   // Z
-  { name: "the version is not 3.685.3", file: SJ, from: "\"version\": \"3.686.2\"", to: "\"version\": \"3.685.2\"", breaks: "Z1" },
+  { name: "the version is not 3.685.3", file: SJ, from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.685.2\"", breaks: "Z1" },
   // NEW 3.686.2 (the 3.686.1 review, finding 6): an ask with no live holder.
   { name: "THE 3.686.1 DEFECT: a tab that does not hold the casting says nothing", file: PEND, from: "      reply({ action: RELAY_ANSWER, ghost: true, result: null, refused: false });\n      return;", to: "      return;", breaks: "X1/X2" },
   { name: "a ghost answer is final, pre-empting the tab that does hold it", file: PEND, from: "        if (entry.accepted || entry.ghosted) return;\n", to: "        relayWaiting.delete(data.requestId); clearTimeout(entry.timer); entry.resolve({ relayed: false, reason: \"none\" }); return;\n", breaks: "X3" },

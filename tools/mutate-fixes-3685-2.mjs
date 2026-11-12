@@ -23,8 +23,8 @@ const MUTATIONS = [
   { name: "the opening Flat-Footed is no longer cleared", file: TREC, from: "        await clearOpeningFlatFooted(actor);\n", to: "", breaks: "G1" },
   { name: "the snapshot keeps the stale build", file: SCHEMAS, from: "  foundry: \"14.367\",", to: "  foundry: \"14.363\",", breaks: "S1" },
   { name: "a recorded field is dropped with the build", file: SCHEMAS, from: "    \"RegionBehavior:pauseGame\": Object.freeze([\"once\"]),", to: "    \"RegionBehavior:pauseGame\": Object.freeze([]),", breaks: "S2" },
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.686.2\"", to: "\"version\": \"3.685.1\"", breaks: "Z1/Z2" },
-  { name: "the download names the last release", file: SJ, from: "releases/download/v3.686.2/trg-prime.zip", to: "releases/download/v3.685.1/trg-prime.zip", breaks: "Z2" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.685.1\"", breaks: "Z1/Z2" },
+  { name: "the download names the last release", file: SJ, from: "releases/download/v3.687.1/trg-prime.zip", to: "releases/download/v3.685.1/trg-prime.zip", breaks: "Z2" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-fixes-3685-2.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

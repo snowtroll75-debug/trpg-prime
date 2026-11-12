@@ -20,7 +20,7 @@ const MUTATIONS = [
   { name: "the touch's reading always lands", file: SR, from: "export function touchAttackOutcome(attackValue, defence, { natural = 0 } = {}) {", to: "export function touchAttackOutcome(attackValue, defence, { natural = 0 } = {}) {\n  return { landed: true, by: 0 };", breaks: "U2" },
   { name: "a reactor who leaves is not marked", file: ASK, from: "      entry.resolve({ answer: null, result: null, left: true });", to: "      entry.resolve({ answer: null, result: null });", breaks: "L1" },
   { name: "the notice says they ran out of time", file: ASK, from: "out.left ? `${answererName} left the game — no reaction.` : ", to: "", breaks: "L1" },
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.686.2\"", to: "\"version\": \"3.681.0\"", breaks: "Z" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.681.0\"", breaks: "Z" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-fixes-3681-1.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

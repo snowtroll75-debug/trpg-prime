@@ -288,9 +288,9 @@ const quietly = async (fn) => { const e = console.error, w = console.warn; conso
 
 /* ------------------------------------------------------------ Z. the version */
 const manifest = JSON.parse(read("system.json"));
-equal("Z1 the version is 3.686.2, and the download names it", [manifest.version, manifest.download],
-  ["3.686.2", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.686.2/trg-prime.zip"]);
-equal("Z2 package.json agrees", JSON.parse(read("package.json")).version, "3.686.2");
+equal("Z1 the version is 3.687.1, and the download names it", [manifest.version, manifest.download],
+  ["3.687.1", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.687.1/trg-prime.zip"]);
+equal("Z2 package.json agrees", JSON.parse(read("package.json")).version, "3.687.1");
 
 const EXPECTED = 35;
 equal("Z the suite ran every check it is meant to", checks + 1, EXPECTED);
