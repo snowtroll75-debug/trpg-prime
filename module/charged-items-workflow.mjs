@@ -28,7 +28,9 @@ import { rollItemDepletion } from "./magic-items-workflow.mjs";
 import { castingDC, castingOutcome } from "./magic/casting.mjs";
 import { TRGCheck } from "./dice/check.mjs";
 import { contentPack } from "./content-packs.mjs";
-import { registeredReleasePaths } from "./module-api.mjs";
+import { registeredChargedKind, registeredReleasePaths } from "./module-api.mjs";
+import { effectiveSpellTradition } from "./magic/tradition-gate.mjs";
+import { highMagicCast } from "./magic/high-magic.mjs";
 import {
   chargedItemCost, chargedItemMetamagic, chargedItemPayment, chargedRuleAnswers, chargedWieldLimitFor
 } from "./charged-item-rules.mjs";
@@ -154,15 +156,22 @@ export async function chargedItemSpend(actor, item, pp, { kind = "release", reas
 export async function spellTraditionFor(actor, spellName) {
   const wanted = String(spellName ?? "").trim().toLowerCase();
   if (!wanted) return "";
+  // A SPECIALIST SPELL INHERITS THE CASTER'S TRADITION (Chapter 10), as it
+  // does when cast from memory (cast-workflow's `effectiveSpellTradition`).
+  // The 106 specialist spells record none, so released from a wand or staff
+  // (Staff of Undeath's Charm Undead) every caster was told "the spell is not
+  // from your tradition" and lost the Spellcraft path. Found live by Graham,
+  // 13 November 2026 (3.688.1).
+  const inherit = (own) => effectiveSpellTradition(own, actor?.system?.magic?.tradition);
   const owned = Array.from(actor?.items ?? []).find(
     (i) => i.type === "spell" && String(i.name).trim().toLowerCase() === wanted
   );
-  if (owned) return owned.system?.tradition ?? "";
+  if (owned) return inherit(owned.system?.tradition ?? "");
   const pack = contentPack("spells");
   if (!pack) return "";
   const index = await pack.getIndex({ fields: ["system.tradition"] });
   const hit = index.find((e) => String(e.name).trim().toLowerCase() === wanted);
-  return hit?.system?.tradition ?? "";
+  return hit ? inherit(hit.system?.tradition ?? "") : "";
 }
 
 /** The facts about the caster that the two paths are judged against. */
@@ -200,6 +209,45 @@ export async function moduleReleaseOptions(kind, ctx = {}) {
     } catch (err) {
       console.error("TRG Prime | a module's release path failed", err);
     }
+  }
+  return out;
+}
+
+/**
+ * A MODULE KIND'S RELEASE LADDER (3.690.0; Eldritch Arts Block 9c, H23), or
+ * [] for the core's. Each option is cleaned as a release path's is, and may
+ * carry `dcParts [{label, value}]`: whole numbers that join the release's DC.
+ * The spell's traits are read from its document, so a kind can tell a High
+ * Magic spell (the Orb's "this stacks with the modifier for casting High
+ * Magic").
+ */
+export async function chargedKindReleaseOptions(chargedKind, ctx = {}) {
+  const spec = registeredChargedKind(chargedKind);
+  if (!spec?.releaseOptions) return [];
+  let raw = [];
+  try {
+    const doc = await spellDocumentFor(ctx.actor, ctx.spellName);
+    raw = await spec.releaseOptions({ ...ctx, spellTraits: String(doc?.system?.traits ?? "") });
+  } catch (err) {
+    console.error(`TRG Prime | the "${spec.key}" kind's release ladder failed`, err);
+    return [];
+  }
+  const out = [];
+  for (const option of Array.isArray(raw) ? raw : []) {
+    const key = String(option?.key ?? "").trim();
+    const label = String(option?.label ?? "").trim();
+    if (!key || !label) continue;
+    out.push({
+      key, label,
+      skill: String(option.skill ?? "").trim(),
+      difficulty: RELEASE_DIFFICULTIES.includes(String(option.difficulty ?? "").trim()) ? String(option.difficulty).trim() : "medium",
+      dcAdjustment: Math.trunc(Number(option.dcAdjustment ?? 0)) || 0,
+      dcParts: (Array.isArray(option.dcParts) ? option.dcParts : [])
+        .map((p) => ({ label: String(p?.label ?? "").trim() || spec.label, value: Math.trunc(Number(p?.value) || 0) }))
+        .filter((p) => p.value),
+      available: option.available === true,
+      reason: String(option.reason ?? "")
+    });
   }
   return out;
 }
@@ -279,13 +327,25 @@ export async function rollReleaseCheck(actor, {
   kind = "",
   // THE ITEM ITSELF (3.684.0; Eldritch Arts Block 6, G6): carried on
   // `trgPrimeReleaseRolled` beside its name, so a listener can find it.
-  itemUuid = ""
+  itemUuid = "",
+  // A MODULE'S KIND OF CHARGED ITEM (3.690.0; Eldritch Arts Block 9c, H23):
+  // the Orb's own ladder — Spellcraft Hard, "the spell need not be from your
+  // tradition"; its tradition skill Very Hard. The item's `chargedItem.kind`;
+  // the core's kinds ("staff", "wand", "rod") change nothing here.
+  chargedKind = "",
+  item = null
 } = {}) {
   const cost = Math.max(0, Math.floor(Number(pp) || 0));
   const spellTradition = await spellTraditionFor(actor, spellName);
   const context = casterContext(actor);
-  const options = [
-    ...castFromItemOptions({ spellPPCost: cost, spellTradition, ...context }),
+  // A High Magic caster's own spell, whatever its tradition (3.688.1): the
+  // class or feat that makes them one says so (`highMagicCast`'s "caster").
+  const highMagicCaster = highMagicCast(actor, { tradition: spellTradition, traits: "" }).source === "caster";
+  const kindOptions = await chargedKindReleaseOptions(chargedKind, {
+    actor, item, spellName, spellPPCost: cost, spellTradition, highMagicCaster, ...context
+  });
+  const options = kindOptions.length ? kindOptions : [
+    ...castFromItemOptions({ spellPPCost: cost, spellTradition, highMagicCaster, ...context }),
     ...(await moduleReleaseOptions(kind, { spellPPCost: cost, spellTradition, spellName, ...context }))
   ];
   const rows = options.map((option, i) =>
@@ -320,8 +380,14 @@ export async function rollReleaseCheck(actor, {
   const option = options[Number(picked.choice)] ?? options[0];
   if (!option) return null;
 
-  const skill = option.skill ? actor.system?.skills?.[option.skill] : null;
-  const modifiers = option.skill
+  // THE SPELLCRAFT PATH IS SPELLCRAFT (3.688.2; found live by Graham, 13
+  // November 2026: "it does not allow them to add their spellcraft mod").
+  // `castFromItemOptions` names that path's skill "spellcraft", and Spellcraft
+  // is not a skill (`system.skills` has none): it is `system.magic.spellcraft`.
+  // Read as a skill, it rolled +0 for every caster.
+  const bySkill = Boolean(option.skill) && option.skill !== "spellcraft";
+  const skill = bySkill ? actor.system?.skills?.[option.skill] : null;
+  const modifiers = bySkill
     ? (skill?.checkModifiers ?? [
       { label: skill?.label ?? option.label, value: Number(skill?.total ?? 0), type: "untyped" }
     ])
@@ -329,13 +395,17 @@ export async function rollReleaseCheck(actor, {
       { label: "Spellcraft", value: Number(actor.system?.magic?.spellcraft?.total ?? 0), type: "untyped" }
     ]);
 
+  // A KIND'S OWN DC PARTS (3.690.0, H23): the Orb's High Magic step, said.
+  const dcParts = Array.isArray(option.dcParts) ? option.dcParts : [];
+  const partsTotal = dcParts.reduce((sum, p) => sum + p.value, 0);
   const check = await TRGCheck.roll({
     actor,
     label: title || `${itemName} — Release the Spell`,
-    subtitle: `${option.label} — ${option.difficulty} check against Casting DC ${castingDC(cost)}${
+    subtitle: `${option.label} — ${option.difficulty} check against Casting DC ${castingDC(cost) + partsTotal}${
+      dcParts.length ? ` (${dcParts.map((p) => `${esc(p.label)} ${p.value > 0 ? "+" : ""}${p.value}`).join(", ")})` : ""}${
       option.available ? "" : ` (the GM allowed this despite: ${option.reason})`}`,
-    type: option.skill ? "skill" : "spellcraft",
-    dc: castingDC(cost),
+    type: bySkill ? "skill" : "spellcraft",
+    dc: castingDC(cost) + partsTotal,
     difficulty: option.difficulty,
     modifiers: [...modifiers]
   });
@@ -359,7 +429,7 @@ export async function rollReleaseCheck(actor, {
       // WHICH CHECK FUMBLED (3.684.0, G5): a release by Spellcraft is a
       // Spellcraft check (Mana Bound's −20 reads it); by a tradition skill,
       // that skill.
-      check: { type: option.skill ? "skill" : "spellcraft", skill: option.skill ?? "" },
+      check: { type: bySkill ? "skill" : "spellcraft", skill: bySkill ? option.skill : "" },
       release: true
     }).catch(() => null);
   }
@@ -493,8 +563,11 @@ export async function castFromChargedItem(actor, item) {
   // its cost was fixed when it was made — unless it was built flexible,
   // and a scroll never can. The dialog therefore offers a warp box only
   // where the rules allow one, and SAYS WHY when it does not.
+  // A MODULE'S KIND WARPS AS A STAFF WHERE IT SAYS SO (3.690.0, H23; Q210:
+  // "a spell from an orb may be warped from the orb's PP, up to the orb's level").
+  const kindSpec = registeredChargedKind(charged.kind);
   const warp = warpCeiling({
-    kind: charged.kind,
+    kind: kindSpec?.warp === "staff" ? "staff" : charged.kind,
     level: Number(item.system?.itemLevel ?? 0),
     maximumPP: charged.maximumPP,
     flexible: Boolean(charged.flexible)
@@ -637,6 +710,8 @@ export async function castFromChargedItem(actor, item) {
       itemUuid: item.uuid ?? "",
       spellName: choice.name,
       pp: choice.pp,
+      chargedKind: charged.kind ?? "",
+      item,
       title: `${item.name} — Cast from Item`,
       hint: "An unavailable path is still offered — the GM may allow the attempt. A Partial costs the item nothing; a Failure costs it half."
     })
@@ -815,6 +890,13 @@ export async function rechargeChargedItems(actor) {
     const blockedUntil = Number(item.flags?.[SYSTEM_ID]?.rechargeBlockedUntil ?? 0);
     if (blockedUntil > Number(game?.time?.worldTime ?? 0)) {
       lines.push(`${item.name} recovers nothing — its recharging is blocked by a fumbled Recharge Item.`);
+      continue;
+    }
+    // A KIND THAT DOES NOT RECHARGE NATURALLY (3.690.0, H23): "Orbs cannot
+    // recharge naturally. Instead, they must be recharged at a ley line".
+    const kindSpec = registeredChargedKind(charged.kind);
+    if (kindSpec && !kindSpec.naturalRecharge) {
+      if (current < max) lines.push(`${item.name} recovers nothing — ${kindSpec.label}s do not recharge naturally.`);
       continue;
     }
     // THE PRINTED RECHARGE, where the book prints one (3.615.0, R18).

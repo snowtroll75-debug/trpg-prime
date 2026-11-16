@@ -71,7 +71,7 @@ const challenge = dd.normaliseDefenceDC({ dc: "defence", value: -2, label: "Chal
 ok("C1 a row excluding one creature is scoped enough", Boolean(challenge) && challenge.notSourceUuids.join() === "Actor.T");
 const dds = read("module", "combat", "defence-dc.mjs");
 ok("C2 the excluded creature meets nothing; everyone else meets it", /if \(\(entry\.notSourceUuids \?\? \[\]\)\.length && entry\.notSourceUuids\.includes\(uuid\)\) return false;/.test(dds));
-ok("C3 a row a stance gives says so", /fromStance: Boolean\(stanceGated \|\| fromStance\),/.test(dds) && /\{ fromStance: stanceEffects\.has\(document\) \}/.test(dds));
+ok("C3 a row a stance gives says so", /fromStance: Boolean\(stanceRow \|\| fromStance\),/.test(dds) /* RE-ANCHORED AT 3.689.0 (H21: the stance flag is read as stanceRow) */ && /\{ fromStance: stanceEffects\.has\(document\) \}/.test(dds));
 
 /* D — Armour Rending by declaration */
 const carriers = [{ id: "e1", name: "Challenge", documentName: "ActiveEffect", flags: { "trg-prime": { strikeRending: [{ valueFrom: "classBonus", label: "Challenge", when: { targetUuids: ["Actor.T"], attackModes: ["melee"] } }, { value: 2, label: "Retribution", oneShot: true, when: { targetUuids: ["Actor.T"] } }] } } }, { id: "x", name: "Unscoped", flags: { "trg-prime": { strikeRending: { value: 5 } } } }];

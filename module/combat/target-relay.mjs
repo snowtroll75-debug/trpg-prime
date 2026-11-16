@@ -98,6 +98,12 @@ export const RELAY_ACTIONS = Object.freeze({
   // the effect and the row's traits; the GM's client re-reads the effect's
   // own traits and deletes it only when the row could reach it.
   COUNTERACT: "target.counteract",
+  // AN ACTION RESOLVED AT A TOTAL ALREADY ROLLED, ON THE GM'S CLIENT (3.692.0;
+  // found in review of Eldritch Arts' Spirit Arrow). A player's arrow Grapples,
+  // Feints, Shoves or Trips the GM's creature: the conditions' clock, the
+  // grabbed-by record and a Shove's push are all writes on a creature the
+  // player does not own. The asker must own the actor whose total it is.
+  ACTION_AT_TOTAL: "target.actionAtTotal",
   RESULT: "target.result",
   // "I HAVE IT, AND IT MAY TAKE A WHILE" (3.673.0). Sent by the GM's client
   // the moment it takes a request, before carrying it out. A request that
@@ -478,6 +484,21 @@ export async function performRelay(request, deps) {
       if (check) return { ok: false, reason: check };
       const created = await deps.createCompanion(payload.data);
       return created ? { ok: true, result: { id: created.id } } : { ok: false, reason: "the companion could not be created" };
+    }
+    case RELAY_ACTIONS.ACTION_AT_TOTAL: {
+      // THE ASKER'S OWN CREATURE, AND A NUMBER (3.692.0). The GM's client
+      // re-reads the action's data and the target's DC itself; the request
+      // names only who, what and the total.
+      const actor = await deps.fromUuid(String(payload.actorUuid ?? ""));
+      if (!actor) return { ok: false, reason: "the acting creature was not found" };
+      if (deps.userOwns?.(actor, String(request?.userId ?? "")) !== true) return { ok: false, reason: "the asker does not own the acting creature" };
+      const total = Number(payload.total);
+      if (!Number.isFinite(total)) return { ok: false, reason: "no total to resolve at" };
+      const rounds = Number(payload.rounds);
+      const result = await deps.actionAtTotal(actor, target, String(payload.actionKey ?? ""), {
+        total, label: String(payload.label ?? ""), rounds: Number.isFinite(rounds) && rounds > 0 ? Math.trunc(rounds) : null
+      });
+      return { ok: true, result };
     }
     case RELAY_ACTIONS.COUNTERACT: {
       const traits = Array.isArray(payload.traits) ? payload.traits.map((t) => String(t)) : [];

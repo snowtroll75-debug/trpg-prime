@@ -27,6 +27,7 @@ import { computeRuneModifiers } from "./runes.mjs";
 // always "-" in the rulebook (no surcharge at the item's own starting
 // level) and is represented here as 0.
 import { parseGrantList } from "./grants.mjs";
+import { registeredMaterial, registeredMaterials, setCoreMaterialKeys } from "./module-api.mjs";
 
 export const WEAPON_COST_TABLE = Object.freeze([
   0, 70, 200, 350, 600, 900, 1400, 2100, 3000, 4300, 6000, 8000, 11000,
@@ -262,7 +263,30 @@ export const MATERIALS = Object.freeze({
     weightPercent: -50,
     overcomesResistance: "silver"
   }
-});
+});// registerMaterial refuses these keys (3.688.0, H20: the core's material wins a clash).
+setCoreMaterialKeys(Object.keys(MATERIALS));
+
+
+/*
+ * A MODULE'S MATERIALS (3.688.0; Eldritch Arts Block 9a, H20 — the audit's
+ * D18). The table above is the core's and stays frozen; a module registers
+ * its own (`registerMaterial`), and every reader below asks `materialOf`,
+ * which answers the core's first. So a module cannot redefine Mithril, and a
+ * module's Ashbone is read by the same code as Cold Iron.
+ */
+/** The material at a key: the core's, else a module's, else null. */
+export function materialOf(key) {
+  const k = String(key ?? "").trim();
+  if (!k) return null;
+  return MATERIALS[k] ?? registeredMaterial(k);
+}
+
+/** Every material, the core's first: [key, material] pairs. */
+function allMaterials() {
+  const out = Object.entries(MATERIALS);
+  for (const { key, spec } of registeredMaterials()) if (!MATERIALS[key]) out.push([key, spec]);
+  return out;
+}
 
 /**
  * Superior Traits — additional crafted-in properties available once
@@ -334,7 +358,7 @@ export function computeEffectiveLevel(baseLevel, quality, material, traitKeys = 
   const tier = QUALITY_TIERS[quality] ?? QUALITY_TIERS.standard;
   if (tier.priceHalved) return base;
 
-  const materialDelta = material ? (MATERIALS[material]?.levelDelta ?? 0) : 0;
+  const materialDelta = material ? (materialOf(material)?.levelDelta ?? 0) : 0;
   const traitDelta = traitKeys.length;
   return base + tier.levelDelta + materialDelta + traitDelta;
 }
@@ -362,7 +386,7 @@ export function computeCustomisedPrice(itemType, baseLevel, basePrice, { quality
  */
 export function computeWeaponModifiers(quality, material, traitKeys = []) {
   const tier = QUALITY_TIERS[quality] ?? QUALITY_TIERS.standard;
-  const mat = material ? MATERIALS[material] : null;
+  const mat = material ? materialOf(material) : null;
 
   const modifiers = {
     damageBonusPerDie: tier.weapon?.damageBonusPerDie ?? 0,
@@ -397,7 +421,7 @@ export function computeWeaponModifiers(quality, material, traitKeys = []) {
  */
 export function computeArmourModifiers(quality, material, traitKeys = [], { category = "" } = {}) {
   const tier = QUALITY_TIERS[quality] ?? QUALITY_TIERS.standard;
-  const mat = material ? MATERIALS[material] : null;
+  const mat = material ? materialOf(material) : null;
   const materialApplies =
     !mat || !mat.armourOnlyCategories || mat.armourOnlyCategories.includes(category);
 
@@ -463,7 +487,7 @@ export function computeArmourModifiers(quality, material, traitKeys = [], { cate
  */
 export function computeShieldModifiers(quality, material, traitKeys = [], { category = "light" } = {}) {
   const tier = QUALITY_TIERS[quality] ?? QUALITY_TIERS.standard;
-  const mat = material ? MATERIALS[material] : null;
+  const mat = material ? materialOf(material) : null;
 
   const modifiers = {
     hpMultiplier: tier.shield?.hpMultiplier ?? 1,
@@ -554,8 +578,8 @@ export function stepUpDieSize(faces, steps = 1) {
  * @returns {Array<{key: string, label: string}>}
  */
 export function applicableMaterials(itemType, category = "", { metal = null } = {}) {
-  return Object.entries(MATERIALS)
-    .filter(([, mat]) => mat.appliesTo.includes(itemType))
+  return allMaterials()
+    .filter(([, mat]) => (mat.appliesTo ?? []).includes(itemType))
     .filter(([, mat]) => {
       if (itemType !== "armour" || !mat.armourOnlyCategories) return true;
       return mat.armourOnlyCategories.includes(category);
@@ -715,7 +739,7 @@ export function computeFullCustomisation(itemType, baseData, choices = {}) {
 export function materialDefenceWord(materialKey) {
   const key = String(materialKey ?? "").trim();
   if (!key) return "";
-  const material = MATERIALS[key];
+  const material = materialOf(key);
   if (!material) return "";
   // WHAT IT OVERCOMES, NOT WHAT IT IS CALLED (3.573.0).
   //
@@ -790,7 +814,7 @@ function equippedMaterialFigure(items, field) {
     // A destroyed breastplate warding its wearer against magic was the
     // one thing this could still do wrong. See `wornAndStanding`.
     if (!wornAndStanding(item)) continue;
-    const material = MATERIALS[String(item.system.material ?? "").trim()];
+    const material = materialOf(item.system.material);
     const value = Number(material?.[field] ?? 0) || 0;
     if (value > best) best = value;
   }

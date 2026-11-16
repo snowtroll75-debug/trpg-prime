@@ -309,3 +309,45 @@ export function resolveLightLevel({ regionLevel, sceneLevel, darkness, map = DEF
   if (derived !== null) return { level: derived, source: "darkness" };
   return { level: DEFAULT_LIGHT_LEVEL, source: "default" };
 }
+
+/**
+ * LIGHT A PLACED AREA GIVES OFF (3.692.0; Eldritch Arts Block 7, Arcane
+ * Mycelium: "emits dim light in a colour matching your magical tradition").
+ *
+ * A Region flag `emitsLight: { level, label }` raises the level inside it to
+ * AT LEAST `level`, as a light source would — it never darkens a brighter
+ * place. Several areas: the brightest counts. The colour is cosmetic and is
+ * no part of the number.
+ *
+ * @param {Array<object|null>} flags each Region's `emitsLight` flag
+ * @returns {{level: number, label: string}|null}
+ */
+export function regionEmittedLight(flags = []) {
+  let best = null;
+  for (const f of Array.isArray(flags) ? flags : []) {
+    if (!f || typeof f !== "object") continue;
+    const level = Math.trunc(Number(f.level));
+    if (!Number.isFinite(level) || level < 1 || level > 10) continue;
+    if (!best || level > best.level) best = { level, label: String(f.label ?? "").trim() || "emitted light" };
+  }
+  return best;
+}
+
+/*
+ * "Abyssal Darkness ... seems to devour all light" — light-sources.mjs's
+ * `ALL_NEGATED_AT_OR_BELOW`, which stops magical sources too. The same number
+ * is kept here because light-sources.mjs imports this file;
+ * verify-fixes-3692-0 holds the two to the same answer.
+ */
+const EMITTED_NEGATED_AT_OR_BELOW = 1;
+
+/**
+ * The level with an area's emitted light applied (3.692.0): never lower, and,
+ * as for any magical light source, nothing in Abyssal Darkness (found in
+ * review: a Mycelium cast into Abyssal Darkness lit it to Dim).
+ */
+export function withEmittedLight(level, emitted) {
+  const base = Number(level);
+  if (!emitted || base <= EMITTED_NEGATED_AT_OR_BELOW) return base;
+  return Math.max(base, Number(emitted.level) || 0);
+}

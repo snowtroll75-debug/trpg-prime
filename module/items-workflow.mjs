@@ -106,8 +106,13 @@ export async function rollSleepingInArmour(actor) {
     modifiers.push({ label: "Armour", value: modifier, type: "circumstance" });
   }
 
+  // A RUNE GRANTS ADVANTAGE (3.689.0, H21; Eldritch Arts' Comfort: "The rune
+  // grants you advantage on the Fortitude save for Sleeping in Armour").
+  const { runeSleepAdvantage } = await import("./rune-declarations.mjs");
+  const comfort = runeSleepAdvantage(Array.from(actor.items ?? []));
   const check = await TRGCheck.roll({
     actor,
+    ...(comfort ? { bias: "advantage" } : {}),
     label: "Sleeping in Armour",
     subject: "fortitude",
     subtitle: "DC 20 Fortitude Saving Throw",
@@ -125,6 +130,7 @@ export async function rollSleepingInArmour(actor) {
   }
 
   await postCard(actor, "Sleeping in Armour — Result", [
+    ...(comfort ? [line(`${comfort}: rolled with advantage.`)] : []),
     line(
       delta > 0
         ? `Gains <strong>Fatigue ${delta}</strong>.`

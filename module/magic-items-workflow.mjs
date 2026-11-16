@@ -18,6 +18,37 @@ async function postCard(actor, title, lines) {
   });
 }
 
+/** The registered cost functions (3.693.0, H27). */
+async function investCostFns() {
+  const { registeredInvestCosts } = await import("./module-api.mjs");
+  return registeredInvestCosts();
+}
+
+/** The slots this actor's invested items take, by their costs (3.693.0, H27). */
+export async function investedSlotsOf(actor, { except = null } = {}) {
+  const { investedSlotsUsed } = await import("./magic-items.mjs");
+  return investedSlotsUsed(Array.from(actor?.items ?? []), actor, await investCostFns(), { except });
+}
+
+/** A module's own refusal to invest this item (3.693.0, H27), or "". */
+async function moduleInvestRefusal(actor, item) {
+  const { registeredInvestRefusals } = await import("./module-api.mjs");
+  for (const fn of registeredInvestRefusals()) {
+    let why = "";
+    try { why = String(fn(item, actor) ?? ""); } catch (err) { console.error("TRG Prime | an invest refusal threw", err); }
+    if (why) return why;
+  }
+  return "";
+}
+
+/** A module's one-invested trait (3.690.0, H25; the ORB trait), or "". */
+async function oneInvestedTraitRefusal(actor, item) {
+  const [{ oneInvestedRefusal }, { registeredOneInvestedTraits }] = await Promise.all([
+    import("./trait-rules.mjs"), import("./module-api.mjs")
+  ]);
+  return oneInvestedRefusal(item, Array.from(actor?.items ?? []), registeredOneInvestedTraits());
+}
+
 /**
  * WHY AN ITEM CANNOT BE INVESTED NOW, or "" (3.675.0; Eldritch Arts'
  * Quickbind, "instead of using the Invest Item action"): the one-Staff rule
@@ -29,9 +60,16 @@ export async function investRefusal(actor, item) {
   const { staffInvestRefusal } = await import("./trait-rules.mjs");
   const staff = staffInvestRefusal(item, Array.from(actor?.items ?? []));
   if (staff) return staff;
-  const invested = Array.from(actor?.items ?? []).filter((i) => i.system?.invested).length;
+  const one = await oneInvestedTraitRefusal(actor, item);
+  if (one) return one;
+  const mine = await moduleInvestRefusal(actor, item);
+  if (mine) return mine;
+  // BY COST, NOT BY COUNT (3.693.0, H27): a relic takes a slot per tier.
+  const { itemInvestCost } = await import("./magic-items.mjs");
+  const used = await investedSlotsOf(actor);
+  const cost = itemInvestCost(item, actor, await investCostFns());
   const slots = Number(actor?.system?.magic?.investmentSlots ?? 3);
-  if (invested >= slots) return `${actor.name} is already invested in ${invested} of ${slots} items`;
+  if (used + cost > slots) return `${actor.name} has ${Math.max(0, slots - used)} of ${slots} investment slots free, and ${item.name} needs ${cost}`;
   return "";
 }
 
@@ -44,9 +82,6 @@ export async function investRefusal(actor, item) {
  * using this action."
  */
 export async function investItem(actor, item) {
-  const currentlyInvested = Array.from(actor.items ?? []).filter(
-    (i) => i.system?.invested
-  ).length;
   const slots = Number(actor.system?.magic?.investmentSlots ?? 3);
 
   if (item.system.invested) {
@@ -61,23 +96,40 @@ export async function investItem(actor, item) {
   // Staff trait may be invested by you at any one time."
   {
     const { staffInvestRefusal } = await import("./trait-rules.mjs");
-    const refused = staffInvestRefusal(item, Array.from(actor.items ?? []));
+    const refused = staffInvestRefusal(item, Array.from(actor.items ?? [])) || await oneInvestedTraitRefusal(actor, item)
+      || await moduleInvestRefusal(actor, item);
     if (refused) {
       ui.notifications.warn(`${item.name}: ${refused}.`);
       return null;
     }
   }
 
-  if (currentlyInvested >= slots) {
+  // A MODULE'S STEP BEFORE THE SLOTS ARE COUNTED (3.693.0, H27): a relic's
+  // tier is chosen here, from the slots free, and the cost below reads it.
+  const usedBefore = await investedSlotsOf(actor, { except: item });
+  {
+    const { registeredInvestPrepares } = await import("./module-api.mjs");
+    for (const fn of registeredInvestPrepares()) {
+      let answer = null;
+      try { answer = await fn(item, actor, { free: Math.max(0, slots - usedBefore), slots }); } catch (err) { console.error("TRG Prime | an invest step threw", err); }
+      if (answer?.refused) {
+        ui.notifications.warn(`${item.name}: ${answer.refused}.`);
+        return null;
+      }
+    }
+  }
+  const { itemInvestCost } = await import("./magic-items.mjs");
+  const cost = itemInvestCost(item, actor, await investCostFns());
+  if (usedBefore + cost > slots) {
     ui.notifications.warn(
-      `${actor.name} is already invested in ${currentlyInvested} of ${slots} items. Investing ${item.name} would exceed the limit.`
+      `${actor.name} has ${Math.max(0, slots - usedBefore)} of ${slots} investment slots free, and ${item.name} needs ${cost}.`
     );
     return null;
   }
 
   await item.update({ "system.invested": true });
   await postCard(actor, `${item.name} — Invested`, [
-    line(`Spends 10 minutes investing. Now invested in <strong>${currentlyInvested + 1} / ${slots}</strong> items.`),
+    line(`Spends 10 minutes investing${cost === 1 ? "" : ` (${cost} slots)`}. Now <strong>${usedBefore + cost} / ${slots}</strong> investment slots used.`),
     line("Investment ends if prerequisites are no longer met, the item is more than 100 feet away for at least 24 hours, you die, or another creature successfully invests it.")
   ]);
   return { invested: true };
@@ -154,6 +206,30 @@ export async function rollItemDepletion(actor, item, { bias = "" } = {}) {
       : `Rolled <strong>${roll.total}</strong>.`),
     line(`<em>${row.effect}</em>`)
   ];
+
+  // A MODULE'S KIND CARRIES OUT ITS OWN ROW (3.690.0; Eldritch Arts Block 9c,
+  // H23). The Orb's 41–65: "instead of breaking, it unleashes a Resonant
+  // Flare … The Orb is depleted (0 PP) but not broken." Asked once; an answer
+  // that replaces the row stops the core's (break, refill, blast, dust).
+  {
+    const { registeredChargedKind } = await import("./module-api.mjs");
+    const kindSpec = registeredChargedKind(item?.flags?.[SYSTEM_ID]?.chargedItem?.kind);
+    let answer = null;
+    if (kindSpec?.depletion) {
+      try {
+        answer = await kindSpec.depletion({ actor, item, roll: kept, row });
+      } catch (err) {
+        console.error(`TRG Prime | the "${kindSpec.key}" kind's Charge Depletion failed`, err);
+      }
+    }
+    if (answer?.replaces === true) {
+      for (const text of Array.isArray(answer.lines) ? answer.lines : []) {
+        if (typeof text === "string" && text.trim()) lines.push(line(text.trim()));
+      }
+      await postCard(actor, `${item.name} — Charge Depletion`, lines);
+      return { roll: kept, row, replaced: true, ...(second ? { rolls: [roll.total, second.total], bias } : {}) };
+    }
+  }
 
   // THE BREAK IS NOW CARRIED OUT, not just announced (3.573.0).
   // Chapter 6: "if an effect makes an item broken automatically it is

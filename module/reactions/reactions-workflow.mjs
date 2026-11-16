@@ -15,6 +15,61 @@ import { grantDefence, clearInstanceGrants, askOnceThisCast, currentCastScope } 
 
 const said = (out) => (typeof out?.line === "string" && out.line.trim() ? out.line.trim() : "");
 
+/** The HP a `heal` answer gives back (3.693.0, H28): ⌊amount × heal⌋, or null when the amount is unknown. Pure. */
+export function damageHealedBack(amount, heal) {
+  if (amount === null || amount === undefined) return null;
+  const a = Number(amount), h = Number(heal);
+  if (!Number.isFinite(a) || !Number.isFinite(h) || h <= 0) return 0;
+  return Math.max(0, Math.floor(a * h));
+}
+
+/**
+ * WHICH PART OF A PACKET A HEALING ANSWER COVERS (3.693.0, found in review).
+ * A site passes one amount: its first type's. So the healing is that amount's
+ * when the answer covers the first type; "by hand" when it covers only a
+ * later type (a secondary packet the site did not measure); nothing when it
+ * covers none of them.
+ * @returns {"amount"|"byHand"|"none"}
+ */
+export function healCoverage(packetTypes = [], grantTypes = []) {
+  const types = Array.from(packetTypes ?? []).map((t) => String(t ?? "").trim().toLowerCase()).filter(Boolean);
+  const grant = Array.from(grantTypes ?? []).map((t) => String(t ?? "").trim().toLowerCase()).filter(Boolean);
+  if (!types.length || !grant.length) return "none";
+  if (grant.includes("all") || grant.includes(types[0])) return "amount";
+  return types.slice(1).some((t) => grant.includes(t)) ? "byHand" : "none";
+}
+
+/**
+ * THE HEALING ANSWERS OF A CAST, by creature (3.693.0, found in review). A
+ * creature is asked once a cast, so a volley's later darts are never asked;
+ * the healing it answered for the first must reach each of them, at each
+ * one's own amount. Kept by the cast's scope and trimmed as casts come and go.
+ */
+const castHeals = new Map();
+function rememberHeal(scopeKey, target, grant) {
+  if (!scopeKey) return;
+  const key = `${scopeKey}|${target?.uuid ?? target?.id ?? ""}`;
+  castHeals.set(key, [...(castHeals.get(key) ?? []), grant]);
+  while (castHeals.size > 200) castHeals.delete(castHeals.keys().next().value);
+}
+function healsRemembered(scopeKey, target) {
+  return scopeKey ? castHeals.get(`${scopeKey}|${target?.uuid ?? target?.id ?? ""}`) ?? [] : [];
+}
+
+/** The healing of one packet, as lines. */
+async function healPacket(target, ctx, grant) {
+  const cover = healCoverage(ctx.types, grant.types);
+  if (cover === "none") return [];
+  const share = grant.heal === 0.5 ? "half" : `×${grant.heal}`;
+  if (cover === "byHand") return [`<em>${grant.label || "Damage ignored"}: the healing (${share} the ${grant.types.join("/")} part) is by hand here.</em>`];
+  const back = damageHealedBack(ctx.amount, grant.heal);
+  if (back === null) return [`<em>${grant.label || "Damage ignored"}: the healing (${share} the amount) is by hand here.</em>`];
+  if (back <= 0) return [];
+  const { healActor } = await import("../magic/spell-effects.mjs");
+  const healed = await healActor(target, back, { magical: true });
+  return [`${target.name} regains <strong>${Number(healed) || back}</strong> HP (${share} of ${ctx.amount}).`];
+}
+
 async function tokenOf(actor) {
   try {
     const { activeToken } = await import("../combat/geometry.mjs");
@@ -249,14 +304,28 @@ export async function damageReactionsBefore(target, event = {}) {
   if (!target || !specs.length) return [];
   // THE SCOPE THIS QUESTION BELONGS TO, read before it waits on anyone.
   const scopeKey = currentCastScope();
-  if (askOnceThisCast(target, scopeKey)) return [];
+  const packetOf = () => ({
+    types: Array.from(event.types ?? []).map((t) => String(t ?? "").trim().toLowerCase()).filter(Boolean),
+    amount: Number.isFinite(Number(event.amount)) && event.amount !== null && event.amount !== undefined ? Math.max(0, Math.floor(Number(event.amount))) : null
+  });
+  if (askOnceThisCast(target, scopeKey)) {
+    // ASKED ALREADY THIS CAST: its defences hold; its healing is this packet's own.
+    const lines = [];
+    for (const grant of healsRemembered(scopeKey, target)) {
+      try { lines.push(...await healPacket(target, packetOf(), grant)); } catch (error) { console.error("TRG Prime | a damage reaction's healing failed", error); }
+    }
+    return lines;
+  }
   clearInstanceGrants(target);
   const ctx = {
     target, kind: String(event.kind ?? "other"),
     types: Array.from(event.types ?? []).map((t) => String(t ?? "").trim().toLowerCase()).filter(Boolean),
     magical: Boolean(event.magical), spellName: String(event.spellName ?? ""),
     sourceName: String(event.sourceName ?? ""), sourceUuid: String(event.sourceUuid ?? ""),
-    source: event.source ?? null
+    source: event.source ?? null,
+    // THE AMOUNT ABOUT TO MEET THE DEFENCES (3.693.0, H28), where the site
+    // knows it; null where it does not.
+    amount: Number.isFinite(Number(event.amount)) && event.amount !== null && event.amount !== undefined ? Math.max(0, Math.floor(Number(event.amount))) : null
   };
   const lines = [];
   for (const offer of specs) {
@@ -268,6 +337,18 @@ export async function damageReactionsBefore(target, event = {}) {
         scope: out.scope === "cast" ? "cast" : "instance", label: said(out), castKey: scopeKey
       });
       if (granted && said(out)) lines.push(said(out));
+      // DAMAGE IGNORED AS HEALING (3.693.0, H28; Eldritch Arts' Veilshroud:
+      // "you ignore it and instead regain HP equal to half the amount"). The
+      // fraction of the amount this site was about to deal; a site that does
+      // not know its amount says the healing is by hand.
+      const heal = Number(out.heal);
+      if (Number.isFinite(heal) && heal > 0) {
+        // The types it heals: those it is immune to (or the packet's own).
+        const healTypes = out.immune === "all" ? ["all"] : Array.isArray(out.immune) && out.immune.length ? out.immune : ctx.types;
+        const grant = { types: healTypes.map((t) => String(t ?? "").trim().toLowerCase()), heal, label: said(out) };
+        if (out.scope === "cast") rememberHeal(scopeKey, target, grant);
+        lines.push(...await healPacket(target, ctx, grant));
+      }
     } catch (error) {
       console.error("TRG Prime | a damage reaction failed", error);
     }
@@ -283,10 +364,10 @@ export async function damageReactionsBefore(target, event = {}) {
  * Inside a cast its answer is that cast's; on a later turn, that blow's.
  * @returns {Promise<string[]>} the lines to show
  */
-export async function spellDamageReactionsFor(target, type, { spellName = "", source = null } = {}) {
+export async function spellDamageReactionsFor(target, type, { spellName = "", source = null, amount = null } = {}) {
   return damageReactionsBefore(target, {
     kind: "spell", types: [String(type ?? "").trim().toLowerCase()].filter(Boolean), magical: true,
-    spellName: String(spellName ?? ""), sourceName: source?.name ?? "", sourceUuid: source?.uuid ?? "", source
+    spellName: String(spellName ?? ""), sourceName: source?.name ?? "", sourceUuid: source?.uuid ?? "", source, amount
   });
 }
 

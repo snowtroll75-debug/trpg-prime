@@ -37,7 +37,7 @@
 import { computeRuneModifiers } from "./runes.mjs";
 import { runeUsageAllows, weaponUsage } from "./weapon-rune-usage.mjs";
 import { runeKindOf, runesCountFor } from "./rune-bearing.mjs";
-import { runeDeclaredBonuses } from "./rune-declarations.mjs";
+import { runeDeclaredBonuses, runeDeclaredResistances } from "./rune-declarations.mjs";
 import { fieldToRunes, perTierChoices } from "./rune-catalogue.mjs";
 // Roman tiers, same ruling as rune-damage.mjs.
 import { roman } from "./runes.mjs";
@@ -330,6 +330,11 @@ export function runeBonusesForActor(items = []) {
     const declared = runeDeclaredBonuses(item, items);
     all.bonuses.push(...declared.bonuses);
     all.conditionals.push(...declared.conditionals);
+    // AND A DECLARED RESISTANCE (3.689.0, H21; Eldritch Arts' Force Warding and
+    // Soul Warding: "The rune grants you resistance to force damage").
+    for (const type of runeDeclaredResistances(item, items)) {
+      if (!all.resistances.includes(type)) all.resistances.push(type);
+    }
     all.problems.push(...result.problems);
     all.criticalResistance += result.criticalResistance;
     all.acpPenalty += result.acpPenalty;

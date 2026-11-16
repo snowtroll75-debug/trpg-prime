@@ -348,7 +348,8 @@ const discipleClass = { type: "class", name: "Disciple" };
     [true, false, false, true]);
   ok("R2 …a question for another client closes itself and a late yes runs no step",
     /CONFIG\.queries\[OWNER_QUERY\] = async \(data\) => askHere\(data, \{ windowMs: ANSWER_WINDOW_MS \}\);/.test(oqw)
-    && /if \(windowMs > 0 && !answeredInTime\(askedAt, Date\.now\(\), windowMs\)\) \{/.test(oqw) && /try \{ shown\?\.close\?\.\(\); \}/.test(oqw));
+    // RE-ANCHORED AT 3.692.0: the yes/no question's own guard (the owner choice, beside it, has its own).
+    && /if \(windowMs > 0 && !answeredInTime\(askedAt, Date\.now\(\), windowMs\)\) \{\n\s*ui\.notifications\?\.warn\?\.\(`\$\{title\}: answered too late — the moment has passed\.`\);\n\s*return false;/.test(oqw) && /try \{ shown\?\.close\?\.\(\); \}/.test(oqw));
   ok("R3 Harmony Edge is not asked where advantage changes nothing (a deadly critical)", /if \(!edge \|\| !attacker \|\| biasWithAdvantage\(bias\) === bias\) return null;/.test(cgw)
     && decl.biasWithAdvantage("advantage") === "advantage");
   ok("R4 a distance that cannot be measured is unknown, not 0 feet", /const raw = distanceBetween\(mine, targetToken\);\n\s*if \(raw === null \|\| raw === undefined \|\| raw === ""\) return NaN;/.test(aw));

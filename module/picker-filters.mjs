@@ -15,7 +15,7 @@ import { pickerSpecialistAllowed } from "./aspect-rules.mjs";
 import { meetsParseablePrerequisites, prerequisiteNameKey, heritageNameKey } from "./prerequisites.mjs";
 import { meetsProgressionRequirement, parseProgressionClause, archetypeProgressionContext } from "./archetype-progression.mjs";
 import { CLASS_SKILL_GRANTS } from "./class-skills.mjs";
-import { registeredClassNames, registeredArchetypeNames, hasRegisteredFeatAccess, featGateBlock, exclusiveFeatConflict, featEligibilityBlock } from "./module-api.mjs";
+import { registeredFeatPickBonuses, registeredClassNames, registeredArchetypeNames, hasRegisteredFeatAccess, featGateBlock, exclusiveFeatConflict, featEligibilityBlock } from "./module-api.mjs";
 import { contentPacksFor } from "./content-packs.mjs";
 import { actorSenses } from "./senses.mjs";
 import { resolveCasterStyle } from "./magic/caster-style.mjs";
@@ -770,8 +770,28 @@ function ownedOrdinaryArchetypeFeats(actor) {
  */
 function blockingArchetype(actor) {
   const stats = actorPrerequisiteStats(actor);
+  // Campaign bonus picks may exempt an archetype from progression.
+  // Use the same ownership order as the feat budget, including old characters.
+  let waivers = 0;
+  for (const provider of registeredFeatPickBonuses()) {
+    try {
+      const bonus = provider(actor);
+      waivers += Math.min(
+        Math.max(0, Math.trunc(Number(bonus?.archetype) || 0)),
+        Math.max(0, Math.trunc(Number(bonus?.archetypeProgressionWaivers) || 0))
+      );
+    } catch { /* A failing optional provider grants no exemption. */ }
+  }
+  const waivedIds = new Set(Array.from(actor?.items ?? [])
+    .filter(item => item?.type === "feat" && item?.system?.category === "Archetype")
+    .filter(item => {
+      const sourceId = item.flags?.["trg-prime"]?.grantedBy?.sourceId;
+      return !sourceId || sourceId === item.id || !actor.items?.get?.(sourceId);
+    })
+    .slice(0, waivers)
+    .map(item => item.id ?? item._id));
   return (
-    ownedOrdinaryArchetypeFeats(actor).find(
+    ownedOrdinaryArchetypeFeats(actor).filter(item => !waivedIds.has(item.id ?? item._id)).find(
       (feat) => !meetsProgressionRequirement(feat.system?.progressionRequirements, stats, archetypeGrantContext(actor, feat))
     ) ?? null
   );

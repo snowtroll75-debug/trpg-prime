@@ -463,7 +463,9 @@ ok("V6e the narrowing is applied at the packet, and the call still declares itse
 eq("W1 a natural 13 draws unwanted attention", sysOf("Shadow Walk")?.resonanceOnNatural, 13,
   "\"a Resonance Event occurs if you roll a 13 on the Spellcraft check\"");
 ok("W1b read off the UNMODIFIED FACE, like chaos and the 66",
-  /Number\(check\?\.dice\?\.unmodified \?\? 0\) === resonanceFace/.test(caster),
+  // RE-ANCHORED AT 3.690.0: the cast's own trigger, and a held spell's at its hold exit.
+  (caster.match(/Number\(check\?\.dice\?\.unmodified \?\? 0\) === resonanceFace/g) ?? []).length === 2
+  && /!heldRelease && Number\(check\?\.dice\?\.unmodified \?\? 0\) === resonanceFace/.test(caster),
   "\"roll a 13\" is the die, not the total");
 ok("W1c and it fires the event every other trigger fires",
   /rollResonanceEvent\(actor, \{\s*reason: `\$\{spell\.name\} — a natural/.test(caster));

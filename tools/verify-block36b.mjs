@@ -264,7 +264,8 @@ async function packRows(pack) {
   ok("E2b the rods pay, the caster does not", agg.extend && agg.ppSpent === 8
     && agg.rodSpends.length === 2 && agg.rodSpends.every((s) => s.pp === 2), JSON.stringify(agg));
   ok("E2c a feat's Quicken and a rod's are one Quicken", agg.apDelta === -1);
-  ok("E2d the cast offers them", CAST.includes("rods: metamagicRodsOf(Array.from(actor.items ?? [])),"));
+  // RE-ANCHORED AT 3.691.0: when no Rod was used this round (verify-one-rod-per-cast D).
+  ok("E2d the cast offers them", CAST.includes("rods: mmRodsAllowed ? metamagicRodsOf(Array.from(actor.items ?? [])) : [],"));
   ok("E2e and takes each rod's spend once the cast is settled",
     // RE-POINTED AT 3.684.0 (Block 6, G6): each spend now names what it is for.
     CAST.includes("for (const spend of mm.rodSpends ?? []) {") && CAST.includes("rodLines.push(await spendFromRod(actor, rodItem, spend.pp, { reason: \"metamagic\" }));"));
@@ -284,7 +285,9 @@ async function packRows(pack) {
     && CAST.includes("rodPaid = rodDraw > 0 ? rodDrawSplit(ppSpent, rodDraw).rod : 0;"));
   ok("E3e nothing to draw for a spell nobody pays for",
     // 3.679.0: nor for a ritual variant, whose PP are substituted.
-    CAST.includes("const rodSource = (isCantrip || isInnate || isItemCast || stored || totalPP <= 0 || ritualSubstitutes)"));
+    // RE-ANCHORED AT 3.691.0: the candidate, nor while storing a spell; the
+    // one-Rod rule then decides (verify-one-rod-per-cast).
+    CAST.includes("const rodCandidate = (isCantrip || isInnate || isItemCast || stored || (storingNow && !holdingNow) || totalPP <= 0 || ritualSubstitutes)"));
 
   const acc = accuracyRodOf([rod("Rod of Accuracy", { spellAttack: { maxPP: 2 } })]);
   ok("E4 R14 — the Rod of Accuracy buys +1 per PP, at most +2, as an item bonus",
@@ -292,7 +295,8 @@ async function packRows(pack) {
   ok("E4b to the attack comparison, through the stacking pool",
     // RE-POINTED AT 3.684.0 (Eldritch Arts Block 6, G14): the list also takes
     // a cast option's attack-only rows and the gate's attack-only rows.
-    CAST.includes("extraAttackRows: [...(accuracyAttackRow ? [accuracyAttackRow] : []), ...(castOptionsApplied.attackRows ?? []), ...gateAttackOnlyRows],")
+    // RE-POINTED AT 3.688.0 (Eldritch Arts Block 9a, H19): and a cast item's attack row.
+    CAST.includes("extraAttackRows: [...(accuracyAttackRow ? [accuracyAttackRow] : []), ...(castOptionsApplied.attackRows ?? []), ...castItems.attackRows, ...gateAttackOnlyRows],")
     && CAST.includes(".concat(Array.isArray(extraAttackRows) ? extraAttackRows : []), {});"));
   const alert = rod("Rod of Alertness", { checkAdvantage: { subjects: ["perception", "senseMotive"], cost: 2 } });
   ok("E5 R14 — the Rod of Alertness on Perception and Sense Motive only",

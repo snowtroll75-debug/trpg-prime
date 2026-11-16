@@ -345,7 +345,8 @@ eq("I10 -10 for an unaltered duration",
   // R6 — a successful ritual casts the spell.
   ok("I13 a resolved ritual reaches the cast pipeline",
     // RE-ANCHORED 3.687.0: the ritual also tells the cast whether its Partial casts and whether it was alone (H13, H14).
-    /ritual: \{ degree, ppOver, secondaryCount, check(?:, variant: ritualPlan\.variant, partialCasts, alone, gated: \{ modifiers: ritualGated\.modifiers, lines: \[\] \})? \}/.test(src),
+    // RE-ANCHORED 3.688.1: and the cast items its primary chose (Q186).
+    /ritual: \{ degree, ppOver, secondaryCount, check(?:, variant: ritualPlan\.variant, partialCasts, alone, gated: \{ modifiers: ritualGated\.modifiers, lines: \[\] \}(?:, castItems: ritualCastItems)?)? \}/.test(src),
     "it used to post `The spell is cast at N PP` and stop");
   ok("I14 the cast takes the ritual's degree rather than re-rolling",
     /if \(ritual\) degree = String\(ritual\.degree \?\? degree\)/.test(src));

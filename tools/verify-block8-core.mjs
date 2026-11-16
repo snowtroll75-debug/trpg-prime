@@ -172,14 +172,15 @@ const markCase = caseOf("moduleMark", "marker");
     && /\]\), \.\.\.gateAttackRows\]\n\s*\}\)\)/.test(cw) && /\/\/ A MODULE'S ANSWER \(3\.672\.0\): this roll is the casting's check\.\n(?:\s*\/\/[^\n]*\n)*\s*\.\.\.gateAttackRows\n/.test(cw)
     && /const gateAttackRows = gateSplit\.check\.filter\(\(m\) => !m\.castingOnly\);/.test(cw)
     && /rollsCheck: !noCheckCantrip && !ritual\?\.check && \(isItemCast \? \(isAttack && !itemCheck\) : isInnate \? isAttack : true\)/.test(cw));
-  ok("C5 its lines reach the card", /const gateLines = gated\.lines\.map\(\(text\) => line\(text\)\);/.test(cw) && /const lines = \[\.\.\.reagentLines, \.\.\.gateLines,/.test(cw));
+  ok("C5 its lines reach the card", /const gateLines = gated\.lines\.map\(\(text\) => line\(text\)\);/.test(cw) && /const lines = \[\.\.\.castItems\.lines\.map\(\(text\) => line\(text\)\), \.\.\.reagentLines, \.\.\.gateLines,/.test(cw)); // RE-ANCHORED AT 3.688.0: a cast item's lines (H19) lead
   const payAt = cw.indexOf("      \"system.resources.pp.value\": Math.max(0, ppPool - casterPPSpent)");
   const refundAt = cw.indexOf("            castRefunded = true;");
   const settledAt = cw.indexOf("  Hooks.callAll(\"trgPrimeSpellSettled\", {");
   // RE-ANCHORED AT 3.682.0: the spell attack's hits (`spellHits`) ride along with the rest.
+  // RE-ANCHORED AT 3.688.0: and the cast items used (`castItems`, H19).
   ok("C5 THE SETTLED CAST: announced last — after the charge and after the last refund (review) — with the PP actually spent (B8-5), whether refunded or innate, the level and the warps",
     payAt > 0 && refundAt > payAt && settledAt > refundAt && settledAt < cw.indexOf("  return { ...outcome, ppSpent, check, spellSave, refunded: castRefunded, warpMods };")
-    && /Hooks\.callAll\("trgPrimeSpellSettled", \{\n\s*actor, spell, spellData, degree,\n(?:\s*\/\/[^\n]*\n)*(?:\s*(?:chaos|castOptions|saveResults|natural|spellHits)[,:] [^\n]*\n|\s*\/\/[^\n]*\n)*\s*cast: Boolean\(outcome\.cast\),\n\s*ppSpent,\n(?:\s*\/\/[^\n]*\n|\s*stored: Boolean\(stored\)[^\n]*\n)*\s*refunded: Boolean\(castRefunded\),\n\s*innate: Boolean\(isInnate\),\n\s*itemCast: Boolean\(isItemCast\),\n\s*level: characterLevel,\n(?:\s*\/\/[^\n]*\n|\s*[a-zA-Z][\w]*(?::| \S)[^\n]*,\n|\s*[a-zA-Z][\w]*,\n)*\s*warpMods\n\s*\}\);/.test(cw));
+    && /Hooks\.callAll\("trgPrimeSpellSettled", \{\n\s*actor, spell, spellData, degree,\n(?:\s*\/\/[^\n]*\n)*(?:\s*(?:chaos|castOptions|castItems|saveResults|natural|spellHits)[,:] [^\n]*\n|\s*\/\/[^\n]*\n)*\s*cast: Boolean\(outcome\.cast\),\n\s*ppSpent,\n(?:\s*\/\/[^\n]*\n|\s*stored: Boolean\(stored\)[^\n]*\n)*\s*refunded: Boolean\(castRefunded\),\n\s*innate: Boolean\(isInnate\),\n\s*itemCast: Boolean\(isItemCast\),\n\s*level: characterLevel,\n(?:\s*\/\/[^\n]*\n|\s*[a-zA-Z][\w]*(?::| \S)[^\n]*,\n|\s*[a-zA-Z][\w]*,\n)*\s*warpMods\n\s*\}\);/.test(cw));
   // RE-ANCHORED AT 3.684.0: a released stored spell (G16), a Prepared Sigil's
   // cast and its PP (G25, G12), the metamagic taken and the PP sources (G1,
   // G2) ride along too, between the level and the warps.

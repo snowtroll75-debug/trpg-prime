@@ -36,7 +36,7 @@ const MUTATIONS = [
   { name: "Twin from one double weapon", file: T6, from: "  if (sameWeapon || !first || !second) return 0;", to: "  if (!first || !second) return 0;", breaks: "C6" },
   { name: "the Strike takes no readied option", file: AW, from: "  readied = false,\n  // THE REROLL OF A FUMBLED STRIKE", to: "  readiedStrike = false,\n  // THE REROLL OF A FUMBLED STRIKE", breaks: "C7" },
   { name: "Brace's bonus never reaches the attack", file: AW, from: "    modifiers.push({ label: \"Brace (readied, against a mounted target)\", value: brace.attackBonus, type: \"circumstance\" });", to: "", breaks: "C8" },
-  { name: "Brace's die never reaches the damage", file: AW, from: "extraBaseDiceOverride(weaponData.damage, extraBaseDice + (brace?.extraDice ?? 0))", to: "extraBaseDiceOverride(weaponData.damage, extraBaseDice)", breaks: "C8" },
+  { name: "Brace's die never reaches the damage", file: AW, from: "extraBaseDiceOverride(weaponData.damage, extraBaseDice + (brace?.extraDice ?? 0) + runeBaseDice.dice)", to: "extraBaseDiceOverride(weaponData.damage, extraBaseDice + runeBaseDice.dice)", breaks: "C8" },
   { name: "Ready forgets to say so", file: ACW, from: "          event,\n          readied: true\n        });", to: "          event\n        });", breaks: "C9" },
   { name: "the Strike action drops it", file: ACW, from: ", readied: Boolean(readied) });", to: " });", breaks: "C9" },
   { name: "a held blow reports its damage", file: AW, from: "  const hitTaken = outcome?.hits && strikeLands && !held ? Math.max(Number(damageOutcome?.taken ?? 0) || 0, hitDealt) : 0;", to: "  const hitTaken = Math.max(Number(damageOutcome?.taken ?? 0) || 0, hitDealt);", breaks: "C10" },

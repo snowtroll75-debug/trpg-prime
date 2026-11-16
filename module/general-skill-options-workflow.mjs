@@ -366,6 +366,7 @@ export async function promptRechargeItem(actor) {
   const { chargedItemLevelOf } = await import("./charged-items.mjs");
   const { levelDC } = await import("./dice/resolution.mjs");
   const { SYSTEM_ID } = await import("./content-packs.mjs");
+  const { registeredChargedKind } = await import("./module-api.mjs");
 
   const rows = chargedItemsOf(actor)
     .filter((item) => item.system?.invested)
@@ -379,7 +380,9 @@ export async function promptRechargeItem(actor) {
         dc: levelDC(level),
         pp: Number(item.system?.uses ?? 0),
         max: Math.max(0, Number(chargedItemData(item)?.maximumPP ?? 0)),
-        immune: Boolean(item.flags?.[SYSTEM_ID]?.rechargeImmuneUntilPrep)
+        immune: Boolean(item.flags?.[SYSTEM_ID]?.rechargeImmuneUntilPrep),
+        // A KIND'S OWN PRICE (3.690.0, H23): an Orb's "4 instead of 2".
+        kindPP: registeredChargedKind(chargedItemData(item)?.kind)?.rechargeItemPP ?? null
       };
     });
 
@@ -391,7 +394,7 @@ export async function promptRechargeItem(actor) {
   const options = rows.map((r) =>
     `<option value="${r.id}" data-dc="${r.dc}" data-level="${r.level}"${r.immune ? " disabled" : ""}>`
     + `${r.name} — level ${r.level}, DC ${r.dc} (${r.pp}/${r.max} PP)`
-    + `${r.immune ? " — already recharged today" : ""}</option>`
+    + `${r.kindPP ? ` — costs ${r.kindPP} PP` : ""}${r.immune ? " — already recharged today" : ""}</option>`
   ).join("");
 
   const first = rows.find((r) => !r.immune);
@@ -412,7 +415,7 @@ export async function promptRechargeItem(actor) {
       <label style="display:flex;align-items:center;gap:8px;margin:4px 0">
         <select name="rechargeItem" style="flex:1 1 auto;margin:0">${options}</select>
       </label>
-      <p class="hint" style="font-size:.82em;margin:8px 0 0">Costs 2 PP. A Fumble blocks the item's
+      <p class="hint" style="font-size:.82em;margin:8px 0 0">Costs 2 PP unless the item says otherwise. A Fumble blocks the item's
         natural recharging for 24 hours and may trigger a Magical Resonance Event.</p>
     </div>`,
     buttons: [

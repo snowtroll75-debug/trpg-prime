@@ -23,7 +23,7 @@ import {
   OIL_COAT_FLAG, ammoSplit, armourguardAt, hpAfterArmourguard, oilCoatLive, oilCoatOf, oilOf, oilSeconds, oilTarget
 } from "./oils.mjs";
 import { POISON_COAT_FLAG, coatActive } from "./poisons.mjs";
-import { MATERIALS } from "./item-quality.mjs";
+import { materialOf } from "./item-quality.mjs";
 import { activationCost } from "./elixirs.mjs";
 import { consumeOneUse } from "./consumable-use.mjs";
 import { TRGCheck } from "./dice/check.mjs";
@@ -49,7 +49,7 @@ async function postCard(actor, title, lines) {
 }
 
 function materialLabel(key) {
-  return MATERIALS[key]?.label ?? String(key ?? "");
+  return materialOf(key)?.label ?? String(key ?? "");
 }
 
 function nowClock() {

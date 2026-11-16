@@ -9,7 +9,7 @@
 import {
   THORNS_FLAG, normaliseThorns, thornsTriggered, thornsIntensified, thornsFormula,
   thornsSaveNote, thornsSaveMultiplier, thornsLadderRows,
-  intensifiesThorns
+  intensifiesThorns, thornsDamageTypeFor
 } from "./thorns.mjs";
 
 const SYSTEM_ID = "trg-prime";
@@ -95,6 +95,29 @@ export async function applyThorns(attacker, defender, blow = {}) {
       saveLine = ` — ${attacker.name}'s ${key} save: ${check?.outcome?.degree?.label ?? degree}${spec.saveRoll.avoidsCriticalOnly ? " (avoids only the critical)" : ""}`;
     }
     roll = { total: rolledTotal };
+    // THE OWNER'S TYPE FOR THIS BLOW (3.692.0; Glyph of Retribution): asked
+    // of the defender's player each time they are struck, before the damage
+    // is resolved. Unanswered, the printed type stands and the card says so.
+    let damageType = spec.damageType;
+    let typeLine = "";
+    // NOTHING TO DEAL, NOTHING TO ASK (found in review): a save that took
+    // the damage to 0 does not hold the blow a minute for a question.
+    if ((spec.typeChoices ?? []).length && Number(roll.total) > 0) {
+      let picked = spec.typeChoices.length === 1 ? spec.typeChoices[0] : "";
+      if (!picked) {
+        const { askOwnerChoice } = await import("../owner-query-workflow.mjs");
+        const { damageTypeLabel } = await import("./damage-type-choice.mjs");
+        picked = await askOwnerChoice(defender, {
+          title: `${spec.label} — damage type`,
+          content: `<p>${attacker.name} has struck ${defender.name}. Choose the damage type ${spec.label} deals this time.</p>`,
+          choices: spec.typeChoices.map((t) => ({ action: t, label: damageTypeLabel(t) }))
+        });
+      }
+      damageType = thornsDamageTypeFor(spec, picked);
+      typeLine = picked && damageType === String(picked).toLowerCase()
+        ? ` — ${defender.name} chose ${damageType}`
+        : ` — no type chosen; the printed ${damageType} stands`;
+    }
     const { resolveAgainstDefences } = await import("../combat/damage-workflow.mjs");
     const { applyDamageAndCheckDying } = await import("../combat/dying-workflow.mjs");
     const { ownedCreatureTypeSystem } = await import("../creature-type-rules.mjs");
@@ -105,11 +128,11 @@ export async function applyThorns(attacker, defender, blow = {}) {
     // A DAMAGE REACTION, BEFORE THE DEFENCES (3.681.0; found in review).
     {
       const { spellDamageReactionsFor } = await import("../reactions/reactions-workflow.mjs");
-      lines.push(...await spellDamageReactionsFor(attacker, spec.damageType, { spellName: spec?.label ?? "", source: defender }));
+      lines.push(...await spellDamageReactionsFor(attacker, damageType, { spellName: spec?.label ?? "", source: defender, amount: roll.total }));
     }
     const packet = resolveAgainstDefences(attacker.system ?? {}, {
       amount: roll.total,
-      type: spec.damageType,
+      type: damageType,
       creatureTypeSystem: ownedCreatureTypeSystem(attacker),
       // A SPELL IS A MAGICAL SOURCE (3.548.0) — see magic/spell-source.mjs.
       // A thorns reaction answers the attacker who touched the ward; it
@@ -122,9 +145,9 @@ export async function applyThorns(attacker, defender, blow = {}) {
     // roll beside the result a GM cannot tell an immunity from a bad die.
     lines.push(
       `<strong>${spec.label}</strong> — ${attacker.name} takes <strong>${packet.taken}</strong> `
-      + `${spec.damageType} (${formula} rolled ${rawTotal}${rawTotal !== roll.total ? `, ${roll.total} after the save` : ""}`
+      + `${damageType} (${formula} rolled ${rawTotal}${rawTotal !== roll.total ? `, ${roll.total} after the save` : ""}`
       + `${packet.taken !== roll.total ? ", reduced by their defences" : ""})`
-      + `${intensified ? " <em>— intensified</em>" : ""}${saveLine}.`
+      + `${intensified ? " <em>— intensified</em>" : ""}${saveLine}${typeLine}.`
     );
     // A SAVE THE SPELL NAMES IS PRINTED, NOT SWALLOWED — see the note on
     // `save` in thorns.mjs. Elemental Shield has one; Vibrant Thorns does

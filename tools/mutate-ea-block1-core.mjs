@@ -47,7 +47,7 @@ const MUTATIONS = [
   { name: "the total is never carried on the check", file: CAST, from: "  if (check && castingOnlyTotal && !isItemCast && !isInnate) check.castingOnlyTotal = castingOnlyTotal;", to: "", breaks: "C10" },
   // C11 (found in review)
   { name: "a second Staff may be quickbound", file: MIW, from: "  if (staff) return staff;\n", to: "", breaks: "C11" },
-  { name: "the slot limit is ignored", file: MIW, from: "  if (invested >= slots) return `${actor.name} is already invested in ${invested} of ${slots} items`;", to: "", breaks: "C11" },
+  { name: "the slot limit is ignored", file: MIW, from: "  if (used + cost > slots) return `${actor.name} has ${Math.max(0, slots - used)} of ${slots} investment slots free, and ${item.name} needs ${cost}`;", to: "", breaks: "C11" }, // 3.693.0 (H27): counted by cost
   { name: "the helper is not offered", file: APIW, from: "      investRefusal: async (actor, item) =>", to: "      investRefusalX: async (actor, item) =>", breaks: "C11" },
   // C1
   { name: "THE GAP: valueFrom is ignored", file: SDB, from: "        : ABILITIES.includes(from)\n        ? Math.trunc(Number(attributes?.[from]?.total ?? 0) || 0)\n        : Math.trunc(Number(row.value) || 0);", to: "        : Math.trunc(Number(row.value) || 0);", breaks: "C1" },
@@ -103,7 +103,7 @@ const MUTATIONS = [
   { name: "the caster-level step is not added", file: CAST, from: "      const flat = Math.max(0, Math.floor(Number(clMods?.secondary ?? 0)));", to: "      const flat = 0;", breaks: "C9" },
   { name: "the caster-level step is not counted", file: CLM, from: "    if (mod?.secondary) out.secondary += Number(mod.secondary) * steps;", to: "", breaks: "C9" },
   // Z
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.674.2\"", breaks: "Z" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.694.0\"", to: "\"version\": \"3.674.2\"", breaks: "Z" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-ea-block1-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

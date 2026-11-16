@@ -85,8 +85,9 @@ const MUTATIONS = [
   {
     file: P,
     name: "R1 THE WARP DOES NOT TRAVEL: a released spell loses what was paid for",
-    from: "    mods: mods && typeof mods === \"object\" ? { ...mods } : {},",
-    to: "    mods: {},",
+    // RE-ANCHORED AT 3.690.0: the held record (H26) copies the same line.
+    from: "    ppPaid: Math.max(0, int(ppPaid)),\n    mods: mods && typeof mods === \"object\" ? { ...mods } : {},",
+    to: "    ppPaid: Math.max(0, int(ppPaid)),\n    mods: {},",
     breaks: "R3 — the caster paid for warps that then did nothing"
   },
   {
@@ -131,7 +132,7 @@ const MUTATIONS = [
   {
     file: CAST,
     name: "G1 THE SHIPPED DEFECT: nothing is ever stored",
-    from: "  const storingNow = !stored && !isStoringSpell && !ritual && Boolean(readArmed(actor));",
+    from: "  const storingNow = !stored && !isStoringSpell && !ritual && !heldRelease && storesThisCast && Boolean(readArmed(actor));", // RE-ANCHORED AT 3.690.0
     to: "  const storingNow = false;",
     breaks: "G1 — the spell does nothing at all"
   },
@@ -232,8 +233,9 @@ const MUTATIONS = [
   {
     file: FLOW,
     name: "B5 a record pointing at a deleted spell jams the staff",
-    from: "  if (!spell) {",
-    to: "  if (false) {",
+    // RE-ANCHORED AT 3.690.0: the held release (H26) has its own `if (!spell)`.
+    from: "  const { item, record } = held;\n  const spell = actor.items.get(record.spellId) ?? null;\n  if (!spell) {",
+    to: "  const { item, record } = held;\n  const spell = actor.items.get(record.spellId) ?? null;\n  if (false) {",
     breaks: "B6 — it would refuse forever and block the next storage"
   },
 

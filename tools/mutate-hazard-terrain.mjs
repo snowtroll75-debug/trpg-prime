@@ -136,8 +136,9 @@ const MUTATIONS = [
   {
     file: F,
     name: "E5 one roll is multiplied across the squares",
-    from: "      for (let i = 0; i < hits.length; i += 1) {",
-    to: "      {",
+    // 3.693.0 (H28): the squares are rolled first, then resolved.
+    from: "      for (let i = 0; i < hits.length; i += 1) rolls.push((await new Roll(spec.damage).evaluate()).total);",
+    to: "      { const once = (await new Roll(spec.damage).evaluate()).total; for (let i = 0; i < hits.length; i += 1) rolls.push(once); }",
     breaks: "E6 — four identical numbers, and the dice stop meaning anything"
   },
   {

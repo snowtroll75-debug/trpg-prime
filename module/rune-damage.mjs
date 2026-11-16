@@ -63,6 +63,7 @@ import { baneMatches, runeUsageAllows, weaponUsage } from "./weapon-rune-usage.m
 import { alignedDamageAffects } from "./creature-traits.mjs";
 import { registeredEnergyRune } from "./rune-declarations.mjs";
 import { runeFieldOf } from "./infused-runes.mjs";
+import { materialOf } from "./item-quality.mjs";
 
 /** The elemental runes and the energy each one deals. */
 export const ENERGY_RUNES = Object.freeze({
@@ -204,6 +205,45 @@ export function runeDamageFor(item, { target = null } = {}) {
       against: rune.against ?? "",
       parameter,
       feedbackOf: rune.feedback ?? null
+    });
+  }
+  // A MODULE MATERIAL'S DAMAGE AGAINST A KIND OF CREATURE (3.688.0; Eldritch
+  // Arts Block 9a, H20): Starion's "an additional die of base damage against
+  // creatures with the eternal trait", Graveiron's "+1 base damage against
+  // undead". Bane's shape exactly — added to the strike itself, the
+  // weapon's own type, applied only once the target is known to match.
+  if (!isAmmunition) out.push(...materialDamageFor(item, target));
+  return out;
+}
+
+/**
+ * A weapon's material's `weaponDamageVs` rows, as `runeDamageFor` entries.
+ * `dice: "die"` is one more of the weapon's own base die ("1d8" → 1d8); a
+ * number or a dice term is used as printed. Pure.
+ */
+function materialDamageFor(item, target = null) {
+  const material = materialOf(item?.system?.material);
+  const rows = Array.isArray(material?.weaponDamageVs) ? material.weaponDamageVs : [];
+  const out = [];
+  for (const row of rows) {
+    const words = (Array.isArray(row?.against) ? row.against : [row?.against]).map((w) => String(w ?? "").trim().toLowerCase()).filter(Boolean);
+    if (!words.length) continue;
+    let dice = String(row?.dice ?? "").trim();
+    if (dice === "die") {
+      const faces = /\d*d(\d+)/i.exec(String(item?.system?.damage ?? ""))?.[1];
+      if (!faces) continue;
+      dice = `1d${faces}`;
+    }
+    if (!/^(\d+d\d+|\d+)$/i.test(dice)) continue;
+    const against = words.join(" or ");
+    const applies = Boolean(target) && words.some((w) => baneMatches(w, target));
+    out.push({
+      key: `material:${material.key ?? item.system.material}`,
+      label: String(row?.label ?? "").trim() || material.label,
+      dice, type: "", secondaryCritical: null,
+      conditional: true, resolved: Boolean(target), applies,
+      why: applies ? "" : `it is not ${against}`,
+      addsToStrike: true, against, parameter: against, feedbackOf: null
     });
   }
   return out;

@@ -122,6 +122,9 @@ export const HANDLED_EFFECT_KINDS = Object.freeze([
   // not have, which a bonus row cannot do — see combat/granted-speeds.mjs.
   "speedGrant",
   "speedSet",
+  // NEW at 3.692.0. Eaog Balls' halved speed — an item the derivation
+  // reads; see combat/granted-speeds.mjs `speedsHalved`.
+  "speedHalve",
   "sizeStep",
   // NEW at 3.608.0. Solid Fog's concealment, held by whoever stands in the
   // placed cloud — applied by the live-emanation sweep, not the cast. See

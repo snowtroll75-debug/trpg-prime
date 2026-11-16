@@ -241,7 +241,8 @@ api.resetModuleRegistry();
   const tl = await quiet(() => mmw.settleModuleMetamagic(actor, t, [], { degree: "success", cast: true, totalPP: 5 }));
   ok("M21 `after` runs once the cast has settled, told the degree, the PP and the keys", tl.includes("boom") && afterCtx?.degree === "success" && afterCtx?.totalPP === 5 && afterCtx?.metamagic?.includes("thunder"));
   await quiet(() => mmw.settleModuleMetamagic(actor, t, [], { degree: "success", cast: true, totalPP: 5, saveDC: 23 }));
-  const settleAt = castBody.indexOf("await mmxWorkflow.settleModuleMetamagic(actor, mmx, ppSources.draws, {");
+  // RE-ANCHORED AT 3.690.0: a held spell settles at its hold exit first; the cast's own settle is the last.
+  const settleAt = castBody.lastIndexOf("await mmxWorkflow.settleModuleMetamagic(actor, mmx, ppSources.draws, {");
   ok("M21d THE REVIEW ADDITION: `after(ctx)` is told the cast's Save DC (`ctx.saveDC`), the value the settled hook carries",
     afterCtx?.saveDC === 23 && settleAt > 0
     && /saveDC: nominalSaveDC \?\? null, innateSaveDC: isInnate \? innateSaveDCBase : null,/.test(castBody.slice(settleAt, castBody.indexOf("\n    });", settleAt))));
@@ -282,20 +283,23 @@ ok("M27 the new typed pool lands after the blow on both paths, scaled by the sav
   && src.cast.includes("scale: bs.damageMultiplier * (damageFactorOf.get(target) ?? 1), rolls, lines"));
 ok("M28 the hooks and the remap say the metamagic taken (core ids and module keys)",
   (castBody.match(/metamagic: \[\.\.\.castMetamagic\.keys\], metamagicTaken: castMetamagic\.taken\.map\(\(t\) => \(\{ \.\.\.t \}\)\), metamagicPP,/g) ?? []).length === 2
-  && castBody.includes("metamagic: [...castMetamagic.keys], threaded,")
+  // RE-ANCHORED AT 3.690.0 (H26): the hook says a woven spell, and a held one apart.
+  && castBody.includes("metamagic: [...castMetamagic.keys], threaded: woven, held: heldRelease,")
   && castBody.includes("keys: [...coreTaken.map((t) => t.key), ...mmx.keys],"));
 ok("M29 the G1↔G5 contract: the fumble and Resonance rolls are handed the keys and the biases a metamagic declared",
   castBody.includes("metamagic: castMetamagic.keys") && castBody.includes("fumbleBias: castMetamagic.fumbleBias, resonanceBias: castMetamagic.resonanceBias"));
 ok("M30 S-M4 and S-M11: castSpell's options carry the item flag, its ceiling, presets and a thread; a thread resolves under the first check at its degree and pays nothing",
-  src.cast.includes("itemMetamagic = false, itemMetamagicCeiling = 0, metamagic = null, thread = null,")
-  && src.cast.includes("&& !o.thread && !o.metamagic")
+  src.cast.includes("itemMetamagic = false, itemMetamagicCeiling = 0, metamagic = null, thread = null,") // 3.690.0: `held = null` follows (H26)
+  // RE-ANCHORED AT 3.690.0 (H26): a held release joins the prelude-owed list.
+  && src.cast.includes("&& !o.thread && !o.held && !o.metamagic")
   && castBody.includes("const mmxPresets = Array.isArray(metamagic?.preset) ? metamagic.preset : [];")
   && castBody.includes("if (threaded) degree = String(thread.degree);")
   && castBody.includes("const ppSpent = (isCantrip || spellAdderUsed || threaded)")
   && castBody.includes("if (outcome.fumbleRoll && !threaded) {"));
 ok("M31 Q96: the settle (Focus, resources, PP sources, `after`) is asked after the last refund and before the settled hook",
-  before(castBody, "castRefunded = true;", "await mmxWorkflow.settleModuleMetamagic(actor, mmx, ppSources.draws, {")
-  && before(castBody, "await mmxWorkflow.settleModuleMetamagic(actor, mmx, ppSources.draws, {", "Hooks.callAll(\"trgPrimeSpellSettled\", {"));
+  // RE-ANCHORED AT 3.690.0: the cast's own settle (a held spell's, at its hold exit, comes first).
+  castBody.lastIndexOf("castRefunded = true;") < castBody.lastIndexOf("await mmxWorkflow.settleModuleMetamagic(actor, mmx, ppSources.draws, {")
+  && castBody.lastIndexOf("await mmxWorkflow.settleModuleMetamagic(actor, mmx, ppSources.draws, {") < castBody.indexOf("Hooks.callAll(\"trgPrimeSpellSettled\", {"));
 ok("M32 an item cast's ceiling is tested (Q130), its metamagic paid from the pool",
   // RE-POINTED AT 3.684.0 (review): every taken option's PP (X1).
   castBody.includes("releasePP: Number(itemCast.pp ?? spellData.ppCost ?? 0), metamagicPP: itemCeilingMetamagicPP(mmx), ceiling: itemMetamagicCeiling"));
@@ -326,7 +330,7 @@ ok("P5 the cast: asked after the rod, counted in the availability test, split af
   && castBody.includes("const casterPPSpent = ritualSubstitutes ? 0 : ppSpent - rodPaid - sourcesPaid;")
   && castBody.includes("ppSources: ppSources.draws.map((d) => ({ key: d.key, label: d.label, drawn: d.drawn, paid: castRefunded ? 0 : Number(d.paid ?? 0) })),")
   && castBody.includes(": Math.min(paidOutcome.ppSpent + variableSuccessPP, ppPool + rodDraw + ppSources.total);"));
-ok("P6 not asked of a cast nobody pays for", castBody.includes("const ppSources = (isCantrip || isInnate || isItemCast || stored || storingNow || threaded || ritualSubstitutes || payablePP <= 0)"));
+ok("P6 not asked of a cast nobody pays for", castBody.includes("const ppSources = (isCantrip || isInnate || isItemCast || stored || storingUnpaid || threaded || ritualSubstitutes || payablePP <= 0)")); // RE-ANCHORED AT 3.690.0 (a held spell pays as any cast)
 
 // ── A: G3, an option paid in AP ─────────────────────────────────────────
 {
@@ -375,7 +379,7 @@ api.resetModuleRegistry();
   equal("D4 the registered modifiers and the options' discounts together", [hex.payable, hex.reduction, plain.payable, plain.reduction], [0, 3, 3, 0]);
 }
 ok("D5 the cast: asked before the availability test; the cap, DC and save DC still read `totalPP`; the payment reads the discounted outcome",
-  before(castBody, "const costCut = (isItemCast || stored || storingNow || threaded || ritualSubstitutes)", "const mmxPaysOtherwise =")
+  before(castBody, "const costCut = (isItemCast || stored || storingUnpaid || threaded || ritualSubstitutes)", "const mmxPaysOtherwise =") // RE-ANCHORED AT 3.690.0
   // RE-POINTED AT 3.684.1: G4's reduction now reaches the payment beside
   // Economic's and Signature's, as `paidReduction` (see D7–D10).
   && castBody.includes("const paidReduction = coreCostCut + costCut.reduction;")
@@ -458,7 +462,7 @@ ok("D10 the cast: the cut from the parts and `totalPP`; joined to G4's for the p
     [casting.castingOutcome("success", { basePP: 5, warpPP: 0 }).ppSpent, casting.castingOutcome("heroic", { basePP: 5, warpPP: 0 }).ppSpent, casting.castingOutcome("failure", { basePP: 5, warpPP: 0 }).ppSpent]);
   ok("R1b the cast: a ritual variant pays `paidOutcome` — whose reduction, G4's being 0 for one, is Economic's and Signature's alone",
     castBody.includes("    : ritualSubstitutes ? paidOutcome.ppSpent + variableSuccessPP\n")
-    && castBody.includes("  const costCut = (isItemCast || stored || storingNow || threaded || ritualSubstitutes)\n    ? { payable: totalPP, reduction: 0, labels: [], lines: [] }")
+    && castBody.includes("  const costCut = (isItemCast || stored || storingUnpaid || threaded || ritualSubstitutes)\n    ? { payable: totalPP, reduction: 0, labels: [], lines: [] }")
     && castBody.includes("  const paidReduction = coreCostCut + costCut.reduction;"));
 }
 

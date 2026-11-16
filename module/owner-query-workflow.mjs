@@ -24,11 +24,68 @@ export function registerOwnerQueryStep(name, fn) {
   if (name && typeof fn === "function") AFTER_YES.set(String(name), fn);
 }
 
+const OWNER_CHOICE_QUERY = "trg-prime.ownerChoice";
+
 /** Registered at init: the answering side. */
 export function registerOwnerQuery() {
   if (!globalThis.CONFIG) return;
   CONFIG.queries ??= {};
   CONFIG.queries[OWNER_QUERY] = async (data) => askHere(data, { windowMs: ANSWER_WINDOW_MS });
+  CONFIG.queries[OWNER_CHOICE_QUERY] = async (data) => chooseHere(data, { windowMs: ANSWER_WINDOW_MS });
+}
+
+/**
+ * A CHOICE, ON THIS CLIENT (3.692.0). The same window rule as `askHere`: an
+ * answer after the asker stopped waiting is no answer ("").
+ */
+async function chooseHere({ title = "", content = "", choices = [] } = {}, { windowMs = 0 } = {}) {
+  const offered = (Array.isArray(choices) ? choices : []).filter((c) => c && c.action);
+  if (!offered.length) return "";
+  const { DialogV2 } = foundry.applications.api;
+  const askedAt = Date.now();
+  let shown = null;
+  let timer = null;
+  if (windowMs > 0) {
+    timer = setTimeout(() => {
+      try { shown?.close?.(); } catch (_err) { /* already closed */ }
+    }, windowMs);
+  }
+  const answer = await DialogV2.wait({
+    window: { title },
+    classes: ["trg-prime"],
+    content: `<div class="trg-prime trg-check-dialog">${content}</div>`,
+    buttons: offered.map((c) => ({ action: String(c.action), label: String(c.label ?? c.action) })),
+    render: (_event, dialog) => { shown = dialog; },
+    rejectClose: false
+  });
+  if (timer) clearTimeout(timer);
+  const picked = String(answer ?? "");
+  if (!offered.some((c) => String(c.action) === picked)) return "";
+  if (windowMs > 0 && !answeredInTime(askedAt, Date.now(), windowMs)) {
+    ui.notifications?.warn?.(`${title}: answered too late — the moment has passed.`);
+    return "";
+  }
+  return picked;
+}
+
+/**
+ * Ask the actor's player (or the GM, or here) to pick one of `choices`
+ * (`[{action, label}]`). Resolves the picked action, or "" when nobody
+ * answered — the caller decides what an unanswered question means.
+ * @returns {Promise<string>}
+ */
+export async function askOwnerChoice(actor, question) {
+  const owners = Array.from(game.users ?? []).filter((u) => actor?.testUserPermission?.(u, "OWNER"));
+  const id = answeringUserId(owners, { gmId: game.users?.activeGM?.id ?? "", selfId: game.user?.id ?? "" });
+  if (!id) return chooseHere(question);
+  const user = game.users.get(id);
+  if (typeof user?.query !== "function") return chooseHere(question);
+  try {
+    return String(await user.query(OWNER_CHOICE_QUERY, question, { timeout: WAIT_MS }) ?? "");
+  } catch (err) {
+    console.warn(`TRG Prime | ${user.name} did not answer "${question?.title ?? ""}"`, err);
+    return "";
+  }
 }
 
 /**

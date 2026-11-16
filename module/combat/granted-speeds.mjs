@@ -178,3 +178,31 @@ export function setSpeeds(items = [], speedKeys = []) {
   }
   return out;
 }
+
+/** Where a HALVED speed lives: an item's derives, or an effect's own flag (3.692.0). */
+export const HALVED_SPEED_PATH = "movementHalved";
+
+/**
+ * IS THIS CREATURE'S SPEED HALVED (3.692.0; Eldritch Arts Block 7, Eaog
+ * Balls: "The target's speed is halved"). Two halvings do not quarter it: the
+ * page halves a speed, and a second casting of the same words says the same
+ * thing again.
+ *
+ * AN EFFECT'S OWN FLAG, NOT ONLY AN ITEM (found in review). Eaog Balls is the
+ * first speed row aimed at an enemy, and a player cannot create an item on the
+ * GM's creature — the throw unwound the whole cast. An effect is created
+ * through the relay (`createEffectsOn`), so the spell's effect carries
+ * `flags.trg-prime.movementHalved`. An item's `creatureAbility.derives` is
+ * read too, for an ability that halves a speed. A disabled effect does not.
+ *
+ * @param {Array<{flags: object, disabled?: boolean}>} docs items and applied effects
+ * @returns {boolean}
+ */
+export function speedsHalved(docs = []) {
+  for (const doc of docs ?? []) {
+    if (doc?.disabled) continue;
+    const f = doc?.flags?.["trg-prime"];
+    if (f?.[HALVED_SPEED_PATH] === true || f?.creatureAbility?.derives?.[HALVED_SPEED_PATH] === true) return true;
+  }
+  return false;
+}

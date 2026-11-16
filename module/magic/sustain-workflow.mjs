@@ -343,6 +343,17 @@ export async function sustainSpellAction(actor, { spellId = null } = {}) {
       `<p style="opacity:.75;margin:2px 0 0"><em>1 AP (Concentrate). You cannot recover Power Points while sustaining a spell.</em></p></div>`
   });
 
+  // A HOOK A MODULE CAN ANSWER (3.692.0; Eldritch Arts Block 7, Metamagic
+  // Resonance's "+2 PP: the caster may change the chosen metamagic feat each
+  // time they sustain the spell"). After the AP is paid, the spell extended
+  // and the card posted; `id` is the castId stamped on the spell's effects.
+  // Not called when the Sustain ran the spell out of Power Points.
+  if (!ranOut) {
+    Hooks.callAll("trgPrimeSpellSustained", {
+      actor, entry: sustained, castId: String(sustained.id ?? ""), spellName: String(sustained.name ?? "")
+    });
+  }
+
   return sustained;
 }
 

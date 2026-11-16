@@ -19,7 +19,7 @@ const MUTATIONS = [
   { name: "the cast's ceiling ignores the helper", file: CW, from: "metamagicPP: itemCeilingMetamagicPP(mmx), ceiling: itemMetamagicCeiling", to: "metamagicPP: mmx.ppSpent + mmx.basePPAdd, ceiling: itemMetamagicCeiling", breaks: "X1b" },
   { name: "the G3 payments taken are not named", file: MM, from: "    if (n === 1) out.paymentKeys.push(payment.key);", to: "", breaks: "A4b" },
   { name: "the settled hook drops metamagicPayments", file: CW, from: "    // THE G3 PAYMENTS TAKEN (3.684.0, review), as on trgPrimeSpellCast.\n    metamagicPayments: [...mmAP.paymentKeys],\n", to: "", breaks: "A4c" },
-  { name: "the cast-option ctx is not told the PP sources", file: CW, from: "    ppSources: ppSources.draws.map((d) => ({ key: d.key, label: d.label, drawn: Number(d.drawn ?? 0) }))\n  };", to: "  };", breaks: "X2" },
+  { name: "the cast-option ctx is not told the PP sources", file: CW, from: "    ppSources: ppSources.draws.map((d) => ({ key: d.key, label: d.label, drawn: Number(d.drawn ?? 0) })),\n", to: "", breaks: "X2" }, // RE-ANCHORED AT 3.690.0 (`holding` follows)
   // M — G1, the spec and its scope
   { name: "a core id may be a module key", file: MM, from: "  if (CORE_IDS_LOWER.has(k)) return { problem:", to: "  if (false) return { problem:", breaks: "M1/M2" },
   { name: "a negative cost is accepted (Q93: a discount is not a cheaper cast)", file: MM, from: "&& !(Number(spec.ppCost) >= 0)) {", to: "&& false) {", breaks: "M1" },
@@ -76,7 +76,7 @@ const MUTATIONS = [
   { name: "the cast hook does not say the metamagic's PP", file: CW, from: "metamagicPP,\n    // THE G3 PAYMENTS TAKEN (3.684.0, review): the registry keys of each", to: "metamagicPP: 0,\n    // THE G3 PAYMENTS TAKEN (3.684.0, review): the registry keys of each", breaks: "M28" }, // re-anchored at 3.684.0 (metamagicPayments sits between)
   { name: "THE RULING (Q130): the item's ceiling is not the one handed in", file: CW, from: "metamagicPP: itemCeilingMetamagicPP(mmx), ceiling: itemMetamagicCeiling", to: "metamagicPP: itemCeilingMetamagicPP(mmx), ceiling: 0", breaks: "M32" }, // re-anchored at 3.684.0 (review)
   { name: "a threaded spell pays for itself as well", file: CW, from: "const ppSpent = (isCantrip || spellAdderUsed || threaded)", to: "const ppSpent = (isCantrip || spellAdderUsed)", breaks: "M30" },
-  { name: "the PP sources are never settled", file: CW, from: "await mmxWorkflow.settleModuleMetamagic(actor, mmx, ppSources.draws, {", to: "await mmxWorkflow.settleModuleMetamagic(actor, mmx, [], {", breaks: "M31" },
+  { name: "the PP sources are never settled", file: CW, from: "await mmxWorkflow.settleModuleMetamagic(actor, mmx, ppSources.draws, {\n      spell, spellData, degree, cast: Boolean(outcome.cast)", to: "await mmxWorkflow.settleModuleMetamagic(actor, mmx, [], {\n      spell, spellData, degree, cast: Boolean(outcome.cast)", breaks: "M31" }, // RE-ANCHORED AT 3.690.0 (the cast's own settle)
   { name: "helpers.metamagicCatalogue is not offered", file: APIW, from: "      metamagicCatalogue: async (actor, options = {}) =>", to: "      metamagicCatalogueX: async (actor, options = {}) =>", breaks: "M33" },
   // P — G2
   { name: "a source pays all it drew, whatever the degree spends", file: MM, from: "    const share = Math.min(left, whole(d));", to: "    const share = whole(d);", breaks: "P1" },

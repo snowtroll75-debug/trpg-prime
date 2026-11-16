@@ -4191,7 +4191,17 @@ export async function resolveAction(actor, action, {
     await consumeOneAttackEffects(targetActor, { kind: "action", actionKey: action.key, attackerUuid: actor?.uuid ?? "" });
   }
 
-  const lines = headerLines(action, effectiveApCost);
+  // RECHARGE ITEM PRINTS THE ITEM'S OWN COST (3.690.1): an Orb's 4, not the
+  // action's 2, in the requirements line above the "Spends 4 PP" it pays.
+  let headerAction = action;
+  if (action.key === "rechargeItem" && rechargeSetup) {
+    const { registeredChargedKind } = await import("../module-api.mjs");
+    const { rechargeRequirementsFor } = await import("../charged-items.mjs");
+    const recharged = actor.items?.get?.(rechargeSetup.itemId) ?? null;
+    const kindSpec = registeredChargedKind(recharged?.flags?.[SYSTEM_ID]?.chargedItem?.kind);
+    if (kindSpec?.rechargeItemPP) headerAction = { ...action, requirements: rechargeRequirementsFor(action.requirements, kindSpec) };
+  }
+  const lines = headerLines(headerAction, effectiveApCost);
   if (check && firstAdvantage) {
     await actor.setFlag(SYSTEM_ID, DAILY_FIRSTS_FLAG, { ...(actor.getFlag(SYSTEM_ID, DAILY_FIRSTS_FLAG) ?? {}), [firstAdvantage.slot]: true });
     lines.push(line(`<em>${firstAdvantage.label}: the first today — rolled with advantage.</em>`));
@@ -4506,6 +4516,17 @@ async function applyActionOutcome({
     else if (Number(action.ppCost) > 0) {
       ppCost = Number(action.ppCost);
       ppLabel = action.name;
+      // A KIND'S OWN PRICE (3.690.0; Eldritch Arts Block 9c, H23): an Orb's
+      // Recharge Item, "The PP cost is 4 instead of 2".
+      if (action.key === "rechargeItem" && rechargeSetup) {
+        const { registeredChargedKind } = await import("../module-api.mjs");
+        const recharged = actor.items?.get?.(rechargeSetup.itemId) ?? null;
+        const kindSpec = registeredChargedKind(recharged?.flags?.[SYSTEM_ID]?.chargedItem?.kind);
+        if (kindSpec?.rechargeItemPP) {
+          ppCost = kindSpec.rechargeItemPP;
+          ppLabel = `${action.name} (${kindSpec.label})`;
+        }
+      }
     }
     if (ppCost > 0) {
       const paid = await applyPowerPointCost(actor, ppCost, ppLabel);

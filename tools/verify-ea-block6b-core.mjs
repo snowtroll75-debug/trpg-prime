@@ -128,10 +128,11 @@ equal("F8 a cast's facts are plain and clean", frm.castFacts({ spell: { name: " 
   const forcedAt = src.cast.indexOf("const forced = await forcedResonancesFrom({");
   ok("F12 a forced Resonance is asked after the cast's fumble, and rolled with the cast's own context (Q148)",
     forcedAt > src.cast.indexOf("  if (outcome.fumbleRoll) {\n    await rollSpellFumble(actor, {")
-    && /for \(const event of forced\) \{\n\s*await rollResonanceEvent\(actor, \{ reason: [^\n]*, modifiers: resonanceContext \}\);/.test(src.cast)
-    && /if \(!threaded\) \{\n\s*const \{ forcedResonancesFrom \}/.test(src.cast));
+    // RE-ANCHORED AT 3.690.0: the cast's own loop (a held spell's is at its hold exit, "after storing").
+    && /if \(!threaded\) \{\n\s*const \{ forcedResonancesFrom \}[\s\S]{0,900}?for \(const event of forced\) \{\n\s*await rollResonanceEvent\(actor, \{ reason: `\$\{esc\(event\.reason\)\} — a Resonance event after \$\{esc\(spell\.name\)\}[^\n]*, modifiers: resonanceContext \}\);/.test(src.cast));
   ok("F13 a release's fumble says which check, and Spell Concentration's says so",
-    /check: \{ type: option\.skill \? "skill" : "spellcraft", skill: option\.skill \?\? "" \},\n\s*release: true/.test(src.ciw)
+    // RE-ANCHORED AT 3.688.2: the Spellcraft path is a Spellcraft check (its option names "spellcraft" as its skill, which read it as a skill check).
+    /check: \{ type: bySkill \? "skill" : "spellcraft", skill: bySkill \? option\.skill : "" \},\n\s*release: true/.test(src.ciw)
     && /pp, check: \{ type: "concentration" \} \}\);/.test(src.cast));
   ok("F14 High Magic Resonance's daily Fumble→Failure needs no new seam: the existing degree remap runs before the fumble is owed, told High Magic",
     src.cast.indexOf("const remapped = await remapCastDegree({") > 0 && src.cast.indexOf("const remapped = await remapCastDegree({") < src.cast.indexOf("const outcome = castingOutcome(degree, {")

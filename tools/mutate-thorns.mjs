@@ -192,8 +192,9 @@ const MUTATIONS = [
   {
     file: WF,
     name: "R3 the roll is no longer reported beside the result",
-    from: "      + `${spec.damageType} (${formula} rolled ${rawTotal}${rawTotal !== roll.total ? `, ${roll.total} after the save` : \"\"}`",
-    to: "      + `${spec.damageType} (${formula}`",
+    // RE-ANCHORED AT 3.692.0: the type printed is this blow's (`damageType`, Glyph of Retribution's choice).
+    from: "      + `${damageType} (${formula} rolled ${rawTotal}${rawTotal !== roll.total ? `, ${roll.total} after the save` : \"\"}`",
+    to: "      + `${damageType} (${formula}`",
     breaks: "G5 — an immunity becomes indistinguishable from a bad die"
   },
   {

@@ -63,6 +63,8 @@ import { innateAbilityKey } from "../focus-declarations.mjs";
 import { elAdjustOf } from "../el-adjust.mjs";
 import { rollAidAnother, rollAutoCheck } from "../skills.mjs";
 import { activateItem, investItem, rollItemDepletion } from "../magic-items-workflow.mjs";
+import { investedSlotsUsed } from "../magic-items.mjs";
+import { registeredInvestCosts } from "../module-api.mjs";
 import { addFormula } from "../formula-workflow.mjs";
 import { damageItem, rollSleepingInArmour } from "../items-workflow.mjs";
 import { rollLuckCheck } from "../luck-workflow.mjs";
@@ -892,7 +894,8 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     // caps how many items may be invested at once, and the cap was
     // derived (system.magic.investmentSlots) with nothing on the sheet
     // ever showing it against what is actually invested.
-    const investedCount = Array.from(actor.items ?? []).filter((i) => i.system?.invested).length;
+    // BY COST (3.693.0, H27): a relic takes a slot per tier, a sentient item two.
+    const investedCount = investedSlotsUsed(Array.from(actor.items ?? []), actor, registeredInvestCosts());
     const investmentMax = Number(actor.system?.magic?.investmentSlots ?? 0);
     context.investment = {
       used: investedCount,

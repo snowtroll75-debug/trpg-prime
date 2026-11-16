@@ -119,10 +119,11 @@ const quiet = (fn) => async (...a) => { const e = console.error; console.error =
   ok("RW M30: a lifted cap keeps the degree, and better than Success casts",
     /const degree = capLifted \? rawDegree : capRitualDegree\(rawDegree\);\n(\s*\/\/[^\n]*\n)*\s*const partialCasts = degree === "partial" && await ritualPartialCasts\(\{ \.\.\.ritualContext, degree \}\);\n\s*const cast = ritualCasts\(degree, \{ partial: partialCasts \}\);/.test(ritualFn)); // RE-ANCHORED 3.687.0 (H13)
   ok("RW the cast is told the variant", /ritual: \{ degree, ppOver, secondaryCount, check, variant: ritualPlan\.variant, partialCasts, alone, gated: /.test(ritualFn)); // RE-ANCHORED 3.687.0 (H13, H14)
-  ok("RW the card carries the modules' and the gates' lines", /const lines = \[\.\.\.ritualPlan\.lines\.map\(\(text\) => line\(text\)\), \.\.\.ritualGated\.lines\.map\(\(text\) => line\(text\)\)\];/.test(ritualFn));
+  ok("RW the card carries the modules' and the gates' lines", /const lines = \[(?:\.\.\.ritualCastItems\.lines\.map\(\(text\) => line\(text\)\), )?\.\.\.ritualPlan\.lines\.map\(\(text\) => line\(text\)\), \.\.\.ritualGated\.lines\.map\(\(text\) => line\(text\)\)\];/.test(ritualFn)); // RE-ANCHORED 3.688.1: the cast items' lines (Q186) lead
   ok("RW castSpell: a variant's PP are substituted; a non-caster primary is not asked to have prepared (Q10)",
     /const ritualSubstitutes = Boolean\(ritual\?\.variant\);\n\s*const ritualNonCaster = ritualSubstitutes && Number\(system\?\.magic\?\.casterLevelValue \?\? 0\) <= 0;/.test(cw)
-    && /const castBlocked = ritualNonCaster \? "" : spellCastBlocked\(spell\);/.test(cw));
+    // RE-ANCHORED AT 3.688.2: an item's released spell is not refused either.
+    && /const castBlocked = \(ritualNonCaster \|\| releasedFromItem\) \? "" : spellCastBlocked\(spell\);/.test(cw));
   ok("RW …the pool is not tested for them, nor drawn (Q11), and the cap per cast stands (Q9)",
     /if \(\(ritualSubstitutes \? 0 : totalPP\) \+ surcharge\.pp > ppPool \+ rodDraw\) \{/.test(cw)
     // RE-POINTED AT 3.684.0 (G2, G4): the pool-paid branch pays the discounted
@@ -137,11 +138,12 @@ const quiet = (fn) => async (...a) => { const e = console.error; console.error =
     /ritualVariant: ritualSubstitutes \? String\(ritual\.variant\) : "", ppSubstituted: ritualSubstitutes && !castRefunded \? ppSpent : 0,/.test(cw));
   // THE REVIEW'S FIXES (2 November 2026).
   ok("RW review: a held rod is not drawn for a variant (it would pay twice)",
-    /const rodSource = \(isCantrip \|\| isInnate \|\| isItemCast \|\| stored \|\| totalPP <= 0 \|\| ritualSubstitutes\)/.test(cw));
-  ok("RW review: a ritual's casting is never stored", /const storingNow = !stored && !isStoringSpell && !ritual && Boolean\(readArmed\(actor\)\);/.test(cw));
+    // RE-ANCHORED AT 3.691.0: the draw's candidate (nor while storing; the one-Rod rule then decides).
+    /const rodCandidate = \(isCantrip \|\| isInnate \|\| isItemCast \|\| stored \|\| \(storingNow && !holdingNow\) \|\| totalPP <= 0 \|\| ritualSubstitutes\)/.test(cw));
+  ok("RW review: a ritual's casting is never stored", /const storingNow = !stored && !isStoringSpell && !ritual && (?:!heldRelease && storesThisCast && )?Boolean\(readArmed\(actor\)\);/.test(cw)); // RE-ANCHORED AT 3.690.0 (H26: a held release is never stored)
   ok("RW review: the gates are asked once — the ritual's answer is handed to the cast, its lines on the ritual's card",
     /const gated = ritual\?\.gated \?\? await runSpellCheckGates\(\{/.test(cw)
-    && /variant: ritualPlan\.variant, partialCasts, alone, gated: \{ modifiers: ritualGated\.modifiers, lines: \[\] \} \}/.test(ritualFn) // RE-ANCHORED 3.687.0
+    && /variant: ritualPlan\.variant, partialCasts, alone, gated: \{ modifiers: ritualGated\.modifiers, lines: \[\] \}(?:, castItems: ritualCastItems)? \}/.test(ritualFn) // RE-ANCHORED 3.687.0, 3.688.1 (the cast items, Q186)
     && /if \(check && castingOnlyTotal && !isItemCast && !isInnate\) check\.castingOnlyTotal = castingOnlyTotal;/.test(cw));
   ok("RW review: a failed ritual's cast asks nothing that could be cancelled away",
     /const ritualFailed = Boolean\(ritual\) && !\["success", "critical", "heroic"\]\.includes\(String\(ritual\.degree\)\)\n\s*&& !\(ritual\.partialCasts === true && String\(ritual\.degree\) === "partial"\);/.test(cw) // RE-ANCHORED 3.687.0 (H13: a cast Partial is not a failed ritual)
@@ -173,7 +175,7 @@ const quiet = (fn) => async (...a) => { const e = console.error; console.error =
     // 3.683.0 (Eldritch Arts Block 5, C14): an option's AP rides beside them,
     // none here; verify-ea-block5d-core checks one that costs some.
     // 3.684.0 (Block 6, G14): and an option's attack-only rows and one target's DC, none here.
-    applied, { keys: ["spell trickery", "truename", "circle"], castingDC: [{ label: "Spell Trickery", value: 2 }], saveDC: 6, ap: 0, apParts: [], lines: ["Trickery!", "Named.", "<em>A module's casting option failed — see the console.</em>"], attackRows: [], saveDCTargets: [] });
+    applied, { keys: ["spell trickery", "truename", "circle"], castingDC: [{ label: "Spell Trickery", value: 2 }], saveDC: 6, ap: 0, apParts: [], lines: ["Trickery!", "Named.", "<em>A module's casting option failed — see the console.</em>"], attackRows: [], saveDCTargets: [], rods: [] }); // 3.691.0: and the rods an option names, none here
   const dcA = cdc.assembledCastingDC({ totalPP: 4, casterLevel: 4, moduleParts: applied.castingDC });
   equal("O the casting DC names the option's part", [dcA.dc - dcA.base, dcA.parts], [2, [{ label: "Spell Trickery", value: 2 }]]);
   equal("O no parts: as before", cdc.assembledCastingDC({ totalPP: 4, casterLevel: 4 }).parts, []);
@@ -182,13 +184,14 @@ const quiet = (fn) => async (...a) => { const e = console.error; console.error =
   ok("O the prompt offers them, a required one said and not asked",
     /const optionField = castOptions\.length/.test(cw) && /<em>\(applies\)<\/em><\/p>`/.test(cw)
     && /: check\(castOptionField\(o\.key\), /.test(cw) && /castOptions: takenCastOptions\(castOptions, form\)/.test(cw));
-  ok("O only a cast that has the prompt is offered them",
-    /const castOptionOffers = \(isItemCast \|\| isInnate \|\| noCheckCantrip \|\| ritualFailed\) \? \[\] : await offeredCastOptions\(castOptionContext\);/.test(cw)
+  ok("O only a cast that has the prompt is offered them", // RE-ANCHORED AT 3.690.0 (review: nor a threaded or held release)
+    /const castOptionOffers = \(isItemCast \|\| isInnate \|\| noCheckCantrip \|\| ritualFailed(?: \|\| threaded)?\) \? \[\] : await offeredCastOptions\(castOptionContext\);/.test(cw)
     && /reagents: reagentChoices, castOptions: castOptionOffers \}\)/.test(cw));
   ok("O the Save DC joins the warp's channel; the casting DC its parts; the lines the card",
     /if \(castOptionsApplied\.saveDC\) warpMods\.saveDC = \(Number\(warpMods\.saveDC\) \|\| 0\) \+ castOptionsApplied\.saveDC;/.test(cw)
     && /moduleParts: castOptionsApplied\.castingDC/.test(cw)
-    && /const lines = \[\.\.\.reagentLines, \.\.\.gateLines, \.\.\.degreeRemapLines\.map\(\(text\) => line\(text\)\), \.\.\.castOptionLines,/.test(cw));
+    // RE-ANCHORED AT 3.688.0: a cast item's lines (Eldritch Arts Block 9a, H19) lead the card's.
+    && /const lines = \[(?:\.\.\.castItems\.lines\.map\(\(text\) => line\(text\)\), )?\.\.\.reagentLines, \.\.\.gateLines, \.\.\.degreeRemapLines\.map\(\(text\) => line\(text\)\), \.\.\.castOptionLines,/.test(cw));
   ok("O both hooks say the options taken; the settled one each target's save (a true name's hostility)",
     (cw.match(/castOptions: castOptionsApplied\.keys, ritualVariant: ritualSubstitutes \? String\(ritual\.variant\) : ""/g) ?? []).length === 2
     && /saveResults: \(spellSave\?\.results \?\? \[\]\)\.map\(\(r\) => \(\{ target: r\.target, degree: r\.degree, saved: Boolean\(r\.saved\) \}\)\),/.test(cw));

@@ -120,7 +120,8 @@ ok("P11 …and hands it to both damage paths' riders, the effects (the heal) and
   && src.cast.indexOf("    preparedSymbol: Boolean(sigil), castPP,\n") > src.cast.indexOf("  Hooks.callAll(\"trgPrimeSpellSettled\", {")
   && src.cast.indexOf("  Hooks.callAll(\"trgPrimeSpellSettled\", {") > 0
   && src.cast.indexOf("    preparedSymbol: Boolean(sigil), castPP,\n") < src.cast.indexOf("  return { ...outcome, ppSpent, check, spellSave, refunded: castRefunded, warpMods };")
-  && /threaded,\n(?:\s*\/\/[^\n]*\n)*\s*preparedSymbol: Boolean\(sigil\), castPP\n\s*\}\);/.test(src.cast));
+  // RE-ANCHORED AT 3.690.0 (H26): `threaded: woven, held: heldRelease` before it.
+  && /threaded: woven,\n\s*held: heldRelease,\n(?:\s*\/\/[^\n]*\n)*\s*preparedSymbol: Boolean\(sigil\), castPP\n\s*\}\);/.test(src.cast));
 ok("P12 both spell damage bonus sites hand in the printed PP and the duration test",
   (src.cast.match(/spellPP: printedSpellPP\(spell(?:Data|\.system \?\? \{\})\), noDuration: spellHasNoDuration\(spell(?:Data|\.system \?\? \{\})\)/g) ?? []).length === 2);
 ok("P13 the heal row hands the cast's PP and the spell's traits to the riders", /used: ridersUsed,\n(?:\s*\/\/[^\n]*\n)*\s*castPP,\n\s*traits: String\(spell\?\.system\?\.traits \?\? ""\)/.test(src.effects));
@@ -142,9 +143,10 @@ equal("O3 a gate row may be attackOnly; castingOnly wins when both are said",
 equal("O4 an attack-only row never reaches the check", scg.splitGateRows([{ label: "a", value: 1 }, { label: "m", value: 1, attackOnly: true }]), { check: [{ label: "a", value: 1 }], attackOnly: [{ label: "m", value: 1, attackOnly: true }] });
 ok("O5 the cast pushes only the check's rows onto the check, and the attack-only ones into the spell attack's pool",
   /\n  modifiers\.push\(\.\.\.gateSplit\.check\);/.test(src.cast) && /const gateAttackRows = gateSplit\.check\.filter\(\(m\) => !m\.castingOnly\);/.test(src.cast)
-  && /extraAttackRows: \[\.\.\.\(accuracyAttackRow \? \[accuracyAttackRow\] : \[\]\), \.\.\.\(castOptionsApplied\.attackRows \?\? \[\]\), \.\.\.gateAttackOnlyRows\],\n\s*\/\/ "\+ MAGICAL ABILITY SCORE"/.test(src.cast));
-ok("O6 each target saves against the cast's DC moved by its own option rows only",
-  /const castSaveDC = saveDC;[\s\S]{0,200}for \(const target of targets\) \{\n\s*const targetShift = castOptionDCFor\(saveDCTargets, target\?\.uuid \?\? ""\);\n\s*const saveDC = castSaveDC \+ targetShift\.value;/.test(src.cast));
+  // RE-ANCHORED AT 3.688.0: a cast item's attack row (Eldritch Arts Block 9a, H19) may join them.
+  && /extraAttackRows: \[\.\.\.\(accuracyAttackRow \? \[accuracyAttackRow\] : \[\]\), \.\.\.\(castOptionsApplied\.attackRows \?\? \[\]\), (?:\.\.\.castItems\.attackRows, )?\.\.\.gateAttackOnlyRows\],\n\s*\/\/ "\+ MAGICAL ABILITY SCORE"/.test(src.cast));
+ok("O6 each target saves against the cast's DC moved by its own option rows only", // RE-ANCHORED AT 3.690.0 (H24: the target itself is handed in)
+  /const castSaveDC = saveDC;[\s\S]{0,200}for \(const target of targets\) \{\n(?:\s*\/\/[^\n]*\n)*\s*const targetShift = castOptionDCFor\(saveDCTargets, target \?\? ""\);\n\s*const saveDC = castSaveDC \+ targetShift\.value;/.test(src.cast));
 ok("O7 the gates are told who is targeted, and the contracts say so", /targetUuids: Array\.from\(game\.user\?\.targets \?\? \[\]\)\.map\(\(t\) => t\?\.actor\?\.uuid\)\.filter\(Boolean\)/.test(src.cast)
   && /`attackOnly: true` \(3\.684\.0/.test(src.apim) && /answer `attack: n`/.test(src.apim));
 
@@ -214,7 +216,7 @@ ok("B4 a Strike's weapon-rune packets ask it, and only those", /if \(strikeRunes
   equal("D4 light levels: a number, a list, a range", [ddc.defenceLightLevels(5), ddc.defenceLightLevels([1, 3]), ddc.defenceLightLevels({ min: 8 }), ddc.defenceLightLevels("x")], [[5], [1, 3], [8, 9, 10], null]);
 }
 ok("D5 the spell attack asks the defender's rows as a spell, with the attacker's facts and the light, and adds them to the DB it meets",
-  /typedDefence = defenceDCBonus\(targetActor, "defence", "", creatureTypesOf\(actor\.system \?\? \{\}\), actor\?\.uuid \?\? "",\n\s*alignedTraitsOf\(actor\.system \?\? \{\}\), creatureTraits\(actor\.system \?\? \{\}\), \{ attackKind: "spell", lightLevel \}\);/.test(src.cast)
+  /typedDefence = defenceDCBonus\(targetActor, "defence", "", creatureTypesOf\(actor\.system \?\? \{\}\), actor\?\.uuid \?\? "",\n\s*alignedTraitsOf\(actor\.system \?\? \{\}\), \[\.\.\.creatureTraits\(actor\.system \?\? \{\}\), \.\.\.\(await import\("\.\/control-register-workflow\.mjs"\)\)\.summonedTraitsOf\(actor\)\], \{ attackKind: "spell", lightLevel \}\);/.test(src.cast) // RE-ANCHORED AT 3.689.0 (H21: a summoned attacker's register traits join its own)
   && /const defendedDB = Number\.isFinite\(baseDB\) \? baseDB \+ dragonhideDB \+ resilienceDB \+ Number\(typedDefence\.total \?\? 0\) : NaN;/.test(src.cast));
 
 // ── F: G22, a free somatic component by tradition (Q112) ───────────────
@@ -262,7 +264,7 @@ ok("N3 the attack's vs-trait half and second pool, and the save's immune alterna
   const alch = read("module", "alchemical-workflow.mjs");
   const act = read("module", "combat", "action-workflow.mjs");
   ok("D6b …so every attack caller names its kind: the Strike \"weapon\", the bomb \"bomb\", an action \"action\"",
-    /defenceDCBonus\(targetActor, "defence", "", attackerTypes, actor\?\.uuid \?\? "", attackerAlignments, creatureTraits\(actor\.system \?\? \{\}\), \{ attackKind: "weapon" \}\)/.test(src.attack)
+    /defenceDCBonus\(targetActor, "defence", "", attackerTypes, actor\?\.uuid \?\? "", attackerAlignments, \[\.\.\.creatureTraits\(actor\.system \?\? \{\}\), \.\.\.summonedTraitsOf\(actor\)\], \{ attackKind: "weapon" \}\)/.test(src.attack) // RE-ANCHORED AT 3.689.0 (H21)
     && /creatureTraits\(actor\.system \?\? \{\}\), \{ attackKind: "bomb" \}\n\s*\);/.test(alch)
     && /creatureTraits\(actor\?\.system \?\? \{\}\), \{ attackKind: "action" \}\);/.test(act));
   const spend = src.cast.indexOf('await consumeOneAttackEffects(targetActor, { kind: "spell", attackerUuid: actor?.uuid ?? "" });');

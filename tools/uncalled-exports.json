@@ -154,7 +154,15 @@
     "module/magic/storm-workflow.mjs#expireStorms": "Harness seam (3.687.0, H16): its one caller is registerStorms' updateWorldTime hook in this same file. Exported so verify-block8b-core can end a module's storm on the world clock directly.",
     "module/magic/storm-workflow.mjs#placeStorm": "Module API (3.687.0, H16): called by modules through helpers.placeStorm (module-api-workflow.mjs, a dynamic import the scan does not follow) — Eldritch Arts' Storm of Unmaking fumble.",
     "module/rest/rest-rate.mjs#REST_RATE_FLAG": "Module contract (3.687.0, H15): the flag name an effect carries its rest rate on, exported so a module names it rather than spelling the string; read here by restRatesOf.",
-    "module/rest/rest-rate.mjs#normaliseRestRate": "Harness seam (3.687.0, H15): its caller is restRatesOf in this same file. Exported so verify-block8b-core can pin what a rate record reads as."
+    "module/rest/rest-rate.mjs#normaliseRestRate": "Harness seam (3.687.0, H15): its caller is restRatesOf in this same file. Exported so verify-block8b-core can pin what a rate record reads as.",
+    "module/magic/spell-storing-workflow.mjs#armHold": "Module API (3.690.0, Eldritch Arts Block 9c): reached through game.trgPrime.modules.helpers.armHold, a dynamic import in module-api-workflow.mjs the ratchet cannot see; Eldritch Arts' Spellhold rune opens its hold window with it. verify-block9c-core H26 holds it.",
+    "module/magic/spell-storing-workflow.mjs#releaseHeldSpell": "Module API (3.690.0, Block 9c): reached through helpers.releaseHeldSpell (a dynamic import); Eldritch Arts' Spellhold 'Release' button calls it. verify-block9c-core H26 holds its order (AP asked, cast, record removed, AP paid).",
+    "module/magic-items-workflow.mjs#investedSlotsOf": "Module API (3.693.0, H27): Eldritch Arts' relics read it through a dynamic import of this file at the daily preparation, to raise an invested relic to the highest tier the free slots pay for; called in-file by investRefusal and investItem.",
+    "module/reactions/reactions-workflow.mjs#damageHealedBack": "Pure rule (3.693.0, H28), called in-file by healPacket; exported so verify-ea-block10-core can hold the fraction's rounding and the unknown amount.",
+    "module/reactions/reactions-workflow.mjs#healCoverage": "Pure rule (3.693.0, H28, found in review), called in-file by healPacket; exported so verify-ea-block10-core can hold which part of a mixed packet a healing answer covers.",
+    "module/magic/spell-storing-workflow.mjs#clearHeldSpells": "Module API (3.690.0, Block 9c): reached through helpers.clearHeldSpells (a dynamic import); Eldritch Arts clears Spellhold's spells at daily preparation ('stored spells fade').",
+    "module/charged-items-workflow.mjs#chargedKindReleaseOptions": "Called in-file by rollReleaseCheck (3.690.0, H23); exported so verify-block9c-core can drive a registered kind's ladder (cleaning, DC parts, a throwing kind) without a Foundry roll.",
+    "module/magic/cast-options.mjs#castOptionTargetDCs": "Called in-file by appliedCastOptions (3.690.0, H24); exported so verify-block9c-core can hold the trait rows (the Rod of Soul's Echo) and the one-row form apart."
   },
   "orphans": [
     "module/afflictions.mjs#STAGE_DELTA",

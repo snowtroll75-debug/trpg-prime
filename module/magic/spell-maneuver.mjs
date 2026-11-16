@@ -56,6 +56,7 @@
 import { MANEUVER_SIZE_PENALTY, maneuverSizePenalty, sizeCategoryDifference }
   from "../combat/attack.mjs";
 import { basicActionConditionEffects } from "../combat/basic-action-conditions.mjs";
+import { DIFFICULTY_BY_KEY, resolveDegree } from "../dice/resolution.mjs";
 
 /**
  * Does this spell's mechanic BE an attack action, rather than have one?
@@ -238,4 +239,42 @@ export function maneuverOutcomeText(action, degree) {
     if (t) return t;
   }
   return "";
+}
+
+/**
+ * AN ACTION RESOLVED AT A TOTAL ALREADY ROLLED (3.692.0; Eldritch Arts
+ * Block 7, Spirit Arrow: "is also treated as a Feint, Grapple (1 round),
+ * Shove or Trip action using the attackers attack result to determine
+ * success").
+ *
+ * No new roll: the attack's total stands for the action's check. The
+ * action's own rules come with it, as Graham ruled for Tanglefoot on 25
+ * August 2026 — its DC (`against`), its printed difficulty (Feint is Hard,
+ * DC +2) and its size penalty — and the degree is read from the margin by
+ * the same table every check uses.
+ *
+ * @param {object} args
+ * @param {string} args.actionKey      a BASIC_ACTIONS or SKILL_ACTIONS key
+ * @param {number} args.total          the result being reused
+ * @param {number|null} args.dc        the action's DC against this target
+ * @param {string} [args.difficulty]   the action's printed difficulty
+ * @param {string} [args.actorSize]
+ * @param {string} [args.targetSize]
+ * @returns {{ok: boolean, total: number, dc: number|null, margin: number|null, degree: string, sizeModifier: number}}
+ */
+export function basicActionAtTotal({
+  actionKey = "", total = NaN, dc = null, difficulty = "medium",
+  actorSize = "medium", targetSize = "medium"
+} = {}) {
+  const base = Number(total);
+  const sizeModifier = spellManeuverModifiers({ actionKey, actorSize, targetSize })
+    .reduce((sum, m) => sum + (Number(m.value) || 0), 0);
+  const own = Number(dc);
+  if (!actionKey || !Number.isFinite(base) || dc === null || dc === undefined || !Number.isFinite(own)) {
+    return { ok: false, total: Number.isFinite(base) ? base + sizeModifier : NaN, dc: null, margin: null, degree: "", sizeModifier };
+  }
+  const finalDC = own + Number(DIFFICULTY_BY_KEY[difficulty]?.modifier ?? 0);
+  const finalTotal = base + sizeModifier;
+  const margin = finalTotal - finalDC;
+  return { ok: true, total: finalTotal, dc: finalDC, margin, degree: resolveDegree(margin).key, sizeModifier };
 }

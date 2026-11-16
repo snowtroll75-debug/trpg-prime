@@ -84,7 +84,8 @@ const FORMSF = strip(read("module", "charged-weapon-forms-workflow.mjs"));
   ok("D1b and nothing is added when the caster paid it all",
     !/from/.test(castResultHeadline({ cast: true, ppSpent: 4, degree: "success" })));
   ok("D2 the cast hands the headline the rod's share",
-    CAST.includes('const headlineFacts = { cast: outcome.cast, isInnate, ppSpent, degree, rodPaid, rodName: rodSource?.name ?? "" };'));
+    // RE-ANCHORED AT 3.690.1: `held` follows the rod's name (a held spell's headline).
+    CAST.includes('const headlineFacts = { cast: outcome.cast, isInnate, ppSpent, degree, rodPaid, rodName: rodSource?.name ?? "", held: '));
 }
 
 if (failures.length) {

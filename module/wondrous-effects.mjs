@@ -44,13 +44,18 @@ export function isWondrous(item) {
  * are printed conditions on the ability rather than on the item, so they
  * are checked per ability — the ring is still a Spell Adder for anyone.
  */
-export function abilityApplies(ability, { className = "", tradition = "", traits = "", featNames = [] } = {}) {
+export function abilityApplies(ability, { className = "", tradition = "", traits = "", featNames = [], highMagicCaster = false } = {}) {
   if (ability?.requiresClass?.length) {
     const have = String(className ?? "").trim().toLowerCase();
     if (!ability.requiresClass.includes(have)) return false;
   }
   if (ability?.requiresArcaneCaster) {
     if (!/\barcane\b/i.test(String(tradition ?? ""))) return false;
+  }
+  // AN ARCANE OR A HIGH MAGIC CASTER (3.690.0; Eldritch Arts Block 9c):
+  // Tesra'Anvir's "+4 Spell Adder for all arcane & high magic casters".
+  if (ability?.requiresArcaneOrHighMagicCaster) {
+    if (!/\barcane\b/i.test(String(tradition ?? "")) && !highMagicCaster) return false;
   }
   // A CREATURE TRAIT OR A FEAT (3.626.0): "Requirement You possess the
   // Unliving trait" (Shroud of Borrowed Warmth); "Requirements You possess
@@ -79,7 +84,7 @@ export function abilityApplies(ability, { className = "", tradition = "", traits
 export function wondrousBonusesFor(item, context = {}) {
   const out = {
     bonuses: [], hp: 0, summary: [], reported: [], spells: [], problems: [],
-    spellAdders: [], baseDR: []
+    spellAdders: [], baseDR: [], resistances: []
   };
   const abilities = wondrousAbilitiesOf(item);
   if (!abilities.length) {
@@ -93,6 +98,23 @@ export function wondrousBonusesFor(item, context = {}) {
   }
 
   for (const ability of abilities) {
+    // A CHARGED ITEM'S ABILITIES STOP WITH ITS CHARGE (3.690.0; Eldritch Arts
+    // Block 9c, H23). The Orb: "Such abilities will stop working if the Orb is
+    // reduced to 2 PP or less" — `minItemPP: 3` on each, read against the
+    // item's own PP (`system.uses`).
+    const minPP = Math.trunc(Number(ability?.minItemPP) || 0);
+    if (minPP > 0 && Math.trunc(Number(item?.system?.uses ?? 0) || 0) < minPP) {
+      out.reported.push(`${ability.label ?? item.name}: ${describe(ability)} — not working, ${item.name} holds fewer than ${minPP} PP.`);
+      continue;
+    }
+    // A RESISTANCE (3.690.0, H23): the Orb of Emberlight's "fire resistance".
+    // A damage type, joined to the bearer's resistances as a rune's are.
+    if (ability.kind === "resistance") {
+      const type = String(ability.damageType ?? ability.value ?? "").trim().toLowerCase();
+      if (type && abilityApplies(ability, context) && !out.resistances.includes(type)) out.resistances.push(type);
+      out.summary.push(describe(ability));
+      continue;
+    }
     // SPELL ADDERS ARE NOW RATED, not merely reported (3.332.0). Every
     // carrier of this ability printed a note and did nothing; the
     // mechanic is defined in the familiars pack ("a +1 Spell Adder
@@ -103,7 +125,12 @@ export function wondrousBonusesFor(item, context = {}) {
     if (ability.kind === "spellAdder") {
       const value = Math.floor(Number(ability.value) || 0);
       if (value > 0 && abilityApplies(ability, context)) {
-        out.spellAdders.push({ label: ability.label ?? item.name, value });
+        // FOR SOME SPELLS ONLY (3.690.0, H23): the Orb of Emberlight's "+1 Spell
+        // Adder for spells with the fire trait" — `spellTraits`, read by the
+        // cast (a use of it pays only for a spell with one of them).
+        const spellTraits = (Array.isArray(ability.spellTraits) ? ability.spellTraits : [])
+          .map((t) => String(t ?? "").trim().toLowerCase()).filter(Boolean);
+        out.spellAdders.push({ label: ability.label ?? item.name, value, ...(spellTraits.length ? { spellTraits } : {}) });
       }
       out.reported.push(ability.note ?? describe(ability));
       continue;
@@ -199,7 +226,8 @@ export function describe(ability) {
     case "baseDR": return `DR ${Number(ability.value) || 0}`;
     case "dbBonus": return `${amount} ${type}to DB`;
     case "hp": return `${amount} ${type}to hit points`;
-    case "spellAdder": return `Spell Adder ${amount}`;
+    case "spellAdder": return `Spell Adder ${amount}${Array.isArray(ability.spellTraits) && ability.spellTraits.length ? ` (${ability.spellTraits.join(", ")} spells)` : ""}`;
+    case "resistance": return `Resistance to ${String(ability.damageType ?? ability.value ?? "").toLowerCase()}`;
     // A USE A MODULE RUNS (3.626.0) read "+0" on the sheet (3.626.1; found
     // live on 0.8.0): said as the activation it is.
     case "use": {
@@ -241,7 +269,7 @@ export function wondrousActive(item) {
 export function wondrousBonusesForActor(items = [], context = {}) {
   const all = {
     bonuses: [], hp: 0, summary: [], reported: [], spells: [], problems: [],
-    spellAdders: [], baseDR: []
+    spellAdders: [], baseDR: [], resistances: []
   };
   for (const item of items ?? []) {
     if (!isWondrous(item)) continue;
@@ -254,6 +282,7 @@ export function wondrousBonusesForActor(items = [], context = {}) {
     all.spells.push(...result.spells.map((s) => ({ ...s, itemId: item.id, itemName: item.name })));
     all.spellAdders.push(...result.spellAdders);
     all.baseDR.push(...result.baseDR);
+    for (const type of result.resistances ?? []) if (!all.resistances.includes(type)) all.resistances.push(type);
     all.problems.push(...result.problems);
   }
   return all;

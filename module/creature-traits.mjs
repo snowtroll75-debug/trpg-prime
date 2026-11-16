@@ -277,6 +277,20 @@ export function armourDBSuppressedByMental(damageType, hasHeadArmour) {
  * @param {object|null} [creatureTypeSystem] As derivedImmunitySets — the
  *   owned creature-type item's `system` data, if any.
  */
+/** The damage types live effects on this creature suppress (3.689.0, H21), lower-case. */
+function suppressedResistancesOf(actor) {
+  const out = new Set();
+  for (const effect of Array.from(actor?.appliedEffects ?? actor?.effects ?? [])) {
+    if (!effect || effect.disabled) continue;
+    const list = effect.flags?.["trg-prime"]?.suppressedResistances;
+    for (const t of Array.isArray(list) ? list : []) {
+      const type = String(t ?? "").trim().toLowerCase();
+      if (type) out.add(type);
+    }
+  }
+  return [...out];
+}
+
 export function actorDefences(actorSystem, creatureTypeSystem = null) {
   const immune = resolveImmunities(
     actorSystem,
@@ -305,6 +319,11 @@ export function actorDefences(actorSystem, creatureTypeSystem = null) {
   // into new sets, so the parsed fields are never written.
   const granted = grantedDefencesOf(actorSystem?.parent ?? null);
   const resistances = new Set([...(resistanceField.damageTypes ?? []), ...granted.resistances]);
+  // A RESISTANCE LOST FOR A TIME (3.689.0, H21; Eldritch Arts' Essencebreaker:
+  // "lose one resistance it has until the end of your next turn"): a live
+  // effect on the creature flagged `suppressedResistances: [types]` takes those
+  // types out of its resistances while it lasts. Nothing else is touched.
+  for (const type of suppressedResistancesOf(actorSystem?.parent ?? null)) resistances.delete(type);
   const resistanceCategories = new Set([...(resistanceField.categories ?? []), ...(granted.resistAll ? [ALL_DAMAGE] : [])]);
   const immunities = new Set([...(immune.damageTypes ?? []), ...granted.immunities, ...(granted.immuneAll ? [ALL_DAMAGE] : [])]);
   // AND A WEAKNESS A REACTION GRANTED (3.685.0): Invoke True Name's "weakness

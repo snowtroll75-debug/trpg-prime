@@ -63,7 +63,10 @@ export async function offeredModuleMetamagic(actor, base = {}) {
   const lent = (Array.isArray(base.lent) ? base.lent : []).filter((l) => l && !l.used);
   for (const l of lent) if (!granted.includes(l.key)) granted.push(l.key);
   const { moduleMetamagicRodsOf } = await import("../rod-powers.mjs");
-  const rods = moduleMetamagicRodsOf(Array.from(actor?.items ?? []), entries.map((e) => e.key))
+  // A ROD IS A ROD (3.691.0, review): none once a Rod was used this round, and
+  // none on a spell cast from a scroll, staff or wand.
+  const { rodUseRefusal } = await import("../trait-rules-workflow.mjs");
+  const rods = rodUseRefusal(actor, { fromItemCast: Boolean(base.itemCast) }) ? [] : moduleMetamagicRodsOf(Array.from(actor?.items ?? []), entries.map((e) => e.key))
     .filter((rod) => whole(base.basePP) <= whole(rod.maxPP));
   const { itemUsesRemaining } = await import("../uses-workflow.mjs");
   const offers = [];
@@ -258,7 +261,8 @@ export async function askCastPPSources(ctx = {}) {
     }) : { draw: 0 };
     if (answer === null || answer === undefined) return null;
     const drawn = Math.max(0, Math.min(offered, whole(answer.draw)));
-    out.draws.push({ key: source.key, label, drawn, source });
+    // A SOURCE THAT IS A ROD (3.691.0) names it, for the one-Rod rule.
+    out.draws.push({ key: source.key, label, drawn, source, rodItemId: text(offer.rodItemId), rodName: text(offer.rodName) });
     out.total += drawn;
   }
   return out;

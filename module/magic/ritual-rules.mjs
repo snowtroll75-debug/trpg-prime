@@ -171,6 +171,26 @@ export async function ritualAloneAllowed(ctx) {
 }
 
 /**
+ * A RITUAL'S ROLL, SETTLED (3.688.0; Eldritch Arts Block 9a): every module's
+ * `settled(ctx)`, once the roll is resolved — whatever its degree, and whether
+ * or not the spell was cast. Their lines, joined.
+ */
+export async function settleRitual(ctx) {
+  const lines = [];
+  for (const { key, spec } of registeredRitualRules()) {
+    if (typeof spec.settled !== "function") continue;
+    try {
+      const got = await spec.settled(ctx);
+      for (const t of Array.isArray(got?.lines) ? got.lines : []) if (String(t ?? "").trim()) lines.push(String(t));
+    } catch (err) {
+      console.error(`TRG Prime | ritual rules "${key}": settled failed`, err);
+      lines.push("<em>A module's ritual rules failed after the roll — see the console.</em>");
+    }
+  }
+  return lines;
+}
+
+/**
  * The degrees a ritual casts the spell on: Success, or better when the cap is
  * lifted; and a Partial when a module says it takes effect (H13).
  */

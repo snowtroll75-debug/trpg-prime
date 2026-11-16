@@ -237,7 +237,8 @@ const blocked = (traits, usage, opts) => T.traitRestriction({ traits }, usage, o
   ok("G5 R11 — Staff: one invested at a time",
     TR.staffInvestRefusal(staff("b", false), [staff("a", true), staff("b", false)]) !== ""
     && TR.staffInvestRefusal(staff("b", false), [staff("a", false), staff("b", false)]) === ""
-    && /const refused = staffInvestRefusal\(item, Array\.from\(actor\.items \?\? \[\]\)\);/.test(MAGIC));
+    // RE-ANCHORED AT 3.690.0 (Eldritch Arts Block 9c, H25): a module's one-invested trait joins the line.
+    && /const refused = staffInvestRefusal\(item, Array\.from\(actor\.items \?\? \[\]\)\)(?: \|\| await oneInvestedTraitRefusal\(actor, item\))?(?:\n\s*\|\| await moduleInvestRefusal\(actor, item\))?;/.test(MAGIC)); // 3.693.0 (H27): a module's own refusal joins it
   ok("G6 R12 — an un-invested Invested item is refused",
     TR.investedRefusal({ system: { traits: "Invested Warding", invested: false } }) !== ""
     && TR.investedRefusal({ system: { traits: "Invested Warding", invested: true } }) === ""

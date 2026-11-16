@@ -204,17 +204,21 @@ export async function applyHazardTerrain(tokenDocument, movement) {
       // A DAMAGE REACTION, BEFORE THE DEFENCES (3.681.0; found in review):
       // asked once for the move, and its answer holds for every square of it
       // (one HP write, below).
+      // THE SQUARES ARE ROLLED FIRST (3.693.0, H28; found in review), so the
+      // reactions are told the move's whole amount, and what they say is shown.
+      const rolls = [];
+      for (let i = 0; i < hits.length; i += 1) rolls.push((await new Roll(spec.damage).evaluate()).total);
+      let reactionLines = [];
       {
         const { spellDamageReactionsFor } = await import("../reactions/reactions-workflow.mjs");
-        await spellDamageReactionsFor(mover, spec.damageType, { spellName: spec?.label ?? "", source: null });
+        reactionLines = await spellDamageReactionsFor(mover, spec.damageType, { spellName: spec?.label ?? "", source: null, amount: rolls.reduce((a, b) => a + b, 0) });
       }
       let rolled = 0;
       let taken = 0;
-      for (let i = 0; i < hits.length; i += 1) {
-        const roll = await new Roll(spec.damage).evaluate();
-        rolled += roll.total;
+      for (const total of rolls) {
+        rolled += total;
         const packet = resolveAgainstDefences(mover.system ?? {}, {
-          amount: roll.total,
+          amount: total,
           type: spec.damageType,
           creatureTypeSystem: ownedCreatureTypeSystem(mover),
           // A SPELL IS A MAGICAL SOURCE (3.548.0) — see magic/spell-source.mjs.
@@ -231,6 +235,7 @@ export async function applyHazardTerrain(tokenDocument, movement) {
       const content = `<div class="trg-prime trg-card"><header class="trg-card-header">`
         + `<h3>${spec.label}</h3></header>`
         + `<p>${hazardLine(spec, mover.name, taken, rolled, hits.length)}</p>`
+        + reactionLines.map((l) => `<p>${l}</p>`).join("")
         // THE SAVE IS PRINTED, NOT ROLLED. Verdant Retribution's Basic
         // Fortitude belongs to a creature that has just been moved by
         // its own player, and interrupting a completed move with a

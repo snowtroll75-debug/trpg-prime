@@ -64,7 +64,8 @@ const ritualFn = cw.slice(cw.indexOf("export async function rollMagicRitual("), 
     /if \(partialCasts\) \{\n(\s*\/\/[^\n]*\n)*\s*lines\.push\(line\("<strong>Partial: the ritual's partial result is applied\.<\/strong> No PP is lost; what the result does is the spell's own, on its card\."\)\);\n\s*\} else if \(cast\) \{/.test(ritualFn));
   ok("H13 castSpell is told it (and that the ritual was alone)",
     /ritual: \{ degree, ppOver, secondaryCount, check, variant: ritualPlan\.variant, partialCasts, alone, gated:/.test(ritualFn)
-    && /if \(cast \|\| consequences\) \{\n\s*const castResult = await castSpell\(actor, spell, \{/.test(ritualFn));
+    // RE-ANCHORED AT 3.688.0: `castResult` is declared before the call, for the ritual's `settled` (Eldritch Arts Block 9a).
+    && /if \(cast \|\| consequences\) \{\n\s*(?:const )?castResult = await castSpell\(actor, spell, \{/.test(ritualFn));
   const { castingOutcome } = await imp("magic/casting.mjs");
   equal("H13 castingOutcome: a Partial cast for no PP and no fumble only when told; nothing else moves",
     [castingOutcome("partial", { basePP: 6, warpPP: 2 }), castingOutcome("partial", { basePP: 6, warpPP: 2, castsPartial: true }),
@@ -281,9 +282,9 @@ const ritualFn = cw.slice(cw.indexOf("export async function rollMagicRitual("), 
 
 /* ================================================================== Z */
 {
-  equal("Z1 the version is 3.687.1, and the download names it", [sys.version, sys.download],
-    ["3.687.1", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.687.1/trg-prime.zip"]);
-  equal("Z2 package.json agrees", JSON.parse(read("package.json")).version, "3.687.1");
+  equal("Z1 the version is 3.690.0, and the download names it", [sys.version, sys.download],
+    ["3.694.0", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.694.0/trg-prime.zip"]);
+  equal("Z2 package.json agrees", JSON.parse(read("package.json")).version, "3.694.0");
 }
 
 const EXPECTED = 60;

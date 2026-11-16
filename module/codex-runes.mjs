@@ -27,6 +27,7 @@
  * back at itself.
  */
 
+import { runeDonningAP } from "./rune-declarations.mjs";
 import { fieldToRunes } from "./rune-catalogue.mjs";
 import { equippedEventRune } from "./rune-events.mjs";
 import { CODEX_ARMOUR_RUNES, CODEX_WEAPON_RUNES } from "./codex-rune-data.mjs";
@@ -437,7 +438,22 @@ export function donningTimeFor(item, { fullSuit = false } = {}) {
   if (!base) return null;
 
   const inscribed = inscribedTier(item, "fleetguard");
-  if (!inscribed) return { ...base, improved: false, rune: "", covers: true };
+  // A REGISTERED RUNE'S PRINTED TIME (3.689.0, H21; Eldritch Arts' Swiftbind:
+  // "the time is reduced to 1 AP (light), 2 AP (medium) or 3 AP (heavy)
+  // Interact; full suits +1 AP"). It replaces the chapter's time, as
+  // Fleetguard's does, and its full-suit figure is its own, not the doubling.
+  // Fleetguard, when also inscribed, is the core's and is read below.
+  if (!inscribed) {
+    const declared = runeDonningAP(item, category, { fullSuit });
+    if (declared) {
+      return {
+        ap: declared.ap, label: describeAP(declared.ap), category, fullSuit: Boolean(fullSuit),
+        doubled: false, improved: declared.ap < base.ap, rune: declared.rune, covers: true,
+        baseAP: base.ap, baseLabel: base.label
+      };
+    }
+    return { ...base, improved: false, rune: "", covers: true };
+  }
 
   const { tier, numeral } = inscribed;
   const printed = tier.donning[category];

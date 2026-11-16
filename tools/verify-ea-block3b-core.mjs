@@ -356,9 +356,9 @@ ok("W16 damage, a weapon's: asked before the precision gate reads the defences",
   /const damageReactionLines = targetActor\n    \? await \(await import\("\.\.\/reactions\/reactions-workflow\.mjs"\)\)\.damageReactionsBefore\(targetActor, \{/.test(src.attack) && order(src.attack, "const targetActor = targetTokenHere?.actor ?? null;", "damageReactionsBefore(targetActor, {", "const damageTargetDefences = targetActor", "const precisionImmune = Boolean(") && /for \(const said of damageReactionLines\) lines\.push\(line\(said\)\);/.test(src.attack));
 ok("W17 damage, a spell's: asked before the attack's packet, each save branch's, and the area's heat",
   (src.cast.match(/for \(const said of await spellDamageReactions\(/g) ?? []).length === 5
-  && order(src.cast, "await spellDamageReactions(targetActor, spell, actor, [damageType])", "const packet = resolveAgainstDefences(targetSystem, {")
+  && order(src.cast, "await spellDamageReactions(targetActor, spell, actor, [damageType], dealt)", "const packet = resolveAgainstDefences(targetSystem, {")
   && /kind: "spell", types: types\.filter\(Boolean\), magical: true, spellName: spell\?\.name \?\? ""/.test(src.cast));
-ok("W18 damage, a spell effect row's (missiles): asked before each packet", order(src.effects, "damageReactionsBefore(target, { kind: \"spell\", types: [type], magical: true })", "const packet = resolveAgainstDefences(target.system ?? {}, {"));
+ok("W18 damage, a spell effect row's (missiles): asked before each packet", order(src.effects, "damageReactionsBefore(target, { kind: \"spell\", types: [type], magical: true, amount })", "const packet = resolveAgainstDefences(target.system ?? {}, {"));
 const typed = between(src.damage, "export async function applyTypedDamage", "\n}\n");
 ok("W19 damage, typed: asked before the defences (not for damage that ignores them); `magical` told and forwarded; the grant cleared once met",
   order(typed, "if (!ignoreDefences && type) {", "damageReactionsBefore(targetActor, {", "let packet = resolveAgainstDefences(defenderSystem, {", "magical: Boolean(magical) || Boolean(spellName),", "clearInstanceGrants(targetActor);"));
@@ -396,7 +396,7 @@ ok("W35 a cast hands back the warp it paid for (warp and Warp Manipulation), on 
 ok("W36 (found in review) live system data points back to its actor: set each preparation, not enumerable, a data model's own parent left alone",
   /prepareBaseData\(\) \{\s*super\.prepareBaseData\(\);[\s\S]{0,1200}if \(this\.system && typeof this\.system === "object" && !\("parent" in this\.system\)\) \{\s*Object\.defineProperty\(this\.system, "parent", \{ value: this, enumerable: false, configurable: true, writable: true \}\);/.test(src.actorDoc));
 ok("W37 (found in review) every other spell-damage site asks before its packet",
-  Object.entries(src.sites).every(([, text]) => /const \{ spellDamageReactionsFor \} = await import\("\.\.\/reactions\/reactions-workflow\.mjs"\);\s*(?:lines\.push\(\.\.\.await |for \(const said of await |await )spellDamageReactionsFor\(/.test(text)
+  Object.entries(src.sites).every(([, text]) => /const \{ spellDamageReactionsFor \} = await import\("\.\.\/reactions\/reactions-workflow\.mjs"\);\s*(?:lines\.push\(\.\.\.await |for \(const said of await |await |\/\/[^\n]*\n\s*reactionLines = await |reactionLines = await )spellDamageReactionsFor\(/.test(text)
     && text.indexOf("spellDamageReactionsFor(") < text.lastIndexOf("resolveAgainstDefences(")),
   Object.entries(src.sites).filter(([, text]) => !/spellDamageReactionsFor\(/.test(text)).map(([f]) => f).join(", "));
 ok("W38 (found in review) a Dispel aimed at a spell being cast is not aimed at the reactor's own target", /const targetActor = presetDispel \? null : firstTargetActor\(\);/.test(src.action));

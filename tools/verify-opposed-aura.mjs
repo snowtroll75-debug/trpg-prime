@@ -305,7 +305,7 @@ const attackClean = strip(attackSrc);
 // RE-POINTED AT 3.684.0 (G20 review): the Strike now also names its
 // `attackKind: "weapon"` after the traits; the alignments still reach it.
 ok("E1 the defender's channel is given the attacker's alignments",
-  attackClean.includes('defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments, creatureTraits(actor.system ?? {}), { attackKind: "weapon" })'));
+  attackClean.includes('defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments, [...creatureTraits(actor.system ?? {}), ...summonedTraitsOf(actor)], { attackKind: "weapon" })')); // RE-ANCHORED AT 3.689.0 (H21)
 ok("E1b read off the attacker, not the defender",
   attackClean.includes("const attackerAlignments = alignedTraitsOf(actor.system ?? {});"));
 ok("E2 the attacker's own aura records are consulted against the target",

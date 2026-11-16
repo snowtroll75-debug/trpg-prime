@@ -249,8 +249,11 @@ ok("W12 THE DESIGNATION PICKER ONLY OFFERS WHO IS INSIDE",
 ok("W13 the ward applies at once to whoever is already standing in it",
   cast.includes("await refreshRunes(canvas.scene);"),
   "without this the allies present at the inscription gain nothing until somebody moves");
+// RE-ANCHORED AT 3.688.0: the rune's own line. Since 3.687.0 a turn-start
+// storm's clock reads the warped duration too, so the bare call no longer
+// pins the rune's (mutate-inscribed-runes' W14 survived on it).
 ok("W14 THE WARPED DURATION IS USED, not the printed one",
-  cast.includes("parseSpellDuration(warpedDurationText(spellData.duration, warpMods))"),
+  cast.includes("            + Number(parseSpellDuration(warpedDurationText(spellData.duration, warpMods))?.seconds ?? 0)"),
   "both runes sell \"+2 PP: change duration to 24 hours\" — reading the item's own field "
   + "would charge for a warp that bought nothing");
 ok("W15 the registration sits beside the tether's own watcher", (() => {

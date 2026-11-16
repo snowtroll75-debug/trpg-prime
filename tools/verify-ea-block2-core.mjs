@@ -86,7 +86,8 @@ const chronoweave = { traits: "Highmagic, Uncommon", tradition: "" };
   // The wiring in castSpell.
   ok("D1 the cast asks which kind it is, and its traditions",
     /const hmCast = highMagicCast\(actor, spellData\);\n\s*const hmTraditions = highMagicTraditions\(spellData, tradition, system\.magic\?\.tradition\);/.test(cw)
-    && /traditions: hmTraditions\.traditions,/.test(cw));
+    // RE-ANCHORED AT 3.688.0: on its own line, the check's — the cast items' ask (H19) is told them too.
+    && /\n    traditions: hmTraditions\.traditions,/.test(cw));
   ok("D1 the armour rule replaces the tradition's for such a cast",
     /const highMagicArmour = highMagicArmourApplies\(hmCast\);\n\s*const armourPenalty = highMagicArmour\n\s*\? highMagicArmourPenalty\(equippedArmour\)\n\s*: armourCastingPenalty\(tradition, penalisingArmour\);/.test(cw));
   ok("D1 the DC takes Hard and names the armour",
@@ -151,7 +152,8 @@ const chronoweave = { traits: "Highmagic, Uncommon", tradition: "" };
     /if \(!isInnate && !noCheckCantrip\) \{\n\s*const \{ remapCastDegree \} = await import\("\.\/cast-hooks\.mjs"\);/.test(cw)
     && /degree = remapped\.degree;\n\s*degreeRemapLines\.push\(\.\.\.remapped\.lines\);/.test(cw)
     && cw.indexOf("remapCastDegree({") > cw.indexOf("passActionFlatChecks(actor, {") && cw.indexOf("remapCastDegree({") < cw.indexOf("const outcome = castingOutcome("));
-  ok("D7 the remap's lines reach the card", /const lines = \[\.\.\.reagentLines, \.\.\.gateLines, \.\.\.degreeRemapLines\.map\(\(text\) => line\(text\)\),/.test(cw));
+  // RE-ANCHORED AT 3.688.0: a cast item's lines (Eldritch Arts Block 9a, H19) may lead them.
+  ok("D7 the remap's lines reach the card", /const lines = \[(?:\.\.\.castItems\.lines\.map\(\(text\) => line\(text\)\), )?\.\.\.reagentLines, \.\.\.gateLines, \.\.\.degreeRemapLines\.map\(\(text\) => line\(text\)\),/.test(cw));
   ok("D7 the cast hook says chaos, whether a check was rolled, and how it was cast",
     /chaos, innate: isInnate, rollsCheck: !isInnate && !noCheckCantrip,\n\s*itemCast: Boolean\(itemCheck\), ritual: Boolean\(ritual\), highMagic: hmCast\.highMagic,/.test(cw));
 }
@@ -159,7 +161,8 @@ const chronoweave = { traits: "Highmagic, Uncommon", tradition: "" };
 /* D7b — the settled cast and an item's release, said to modules (found in review) */
 {
   ok("D7b the settled hook says chaos and whether a check was rolled (a wild surge waits for the PP to be paid)",
-    /Hooks\.callAll\("trgPrimeSpellSettled", \{\n\s*actor, spell, spellData, degree,\n(?:\s*\/\/[^\n]*\n)*\s*chaos, rollsCheck: !isInnate && !noCheckCantrip, ritual: Boolean\(ritual\), highMagic: hmCast\.highMagic,/.test(cw));
+    // RE-ANCHORED AT 3.688.0: the cast items used (`castItems`, Eldritch Arts Block 9a's H19) may come first.
+    /Hooks\.callAll\("trgPrimeSpellSettled", \{\n\s*actor, spell, spellData, degree,\n(?:\s*\/\/[^\n]*\n|\s*castItems: [^\n]*\n)*\s*chaos, rollsCheck: !isInnate && !noCheckCantrip, ritual: Boolean\(ritual\), highMagic: hmCast\.highMagic,/.test(cw));
   const ciw = read("module", "charged-items-workflow.mjs");
   ok("D7b a release check says its degree and chaos (Q7: scrolls and wands surge)",
     // RE-POINTED AT 3.684.0 (Block 6, G6): the payload adds `itemUuid`.

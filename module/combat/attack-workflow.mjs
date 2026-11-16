@@ -1,3 +1,4 @@
+import { summonedTraitsOf } from "../magic/control-register-workflow.mjs";
 import { DAMAGE_TYPES, SIZE_TABLE } from "../config.mjs";
 import { actionDamagePackets, alignedPacketTraits, creatureSecondaryPackets } from "./creature-secondary.mjs";
 import { TRGCheck } from "../dice/check.mjs";
@@ -2528,7 +2529,9 @@ export async function rollWeaponAttack(actor, weapon, {
     // — review, Low-medium): a row's `when.attackKinds: ["weapon"]` matched
     // nothing, since only the spell attack named its kind. A row naming no
     // kind still meets every attack, as before.
-    ? defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments, creatureTraits(actor.system ?? {}), { attackKind: "weapon" })
+    // AND WHETHER IT IS SOMEBODY'S SUMMONS (3.689.0, H21): Bound Circle's
+    // "attacks made by either conjured or summoned creatures".
+    ? defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments, [...creatureTraits(actor.system ?? {}), ...summonedTraitsOf(actor)], { attackKind: "weapon" })
     : { total: 0, entries: [] };
   // AID DEFENSIVE (Chapter 4): "+N circumstance to Defence, only against
   // that target's next attack." Read here rather than off a shared
@@ -3620,6 +3623,8 @@ export async function rollWeaponAttack(actor, weapon, {
       }
     );
     for (const { sourceId } of rending.spent) await actor.effects?.get?.(sourceId)?.delete?.();
+    const { runeExtraBaseDice } = await import("../rune-declarations.mjs");
+    const runeBaseDice = runeExtraBaseDice(weapon, { actor, target: targetActor ?? null, token: attackerToken ?? null });
     damageOutcome = await resolveWeaponDamage(actor, weapon, {
       damageRiders,
       drWaived,
@@ -3630,7 +3635,7 @@ export async function rollWeaponAttack(actor, weapon, {
       // not land; there is nothing for the mark to add to.
       deathMarkBonus: mark.damageBonus,
       declaredBonus: declaredDamage.bonus,
-      declaredBonusLines: declaredDamage.lines,
+      declaredBonusLines: [...declaredDamage.lines, ...(runeBaseDice.dice ? [`${runeBaseDice.labels.join(", ")}: +${runeBaseDice.dice} die of the weapon's base damage`] : [])],
       compoundFlat: flatExtra,
       compoundFlatLines: flatLines,
       critical: boostedCritical,
@@ -3646,7 +3651,9 @@ export async function rollWeaponAttack(actor, weapon, {
         : versatileDamageType ?? (stoneFist || armouredFist.source ? weaponData.damageType : null),
       // FIST OF ROCK'S 1d6 (3.577.0): `resolveWeaponDamage` reads the
       // weapon's own die, which for the Unarmed Strike is 1d4.
-      damageOverride: stoneFist?.damage ?? extraBaseDiceOverride(weaponData.damage, extraBaseDice + (brace?.extraDice ?? 0)),
+      // …AND A WEAPON RUNE'S EXTRA DIE (3.689.0, H21; Eldritch Arts' Leybound:
+      // "deal an additional die of base damage" within 30 feet of a ley line).
+      damageOverride: stoneFist?.damage ?? extraBaseDiceOverride(weaponData.damage, extraBaseDice + (brace?.extraDice ?? 0) + runeBaseDice.dice),
       extraTypedDamage,
       sharedDamage,
       usedTwoHanded,
@@ -3823,6 +3830,17 @@ export async function rollWeaponAttack(actor, weapon, {
     // declined: the fumble check is not rolled twice.
     const fumbled = await rollFumbleCheck(actor, weapon, { dcHalved: outcome.fumbleDcHalved, weaponData, thrown: thrownAttack, confirmed: fumbleConfirmedEarly });
     confirmedFumble = Boolean(fumbled);
+    // A WEAPON FUMBLE, ANNOUNCED (3.689.0, H22; Eldritch Arts' weapon runes'
+    // drawbacks: Aetherfang "If the weapon is fumbled, the wielder takes 2d6
+    // essence damage", Leybound's surge, Riftcleaver, Tether, Veilstorm). Fired
+    // for a confirmed fumble whether or not a creature was targeted, once a
+    // swing, after the fumble table was read.
+    if (fumbled) {
+      Hooks.callAll("trgPrimeWeaponFumble", {
+        attacker: actor, weapon, target: targetActor ?? null, row: fumbled,
+        natural: Number(check?.dice?.unmodified ?? 0) || 0, melee: !isRanged
+      });
+    }
 
     // SAVAGE JAW (Creature Codex, Chapter 3): "Trigger an enemy fumbles
     // against you whilst your shield is equipped."
@@ -3952,7 +3970,16 @@ export async function rollWeaponAttack(actor, weapon, {
       resolved: Boolean(outcome?.resolved), missed: Boolean(outcome?.resolved) && !outcome?.hits,
       // THE TARGET MAY NOT REACT TO THIS STRIKE (3.671.0; Drawn Verdict). A
       // module's reaction to it (Snake Stance, Waiting Blade) is not offered.
-      noReactions: Boolean(noReactions)
+      noReactions: Boolean(noReactions),
+      // THE NATURAL DIE AND THE FUMBLE (3.689.0, H22; Eldritch Arts' Pyrebrand
+      // and Sanguine: "On a natural 20 …"; the weapon runes' fumble drawbacks).
+      // `natural` is the attack check's unmodified d20 (the rerolled one, if a
+      // reaction rerolled it); `fumble` is true for a confirmed weapon fumble.
+      natural: Number(check?.dice?.unmodified ?? 0) || 0,
+      fumble: Boolean(confirmedFumble),
+      // THE ATTACK TOTAL (3.692.0; Eldritch Arts' Spirit Arrow: a manoeuvre
+      // "using the attackers attack result"), the rerolled one if rerolled.
+      total: Number(check?.outcome?.total ?? check?.total ?? NaN)
     });
   }
   return check;
@@ -4146,6 +4173,20 @@ export async function rollCriticalInjury(
     if (ignored.length) lines.push(line(armourBypassLine(armourBypassSource, armourBypass, ignored)));
   }
   let result = percentile.value + Number(modifier || 0);
+  // THE STRUCK CREATURE'S RUNE LOWERS THE ROLL (3.689.0, H21; Eldritch Arts'
+  // Astral Echoes I–III: "reduce the result of the critical injury roll based
+  // upon the level of the rune … no effect if the critical is an UM 66 or
+  // 100"). On a rolled injury only, never below 1; the faces it names are the
+  // unmodified d100's.
+  if (targetActor && forced === null) {
+    const { runeCriticalRollModifier } = await import("../rune-declarations.mjs");
+    const echo = runeCriticalRollModifier(Array.from(targetActor.items ?? []), percentile.value);
+    if (echo) {
+      const before = result;
+      result = Math.max(1, result + echo.value);
+      if (result !== before) lines.push(line(`${echo.label}: the critical injury roll ${echo.value < 0 ? "reduced" : "raised"} by ${Math.abs(echo.value)} (${before} → ${result}).`));
+    }
+  }
   /** Chaos's fumble roll, when Chaos happened; see `rollChaosFumble`. */
   let chaosFumble = null;
 
@@ -5335,7 +5376,10 @@ async function confirmAttackFumble(actor, weapon, { dcHalved = false, weaponData
   // and Reach elsewhere in this batch.
   // ETERNAL ESSENCE (Creature Codex; 3.631.0): "lowers all FDC by 1".
   const { abilityFumbleDCShift } = await import("../creature-ability-rules.mjs");
-  const fumbleDC = Math.max(0, (dcHalved ? Math.floor(baseFumbleDC / 2) : baseFumbleDC) + abilityFumbleDCShift(Array.from(actor.items ?? [])));
+  // A WEAPON RUNE THAT RAISES ITS FUMBLE DC (3.689.0, H21; Eldritch Arts'
+  // Gravitas: "The weapon is so heavy … increases FDC by 2").
+  const { runeFumbleDCModifier } = await import("../rune-declarations.mjs");
+  const fumbleDC = Math.max(0, (dcHalved ? Math.floor(baseFumbleDC / 2) : baseFumbleDC) + abilityFumbleDCShift(Array.from(actor.items ?? [])) + runeFumbleDCModifier(weapon));
 
   /*
    * VICIOUS MUST BE FED (3.618.0, C6 of block 37): "if its wielder has either
@@ -6128,15 +6172,33 @@ async function resolveWeaponDamageInScope(
     // critical with a known struck location, only armour that
     // actually covers that location contributes its DR, not every
     // equipped piece summed together regardless of where it sits.
-    const coveringArmour = Array.from(targetActor.items ?? []).filter((item) =>
-      armourContributesToHit(item, { isCritical: Boolean(critical), hitLocation })
-    );
+    // A RUNE THAT SHARES THE ARMOUR'S DR WITH AN UNCOVERED LOCATION (3.689.0,
+    // H21; Eldritch Arts' Aegisflow: "When you are hit and your armour lacks
+    // coverage … you may apply DR based upon the level of the rune to a
+    // location not normally covered" — I: half the armour's DR, II: all). On
+    // a critical whose struck location the piece does not cover, the piece
+    // contributes that share instead of nothing.
+    const { runeUncoveredDRShare } = await import("../rune-declarations.mjs");
+    const targetItemList = Array.from(targetActor.items ?? []);
+    const uncoveredShare = new Map();
+    // ONLY WHERE THE ARMOUR LACKS COVERAGE (review): "your armour lacks
+    // coverage … for a location" — a location another worn piece covers (a
+    // helmet on the head) is not uncovered, and the share is not added to it.
+    const locationCovered = Boolean(critical && hitLocation) && targetItemList.some((item) => item.type === "armour" && item.system?.equipped && armourContributesToHit(item, { isCritical: true, hitLocation }));
+    const coveringArmour = targetItemList.filter((item) => {
+      if (armourContributesToHit(item, { isCritical: Boolean(critical), hitLocation })) return true;
+      if (locationCovered || item.type !== "armour" || !item.system?.equipped || !critical || !hitLocation) return false;
+      const share = runeUncoveredDRShare(item, targetItemList);
+      if (share > 0) uncoveredShare.set(item, share);
+      return share > 0;
+    });
     // ONE SUIT COUNTS (3.621.0; block 39's A2, Graham's R3) — the best body
     // armour covering the blow, and the fittings on top. See
     // armour-stacking.mjs; the sheet's figure is worked out the same way.
     const wornArmourDR = stackedArmourDR(coveringArmour.map((item) => {
       const status = itemStatus(item.system.hp?.value, item.system.hp?.max);
-      const dr = effectiveArmourDR(item, effectiveDamageType);
+      const full = effectiveArmourDR(item, effectiveDamageType);
+      const dr = uncoveredShare.has(item) ? Math.floor(full * uncoveredShare.get(item)) : full;
       // A destroyed piece of armour provides no protection at all;
       // broken armour still works, but at half its DR (Chapter 6,
       // Broken Condition).
@@ -6311,6 +6373,20 @@ async function resolveWeaponDamageInScope(
     // UNSTOPPABLE FORCE (3.659.0; block 28 R8): "bypasses all resistance
     // with its melee attacks" — the target's resistances are not read.
     if (unstoppable) lines.push(line(`<em>Unstoppable Force: ${actor.name}'s melee attack bypasses all resistance.</em>`));
+    // A WEAPON RUNE THAT BYPASSES A RESISTANCE (3.689.0, H21; Eldritch Arts'
+    // Aetherfang: "On a successful Strike, it bypasses Resistance to physical
+    // damage (but not Immunity)"). The Strike's own damage only; its riders
+    // and packets meet the target's resistances as before.
+    const { runeIgnoredResistances } = await import("../rune-declarations.mjs");
+    const runeIgnores = unstoppable ? null : runeIgnoredResistances(weapon);
+    const keptResistances = (list) => {
+      if (!runeIgnores) return list;
+      const kept = Array.from(list ?? []).filter((k) => !runeIgnores.types.includes(String(k).trim().toLowerCase()));
+      return list instanceof Set ? new Set(kept) : kept;
+    };
+    if (runeIgnores && Array.from(targetDefences.resistances ?? []).some((k) => runeIgnores.types.includes(String(k).trim().toLowerCase()))) {
+      lines.push(line(`<em>${runeIgnores.label}: the Strike bypasses ${targetActor.name}'s resistance to ${runeIgnores.types.filter((t) => Array.from(targetDefences.resistances ?? []).map((k) => String(k).trim().toLowerCase()).includes(t)).join(", ")} damage.</em>`));
+    }
     const packet = resolveDamagePacket({
       amount: total,
       type: effectiveDamageType,
@@ -6322,7 +6398,7 @@ async function resolveWeaponDamageInScope(
       // immune to mental damage, a Construct to Essence (Chapter 7).
       // Resolved through one accessor now, so every damage path in the
       // system reads the same defences rather than only this one.
-      resistances: unstoppable ? new Set() : targetDefences.resistances,
+      resistances: unstoppable ? new Set() : keptResistances(targetDefences.resistances),
       immunities: targetDefences.immunities,
       weaknesses: targetDefences.weaknesses,
       immuneTraits: targetDefences.immuneTraits,

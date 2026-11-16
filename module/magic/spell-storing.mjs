@@ -364,3 +364,101 @@ export function spellStoringRemainderLine() {
     + "resolving, and if you cast nothing the window simply closes. A stored spell waits until "
     + "you release it, and storing another dismisses the first.</em>";
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+ * A STORE THAT HOLDS SPELLS ALREADY ROLLED (3.690.0; Eldritch Arts Block
+ * 9c, Spellhold — Graham's Q203, and "Yes build it", 14 November 2026).
+ *
+ * "You can store spells within the staff by casting them into it ahead of
+ * time … The spell check is rolled when the spell is stored and the PP
+ * expended normally"; "Command (1 AP) releases one stored spell using the
+ * check result rolled when it was stored; stored spells fade at your next
+ * daily preparation"; the staff holds up to its tier's PP, and "no
+ * individual spell may exceed the maximum PP you can spend on a single cast".
+ *
+ * Unlike Spell Storing (above), whose check waits for the release, a HELD
+ * spell is cast at storing up to its check, its PP and its Save DC — and a
+ * check that fails stores nothing (the PP go by the degree, as any cast's).
+ * Several may wait in one item, each its own record, released one at a time
+ * with the check it was stored with: its total is the spell attack, its
+ * degree the cast's, and its Save DC the one it had (Q203). Targets and
+ * areas are chosen at release.
+ * ───────────────────────────────────────────────────────────────────── */
+
+/** The item flag holding a store's held spells: an array of records. */
+export const HELD_SPELLS_FLAG = "heldSpells";
+
+/** One held spell, as recorded at storing. */
+export function heldSpellRecord({
+  id = "", spellId = "", spellName = "", pp = 0, degree = "success", degreeLabel = "", total = 0, margin = 0,
+  natural = 0, castingOnlyTotal = 0, saveDC = 0, mods = {}, notes = [], attack = false, storedAt = null,
+  castOptions = [], saveDCTargets = [], attackRows = []
+} = {}) {
+  return {
+    id: text(id) || `held${Math.random().toString(36).slice(2, 10)}`,
+    spellId: text(spellId),
+    spellName: text(spellName) || "a spell",
+    pp: Math.max(0, int(pp)),
+    degree: text(degree) || "success",
+    degreeLabel: text(degreeLabel) || text(degree) || "Success",
+    total: int(total),
+    margin: int(margin),
+    natural: Math.max(0, int(natural)),
+    castingOnlyTotal: int(castingOnlyTotal),
+    saveDC: Math.max(0, int(saveDC)),
+    mods: mods && typeof mods === "object" ? { ...mods } : {},
+    notes: Array.isArray(notes) ? notes.map(text).filter(Boolean) : [],
+    attack: Boolean(attack),
+    storedAt: storedAt == null ? null : int(storedAt),
+    // THE CASTING OPTIONS TAKEN WHEN IT WAS STORED (3.690.0, review): their
+    // keys, and the rows that wait for its targets — a Save DC for one kind of
+    // target (Soul's Echo's undead), an attack-only bonus. Its casting DC and
+    // flat Save DC parts are already in `total` and `saveDC`.
+    castOptions: (Array.isArray(castOptions) ? castOptions : []).map(text).filter(Boolean),
+    saveDCTargets: (Array.isArray(saveDCTargets) ? saveDCTargets : []).filter((t) => t && typeof t === "object" && int(t.value))
+      .map((t) => ({ label: text(t.label), value: int(t.value),
+        ...(text(t.uuid) ? { uuid: text(t.uuid) } : {}),
+        ...(Array.isArray(t.traits) ? { traits: t.traits.map((x) => text(x).toLowerCase()).filter(Boolean) } : {}) }))
+      .filter((t) => t.uuid || t.traits?.length),
+    attackRows: (Array.isArray(attackRows) ? attackRows : []).filter((r) => r && typeof r === "object" && int(r.value))
+      .map((r) => ({ label: text(r.label), value: int(r.value), type: text(r.type) || "untyped" }))
+  };
+}
+
+/** The PP a store's held spells take up. */
+export function heldUsedPP(records = []) {
+  return (Array.isArray(records) ? records : []).reduce((sum, r) => sum + Math.max(0, int(r?.pp)), 0);
+}
+
+/**
+ * Why this spell cannot be held here, or "": the store's room in PP, and
+ * the most PP one cast may be (the caster's cap — never overcast into one).
+ */
+export function holdRefusal({ capacityPP = 0, used = 0, pp = 0, cap = Infinity, itemName = "the store" } = {}) {
+  const room = Math.max(0, int(capacityPP) - Math.max(0, int(used)));
+  const cost = Math.max(0, int(pp));
+  if (Number.isFinite(Number(cap)) && cost > int(cap)) return `no spell held in ${itemName} may exceed the most PP you can spend on one cast (${int(cap)}); this one is ${cost}`;
+  if (cost > room) return `${itemName} has room for ${room} more PP of spells; this one is ${cost}`;
+  return "";
+}
+
+/**
+ * The check a held spell is released with: what the cast reads off a rolled
+ * check — the total (the spell attack), the degree, the margin and the die —
+ * as the record kept them. No chaos (it was answered when it was rolled), and
+ * marked so that nothing rerolls it: it is the result rolled when it was stored.
+ */
+export function heldCheck(record = {}) {
+  const degree = text(record.degree) || "success";
+  return {
+    outcome: {
+      total: int(record.total),
+      margin: int(record.margin),
+      degree: { key: degree, label: text(record.degreeLabel) || degree, success: ["success", "critical", "heroic"].includes(degree) }
+    },
+    castingOnlyTotal: int(record.castingOnlyTotal),
+    dice: { unmodified: Math.max(0, int(record.natural)), chaos: false },
+    rerolledFrom: "held",
+    held: true
+  };
+}

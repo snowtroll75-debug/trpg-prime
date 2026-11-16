@@ -20,6 +20,7 @@
  * casting.
  */
 import { registeredCastOptions } from "../module-api.mjs";
+import { creatureTraits } from "../creature-traits.mjs";
 
 const str = (v) => String(v ?? "").trim();
 const num = (v) => {
@@ -84,17 +85,36 @@ export function castAPWithOptions(castAP, optionAP = 0) {
  * nothing.
  */
 export function castOptionTargetDC(raw, label = "") {
-  const uuid = str(raw?.uuid);
   const value = num(raw?.value);
-  if (!uuid || !value) return null;
-  return { uuid, value, label: str(label) || "Casting option" };
+  if (!value) return null;
+  const uuid = str(raw?.uuid);
+  if (uuid) return { uuid, value, label: str(label) || "Casting option" };
+  // EVERY TARGET WITH A TRAIT (3.690.0; Eldritch Arts Block 9c, H24): the Rod
+  // of Soul's Echo's "The spell's save DC is increased by 2 for undead targets
+  // of this casting". `traits` are creature traits (`creatureTraits`, the type
+  // included), matched against each target as it saves — so a target chosen
+  // after the prompt is read, and one that is not undead keeps the cast's DC.
+  const traits = (Array.isArray(raw?.traits) ? raw.traits : raw?.traits ? [raw.traits] : [])
+    .map((t) => str(t).toLowerCase()).filter(Boolean);
+  if (traits.length) return { traits, value, label: str(label) || "Casting option" };
+  return null;
 }
 
-/** What one target's Save DC is moved by, from the taken options' `saveDCTarget`s. */
-export function castOptionDCFor(targets = [], uuid = "") {
-  const id = str(uuid);
-  if (!id) return { value: 0, labels: [] };
-  const mine = (targets ?? []).filter((t) => t?.uuid === id);
+/** An option's `saveDCTarget`, one row or several, cleaned. */
+export function castOptionTargetDCs(raw, label = "") {
+  return (Array.isArray(raw) ? raw : raw ? [raw] : []).map((r) => castOptionTargetDC(r, label)).filter(Boolean);
+}
+
+/**
+ * What one target's Save DC is moved by, from the taken options' `saveDCTarget`s.
+ * `target` is the saving actor (its uuid and its traits are read), or a uuid.
+ */
+export function castOptionDCFor(targets = [], target = "") {
+  const id = typeof target === "string" ? str(target) : str(target?.uuid);
+  const traits = typeof target === "string" ? [] : creatureTraits(target?.system ?? {}).map((t) => str(t).toLowerCase());
+  if (!id && !traits.length) return { value: 0, labels: [] };
+  const mine = (targets ?? []).filter((t) => (t?.uuid && t.uuid === id)
+    || (Array.isArray(t?.traits) && t.traits.some((x) => traits.includes(x))));
   return { value: mine.reduce((sum, t) => sum + num(t.value), 0), labels: mine.map((t) => `${t.label} ${t.value > 0 ? "+" : ""}${t.value}`) };
 }
 
@@ -117,7 +137,7 @@ export function takenCastOptions(offered, form) {
  * @returns {Promise<{keys: string[], castingDC: Array<{label: string, value: number}>, saveDC: number, ap: number, apParts: Array<{label: string, value: number}>, lines: string[]}>}
  */
 export async function appliedCastOptions(ctx, keys = []) {
-  const out = { keys: [], castingDC: [], saveDC: 0, ap: 0, apParts: [], lines: [], attackRows: [], saveDCTargets: [] };
+  const out = { keys: [], castingDC: [], saveDC: 0, ap: 0, apParts: [], lines: [], attackRows: [], saveDCTargets: [], rods: [] };
   const wanted = new Set((keys ?? []).map((k) => str(k).toLowerCase()));
   for (const { key, spec } of registeredCastOptions()) {
     if (!wanted.has(key)) continue;
@@ -139,9 +159,11 @@ export async function appliedCastOptions(ctx, keys = []) {
     // THE ATTACK ONLY, AND ONE TARGET'S SAVE DC (3.684.0; Block 6, G14).
     const attack = num(got?.attack);
     if (attack) out.attackRows.push({ label, value: attack, type: str(got?.attackType) || "untyped" });
-    const one = castOptionTargetDC(got?.saveDCTarget, label);
-    if (one) out.saveDCTargets.push(one);
+    // ONE ROW OR SEVERAL (3.690.0, H24): a creature, or every target with a trait.
+    out.saveDCTargets.push(...castOptionTargetDCs(got?.saveDCTarget, label));
     for (const text of Array.isArray(got?.lines) ? got.lines : []) if (str(text)) out.lines.push(str(text));
+    // AN OPTION THAT IS A ROD'S POWER (3.691.0) names it, for the one-Rod rule.
+    if (str(got?.rodItemId)) out.rods.push({ itemId: str(got.rodItemId), name: str(got?.rodName) || label });
   }
   return out;
 }

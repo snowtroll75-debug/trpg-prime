@@ -308,8 +308,9 @@ const MUTATIONS = [
   {
     file: RUNES,
     name: "a Fleetguard time is claimed as doubled when it is shown as printed",
-    from: "    doubled: false,",
-    to: "    doubled: Boolean(fullSuit),",
+    // RE-ANCHORED AT 3.689.0: Swiftbind's branch (H21) also prints "doubled: false".
+    from: "    // printed, so it does not carry the full-suit doubling.\n    doubled: false,",
+    to: "    // printed, so it does not carry the full-suit doubling.\n    doubled: Boolean(fullSuit),",
     breaks: "H11 — the sheet would say 'already doubled' under a rune's undoubled time"
   },
   {

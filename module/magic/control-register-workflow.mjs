@@ -141,6 +141,12 @@ export async function sweepControlOverflow(actor) {
   }
 
   const will = creature.system?.combat?.saves?.will;
+  // THE CONTROLLER'S RUNE (3.689.0, H21; Eldritch Arts' Binding Sigils I–III:
+  // "summoned or bound creatures under your control suffer a penalty on Will
+  // saves made to resist or escape your commands" — −2, −4, −6). Graham's Q197:
+  // this DC 20 save is one of them.
+  const { runeDeclaredSum } = await import("../rune-declarations.mjs");
+  const sigils = runeDeclaredSum(Array.from(actor.items ?? []), "controlSaveModifier");
   const check = await TRGCheck.roll({
     actor: creature,
     label: "Break Control",
@@ -148,7 +154,10 @@ export async function sweepControlOverflow(actor) {
     subtitle: `DC ${CONTROL_RELEASE_DC} — ${actor.name} is ${overflow.over} control level${overflow.over === 1 ? "" : "s"} over`,
     type: "save",
     dc: CONTROL_RELEASE_DC,
-    modifiers: [...(will?.checkModifiers ?? [{ label: "Will", value: Number(will?.total ?? 0), type: "untyped" }])]
+    modifiers: [
+      ...(will?.checkModifiers ?? [{ label: "Will", value: Number(will?.total ?? 0), type: "untyped" }]),
+      ...(sigils ? [{ label: `${actor.name}'s binding runes`, value: sigils, type: "untyped" }] : [])
+    ]
   });
 
   const degree = check.outcome?.degree?.key ?? "failure";
@@ -258,4 +267,34 @@ export function controlSummary(actor) {
     cap,
     over: Math.max(0, controlledLevels(entries) - cap)
   };
+}
+
+/**
+ * IS THIS CREATURE SOMEBODY'S SUMMONS (3.689.0, H21)? Eldritch Arts' Bound
+ * Circle raises DB "against attacks made by either conjured or summoned
+ * creatures", and a summoned creature carries no trait of its own: it is one a
+ * caster has recorded in their control register as bound (a Binding) or
+ * conjured. Answered as the attacker traits the defence rows read —
+ * "summoned", and "conjured" for a conjured entry — beside the creature's own.
+ * Only world actors' registers are read (a controller is a character).
+ *
+ * @param {Actor} creature
+ * @returns {string[]}
+ */
+export function summonedTraitsOf(creature) {
+  if (!creature) return [];
+  const uuid = String(creature.uuid ?? "");
+  const tokenId = String(creature.token?.id ?? "");
+  const out = new Set();
+  for (const controller of Array.from(globalThis.game?.actors ?? [])) {
+    for (const entry of controlledOf(controller)) {
+      if (!["bound", "conjured"].includes(entry?.source)) continue;
+      const handle = entry?.handle ?? {};
+      const same = (uuid && String(handle.actorUuid ?? "") === uuid) || (tokenId && String(handle.tokenId ?? "") === tokenId);
+      if (!same) continue;
+      out.add("summoned");
+      if (entry.source === "conjured") out.add("conjured");
+    }
+  }
+  return [...out];
 }

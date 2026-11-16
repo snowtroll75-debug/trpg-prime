@@ -589,7 +589,8 @@ eq("E11 a second flask adds to the recurring damage of its type; another type st
     && /reagentDelta: reagentBonus\.castingDC/.test(cw)
     && /if \(used\.use\.effect === "spellcraft"\) situational\.push\(/.test(cw));
   // 3.672.0: a module's spell-check gate's lines join the reagent's.
-  ok("H15 the card says which were spent", /const lines = \[\.\.\.reagentLines(, \.\.\.gateLines)?(\];|,)/.test(cw));
+  // RE-ANCHORED AT 3.688.0: a cast item's lines (H19) may lead them.
+  ok("H15 the card says which were spent", /const lines = \[(\.\.\.castItems\.lines\.map\(\(text\) => line\(text\)\), )?\.\.\.reagentLines(, \.\.\.gateLines)?(\];|,)/.test(cw));
 }
 
 /* ================================================================== */

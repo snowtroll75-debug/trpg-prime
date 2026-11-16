@@ -347,7 +347,8 @@ const WIZARD = classItem("ZZ Wizard", { magicalTradition: "arcane", magicalAbili
   const at = checkSrc.indexOf('kind: "d20",');
   const shape = at > 0 && checkSrc.slice(at, at + 200).includes("unmodified: chosen.faces[0]") && !/\n\s*faces[,:]/.test(checkSrc.slice(at, at + 200));
   ok("N the check's d20 result names its die `unmodified`, and has no `faces`", shape);
-  ok("N trgPrimeSpellSettled carries that die", cw.includes("natural: Math.trunc(Number(check?.dice?.unmodified ?? 0)) || 0,"));
+  // RE-ANCHORED AT 3.688.0: on the hook's own line (the cast items' settle, H19, is told the die too).
+  ok("N trgPrimeSpellSettled carries that die", cw.includes("\n    natural: Math.trunc(Number(check?.dice?.unmodified ?? 0)) || 0,\n"));
   ok("N …and nothing in the casting reads a `faces` the check does not have", !/check\?\.dice\?\.faces/.test(cw));
 }
 

@@ -87,11 +87,11 @@ const MUTATIONS = [
   { name: "the claws are rolled with BAB", file: ATK, from: "    const row = attackBaseRow(weapon, actor.system);\n    if (row) modifiers.push(row);\n", to: "    const row = attackBaseRow(weapon, actor.system);\n", breaks: "AB" },
   { name: "the sheet's own BSB is forgotten", file: AB, from: "  return Math.trunc(Number(system?.magic?.bsb ?? 0) + Number(system?.progression?.bsb ?? 0)) || 0;", to: "  return Math.trunc(Number(system?.magic?.bsb ?? 0)) || 0;", breaks: "AB" },
   // N
-  { name: "the settled hook forgets the natural die", file: CAST, from: "    natural: Math.trunc(Number(check?.dice?.unmodified ?? 0)) || 0,\n", to: "", breaks: "N" },
-  { name: "THE REVIEW'S DEFECT: the die is read off a `faces` the check does not have", file: CAST, from: "    natural: Math.trunc(Number(check?.dice?.unmodified ?? 0)) || 0,\n", to: "    natural: Math.trunc(Number(check?.dice?.faces?.[0] ?? 0)) || 0,\n", breaks: "N" },
+  { name: "the settled hook forgets the natural die", file: CAST, from: "    // attack's natural 20 is read; 0 when no check was rolled.\n    natural: Math.trunc(Number(check?.dice?.unmodified ?? 0)) || 0,\n", to: "    // attack's natural 20 is read; 0 when no check was rolled.\n", breaks: "N" }, // RE-ANCHORED AT 3.690.0: the held record (H26) repeats the line
+  { name: "THE REVIEW'S DEFECT: the die is read off a `faces` the check does not have", file: CAST, from: "    // attack's natural 20 is read; 0 when no check was rolled.\n    natural: Math.trunc(Number(check?.dice?.unmodified ?? 0)) || 0,\n", to: "    // attack's natural 20 is read; 0 when no check was rolled.\n    natural: Math.trunc(Number(check?.dice?.faces?.[0] ?? 0)) || 0,\n" /* RE-ANCHORED AT 3.690.0 */, breaks: "N" },
   // API, Z
   { name: "the API does not offer the cap raise", file: APW, from: "    registerCastCapModifier: (key, raise, moduleId) => registerCastCapModifier(key, raise, moduleId),", to: "", breaks: "API" },
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.679.0\"", breaks: "Z" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.694.0\"", to: "\"version\": \"3.679.0\"", breaks: "Z" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-ea-block3a-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

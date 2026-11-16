@@ -234,11 +234,45 @@ export function normaliseThorns(raw) {
     // hit in melee" — only a critical blow sets it off.
     criticalOnly: raw.criticalOnly === true
   };
+  // A TYPE CHOSEN EACH TIME THE OWNER IS STRUCK (3.692.0; Glyph of
+  // Retribution's +4 PP warp: "change the damage type to either acid, cold,
+  // electricity or fire each time you are struck"). The owner picks from the
+  // row's list before the damage is resolved; `damageType` stays the printed
+  // default, used when the question goes unanswered.
+  const typeChoices = thornsTypeChoices(raw);
+  if (typeChoices.length) out.typeChoices = typeChoices;
   if (ladder) out.ladder = ladder;
   if (levelMax > 0) out.casterLevelBonus = { max: levelMax };
   if (raw.casterLevelStamped === true) out.casterLevelStamped = true;
   if (text(raw.spellName)) out.spellName = text(raw.spellName);
   return out;
+}
+
+/**
+ * THE TYPES A THORNS ROW OFFERS ITS OWNER EACH TIME THEY ARE STRUCK (3.692.0).
+ * Lower-cased, de-duplicated, blanks dropped; a single offer is no question
+ * and is kept as a one-entry list (the workflow takes it without asking).
+ *
+ * @param {object} raw a thorns row, authored or normalised
+ * @returns {string[]}
+ */
+function thornsTypeChoices(raw) {
+  const list = Array.isArray(raw?.typeChoices) ? raw.typeChoices : [];
+  const out = [];
+  for (const t of list) {
+    const key = text(t).toLowerCase();
+    if (key && !out.includes(key)) out.push(key);
+  }
+  return out;
+}
+
+/**
+ * THE TYPE THIS BLOW'S THORNS DEAL (3.692.0): the owner's pick when it is one
+ * the row offers, otherwise the printed `damageType`.
+ */
+export function thornsDamageTypeFor(spec, picked = "") {
+  const key = text(picked).toLowerCase();
+  return key && (spec?.typeChoices ?? []).includes(key) ? key : String(spec?.damageType ?? "");
 }
 
 /**

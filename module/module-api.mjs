@@ -215,6 +215,16 @@ function emptyRegistry() {
      */
     castOptions: new Map(),
     /**
+     * Key → an item a module offers at the cast (3.688.0; Eldritch Arts Block
+     * 9a, H19): a catalyst. See magic/cast-items.mjs.
+     */
+    castItemOptions: new Map(),
+    /**
+     * Key → a special material a module adds (3.688.0; Eldritch Arts Block 9a,
+     * H20 — the audit's D18). See item-quality.mjs `materialOf`.
+     */
+    materials: new Map(),
+    /**
      * Key → { offer, onResult } (3.683.0; Eldritch Arts Block 5, D10, C9):
      * what a feat changes about a Dispel — its PP (Resonant Ascendance's
      * half, Runebreaker's −2, Dispel Power's none), its difficulty, its own
@@ -313,6 +323,25 @@ function emptyRegistry() {
     resonanceModifiers: new Map(),
     chargedItemRules: new Map(),
     pendingCastSteps: new Map(),
+    /**
+     * ELDRITCH ARTS BLOCK 9c (3.690.0).
+     *   chargedKinds        key → spec: a kind of charged item the core does
+     *                       not have (H23: the Orb). See `registerChargedKind`.
+     *   oneInvestedTraits   trait → true: only one item with it may be invested
+     *                       at a time, as the Staff trait (H25: ORB).
+     */
+    chargedKinds: new Map(),
+    oneInvestedTraits: new Map(),
+    /**
+     * ELDRITCH ARTS BLOCK 10 (3.693.0, H27).
+     *   investCosts      key → fn(item, actor): the slots an item takes, or null
+     *   investPrepares   key → async fn(item, actor, {free}): asked before Invest
+     *                    Item, `{ refused }` or null (a relic's tier is chosen there)
+     *   investRefusals   key → fn(item, actor): why it may not be invested, or ""
+     */
+    investCosts: new Map(),
+    investPrepares: new Map(),
+    investRefusals: new Map(),
     /**
      * ELDRITCH ARTS BLOCK 6, GROUP A (3.684.0; G1–G4, the metamagic family).
      *   metamagic             key → normalised spec: a module's metamagic in
@@ -1354,11 +1383,18 @@ export function registeredHighMagicRules() {
  *                    `degree: "partial"`, `ritual: true`, `cast: true`;
  *   minSecondaries(ctx) → 0 when this ritual may be performed by its primary
  *                    alone (3.687.0, H14); the overcasting room is still 2 PP
- *                    a secondary.
+ *                    a secondary;
+ *   settled(ctx)   → once the ritual's roll is resolved, whatever its degree
+ *                    and whether or not the spell was cast (3.688.0; Eldritch
+ *                    Arts Block 9a: Blood-etched Vellum is consumed and its
+ *                    backlash taken on any ritual it helped roll). With
+ *                    `degree`, `rawDegree`, `cast`, `partialCasts`, `settled`
+ *                    (false when the cast stopped short), `pp` (as cast) and
+ *                    `variant`: `{ lines }`, posted on a card of its own.
  */
 export function registerRitualRules(key, spec, moduleId = null) {
   const k = registryKey(key);
-  const fns = ["variants", "fields", "prepare", "liftsCap", "partialCasts", "minSecondaries"];
+  const fns = ["variants", "fields", "prepare", "liftsCap", "partialCasts", "minSecondaries", "settled"];
   const ok = spec && typeof spec === "object"
     && fns.some((f) => typeof spec[f] === "function")
     && fns.every((f) => spec[f] === undefined || typeof spec[f] === "function");
@@ -1404,6 +1440,108 @@ export function registerCastOption(key, spec, moduleId = null) {
 
 export function registeredCastOptions() {
   return Array.from(registry.castOptions.entries()).map(([key, spec]) => ({ key, spec }));
+}
+
+/**
+ * AN ITEM A MODULE OFFERS AT THE CAST (3.688.0; Eldritch Arts Block 9a, H19 —
+ * the audit's D3; Graham's Q186–Q192). Eldritch Arts' catalysts: "A catalyst
+ * may be invoked when declaring a spell, before the Spellcraft check is
+ * rolled"; "consumed immediately upon use, whether the spell succeeds or
+ * fails"; "only one catalyst per spell".
+ *
+ * `spec`: { label, offers(ctx), apply(ctx), settle?(ctx) }.
+ *   `offers(ctx)` → [{ itemId, label, hint, consume }] — the caster's items
+ *     this cast may use; `consume: false` for one that is not spent.
+ *   `apply(ctx)` (with `item`, `offer`) → the module metamagic's answer, cut
+ *     to mods, checkBias, discount, addTraits, addedDamage, saveDC,
+ *     rangeFactor, durationFactor, areaFactor, dieStep, lines, note — plus
+ *     checkModifiers [{label, value, type}] on the casting check, attack (the
+ *     spell attack only) and ignoreResistance [types]; or { cancel, reason }.
+ *   `settle(ctx)` (with `item`, `offer`, `degree`, `cast`, `check`, `natural`,
+ *     `refunded`, `castPP`, `totalPP`, `saveResults`) → { keep, lines }.
+ * ctx: { actor, spell, spellData, basePP, totalPP, castPP, tradition,
+ *   traditions, traits, damage: {formula, type}, defence, attack, highMagic,
+ *   cantrip, targets }.
+ * Offered, one choice per kind, on a prompt of its own before the cost test,
+ * to a cast that rolls its own Spellcraft check: not an item's, an innate's, a
+ * no-check cantrip's (nor a non-attack cantrip, which decides that later), a
+ * ritual's (its check is the ritual's), a stored or storing one, or a threaded
+ * one. One of the item is spent once the cast settles, whatever the degree,
+ * unless `settle` keeps it. `trgPrimeSpellSettled` reports `castItems`.
+ */
+export function registerCastItemOption(key, spec, moduleId = null) {
+  const k = registryKey(key);
+  if (!k || !String(spec?.label ?? "").trim() || typeof spec?.offers !== "function" || typeof spec?.apply !== "function"
+    || (spec.settle !== undefined && typeof spec.settle !== "function")) {
+    problem(`registerCastItemOption: "${key}" needs a key, a label, and offers(ctx) and apply(ctx) functions (settle(ctx) optional)`); return false;
+  }
+  registry.castItemOptions.set(k, Object.freeze({ label: String(spec.label).trim(), offers: spec.offers, apply: spec.apply, settle: spec.settle ?? null }));
+  noteContributor(moduleId);
+  return true;
+}
+
+/**
+ * A SPECIAL MATERIAL A MODULE ADDS (3.688.0; Eldritch Arts Block 9a, H20 —
+ * the audit's D18; Graham's Q193–Q194). Chapter 6 of Eldritch Arts: "The
+ * following materials may be selected when crafting weapons, armour, shields,
+ * or equipment, following the same guidelines as those found in the Core
+ * Rulebook." Read by every place the core's own materials are
+ * (item-quality.mjs `materialOf`): the pickers, level and price, HP, weight,
+ * the armour, shield and weapon modifiers, the traits a weapon gains, what it
+ * overcomes. A key the core already has never replaces it: the core's material
+ * wins (`materialOf`).
+ *
+ * `spec`: the core's own material properties — label (required), rarity,
+ * levelDelta, appliesTo (["weapon", "armour", "shield"]), hpMultiplier,
+ * hpPercent, weightPercent, armourWeightPercent, drBonus, shieldDrBonus,
+ * armourAcpReduction, armourMaxDexBonus, armourSpeedPenaltyReduction,
+ * weaponExtraDie, weaponGrantsTrait, overcomesResistance,
+ * weaponCountsAsSilver, savingThrowBonusVsMagic — and three of its own:
+ *   weaponDamageVs [{ dice: "die" | "<n>" | "<NdM>", against: [words], label }]
+ *     added to a strike's own damage against a creature whose type or trait
+ *     is one of the words (as Bane's is: rune-damage.mjs);
+ *   declares   the rune vocabulary (rune-declarations.mjs: conditionals,
+ *     bonuses, strikeRider …), read while the item counts, as a rune's is;
+ *   declaresByType { weapon?, armour?, shield? }: the same, for one type of
+ *     item, read in place of `declares` for an item of a type it names;
+ *   note       what the material does that nothing applies, shown under the
+ *     item sheet's Material line (plain text).
+ * A key the core's own table holds is refused.
+ */
+/**
+ * The core table's keys, told by item-quality.mjs when it loads (it imports
+ * this file, so this file cannot import it back without a cycle).
+ */
+const coreMaterialKeys = new Set();
+export function setCoreMaterialKeys(keys) {
+  for (const k of keys ?? []) coreMaterialKeys.add(String(k));
+}
+
+export function registerMaterial(key, spec, moduleId = null) {
+  const k = String(key ?? "").trim();
+  if (!k || !/^[a-zA-Z][a-zA-Z0-9]*$/.test(k) || !String(spec?.label ?? "").trim()) {
+    problem(`registerMaterial: "${key}" needs a key of letters and digits and a label`); return false;
+  }
+  // THE CORE'S MATERIAL WINS (materialOf reads its table first), so a module
+  // key that clashes with one would never be read: refused, and said.
+  if (coreMaterialKeys.has(k)) {
+    problem(`registerMaterial: "${k}" is a core material and cannot be replaced`); return false;
+  }
+  registry.materials.set(k, Object.freeze({ ...spec, key: k, label: String(spec.label).trim(), module: moduleId ?? "" }));
+  noteContributor(moduleId);
+  return true;
+}
+
+export function registeredMaterial(key) {
+  return registry.materials.get(String(key ?? "").trim()) ?? null;
+}
+
+export function registeredMaterials() {
+  return Array.from(registry.materials.entries()).map(([key, spec]) => ({ key, spec }));
+}
+
+export function registeredCastItemOptions() {
+  return Array.from(registry.castItemOptions.entries()).map(([key, spec]) => ({ key, spec }));
 }
 
 /**
@@ -1870,6 +2008,119 @@ export function registerChargedItemRule(key, spec, moduleId = null) {
 export function registeredChargedItemRules() {
   return Array.from(registry.chargedItemRules?.values?.() ?? []);
 }
+
+/**
+ * A KIND OF CHARGED ITEM (3.690.0; Eldritch Arts Block 9c, H23 — the Orb).
+ * "Orbs follow the charged item rules for Staves … with the following
+ * exceptions". An item whose `flags.trg-prime.chargedItem.kind` is `key` is
+ * read through `spec` wherever the core would otherwise treat it as a staff
+ * or, failing that, as an "other" item:
+ *
+ *   label            the kind's name ("Orb")
+ *   warp             "staff": warped from its own pool up to the item's level,
+ *                    as a staff (Graham's Q210); anything else, not at all
+ *   naturalRecharge  false: it regains nothing at daily preparation ("Orbs
+ *                    cannot recharge naturally"); true by default
+ *   rechargeItemPP   Recharge Item's PP for an item of this kind ("The PP cost
+ *                    is 4 instead of 2"); the action's own when absent
+ *   releaseOptions(ctx)  the release ladder in place of the core's
+ *                    (`castFromItemOptions`): ctx `{ actor, item, spellName,
+ *                    spellPPCost, spellTradition, spellTraits, casterLevel,
+ *                    casterTradition, skillRanks, hasUseMagicDevice,
+ *                    highMagicCaster }` → options in its shape (`key, label,
+ *                    skill, difficulty, available, reason`) plus `dcParts
+ *                    [{label, value}]` that join the release's DC as labelled
+ *                    parts (the Orb's "this stacks with the modifier for
+ *                    casting High Magic"). An empty answer keeps the core's.
+ *   depletion(ctx)   asked when Charge Depletion is rolled for one, ctx `{
+ *                    actor, item, roll, row }` → `{ replaces: true, lines }`
+ *                    to carry out the row itself (the Orb's 41–65: "instead
+ *                    of breaking, it unleashes a Resonant Flare … depleted
+ *                    (0 PP) but not broken"), or null for the core's row.
+ */
+export function registerChargedKind(key, spec, moduleId = null) {
+  const k = registryKey(key);
+  const fn = (f) => (typeof spec?.[f] === "function" ? spec[f] : null);
+  if (!k || ["staff", "rod", "wand", "scroll", "other"].includes(k)) {
+    problem(`registerChargedKind: "${key}" needs a key that is not one of the core's kinds`); return false;
+  }
+  const pp = Math.trunc(Number(spec?.rechargeItemPP));
+  registry.chargedKinds.set(k, Object.freeze({
+    key: k,
+    label: String(spec?.label ?? "").trim() || k,
+    warp: String(spec?.warp ?? "").trim().toLowerCase() === "staff" ? "staff" : "none",
+    naturalRecharge: spec?.naturalRecharge !== false,
+    rechargeItemPP: Number.isFinite(pp) && pp > 0 ? pp : null,
+    releaseOptions: fn("releaseOptions"),
+    depletion: fn("depletion")
+  }));
+  noteContributor(moduleId);
+  return true;
+}
+
+/** The registered kind a charged item's `kind` names, or null (the core's kinds are never registered). */
+export function registeredChargedKind(kind) {
+  const k = String(kind ?? "").trim().toLowerCase();
+  return k ? registry.chargedKinds?.get?.(k) ?? null : null;
+}
+
+/**
+ * ONE INVESTED ITEM PER TRAIT (3.690.0; Eldritch Arts Block 9c, H25). The ORB
+ * trait: "Only one item with the Orb trait may be invested by you at any one
+ * time" — the Staff trait's own rule (trait-rules.mjs `staffInvestRefusal`),
+ * for a trait a module names. Block 10's RELIC and SENTIENT will use it too.
+ */
+export function registerOneInvestedTraits(traits, moduleId = null) {
+  const list = (Array.isArray(traits) ? traits : [traits]).map((t) => String(t ?? "").trim().toLowerCase()).filter(Boolean);
+  if (!list.length) { problem("registerOneInvestedTraits: no trait named"); return false; }
+  for (const t of list) registry.oneInvestedTraits.set(t, true);
+  noteContributor(moduleId);
+  return true;
+}
+
+export function registeredOneInvestedTraits() {
+  return Array.from(registry.oneInvestedTraits?.keys?.() ?? []);
+}
+
+/**
+ * AN ITEM'S INVESTMENT COST, AND A MODULE'S REFUSAL (3.693.0; Eldritch Arts
+ * Block 10, H27). Chapter 9 of Eldritch Arts: "A Relic consumes one investment
+ * slot per tier of awakening"; "A Sentient Item requires two investment
+ * slots"; "another creature cannot Invest a bonded Relic".
+ *
+ *   registerInvestCost(key, fn(item, actor) → number|null)   SYNCHRONOUS: the
+ *     sheet's badge counts with it. The first non-null answer is the item's
+ *     cost; an item nobody answers for costs one slot, as before.
+ *   registerInvestPrepare(key, async fn(item, actor, { free }) → { refused }|null)
+ *     asked by Invest Item before the slot check, so a module may ask (a
+ *     relic's tier) and record the answer the cost then reads.
+ *   registerInvestRefusal(key, fn(item, actor) → string)  beside the Staff and
+ *     one-invested-trait refusals.
+ */
+export function registerInvestCost(key, fn, moduleId = null) {
+  const k = registryKey(key);
+  if (!k || typeof fn !== "function") { problem(`registerInvestCost: "${key}" needs a key and a function`); return false; }
+  registry.investCosts.set(k, fn);
+  noteContributor(moduleId);
+  return true;
+}
+export function registerInvestPrepare(key, fn, moduleId = null) {
+  const k = registryKey(key);
+  if (!k || typeof fn !== "function") { problem(`registerInvestPrepare: "${key}" needs a key and a function`); return false; }
+  registry.investPrepares.set(k, fn);
+  noteContributor(moduleId);
+  return true;
+}
+export function registerInvestRefusal(key, fn, moduleId = null) {
+  const k = registryKey(key);
+  if (!k || typeof fn !== "function") { problem(`registerInvestRefusal: "${key}" needs a key and a function`); return false; }
+  registry.investRefusals.set(k, fn);
+  noteContributor(moduleId);
+  return true;
+}
+export function registeredInvestCosts() { return Array.from(registry.investCosts.values()); }
+export function registeredInvestPrepares() { return Array.from(registry.investPrepares.values()); }
+export function registeredInvestRefusals() { return Array.from(registry.investRefusals.values()); }
 
 /**
  * A STEP BEFORE A PENDING CAST'S INTERRUPTION SETTLES (3.684.0; Eldritch Arts

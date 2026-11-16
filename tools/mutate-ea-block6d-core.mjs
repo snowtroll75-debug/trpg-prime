@@ -20,7 +20,7 @@ const MUTATIONS = [
   { name: "the cast reaction's castPP is the paid total", file: CW, from: "      castPP: isCantrip ? 0 : Number(castPP ?? 0) + Number(manipulationPP ?? 0),", to: "      castPP: isCantrip ? 0 : Number(totalPP ?? 0) + Number(manipulationPP ?? 0),", breaks: "V2" },
   // Review fixes (3.684.0)
   { name: "REVIEW FIX REVERTED (Q101): an item cast's rider PP drop its metamagic", file: CPP, from: "  if (itemCast) return whole(itemPP ?? spellPP) + whole(warpPP) + whole(metamagicPP);", to: "  if (itemCast) return whole(itemPP ?? spellPP) + whole(warpPP);", breaks: "P2c" },
-  { name: "REVIEW FIX REVERTED (G20): the Strike names no attack kind", file: ATK, from: "creatureTraits(actor.system ?? {}), { attackKind: \"weapon\" })\n    : { total: 0, entries: [] };", to: "creatureTraits(actor.system ?? {}))\n    : { total: 0, entries: [] };", breaks: "D6b" },
+  { name: "REVIEW FIX REVERTED (G20): the Strike names no attack kind", file: ATK, from: "...summonedTraitsOf(actor)], { attackKind: \"weapon\" })\n    : { total: 0, entries: [] };", to: "...summonedTraitsOf(actor)])\n    : { total: 0, entries: [] };", breaks: "D6b" }, // RE-ANCHORED AT 3.689.0 (H21)
   { name: "the bomb names no attack kind", file: m("alchemical-workflow.mjs"), from: "      creatureTraits(actor.system ?? {}), { attackKind: \"bomb\" }\n", to: "      creatureTraits(actor.system ?? {})\n", breaks: "D6b" },
   { name: "the action names no attack kind", file: m("combat", "action-workflow.mjs"), from: "creatureTraits(actor?.system ?? {}), { attackKind: \"action\" });", to: "creatureTraits(actor?.system ?? {}));", breaks: "D6b" },
   { name: "a row naming no attack kind meets only an unnamed one", file: DDC, from: "    if ((entry.attackKinds ?? []).length && !entry.attackKinds.includes(kind)) return false;", to: "    if ((entry.attackKinds ?? []).length ? !entry.attackKinds.includes(kind) : kind !== \"\") return false;", breaks: "D6" },
@@ -45,11 +45,11 @@ const MUTATIONS = [
   { name: "the heal row tells the riders no PP", file: SEF, from: "            castPP,\n            traits: String(spell?.system?.traits ?? \"\")\n", to: "", breaks: "P13" },
   // O — G14, attack-only rows and one target's DC
   { name: "a cast option's attack answer is dropped", file: CO, from: "    if (attack) out.attackRows.push({ label, value: attack, type: str(got?.attackType) || \"untyped\" });", to: "", breaks: "O1" },
-  { name: "one target's DC moves every target", file: CO, from: "  const mine = (targets ?? []).filter((t) => t?.uuid === id);", to: "  const mine = (targets ?? []);", breaks: "O2" },
+  { name: "one target's DC moves every target", file: CO, from: "  const mine = (targets ?? []).filter((t) => (t?.uuid && t.uuid === id)\n    || (Array.isArray(t?.traits) && t.traits.some((x) => traits.includes(x))));", to: "  const mine = (targets ?? []);", breaks: "O2" }, // RE-ANCHORED AT 3.690.0 (H24: trait rows)
   { name: "a gate row's attackOnly is dropped", file: SCG, from: ", ...(attackOnly ? { attackOnly: true } : {}) });", to: " });", breaks: "O3" },
   { name: "an attack-only row reaches the check", file: SCG, from: "  return { check: rows.filter((m) => !m?.attackOnly), attackOnly:", to: "  return { check: rows, attackOnly:", breaks: "O4" },
   { name: "THE GAP: the cast puts every gate row on the check", file: CW, from: "  modifiers.push(...gateSplit.check);", to: "  modifiers.push(...gated.modifiers);", breaks: "O5" },
-  { name: "the spell attack's pool takes no option row", file: CW, from: "...(castOptionsApplied.attackRows ?? []), ...gateAttackOnlyRows],\n      // \"+ MAGICAL", to: "...gateAttackOnlyRows],\n      // \"+ MAGICAL", breaks: "O5" },
+  { name: "the spell attack's pool takes no option row", file: CW, from: "...(castOptionsApplied.attackRows ?? []), ...castItems.attackRows, ...gateAttackOnlyRows],\n      // \"+ MAGICAL", to: "...castItems.attackRows, ...gateAttackOnlyRows],\n      // \"+ MAGICAL", breaks: "O5" }, // RE-ANCHORED AT 3.688.0
   { name: "every target saves against the cast's DC", file: CW, from: "    const saveDC = castSaveDC + targetShift.value;", to: "    const saveDC = castSaveDC;", breaks: "O6" },
   // T — G15, a warp that changes the type (Q106)
   { name: "anyTraits is ignored (Force Bolt offered the dragon's warp)", file: GW, from: "      if (m.anyTraits?.length && !m.anyTraits.some((t) => traits.includes(t))) continue;\n", to: "", breaks: "T2" },

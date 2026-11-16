@@ -201,7 +201,8 @@ const MUTATIONS = [
     file: W,
     name: "E1 the defence channel stops being told who is attacking",
     // RE-ANCHORED AT 3.684.0: the Strike names its `attackKind` (G20 review).
-    from: 'defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments, creatureTraits(actor.system ?? {}), { attackKind: "weapon" })',
+    // RE-ANCHORED AT 3.689.0: a summoned attacker's register traits join its own (H21).
+    from: 'defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments, [...creatureTraits(actor.system ?? {}), ...summonedTraitsOf(actor)], { attackKind: "weapon" })',
     to: 'defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "")',
     breaks: "E1 — the axis exists, the entry exists, and nothing ever matches"
   },

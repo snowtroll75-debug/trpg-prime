@@ -222,6 +222,7 @@ export function resolveMovement({
   halfLandSpeeds = [],
   grantedSpeeds = [],
   setSpeeds = [],
+  halved = false,
   applyBonuses,
   landSpeed
 } = {}) {
@@ -338,6 +339,25 @@ export function resolveMovement({
     movement[set.key] = speedPool(movement[set.key]);
     movement[set.key].base = set.feet;
     movement[set.key].total = set.feet;
+  }
+
+  /*
+   * A HALVED SPEED (3.692.0; Eldritch Arts Block 7, Eaog Balls). LAST, so
+   * it halves the speed the creature actually has — armour, load, a form and
+   * a grant already counted. Every speed it has, as the same spell's "speed
+   * becomes 0" is the immobilised condition, which stops every kind of
+   * movement. Rounded down to the grid as Quick Climber's half is, so the
+   * figure stays one a token can move.
+   */
+  if (halved) {
+    for (const key of SPEED_KEYS) {
+      const pool = movement[key];
+      if (!isSpeedPool(pool)) continue;
+      const total = Number(pool.total ?? 0);
+      if (!(total > 0)) continue;
+      pool.total = roundToGrid ? Math.floor(total / 2 / 5) * 5 : Math.floor(total / 2);
+    }
+    movement.halved = true;
   }
 
   // Recorded rather than applied: derivation does not mutate documents.

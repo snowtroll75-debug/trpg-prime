@@ -631,7 +631,14 @@ export function collectConditionals(items = [], effects = [], declared = [], sca
        */
       const owned = kind === "effect" && document?.parent?.documentName === "Item";
       const source = { id: document.id, name: document.name, kind: owned ? "itemEffect" : kind };
+      // A CHARGED ITEM'S ABILITY STOPS WITH ITS CHARGE (3.690.0; Eldritch Arts
+      // Block 9c, H23): a row with `minItemPP` is read only while the item
+      // holds that many PP (the Orb's "stop working if … reduced to 2 PP or
+      // less"). Its index is kept, so a row's id does not move with the charge.
+      const itemPP = Math.trunc(Number(document?.system?.uses ?? 0) || 0);
       declared.forEach((raw, index) => {
+        const minPP = kind === "item" ? Math.trunc(Number(raw?.minItemPP) || 0) : 0;
+        if (minPP > 0 && itemPP < minPP) return;
         const entry = normaliseConditional(raw, source, index, scaling);
         if (entry) found.push(entry);
       });

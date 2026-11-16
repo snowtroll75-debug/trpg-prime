@@ -136,6 +136,19 @@ export function declaresHighMagicCaster(actor) {
 }
 
 /**
+ * A HIGH MAGIC CASTER AT ALL (3.690.0; Eldritch Arts Block 9c): of every
+ * tradition (the Archmage, the Sorcerer) or of some (the Witch's Ethereal and
+ * Verdant). Tesra'Anvir's "+4 Spell Adder for all arcane & high magic
+ * casters" reads it (wondrous-effects.mjs `requiresArcaneOrHighMagicCaster`).
+ */
+export function isHighMagicCasterAtAll(actor) {
+  return liveItems(actor).some((item) => {
+    const flag = item.flags?.[SYSTEM_ID]?.highMagicCaster;
+    return flag === true || (Array.isArray(flag) && flag.length > 0);
+  });
+}
+
+/**
  * …OR FOR SOME TRADITIONS ONLY (3.680.0; Eldritch Arts Block 3a, D4a). The
  * Witch "treat[s] the Ethereal and Verdant traditions as high magic", so her
  * class declares `highMagicCaster: ["ethereal", "verdant"]`, and only a spell

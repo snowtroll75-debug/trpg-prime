@@ -109,7 +109,7 @@ import { abilityNaturalDR } from "../creature-ability-rules.mjs";
 import {
   SPEED_KEYS, normaliseMovement, resolveMovement, speedValue
 } from "../combat/speed-pool.mjs";
-import { grantedSpeeds, setSpeeds } from "../combat/granted-speeds.mjs";
+import { grantedSpeeds, setSpeeds, speedsHalved } from "../combat/granted-speeds.mjs";
 import {
   effectiveLandSpeed,
   encumbranceSpeedPenalty,
@@ -137,7 +137,9 @@ import {
   promptConditionValue
 } from "../conditions/manager.mjs";
 import { runeBonusesFor, runeBonusesForActor } from "../rune-effects.mjs";
+import { runeControlLevelBonus, runeMaxDexBonus } from "../rune-declarations.mjs";
 import { wondrousBonusesForActor, bracersBaseDR } from "../wondrous-effects.mjs";
+import { isHighMagicCasterAtAll } from "../magic/high-magic.mjs";
 import { spellArmourEntries } from "../magic/spell-armour.mjs";
 import { bucklerState, isBuckler } from "../buckler.mjs";
 import { effectGrantedTraits } from "../magic/form-traits.mjs";
@@ -386,6 +388,15 @@ function equippedProtection(actor) {
     if (item.type === "armour" && runesCountFor(item, Array.from(items ?? []))) {
       const bulk = Number(runeBonusesFor(item).acpPenalty ?? 0) || 0;
       if (bulk) penalty = -(penaltyMagnitude(penalty) + bulk);
+    }
+    // A RUNE THAT RAISES THE ARMOUR'S MAX DEX (3.689.0, H21; Eldritch Arts'
+    // Comfort: "the Max Dex modifier of the armour is increased by 1"). Added
+    // to a specific item's printed figure too: Whispering Hollow prints its
+    // Max Dex without its Comfort rune's +1 (Graham's Q206: a rune line reads
+    // as the rune).
+    if (item.type === "armour" && maxDexBonus !== -1) {
+      const comfort = runeMaxDexBonus(item, Array.from(items ?? []));
+      if (comfort) maxDexBonus += comfort;
     }
 
     // ETERNAL ESSENCE (Creature Codex; 3.631.0): "any armour or shield
@@ -1493,7 +1504,9 @@ function prepareCombat(system, actor) {
       // A TRAIT OR A FEAT AN ABILITY REQUIRES (3.626.0): the creature's own
       // trait line and what it holds, for `requiresTrait` / `requiresFeat`.
       traits: creatureTraits(system).join(", "),
-      featNames: Array.from(actor.items ?? []).filter((i) => i.type === "feat" || i.type === "ability").map((i) => i.name)
+      featNames: Array.from(actor.items ?? []).filter((i) => i.type === "feat" || i.type === "ability").map((i) => i.name),
+      // A HIGH MAGIC CASTER (3.690.0; Block 9c): `requiresArcaneOrHighMagicCaster`.
+      highMagicCaster: isHighMagicCasterAtAll(actor)
     });
     // `wondrousBonus`, not `bonus`: the rune loop above pools with an
     // identical line, and two identical lines are one anchor — a
@@ -1514,6 +1527,11 @@ function prepareCombat(system, actor) {
       // silently does nothing.
       if (wondrousBonus.target.startsWith("system.attributes.")) continue;
       actor.addBonus(wondrousBonus.target, wondrousBonus.entry);
+    }
+    // A WONDROUS RESISTANCE (3.690.0; Eldritch Arts Block 9c, H23): the Orb of
+    // Emberlight's "fire resistance", joined as the runes' are above.
+    if (wondrousEffects.resistances?.length && system.combat) {
+      system.combat.resistances = [String(system.combat.resistances ?? ""), ...wondrousEffects.resistances].filter(Boolean).join(", ");
     }
     system.combat.wondrousSummary = wondrousEffects.summary;
     system.combat.wondrousReported = wondrousEffects.reported;
@@ -1670,11 +1688,14 @@ function prepareCombat(system, actor) {
     // AND THE SPEEDS A FORM REPLACES (3.595.1), read the same way and for
     // the same reason. See combat/granted-speeds.mjs.
     const replaced = setSpeeds(Array.from(actor.items ?? []), SPEED_KEYS);
+    // AND A HALVED SPEED (3.692.0; Eaog Balls), read the same way.
+    const halved = speedsHalved([...Array.from(actor.items ?? []), ...Array.from(actor.appliedEffects ?? [])]);
 
     resolveMovement({
       movement: combat.movement,
       grantedSpeeds: granted,
       setSpeeds: replaced,
+      halved,
       armourPenalty: ignoreArmourSpeed ? 0 : totalArmourSpeedPenalty(protection),
       encumbrancePenalty: encumbranceSpeedPenalty(speedSteps),
       roundToGrid: gridSpeedRounding(),
@@ -2066,10 +2087,13 @@ function prepareCombat(system, actor) {
     // Eldritch Arts Block 5, C12): Master Binder's "You increase your control
     // levels by 2". Added after the cap, because an effect's change cannot
     // reach a figure derived after effects apply. See magic/casting.mjs.
+    // …AND A RUNE ON AN EQUIPPED ITEM (3.689.0, H21; Eldritch Arts' Summoner's
+    // Brand: "Whilst wielding this weapon you increase your control levels by
+    // 2"), which puts nothing on the weapon's own flags.
     system.magic.controlLevelBonus = declaredControlLevelBonus(
       Array.from(actor.items ?? []),
       Array.from(actor.appliedEffects ?? [])
-    );
+    ) + runeControlLevelBonus(Array.from(actor.items ?? []));
     system.magic.controlLevels += system.magic.controlLevelBonus;
   }
 }

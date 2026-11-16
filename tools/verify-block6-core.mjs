@@ -159,7 +159,7 @@ ok("C10 …nothing waiting is spent on it: Cutting Words, Counter Perform, Inspi
   ["takeCuttingWords", "takeCounterPerform", "takeInspireCompetence", "takeSeersVision"].every((m) => ck.includes(`  async #${m}() {\n    // Not on another check's result met again (3.670.0, found in review):\n    // its total is that check's, and nothing waiting is spent on it.\n    if (!this.actor || this.presetModifiers) return;`))
   && ck.includes('!check.flat && !check.rodAdvantageResolved && !check.presetModifiers) {'));
 ok("C10 a Strike announces whether it missed, resolved and not a hit (found in review: Snake Stance answered a grab)",
-  /resolved: Boolean\(outcome\?\.resolved\), missed: Boolean\(outcome\?\.resolved\) && !outcome\?\.hits(?:,\n(?:\s*\/\/[^\n]*\n)*\s*noReactions: Boolean\(noReactions\))?\n\s*\}\);/.test(read("module", "combat", "attack-workflow.mjs")));
+  /resolved: Boolean\(outcome\?\.resolved\), missed: Boolean\(outcome\?\.resolved\) && !outcome\?\.hits(?:,\n(?:\s*\/\/[^\n]*\n)*\s*noReactions: Boolean\(noReactions\))?(?:,\n(?:\s*\/\/[^\n]*\n)*\s*natural: Number\(check\?\.dice\?\.unmodified \?\? 0\) \|\| 0,\n\s*fumble: Boolean\(confirmedFumble\)(?:,\n(?:\s*\/\/[^\n]*\n)*\s*total: Number\(check\?\.outcome\?\.total \?\? check\?\.total \?\? NaN\))?)?\n\s*\}\);/.test(read("module", "combat", "attack-workflow.mjs"))); // RE-ANCHORED AT 3.689.0: H22's natural die and fumble may follow
 ok("C10 resolveAction hands them on with the dice",
   /presetModifiers = null,?\n(?:\s*\/\/[^\n]*\n)*(?:\s*presetDispel = null\n)?\} = \{\}\) \{/.test(acw) && /\.\.\.\(presetDice && Array\.isArray\(presetModifiers\) \? \{ presetModifiers \} : \{\}\),/.test(acw));
 

@@ -39,7 +39,8 @@ equal("A5 only the effects that attack spends, and never a disabled one or a pla
 const aw = read("module", "combat", "attack-workflow.mjs");
 // RE-ANCHORED 3.668.0: the resolved Strike is announced after the spend, before the return.
 // Re-anchored at 3.671.0: the resolved hook also says whether the target may react (C9).
-ok("A6 every Strike spends them after it has resolved, damage included", /check\.attackFumbled = confirmedFumble;[\s\S]{0,2400}await consumeOneAttackEffects\(targetActor, \{ kind: "weapon", attackerUuid: actor\?\.uuid \?\? "" \}\);\s*\}\s*\/\/ A STRIKE RESOLVED \(3\.668\.0\)[^]{0,1800}?\n  return check;\n\}/.test(aw));
+// RE-ANCHORED AT 3.689.0: the hook also carries the natural die and the fumble (H22), so the span is longer.
+ok("A6 every Strike spends them after it has resolved, damage included", /check\.attackFumbled = confirmedFumble;[\s\S]{0,2400}await consumeOneAttackEffects\(targetActor, \{ kind: "weapon", attackerUuid: actor\?\.uuid \?\? "" \}\);\s*\}\s*\/\/ A STRIKE RESOLVED \(3\.668\.0\)[^]{0,2600}?\n  return check;\n\}/.test(aw));
 ok("A7 …and so do a spell attack, a bomb and a spiritual weapon", /consumeOneAttackEffects\(targetActor, \{ kind: "spell", attackerUuid: actor\?\.uuid \?\? "" \}\)/.test(read("module", "magic", "cast-workflow.mjs"))
   && /consumeOneAttackEffects\(targetActor, \{ kind: "bomb", attackerUuid: actor\?\.uuid \?\? "" \}\)/.test(read("module", "alchemical-workflow.mjs"))
   && /consumeOneAttackEffects\(targetActor, \{ kind: "spiritualWeapon", attackerUuid: caster\?\.uuid \?\? "" \}\)/.test(read("module", "magic", "spiritual-weapon-workflow.mjs")));

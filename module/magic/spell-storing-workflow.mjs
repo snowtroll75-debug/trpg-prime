@@ -11,8 +11,8 @@
  */
 
 import {
-  STORING_ARMED_FLAG, STORED_SPELL_FLAG, STORED_FOREIGN_FLAG,
-  armWindowOpen, storedSpellRecord, spellStoreHostOf, foreignSpellCopyData
+  STORING_ARMED_FLAG, STORED_SPELL_FLAG, STORED_FOREIGN_FLAG, HELD_SPELLS_FLAG,
+  armWindowOpen, storedSpellRecord, spellStoreHostOf, foreignSpellCopyData, heldSpellRecord, heldCheck
 } from "./spell-storing.mjs";
 
 const SYSTEM_ID = "trg-prime";
@@ -263,4 +263,131 @@ export async function releaseStoredSpell(actor, { hostId = "" } = {}) {
   return castSpell(actor, spell, {
     stored: { ppPaid: record.ppPaid, mods: record.mods, notes: record.notes }
   });
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────
+ * HELD SPELLS (3.690.0; Eldritch Arts Block 9c, Spellhold). See
+ * spell-storing.mjs. The window is Spell Storing's own, marked `hold`, so
+ * the next cast lands in it; castSpell rolls its check and pays its PP, and
+ * keeps it here on a Success or better instead of resolving it.
+ * ───────────────────────────────────────────────────────────────────── */
+
+/**
+ * Open a hold window on `host` (an item of the actor's): the next spell cast
+ * within the round is held in it. `capacityPP` is the store's room in PP;
+ * `label` names it on the cards ("Spellhold II").
+ */
+export async function armHold(actor, host, { capacityPP = 0, label = "" } = {}) {
+  if (!actor || !host) return null;
+  // AN OPEN SPELL STORING WINDOW IS NOT OVERWRITTEN (3.690.0, review): it was
+  // paid for (Spell Storing's 1 PP), and the two share one window.
+  const open = readArmed(actor);
+  if (open && !open.hold) {
+    ui.notifications.warn(`${actor.name} already has a storing window open: cast into it, or let it close, before holding a spell in ${host.name}.`);
+    return null;
+  }
+  await actor.setFlag(SYSTEM_ID, STORING_ARMED_FLAG, {
+    releaseCost: "1",
+    hostId: String(host.id ?? ""),
+    hold: { capacityPP: Math.max(0, Math.trunc(Number(capacityPP) || 0)), label: String(label ?? "").trim() },
+    round: game.combat?.started ? Number(game.combat.round ?? 0) : null,
+    worldTime: Number(game.time?.worldTime ?? 0)
+  });
+  return true;
+}
+
+/** The spells held in one item, oldest first. */
+export function heldSpellsIn(item) {
+  const list = item?.getFlag?.(SYSTEM_ID, HELD_SPELLS_FLAG) ?? item?.flags?.[SYSTEM_ID]?.[HELD_SPELLS_FLAG] ?? [];
+  return Array.isArray(list) ? list.map((r) => heldSpellRecord(r)) : [];
+}
+
+/** Add one held spell to an item's store. */
+export async function addHeldSpell(item, fields) {
+  const record = heldSpellRecord({ ...fields, storedAt: Number(game.time?.worldTime ?? 0) });
+  await item.setFlag(SYSTEM_ID, HELD_SPELLS_FLAG, [...heldSpellsIn(item), record]);
+  return record;
+}
+
+/** Empty an item's store ("stored spells fade at your next daily preparation"). */
+export async function clearHeldSpells(item) {
+  if (!heldSpellsIn(item).length) return 0;
+  const n = heldSpellsIn(item).length;
+  await item.unsetFlag(SYSTEM_ID, HELD_SPELLS_FLAG);
+  return n;
+}
+
+/**
+ * Release one held spell: its AP (Spellhold's "Command (1 AP)"), the record
+ * taken out, then the spell cast with the check it was stored with — no PP,
+ * targets and areas chosen now, its Save DC as stored. See castSpell's
+ * `held` option.
+ *
+ * @param {Actor} actor
+ * @param {Item} host the item holding it
+ * @param {string} recordId
+ * @param {{ap?: string|number, label?: string}} [opts]
+ */
+export async function releaseHeldSpell(actor, host, recordId, { ap = "1", label = "" } = {}) {
+  // ONE RELEASE OF A RECORD AT A TIME (3.690.0, review): the record comes out
+  // only once the spell is cast, so a second press while the first waits at
+  // its target picker would otherwise cast the same spell twice.
+  const key = `${host?.uuid ?? host?.id ?? ""}:${String(recordId ?? "")}`;
+  if (RELEASING.has(key)) {
+    ui.notifications.warn("That held spell is already being released.");
+    return null;
+  }
+  RELEASING.add(key);
+  try {
+    return await releaseHeldSpellNow(actor, host, recordId, { ap, label });
+  } finally {
+    RELEASING.delete(key);
+  }
+}
+const RELEASING = new Set();
+async function releaseHeldSpellNow(actor, host, recordId, { ap = "1", label = "" } = {}) {
+  const records = heldSpellsIn(host);
+  const record = records.find((r) => r.id === String(recordId ?? ""));
+  if (!record) {
+    ui.notifications.warn(`${host?.name ?? "That item"} holds no such spell.`);
+    return null;
+  }
+  const spell = actor.items.get(record.spellId) ?? null;
+  const rest = records.filter((r) => r.id !== record.id);
+  if (!spell) {
+    ui.notifications.warn(`${record.spellName} is no longer on ${actor.name}'s sheet — it is dropped from ${host.name}.`);
+    await (rest.length ? host.setFlag(SYSTEM_ID, HELD_SPELLS_FLAG, rest) : host.unsetFlag(SYSTEM_ID, HELD_SPELLS_FLAG));
+    return null;
+  }
+  const what = `${label || host.name}: release ${record.spellName}`;
+  const { ensureActionPoints, spendActionCost } = await import("../combat/action-points-workflow.mjs");
+  if (String(ap) !== "free") {
+    if (!(await ensureActionPoints(actor, String(ap), what))) return null;
+  }
+  const { castSpell } = await import("./cast-workflow.mjs");
+  // THE RECORD COMES OUT ONLY IF THE RELEASE HAPPENS. A release called off at
+  // the target picker casts nothing and keeps the spell (the check is the
+  // stored one, so nothing was rolled to lose).
+  const result = await castSpell(actor, spell, {
+    held: {
+      degree: record.degree,
+      check: heldCheck(record),
+      saveDC: record.saveDC,
+      warp: { mods: record.mods, notes: record.notes },
+      pp: record.pp,
+      from: host.name,
+      // ITS STORED OPTIONS' TARGET ROWS (3.690.0, review): Soul's Echo's +2
+      // against undead, an attack-only bonus — read once its targets are known.
+      saveDCTargets: record.saveDCTargets,
+      attackRows: record.attackRows
+    }
+  });
+  if (!result || result.refunded) return null;
+  // WHAT THE STAFF HOLDS NOW, read again (review): another of its spells may
+  // have been released while this one waited at its target picker.
+  const left = heldSpellsIn(host).filter((r) => r.id !== record.id);
+  await (left.length ? host.setFlag(SYSTEM_ID, HELD_SPELLS_FLAG, left) : host.unsetFlag(SYSTEM_ID, HELD_SPELLS_FLAG));
+  if (String(ap) !== "free") await spendActionCost(actor, String(ap), what, { traits: "Command" });
+  return result;
 }

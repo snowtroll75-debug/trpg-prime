@@ -413,11 +413,13 @@ async function onAttemptPrisonEscape(prisonerUuid) {
   const { ownedCreatureTypeSystem } = await import("../creature-type-rules.mjs");
   // A DAMAGE REACTION, BEFORE THE DEFENCES (3.681.0; found in review): the
   // cage is a spell's.
+  // The roll comes first, so the reactions are told the amount (3.693.0, H28).
+  const roll = await new Roll(outcome.dice).evaluate();
+  let reactionLines = [];
   {
     const { spellDamageReactionsFor } = await import("../reactions/reactions-workflow.mjs");
-    await spellDamageReactionsFor(prisoner, spec.damageType, { spellName: cage.spellName ?? spec.label ?? "", source: null });
+    reactionLines = await spellDamageReactionsFor(prisoner, spec.damageType, { spellName: cage.spellName ?? spec.label ?? "", source: null, amount: roll.total });
   }
-  const roll = await new Roll(outcome.dice).evaluate();
   const packet = resolveAgainstDefences(prisoner.system ?? {}, {
     amount: roll.total,
     type: spec.damageType,
@@ -426,7 +428,7 @@ async function onAttemptPrisonEscape(prisonerUuid) {
   if (packet.taken > 0) await applyDamageAndCheckDying(prisoner, packet.taken);
 
   const lines = [prisonAttemptLine(
-    spec, prisoner.name, rolled, packet.taken, roll.total, outcome)];
+    spec, prisoner.name, rolled, packet.taken, roll.total, outcome), ...reactionLines];
 
   // THE CRITICAL IS ROLLED ON THE SPELL'S OWN DAMAGE TYPE — "a Minor
   // Fire critical" — through the same door every other critical in the

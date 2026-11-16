@@ -68,7 +68,7 @@ const text = (v) => String(v ?? "").trim();
  * @param {boolean} o.refunded the cast was called off after committing
  * @returns {string}
  */
-export function castResultHeadline({ cast, isInnate = false, ppSpent = 0, degree = "", refunded = false, rodPaid = 0, rodName = "" } = {}) {
+export function castResultHeadline({ cast, isInnate = false, ppSpent = 0, degree = "", refunded = false, rodPaid = 0, rodName = "", held = false } = {}) {
   // WHO PAID (3.616.1, Graham's R3 of the 3.616.0 drive): a Rod of the Magi
   // or a Sceptre of the Clergy may pay part of the cost, and "4 PP spent"
   // alone read as the caster's four.
@@ -84,11 +84,30 @@ export function castResultHeadline({ cast, isInnate = false, ppSpent = 0, degree
     const half = degree === "failure" ? " (half, rounded down)" : "";
     return `<strong>The spell fails.</strong> ${pp}${half}.`;
   }
-  if (isInnate) return "<strong>The spell takes effect.</strong>";
+  // A SPELL BEING HELD (3.690.1, Block 9c's live test): it is stored, not
+  // cast at anyone yet — "takes effect" said otherwise. Its PP are spent now.
+  const opening = held ? "<strong>The spell is held.</strong>" : "<strong>The spell takes effect.</strong>";
+  if (isInnate) return opening;
   const note = degree === "heroic"
     ? " (Heroic: total halved)"
     : degree === "critical" ? " (Critical: base halved)" : "";
-  return `<strong>The spell takes effect.</strong> ${ppSpent} PP spent${fromRod}${note}.`;
+  return `${opening} ${ppSpent} PP spent${fromRod}${note}.`;
+}
+
+/**
+ * THE SETTLE CARD'S TITLE (3.690.1, Block 9c's live test): it carries module
+ * metamagic's lines, PP sources' lines, or both. A rod paying part of the
+ * cost (Rod of Ley Resonance) was carded "— Metamagic" with none taken.
+ *
+ * @param {number} metamagicTaken how many module metamagic options were taken
+ * @param {number} sourcesDrawn how many PP sources paid
+ * @returns {string}
+ */
+export function settledCardTitle(metamagicTaken = 0, sourcesDrawn = 0) {
+  const mm = Number(metamagicTaken) > 0, src = Number(sourcesDrawn) > 0;
+  if (mm && src) return "Metamagic and PP Sources";
+  if (src) return "PP Sources";
+  return "Metamagic";
 }
 
 /**

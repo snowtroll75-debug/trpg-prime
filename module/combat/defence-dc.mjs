@@ -33,6 +33,7 @@ const SYSTEM_ID = "trg-prime";
 import { activeStanceEffects, inAnyStance, stanceGatedRows } from "../stance-declarations.mjs";
 import { applyStacking } from "../dice/resolution.mjs";
 import { SLOT_TYPE_ALIASES } from "../bonuses/registry.mjs";
+import { runeDefenceRows } from "../rune-declarations.mjs";
 
 /** The DCs a defender can raise. Matches ACTION_TARGETS' own names. */
 export const DEFENCE_DC_KEYS = Object.freeze([
@@ -177,7 +178,7 @@ export function defenceDCRowFrom(effect, spellName = "This spell", extra = 0) {
  * @param {object} source {id, name}
  * @returns {object|null}
  */
-export function normaliseDefenceDC(raw, source = {}, { stanceGated = false, fromStance = false } = {}) {
+export function normaliseDefenceDC(raw, source = {}, { stanceGated: stanceRow = false, fromStance = false, kindIsScope = false } = {}) {
   if (!raw || typeof raw !== "object") return null;
 
   /*
@@ -278,6 +279,16 @@ export function normaliseDefenceDC(raw, source = {}, { stanceGated = false, from
   // only while a stance is up, which is the narrowing the rule asks for.
   // A LIGHT-GATED ROW (3.684.0) is scoped by the light it needs, as a
   // stance-gated one is by its stance.
+  // A RUNE'S DECLARED ROW MAY BE SCOPED BY ITS ATTACK KIND ALONE (3.689.0,
+  // H21): Eldritch Arts' Ley Binding, "a bonus to DB against attack spells",
+  // names nothing but the kind of attack, and it is read only while the
+  // rune's item counts. Only `collectDefenceDC`'s rune path passes
+  // `kindIsScope`; every other row keeps the 3.684.0 rule that a kind alone
+  // is still "every attacker". Such a row is scoped as a stance row is, so
+  // it joins `stanceGated` for the guard alone; `fromStance` below reads the
+  // stance itself (`stanceRow`), so a rune's row is never a stance's.
+  const kindScoped = kindIsScope && attackKinds.length > 0;
+  const stanceGated = stanceRow || kindScoped;
   if (!stanceGated && !actions.length && !sourceTypes.length && !sourceUuids.length && !sourceAlignments.length && !sourceTraits.length && !notSourceUuids.length && !lightLevels) return null;
 
   // ITS APPENDIX 1 TYPE (3.684.1) — see `stackDefenceRows`. `type` or the
@@ -305,7 +316,7 @@ export function normaliseDefenceDC(raw, source = {}, { stanceGated = false, from
     // WHAT A STANCE GIVES (3.668.0): a row read only in a stance, or carried
     // by the stance's own effect. Formless Cut "ignores the target's active
     // stance or form bonuses".
-    fromStance: Boolean(stanceGated || fromStance),
+    fromStance: Boolean(stanceRow || fromStance),
     label: String(raw.label ?? source.name ?? "Feature"),
     scope: String(raw.scope ?? ""),
     source: String(source.name ?? "")
@@ -374,6 +385,17 @@ export function collectDefenceDC(actor) {
     }
   };
   for (const item of Array.from(actor?.items ?? [])) consider(item);
+  // A RUNE'S DEFENCE ROWS (3.689.0, H21; Eldritch Arts' Bound Circle: "Your
+  // armours item bonus to DB is increased against attacks made by either
+  // conjured or summoned creatures"; Ley Binding against attack spells). Read
+  // while the rune's item counts, each row at the inscribed tier's value.
+  const owned = Array.from(actor?.items ?? []);
+  for (const item of owned) {
+    for (const raw of runeDefenceRows(item, owned)) {
+      const entry = normaliseDefenceDC(raw, { id: item.id, name: item.name }, { fromStance: false, kindIsScope: true });
+      if (entry) found.push(entry);
+    }
+  }
   for (const effect of effects) {
     if (effect?.disabled) continue;
     consider(effect);

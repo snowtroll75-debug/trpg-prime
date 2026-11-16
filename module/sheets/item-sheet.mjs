@@ -6,7 +6,7 @@ import { DAMAGE_TYPES, SIZE_TABLE, TRADITIONS } from "../config.mjs";
 import { donningTimeFor, runeUsageNotes } from "../codex-runes.mjs";
 import { isFullSuit } from "../donning.mjs";
 import { potencySummary, roman } from "../runes.mjs";
-import { QUALITY_TIERS, MATERIALS, SUPERIOR_TRAITS, computeFullCustomisation, dragonhideLabel } from "../item-quality.mjs";
+import { QUALITY_TIERS, materialOf, SUPERIOR_TRAITS, computeFullCustomisation, dragonhideLabel } from "../item-quality.mjs";
 import { parseGrantList } from "../grants.mjs";
 import { promptCustomiseItem } from "../item-customize-workflow.mjs";
 import { runeActionsFor, runeStateOf, usesRemaining } from "../rune-actions.mjs";
@@ -142,7 +142,10 @@ export class TRGItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       const traitDefs = SUPERIOR_TRAITS[this.item.type] ?? {};
 
       context.qualityLabel = QUALITY_TIERS[quality]?.label ?? "Standard";
-      context.materialLabel = material ? (MATERIALS[material]?.label ?? material) : "None";
+      context.materialLabel = material ? (materialOf(material)?.label ?? material) : "None";
+      // A MODULE MATERIAL'S NOTE (3.688.0, H20): what it does that nothing
+      // applies, under the Material line. The core's materials carry none.
+      context.materialNote = material ? String(materialOf(material)?.note ?? "").trim() : "";
       // DRAGONHIDE SAYS WHICH DRAGON (3.574.0), or says that none has been
       // chosen — because a suit with no dragon grants neither the
       // resistance nor the shield's DB, and the sheet is where a player

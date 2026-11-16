@@ -91,8 +91,8 @@ const MUTATIONS = [
   {
     file: LW,
     name: "O1 THE ORDERING: the shift is applied before light sources",
-    from: "  const withSources = resolveLightLevelWithSources(ambient, tokenDocument, scene);",
-    to: "  const withSources = resolveLightLevelWithSources(\n    shiftLightLevel(ambient, regionLightShifts(tokenDocument?.regions)[0]?.steps ?? 0,\n      regionLightShifts(tokenDocument?.regions)[0]?.floor ?? 1),\n    tokenDocument, scene);",
+    from: "  const sourced = resolveLightLevelWithSources(ambient, tokenDocument, scene);",
+    to: "  const sourced = resolveLightLevelWithSources(\n    shiftLightLevel(ambient, regionLightShifts(tokenDocument?.regions)[0]?.steps ?? 0,\n      regionLightShifts(tokenDocument?.regions)[0]?.floor ?? 1),\n    tokenDocument, scene);",
     breaks: "O3 — a lantern carried into the shadow would light it back up"
   },
   {

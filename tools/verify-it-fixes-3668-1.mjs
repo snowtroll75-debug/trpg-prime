@@ -83,7 +83,7 @@ equal("C6 Twin: both Twin, both hit and inflicted damage, two weapons — +1 eac
 ok("C7 the Strike takes a `readied` option", /\n  readied = false,\n  \/\/ THE REROLL OF A FUMBLED STRIKE[\s\S]{0,200}?fumbleRerolled = false\n\} = \{\}\) \{\n(?:  const callOptions = arguments\[2\] \?\? \{\};\n)?  const viaRefused = weaponStrikeRefused\(weapon, viaAbility\);/.test(aw));
 ok("C8 Brace adds its bonus to the attack and its die to the damage",
   /const brace = braceApplies\(\{\n    weaponSystem: weaponData, readied: Boolean\(readied\),\n    targetMounted: Boolean\(targetActor && mountedState\(targetActor\)\.mounted\)\n  \}\);\n  if \(brace\) \{\n    modifiers\.push\(\{ label: "Brace \(readied, against a mounted target\)", value: brace\.attackBonus, type: "circumstance" \}\);/.test(aw)
-  && /extraBaseDiceOverride\(weaponData\.damage, extraBaseDice \+ \(brace\?\.extraDice \?\? 0\)\)/.test(aw));
+  && /extraBaseDiceOverride\(weaponData\.damage, extraBaseDice \+ \(brace\?\.extraDice \?\? 0\)(?: \+ runeBaseDice\.dice)?\)/.test(aw)); // RE-ANCHORED AT 3.689.0 (H21: Leybound's die joins)
 const acw = read("module", "combat", "action-workflow.mjs");
 ok("C9 a readied Strike says it is readied, from Ready to the Strike",
   /readied: true\n        \}\);\n        if \(done\) \{\n          await consumeReadiedAction\(actor\);/.test(acw)

@@ -19,6 +19,32 @@ export function investmentSlots(level, magicalAbilityScore) {
 }
 
 /**
+ * AN ITEM'S INVESTMENT COST (3.693.0, H27): the first non-null answer from the
+ * registered cost functions, a whole number of at least 0; else one slot. A
+ * throwing answer is no answer.
+ */
+export function itemInvestCost(item, actor, costFns = []) {
+  for (const fn of costFns ?? []) {
+    let n = null;
+    try { n = fn(item, actor); } catch { n = null; }
+    if (n === null || n === undefined || n === "") continue;
+    const v = Math.trunc(Number(n));
+    if (Number.isFinite(v) && v >= 0) return v;
+  }
+  return 1;
+}
+
+/** The slots the invested items take (3.693.0, H27). `except` is left out. */
+export function investedSlotsUsed(items = [], actor = null, costFns = [], { except = null } = {}) {
+  let used = 0;
+  for (const i of items ?? []) {
+    if (!i?.system?.invested || (except && i === except)) continue;
+    used += itemInvestCost(i, actor, costFns);
+  }
+  return used;
+}
+
+/**
  * Charge Depletion (Chapter 11): "If a charged item is ever reduced to
  * less than 0 PP you must make a d100 check on the Item Depletion
  * table." A plain, non-exploding d100 — the rulebook doesn't call for

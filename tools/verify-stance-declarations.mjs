@@ -87,7 +87,7 @@ const aw = read("module", "combat", "attack-workflow.mjs");
 ok("F1 the weapon attack hands the target's traits to the conditionals", /targetTypes: creatureTypesOf\(targetActor\?\.system \?\? \{\}\),\s*(\/\/[^\n]*\n\s*)*targetTraits: creatureTraits\(targetActor\?\.system \?\? \{\}\),\s*(\/\/[^\n]*\n\s*)*attackMode: isRanged/.test(aw));
 // F2, F5, F6 RE-POINTED AT 3.684.0 (G20 review): each caller now also names
 // its `attackKind` ("weapon", "action", "bomb") after the attacker's traits.
-ok("F2 …the attacker's traits to the defender's channel", aw.includes('defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments, creatureTraits(actor.system ?? {}), { attackKind: "weapon" })'));
+ok("F2 …the attacker's traits to the defender's channel", aw.includes('defenceDCBonus(targetActor, "defence", "", attackerTypes, actor?.uuid ?? "", attackerAlignments, [...creatureTraits(actor.system ?? {}), ...summonedTraitsOf(actor)], { attackKind: "weapon" })')); // RE-ANCHORED AT 3.689.0 (H21: summoned register traits)
 ok("F3 …and the target's traits to the magical-attack test", aw.includes('weaponName: weapon?.name ?? "", targetTraits: creatureTraits(targetActor?.system ?? {}) }))'));
 const acw = read("module", "combat", "action-workflow.mjs");
 ok("F4 an action's dialog and roll both carry the target's traits", (acw.match(/targetTypes: creatureTypesOf\(targetActor\?\.system \?\? \{\}\),\s*targetTraits: creatureTraits\(targetActor\?\.system \?\? \{\}\),/g) ?? []).length === 2);

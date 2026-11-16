@@ -6,7 +6,7 @@
  * this Region, what has the GM set on this scene, and what is the
  * darkness — and hands the answers over.
  */
-import { DEFAULT_DARKNESS_MAP, DEFAULT_LIGHT_LEVEL, darknessMapProblems, resolveLightLevel, shiftLightLevel } from "./light.mjs";
+import { DEFAULT_DARKNESS_MAP, DEFAULT_LIGHT_LEVEL, darknessMapProblems, resolveLightLevel, shiftLightLevel, regionEmittedLight, withEmittedLight } from "./light.mjs";
 import { weatherShiftFor } from "./environment.mjs";
 import {
   lightRadiusFeet, lightSourceKeysOn, resolvedLevelWithSources
@@ -117,7 +117,16 @@ export function lightLevelForToken(tokenDocument) {
   // sources do to the level is `combinedLightLevel`, which is pure and
   // has 607 checks against it. That is the same split every other rule
   // in this system uses, and the reason a harness can reach any of it.
-  const withSources = resolveLightLevelWithSources(ambient, tokenDocument, scene);
+  const sourced = resolveLightLevelWithSources(ambient, tokenDocument, scene);
+
+  // AN AREA THAT GIVES OFF LIGHT (3.692.0; Arcane Mycelium's dim light).
+  // Treated as a light source — at least its level inside the Region — so it
+  // lands with the sources, before the spells that shift the level.
+  const emitted = regionEmittedLight(Array.from(tokenDocument?.regions ?? []).map((r) => r?.getFlag?.(SYSTEM_ID, "emitsLight") ?? null));
+  const emittedLevel = withEmittedLight(Number(sourced?.level ?? DEFAULT_LIGHT_LEVEL), emitted);
+  const withSources = emitted && emittedLevel !== Number(sourced?.level ?? DEFAULT_LIGHT_LEVEL)
+    ? { level: emittedLevel, source: emitted.label }
+    : sourced;
 
   /*
    * AND THEN THE SPELLS THAT MOVE THE LEVEL (3.490.0).

@@ -34,6 +34,8 @@
  * returns data, and the workflow decides what to do with it.
  */
 
+import { runeSpellAdders } from "../rune-declarations.mjs";
+
 const SYSTEM_ID = "trg-prime";
 
 /** Where the day's spent uses are recorded, on the ACTOR. */
@@ -77,6 +79,11 @@ export function spellAdderSources(actor) {
     if (rated > 0) sources.push({ label: item.name, value: rated });
   }
 
+  // A RUNE ON WORN ARMOUR (3.689.0, H21; Eldritch Arts' Arcanum Seal I–III:
+  // "This rune grants you the benefits of a Spell Adder, based upon its
+  // level" — "The armour is a +1 Spell Adder"). Read while the armour counts.
+  for (const rune of runeSpellAdders(items)) sources.push(rune);
+
   return {
     sources,
     total: sources.reduce((sum, s) => sum + s.value, 0),
@@ -98,7 +105,11 @@ export function spellAdderSources(actor) {
  */
 export function withWondrousAdders(base, wondrous = []) {
   const extra = (Array.isArray(wondrous) ? wondrous : [])
-    .map((w) => ({ label: String(w?.label ?? "Wondrous item"), value: Math.floor(Number(w?.value) || 0) }))
+    .map((w) => ({
+      label: String(w?.label ?? "Wondrous item"), value: Math.floor(Number(w?.value) || 0),
+      // A SCOPED ADDER KEEPS ITS SCOPE (3.690.0, H23): see `spellAdderFor`.
+      ...(Array.isArray(w?.spellTraits) && w.spellTraits.length ? { spellTraits: w.spellTraits.map((t) => String(t).toLowerCase()) } : {})
+    }))
     .filter((w) => w.value > 0);
   const sources = [...(base?.sources ?? []), ...extra];
   return {
@@ -106,6 +117,24 @@ export function withWondrousAdders(base, wondrous = []) {
     total: sources.reduce((sum, s) => sum + s.value, 0),
     unstructured: [...(base?.unstructured ?? [])]
   };
+}
+
+/**
+ * THE ADDERS THAT MAY PAY FOR THIS SPELL (3.690.0; Eldritch Arts Block 9c,
+ * H23). A source with `spellTraits` pays only for a spell carrying one of them
+ * (the Orb of Emberlight's "+1 Spell Adder for spells with the fire trait");
+ * every other source pays for any. The day's uses are one count, as always,
+ * so a scoped source widens the pool only for the spells it names.
+ *
+ * @param {{sources: object[], total: number, unstructured: string[]}} rated
+ * @param {string|string[]} spellTraits the spell's traits
+ */
+export function spellAdderFor(rated, spellTraits = []) {
+  const have = (Array.isArray(spellTraits) ? spellTraits : String(spellTraits ?? "").split(/[,;]/))
+    .map((t) => String(t ?? "").trim().toLowerCase()).filter(Boolean);
+  const sources = (rated?.sources ?? []).filter((s) => !Array.isArray(s?.spellTraits) || !s.spellTraits.length
+    || s.spellTraits.some((t) => have.includes(String(t).toLowerCase())));
+  return { sources, total: sources.reduce((sum, s) => sum + (Number(s.value) || 0), 0), unstructured: [...(rated?.unstructured ?? [])] };
 }
 
 /**

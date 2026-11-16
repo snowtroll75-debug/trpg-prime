@@ -105,7 +105,7 @@ const MUTATIONS = [
   { name: "a WORKING is carried out as a request", file: TR, from: "  if (action === RELAY_ACTIONS.RESULT || action === RELAY_ACTIONS.WORKING) return", to: "  if (action === RELAY_ACTIONS.RESULT) return", breaks: "R1" },
   { name: "the longer wait is shorter than a player's minute", file: TR, from: "export const RELAY_WORKING_TIMEOUT_MS = 90000;", to: "export const RELAY_WORKING_TIMEOUT_MS = 30000;", breaks: "R1" },
   { name: "the asker never hears it", file: TRW, from: "      if (data.userId === game.user?.id) working.get(data.requestId)?.();", to: "", breaks: "R1" },
-  { name: "THE REVIEW'S 2: a late yes still counts", file: OQW, from: "  if (windowMs > 0 && !answeredInTime(askedAt, Date.now(), windowMs)) {", to: "  if (false) {", breaks: "R2" },
+  { name: "THE REVIEW'S 2: a late yes still counts", file: OQW, from: "  if (windowMs > 0 && !answeredInTime(askedAt, Date.now(), windowMs)) {\n    ui.notifications?.warn?.(`${title}: answered too late — the moment has passed.`);\n    return false;", to: "  if (false) {\n    ui.notifications?.warn?.(`${title}: answered too late — the moment has passed.`);\n    return false;", breaks: "R2" }, // RE-ANCHORED AT 3.692.0: the owner choice has its own late-answer guard (it returns "")
   { name: "the window is the asker's whole minute", file: OQ, from: "export const ANSWER_WINDOW_MS = ASK_WAIT_MS - 5 * 1000;", to: "export const ANSWER_WINDOW_MS = ASK_WAIT_MS;", breaks: "R2" },
   { name: "an untimed answer counts", file: OQ, from: "  if (askedAt === null || askedAt === undefined || answeredAt === null || answeredAt === undefined) return false;\n", to: "", breaks: "R2" },
   { name: "THE REVIEW'S 3: Harmony Edge is asked at a deadly critical", file: CGW, from: "  if (!edge || !attacker || biasWithAdvantage(bias) === bias) return null;", to: "  if (!edge || !attacker) return null;", breaks: "R3" },
@@ -118,13 +118,13 @@ const MUTATIONS = [
   { name: "a refused rune keeps its button", file: RA, from: "    if (kind === \"weapon\" && registeredRune(chosen.key) && !runeUsageAllows(chosen.key, weaponUsage(item?.system)).ok) continue;\n", to: "", breaks: "R6" },
   { name: "THE REVIEW'S 7: no timer is ended by hand", file: APIW, from: "      return stopRuneTimer(actor, item, key);", to: "      return false;", breaks: "R7" },
   // version
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.672.1\"", breaks: "Z0" },
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.694.0\"", to: "\"version\": \"3.672.1\"", breaks: "Z0" },
   // 3.673.1 (F2, the live test)
   { name: "THE DEFECT: the weapon card's Now X HP is read before Guarded's heal", file: AW, from: "          damageResult.newHP = Number(damageResult.newHP) + Number(healed);\n", to: "", breaks: "L1" },
   { name: "the card's figure is mended but the Strike's result is not", file: AW, from: "          finalHP = damageResult.newHP;\n", to: "", breaks: "L1" },
   { name: "the heal is counted before it is dealt", file: AW, from: "        if (damageResult && Number.isFinite(Number(damageResult.newHP)) && Number(healed) > 0) {", to: "        if (damageResult && Number.isFinite(Number(damageResult.newHP)) && Number(heal) > 0) {", breaks: "L1" },
   { name: "the spell's card no longer counts its heal", file: CAST, from: "      if (newHP !== null && Number.isFinite(Number(newHP))) newHP = Number(newHP) + (Number(healed) || 0);", to: "", breaks: "L1" },
-  { name: "the patch version is not raised", file: SJ, from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.673.0\"", breaks: "Z1" },
+  { name: "the patch version is not raised", file: SJ, from: "\"version\": \"3.694.0\"", to: "\"version\": \"3.673.0\"", breaks: "Z1" },
   // 3.673.2 (the timed rune's two cards)
   { name: "THE DEFECT: the round clock says \"expires\" over the rune's own ending", file: m("combat", "effect-application-workflow.mjs"), from: "      if (!speaksAtItsOwnEnd(effect)) expired.push(label);", to: "      expired.push(label);", breaks: "L2" },
   { name: "the world clock says \"expires\" over the rune's own ending", file: m("combat", "effect-application-workflow.mjs"), from: "      if (!speaksAtItsOwnEnd(effect)) expired.push(statusId", to: "      if (true) expired.push(statusId", breaks: "L2" },
@@ -132,13 +132,13 @@ const MUTATIONS = [
   { name: "every effect speaks for itself, so nothing is announced", file: m("combat", "effect-expiry.mjs"), from: "  return Boolean(effect?.flags?.[\"trg-prime\"]?.[RUNE_TIMER_FLAG]);", to: "  return true;", breaks: "L2" },
   { name: "a silenced timer is not ended", file: m("combat", "effect-application-workflow.mjs"), from: "      if (!speaksAtItsOwnEnd(effect)) expired.push(label);", to: "      if (speaksAtItsOwnEnd(effect)) continue;\n      expired.push(label);", breaks: "L2" },
   { name: "the timer's lapse says the manual ending", file: m("rune-timers-workflow.mjs"), from: "      const lapsed = how !== \"manual\";", to: "      const lapsed = false;", breaks: "L2" },
-  { name: "the second patch version is not raised", file: SJ, from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.673.1\"", breaks: "Z2" },
+  { name: "the second patch version is not raised", file: SJ, from: "\"version\": \"3.694.0\"", to: "\"version\": \"3.673.1\"", breaks: "Z2" },
   // 3.673.3 (F3 of the 3.673.2 live test)
   { name: "THE DEFECT: the line is printed on every critical", file: AW, from: "  if (critical && critDiceKept && !drainDice && !guardDice) {", to: "  if (critical) {", breaks: "L3" },
   { name: "the line is printed under Guarded", file: AW, from: "  if (critical && critDiceKept && !drainDice && !guardDice) {", to: "  if (critical && critDiceKept && !drainDice) {", breaks: "L3" },
   { name: "the line is printed under Soul Drain", file: AW, from: "  if (critical && critDiceKept && !drainDice && !guardDice) {", to: "  if (critical && critDiceKept && !guardDice) {", breaks: "L3" },
   { name: "the line is printed against precision immunity", file: AW, from: "  if (critical && critDiceKept && !drainDice && !guardDice) {", to: "  if (critical && !drainDice && !guardDice) {", breaks: "L3" },
-  { name: "the third patch version is not raised", file: SJ, from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.673.2\"", breaks: "Z3" }
+  { name: "the third patch version is not raised", file: SJ, from: "\"version\": \"3.694.0\"", to: "\"version\": \"3.673.2\"", breaks: "Z3" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-block9-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

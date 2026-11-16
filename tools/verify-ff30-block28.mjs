@@ -81,7 +81,7 @@ ok("S3 the divine mark rides the typed-damage path and both spell paths",
   /damageTypes: \[String\(type \?\? ""\)\.trim\(\)\.toLowerCase\(\), \.\.\.divineDamageMark\(traits\)\]/.test(src.dw)
   && (src.cast.match(/\.\.\.divineDamageMark\(spellDamageSource\(spell\)\.sourceTraits\)/g) ?? []).length === 3);
 ok("S4 Unstoppable Force empties the blow's resistances and bypasses its other packets'; a Reaver Blade critical's dice leave the blow and land as Soul Drain",
-  /resistances: unstoppable \? new Set\(\) : targetDefences\.resistances,/.test(src.aw) && /resistanceCategories: unstoppable \? \[\] : targetDefences\.resistanceCategories,/.test(src.aw)
+  /resistances: unstoppable \? new Set\(\) : keptResistances\(targetDefences\.resistances\),/.test(src.aw) /* RE-ANCHORED AT 3.689.0 (H21: Aetherfang) */ && /resistanceCategories: unstoppable \? \[\] : targetDefences\.resistanceCategories,/.test(src.aw)
   && /if \(unstoppable\) bypassFor\(\[String\(rune\.type \?\? ""\)\.toLowerCase\(\)\], 5\);/.test(src.aw)
   && /criticalDice: \(drainDice \|\| guardDice\) \? 0 : critDiceKept,/.test(src.aw) && /const tags = \[\{ key: "soulDrain", value: drainRoll\.total, label: conditionLabel\("soulDrain"\) \}\];/.test(src.aw));
 ok("S5 Fearful Power: frightened in reach raised as it is applied; the Tenebrax's attacks and DB read the highest frightened around it",

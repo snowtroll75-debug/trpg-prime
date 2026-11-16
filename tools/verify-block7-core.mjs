@@ -224,7 +224,7 @@ const pf = read("module", "picker-filters.mjs");
     && /if \(!noReactions\) await offerReactiveDisarm\(targetActor, actor, weapon\);/.test(aw)
     && /const jaw = noReactions \? null : savageJawOffer\(/.test(aw)
     && /if \(outcome\.resolved && !outcome\.hits && targetActor && !noReactions\) \{/.test(aw)
-    && /noReactions: Boolean\(noReactions\)\n\s*\}\);/.test(aw));
+    && /noReactions: Boolean\(noReactions\)(?:,\n(?:\s*\/\/[^\n]*\n)*\s*natural: Number\(check\?\.dice\?\.unmodified \?\? 0\) \|\| 0,\n\s*fumble: Boolean\(confirmedFumble\)(?:,\n(?:\s*\/\/[^\n]*\n)*\s*total: Number\(check\?\.outcome\?\.total \?\? check\?\.total \?\? NaN\))?)?\n\s*\}\);/.test(aw)); // RE-ANCHORED AT 3.689.0 and 3.692.0 (the total): H22's natural die and fumble follow
   ok("C9 …while the target's conviction reroll and an ally's intercept are still asked",
     /if \(targetActor && !presetDice\) \{\n\s*const \{ offerAttackReroll, postRerollCard \}/.test(aw)
     && /if \(targetToken && targetActor && !isReaction && !skipTargetPrompt\) \{\n\s*const \{ offerIntercepts \}/.test(aw));

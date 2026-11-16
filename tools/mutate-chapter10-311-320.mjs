@@ -145,8 +145,9 @@ const MUTATIONS = [
     from: `        sourceTraits: vsTraitSourceTraits(spellSourceTraits(spell), vsSpec.type)`,
     to: `        ;`, breaks: "V6e" },
   { file: CASTER, name: "the resonance trigger reads the modified total rather than the die",
-    from: `    if (resonanceFace > 0 && Number(check?.dice?.unmodified ?? 0) === resonanceFace) {`,
-    to: `    if (resonanceFace > 0 && Number(check?.outcome?.total ?? 0) === resonanceFace) {`,
+    // RE-ANCHORED AT 3.690.0: the cast's own trigger (a held spell's is rolled at its hold exit).
+    from: `    if (resonanceFace > 0 && !heldRelease && Number(check?.dice?.unmodified ?? 0) === resonanceFace) {`,
+    to: `    if (resonanceFace > 0 && !heldRelease && Number(check?.outcome?.total ?? 0) === resonanceFace) {`,
     breaks: "W1b" },
   { file: RELIEF, name: "SOUL DRAIN GOES BACK TO ONES, which the audit wrongly asked for",
     from: `  soulDrain: Object.freeze({ label: "Soul Drain", step: 5 }),`,

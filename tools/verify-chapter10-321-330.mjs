@@ -153,7 +153,8 @@ ok("W6 A CRITICAL WITH NO DICE IN FRONT OF IT STILL LANDS",
   ok("W7 a half/full ladder rolls the spell's damage ONCE, before the per-target loop",
     // RE-POINTED AT 3.684.0 (Eldritch Arts Block 6, G14): the loop opens with
     // the one-target Save DC (Sanguine Channel) before it reads the save.
-    sharedAt > 0 && sharedAt < cast.indexOf("for (const target of targets) {\n    const targetShift = castOptionDCFor(saveDCTargets, target?.uuid ?? \"\");"));
+    // RE-POINTED AT 3.690.0 (Block 9c, H24): the target itself is handed in (a row may name a trait).
+    sharedAt > 0 && sharedAt < cast.indexOf("const targetShift = castOptionDCFor(saveDCTargets, target ?? \"\");"));
   ok("W7b and hands that roll to every rung", /shared: ladderUsesSharedRoll\(saveLadder\) && damageFormula \? baseDamage : null/.test(ladderBranch));
 }
 

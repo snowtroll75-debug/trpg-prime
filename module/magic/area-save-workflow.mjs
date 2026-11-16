@@ -71,6 +71,7 @@ export async function basicSaveHit({ caster = null, target, save, dc, label, for
   let taken = 0;
   let hp = null;
   let bracersLine = "";
+  let reactionLines = [];
   if (dealt > 0) {
     // DAMAGE NOTHING STOPS (3.679.0; Eldritch Arts' vital sacrifice: "this
     // damage bypasses all DR, Resistance and Immunity"): the save still
@@ -78,7 +79,8 @@ export async function basicSaveHit({ caster = null, target, save, dc, label, for
     // A DAMAGE REACTION, BEFORE THE DEFENCES (3.681.0; found in review).
     if (!ignoreDefences) {
       const { spellDamageReactionsFor } = await import("../reactions/reactions-workflow.mjs");
-      await spellDamageReactionsFor(target, type, { spellName: "", source: null });
+      // THE AMOUNT, AND WHAT THE REACTIONS SAY (3.693.0, H28; found in review).
+      reactionLines = await spellDamageReactionsFor(target, type, { spellName: "", source: null, amount: dealt });
     }
     const packet = ignoreDefences ? { taken: dealt, immune: false } : resolveAgainstDefences(target.system ?? {}, {
       amount: dealt, type,
@@ -113,7 +115,7 @@ export async function basicSaveHit({ caster = null, target, save, dc, label, for
     + (taken > 0
       ? `<strong>${taken} ${type}</strong>${bs.criticalSeverity ? ` and a ${bs.criticalSeverity} critical` : ""}`
         + `${hp !== null ? ` — now ${hp} HP` : ""}.`
-      : "unharmed.") + bracersLine;
+      : "unharmed.") + bracersLine + (reactionLines.length ? ` ${reactionLines.join(" ")}` : "");
   return { line, degree, taken };
 }
 

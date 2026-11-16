@@ -42,6 +42,7 @@ import { runeKindOf, runesCountFor } from "./rune-bearing.mjs";
 import { roman } from "./runes.mjs";
 import { runeUsageAllows, weaponUsage } from "./weapon-rune-usage.mjs";
 import { runeFieldOf } from "./infused-runes.mjs";
+import { materialOf } from "./item-quality.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -66,6 +67,23 @@ function declaredRunesOn(item) {
       label: `${rune.name}${Array.isArray(rune.tiers) && rune.tiers.length > 1 ? ` ${roman(tier)}` : ""}`,
       rune, row, declares: rune.declares ?? {}
     });
+  }
+  // A MODULE MATERIAL'S DECLARATIONS (3.688.0; Eldritch Arts Block 9a, H20):
+  // Bloodglass armour's "+1-item bonus to saving throws against effects with
+  // the essence trait", Tairneach's critical electricity — the same vocabulary
+  // as a rune's, read by the same readers, while the item counts. Only a
+  // material that declares something; the core's own materials declare
+  // nothing and are read where they always were (item-quality.mjs).
+  //
+  // BY ITEM TYPE (3.688.0): a material's bonus is often printed for one kind
+  // of item ("Bloodglass armour …", "Tairneach weapons …"), so `declaresByType`
+  // ({ weapon, armour, shield }) is read for the item's own type, in place of
+  // `declares`, when it names that type.
+  const material = materialOf(item?.system?.material);
+  const byType = material?.declaresByType && typeof material.declaresByType === "object" ? material.declaresByType[item?.type] : undefined;
+  const declares = byType !== undefined ? byType : material?.declares;
+  if (declares && typeof declares === "object" && Object.keys(declares).length) {
+    out.push({ key: `material:${material.key ?? item.system.material}`, name: material.label, tier: 1, label: material.label, rune: null, row: null, declares });
   }
   return out;
 }
@@ -564,4 +582,221 @@ export function registeredEnergyRune(key) {
     .filter((t) => /^\d+d\d+$/i.test(t.dice));
   if (!type || !tiers.length) return null;
   return { label: rune.name, type, tiers: Object.freeze(tiers) };
+}
+
+/* ───────────── H21: Block 9's declarations (3.689.0) ───────────── */
+
+/*
+ * ELDRITCH ARTS BLOCK 9b (3.689.0, H21; Graham, 13 November 2026: "Go with
+ * your recommendation for all questions and proceed"). Eleven more things a
+ * registered rune may declare, each read where the system already does that
+ * thing, and each only while the rune's item counts (`runesCountFor`: equipped,
+ * and not runed clothing under body armour) — as every declaration above:
+ *
+ *   controlLevelBonus:    n                 control levels (C12's sum)
+ *   spellAdder:           n | [n per tier]  a +n Spell Adder (spell-adder.mjs)
+ *   resistances:          ["force", …]      resistance while worn
+ *   maxDexBonus:          n                 the armour's Max Dex, raised
+ *   donAP:                { light, medium, heavy, fullExtra }   donning time
+ *   armourCastingPenalty: 0                 the armour adds no casting penalty
+ *   criticalRollModifier: { value: n | [per tier], exceptFaces: [66, 100] }
+ *                                           the critical injury roll against you
+ *   uncoveredDR:          { share: n | [per tier] }  the armour's DR, shared to
+ *                                           a struck location it does not cover
+ *   defenceDC:            [rows]            defence-dc.mjs rows (value per tier)
+ *   controlSaveModifier:  n | [per tier]    the page-242 Will save your
+ *                                           controlled creatures make
+ *   sleepAdvantage:       true              Sleeping in Armour, with advantage
+ *
+ * A number list is read by the inscribed tier, the last for a tier beyond it
+ * (`tierValued`'s rule). Nothing here is read for a rune that declares none of
+ * it, so every existing rune behaves as before.
+ */
+
+/** A declared number, or a list of them read by tier; NaN-safe. */
+function tierNumber(value, tier = 1) {
+  if (Array.isArray(value)) {
+    if (!value.length) return 0;
+    const at = Math.min(Math.max(1, Math.floor(Number(tier) || 1)), value.length) - 1;
+    return Number(value[at]) || 0;
+  }
+  return Number(value) || 0;
+}
+
+/** Every active rune on these items declaring `key`, with its item: [{ entry, item, spec }]. */
+function activeRuneDeclarations(items = [], key = "") {
+  const out = [];
+  for (const { item, ...entry } of activeDeclaredRunes(items)) {
+    const spec = entry.declares?.[key];
+    if (spec === undefined || spec === null || spec === false) continue;
+    out.push({ entry, item, spec });
+  }
+  return out;
+}
+
+/** The same, for one item (counted or not by the caller). */
+function itemRuneDeclarations(item, key = "", { counted = true, items = [] } = {}) {
+  const entries = counted ? activeDeclaredRunesOn(item, items) : declaredRunesOn(item);
+  return entries
+    .filter((e) => e.declares?.[key] !== undefined && e.declares?.[key] !== null && e.declares?.[key] !== false)
+    .map((entry) => ({ entry, item, spec: entry.declares[key] }));
+}
+
+/** Summed whole numbers a key declares across the active runes (control levels, the control save). */
+export function runeDeclaredSum(items = [], key = "") {
+  return activeRuneDeclarations(items, key)
+    .reduce((sum, d) => sum + Math.trunc(tierNumber(d.spec, d.entry.tier)), 0);
+}
+
+/** Control levels a rune adds (Summoner's Brand: +2 whilst wielded). */
+export function runeControlLevelBonus(items = []) {
+  return runeDeclaredSum(items, "controlLevelBonus");
+}
+
+/** The Spell Adders runes declare: [{ label, value }] (Arcanum Seal I–III: +1 to +3). */
+export function runeSpellAdders(items = []) {
+  return activeRuneDeclarations(items, "spellAdder")
+    .map((d) => ({ label: `${d.item?.name ?? "item"} (${d.entry.label})`, value: Math.max(0, Math.floor(tierNumber(d.spec, d.entry.tier))) }))
+    .filter((s) => s.value > 0);
+}
+
+/** Resistances one item's runes declare (Force Warding, Soul Warding), lower-case. */
+export function runeDeclaredResistances(item, items = []) {
+  const out = [];
+  for (const d of itemRuneDeclarations(item, "resistances", { items })) {
+    for (const t of Array.isArray(d.spec) ? d.spec : [d.spec]) {
+      const type = String(t ?? "").trim().toLowerCase();
+      if (type && !out.includes(type)) out.push(type);
+    }
+  }
+  return out;
+}
+
+/** The Max Dex one armour's runes add (Comfort: +1). Read for the piece itself. */
+export function runeMaxDexBonus(item, items = []) {
+  return itemRuneDeclarations(item, "maxDexBonus", { items })
+    .reduce((sum, d) => sum + Math.trunc(tierNumber(d.spec, d.entry.tier)), 0);
+}
+
+/**
+ * The donning time one armour's runes print (Swiftbind: "1 AP (light), 2 AP
+ * (medium) or 3 AP (heavy) Interact; full suits +1 AP"), or null. Read off the
+ * item whether or not it is worn — it is how long it takes to put on.
+ */
+export function runeDonningAP(item, category = "", { fullSuit = false } = {}) {
+  for (const d of itemRuneDeclarations(item, "donAP", { counted: false })) {
+    const spec = d.spec && typeof d.spec === "object" ? d.spec : {};
+    const base = Number(spec[String(category ?? "").trim().toLowerCase()]);
+    if (!Number.isFinite(base)) continue;
+    const extra = fullSuit ? Math.max(0, Math.trunc(Number(spec.fullExtra) || 0)) : 0;
+    return { ap: Math.max(0, Math.trunc(base)) + extra, rune: d.entry.label, fullExtra: extra };
+  }
+  return null;
+}
+
+/** Does this armour's rune waive its casting penalty (Transcendent)? Read while it counts. */
+export function runeWaivesArmourCastingPenalty(item, items = []) {
+  return itemRuneDeclarations(item, "armourCastingPenalty", { items })
+    .some((d) => Number(d.spec) === 0 || d.spec === true);
+}
+
+/**
+ * The critical injury roll's modifier the struck creature's runes declare
+ * (Astral Echoes I–III: −5, −10, −15), skipped on an unmodified face the rune
+ * names ("no effect if the critical is an UM 66 or 100"). The largest
+ * reduction counts; two such runes are one armour's worth.
+ * @returns {{value: number, label: string}|null}
+ */
+export function runeCriticalRollModifier(items = [], face = 0) {
+  let best = null;
+  for (const d of activeRuneDeclarations(items, "criticalRollModifier")) {
+    const spec = d.spec && typeof d.spec === "object" ? d.spec : { value: d.spec };
+    const except = (Array.isArray(spec.exceptFaces) ? spec.exceptFaces : []).map(Number);
+    if (except.includes(Math.trunc(Number(face) || 0))) continue;
+    const value = Math.trunc(tierNumber(spec.value, d.entry.tier));
+    if (!value) continue;
+    if (!best || Math.abs(value) > Math.abs(best.value)) best = { value, label: `${d.item?.name ?? ""} (${d.entry.label})` };
+  }
+  return best;
+}
+
+/**
+ * The share of an armour's DR its rune lets it give a location it does not
+ * cover (Aegisflow I: half; II: all), or 0. Read for the piece, while it counts.
+ */
+export function runeUncoveredDRShare(item, items = []) {
+  let share = 0;
+  for (const d of itemRuneDeclarations(item, "uncoveredDR", { items })) {
+    const spec = d.spec && typeof d.spec === "object" ? d.spec : { share: d.spec };
+    share = Math.max(share, Math.min(1, Math.max(0, tierNumber(spec.share, d.entry.tier))));
+  }
+  return share;
+}
+
+/** The defence rows runes declare, each with its tier's value (Bound Circle, Ley Binding). */
+export function runeDefenceRows(item, items = []) {
+  const out = [];
+  for (const d of itemRuneDeclarations(item, "defenceDC", { items })) {
+    for (const raw of Array.isArray(d.spec) ? d.spec : [d.spec]) {
+      if (!raw || typeof raw !== "object") continue;
+      const row = tierValued(raw, d.entry.tier);
+      out.push({ ...row, label: row.label ? `${item?.name ?? ""} (${d.entry.label}) — ${row.label}` : `${item?.name ?? ""} (${d.entry.label})` });
+    }
+  }
+  return out;
+}
+
+/** Does a worn armour's rune give Sleeping in Armour advantage (Comfort)? */
+export function runeSleepAdvantage(items = []) {
+  const found = activeRuneDeclarations(items, "sleepAdvantage").find((d) => d.spec === true);
+  return found ? `${found.item?.name ?? ""} (${found.entry.label})` : "";
+}
+
+/*
+ * THREE MORE FOR THE WEAPON RUNES (3.689.0, H21), read off the weapon being
+ * swung (its runes, whatever else is worn):
+ *
+ *   ignoreResistance: ["bludgeoning", "piercing", "slashing", "physical"]
+ *                     the Strike's own damage ignores the target's resistance
+ *                     to these (Aetherfang: "bypasses Resistance to physical
+ *                     damage (but not Immunity)")
+ *   extraBaseDie:     true | { when(ctx) }   one more die of the weapon's base
+ *                     damage; `when` (a function, a module's) is asked with
+ *                     { actor, target, weapon, token } and must answer
+ *                     synchronously (Leybound: "within 30 feet of a ley line")
+ *   fumbleDCModifier: n   the weapon's Fumble DC (Gravitas: "increases FDC by 2")
+ */
+
+/** The resistance types a weapon's runes let its Strike ignore, lower-case. */
+export function runeIgnoredResistances(weapon) {
+  const out = [];
+  for (const d of itemRuneDeclarations(weapon, "ignoreResistance", { counted: false })) {
+    for (const t of Array.isArray(d.spec) ? d.spec : [d.spec]) {
+      const type = String(t ?? "").trim().toLowerCase();
+      if (type && !out.includes(type)) out.push(type);
+    }
+  }
+  return out.length ? { types: out, label: itemRuneDeclarations(weapon, "ignoreResistance", { counted: false }).map((d) => d.entry.label).join(", ") } : null;
+}
+
+/** Extra base dice a weapon's runes add to this Strike, with their labels. */
+export function runeExtraBaseDice(weapon, ctx = {}) {
+  let dice = 0;
+  const labels = [];
+  for (const d of itemRuneDeclarations(weapon, "extraBaseDie", { counted: false })) {
+    let applies = d.spec === true;
+    if (!applies && typeof d.spec?.when === "function") {
+      try { applies = d.spec.when({ ...ctx, weapon }) === true; } catch { applies = false; }
+    }
+    if (!applies) continue;
+    dice += 1;
+    labels.push(d.entry.label);
+  }
+  return { dice, labels };
+}
+
+/** The Fumble DC change a weapon's runes declare (Gravitas: +2). */
+export function runeFumbleDCModifier(weapon) {
+  return itemRuneDeclarations(weapon, "fumbleDCModifier", { counted: false })
+    .reduce((sum, d) => sum + Math.trunc(tierNumber(d.spec, d.entry.tier)), 0);
 }

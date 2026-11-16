@@ -439,6 +439,17 @@ export async function relayCreateCompanion(master, data, applyDirect) {
   return game.actors?.get(id) ?? null;
 }
 
+/**
+ * An action resolved at a total, on the GM's client when this one may not
+ * write to the target (3.692.0). Resolves what the workflow resolves, or
+ * `{ ok: false, reason }` when the GM did not.
+ */
+export async function relayActionAtTotal(actor, target, payload, applyDirect) {
+  if (!needsRelay(target)) return applyDirect();
+  const reply = await ask(RELAY_ACTIONS.ACTION_AT_TOTAL, target, { actorUuid: actor?.uuid ?? "", ...payload });
+  return reply.ok ? reply.result : { ok: false, reason: reply.reason ?? "no answer", lines: [] };
+}
+
 export async function relayItemHp(target, itemId, value, applyDirect) {
   if (!needsRelay(target)) return applyDirect();
   const reply = await ask(RELAY_ACTIONS.ITEM_HP, target, { itemId, value });
@@ -470,6 +481,12 @@ async function liveDeps() {
     },
     // `direct` STOPS THE RELAY RECURSING — the GM already owns the target.
     consumeOneAttack: async (target, event) => consumeOneAttackEffects(target, event, { direct: true }),
+    // AN ACTION AT A TOTAL, ON THE GM'S CLIENT (3.692.0). `direct` stops the
+    // relay recursing — the GM already owns the target.
+    actionAtTotal: async (actor, target, actionKey, opts) => {
+      const { resolveBasicActionAtTotal } = await import("./basic-action-at-total-workflow.mjs");
+      return resolveBasicActionAtTotal(actor, target, actionKey, { ...opts, direct: true });
+    },
     // A COUNTERACT, ON THE GM'S CLIENT (3.686.0) — see counteractEffectAsGM.
     counteractEffect: async (target, effectId, traits) => {
       const { counteractEffectAsGM } = await import("../magic/counteract-relay-workflow.mjs");

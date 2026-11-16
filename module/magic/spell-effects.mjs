@@ -588,7 +588,7 @@ async function applyDamageEffect(recipients, effect, { rollData, rolls, warpDice
     // 3b): asked once a cast, so a volley of missiles asks its creature once.
     {
       const { damageReactionsBefore } = await import("../reactions/reactions-workflow.mjs");
-      for (const said of await damageReactionsBefore(target, { kind: "spell", types: [type], magical: true })) lines?.push?.(line(said));
+      for (const said of await damageReactionsBefore(target, { kind: "spell", types: [type], magical: true, amount })) lines?.push?.(line(said));
     }
     const packet = resolveAgainstDefences(target.system ?? {}, {
       amount,
@@ -6235,6 +6235,31 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           const { speedValue } = await import("../combat/speed-pool.mjs");
           const shownSet = speedValue(target.system?.combat?.movement?.[set.key]) || set.feet;
           lines.push(line(speedSetLine(target.name, set, shownSet) + durationText));
+          break;
+        }
+        case "speedHalve": {
+          /*
+           * A HALVED SPEED (3.692.0; Eldritch Arts Block 7, Eaog Balls:
+           * "The target's speed is halved" — on a Success for the spell's
+           * length, on a Critical "until the end of their next turn"). An
+           * EFFECT carrying `movementHalved`, created through the relay —
+           * not an item, which a player cannot create on the GM's creature
+           * (found in review); see combat/granted-speeds.mjs `speedsHalved`.
+           * A row may carry its own `duration` text, read by the one
+           * duration reader.
+           */
+          const { HALVED_SPEED_PATH } = await import("../combat/granted-speeds.mjs");
+          const ownDuration = String(effect.duration ?? "").trim();
+          const halveDuration = ownDuration ? parseSpellDuration(ownDuration) : parsedDuration;
+          const halveText = ownDuration ? ` (${ownDuration})` : durationText;
+          const hvData = overrideEffectData({
+            name: effectName(spell.name, effect.note || "speed halved"), spell, changes: [], parsedDuration: halveDuration, castId, registersCast
+          });
+          hvData.flags[SYSTEM_ID][HALVED_SPEED_PATH] = true;
+          hvData.description = `This creature&rsquo;s speed is halved by ${spell.name}${halveText}.`;
+          await createEffectsOn(target, [hvData]);
+          if (castId && target.uuid) affected.add(target.uuid);
+          lines.push(line(`<strong>${target.name}</strong>&rsquo;s speed is <strong>halved</strong>${halveText}.`));
           break;
         }
         case "sizeStep": {

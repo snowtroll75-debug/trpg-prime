@@ -51,13 +51,15 @@ import {
   registerSpellCheckGate,
   registerCastSurcharge, registerReleasePath, registerWeaponTraitRule,
   registerCastRefusal, registerDeferredTeleport, registerCastDegreeRemap, registerResonanceSuppressor, registerEffectSuppressor, registerHighMagicRules,
-  registerRitualRules, registerCastOption, registerDispelModifier,
+  registerRitualRules, registerCastOption, registerCastItemOption, registerMaterial, registerDispelModifier,
   registerCastCapModifier, registerSpecialistAccess, registerFamiliarModifier, registerPPGrant,
   registerCheckReaction, registerDamageReaction, registerCastReaction, registerCriticalReaction, registerReactionStep,
   registerInnateLevelBonus,
   registerCastPrelude,
   registerDyingRecoveryModifier,
   registerFumbleModifier, registerResonanceModifier, registerChargedItemRule, registerPendingCastStep,
+  registerChargedKind, registerOneInvestedTraits,
+  registerInvestCost, registerInvestPrepare, registerInvestRefusal,
   registerUnconsciousOffer, registerFeatEligibility, registerExtraUses,
   registerMetamagic, registerCastPPSource, registerMetamagicPayment, registerCastCostModifier,
   registerCreateRoute,
@@ -186,6 +188,10 @@ export function buildModuleApi() {
     // A RITUAL'S RULES AND A CASTING OPTION (3.679.0; Eldritch Arts Block 2b).
     registerRitualRules: (key, spec, moduleId) => registerRitualRules(key, spec, moduleId),
     registerCastOption: (key, spec, moduleId) => registerCastOption(key, spec, moduleId),
+    // AN ITEM AT THE CAST (3.688.0; Eldritch Arts Block 9a, H19): a catalyst.
+    registerCastItemOption: (key, spec, moduleId) => registerCastItemOption(key, spec, moduleId),
+    // A SPECIAL MATERIAL (3.688.0; Eldritch Arts Block 9a, H20).
+    registerMaterial: (key, spec, moduleId) => registerMaterial(key, spec, moduleId),
     // A DISPEL MODIFIER (3.683.0; Eldritch Arts Block 5, D10, C9): Dispel Power,
     // Resonant Ascendance, Threadbreaker's Precision, Mirrored Rebuke; Block 6's
     // Runebreaker and Glyph Shatter. See module-api.mjs for the contract.
@@ -221,6 +227,16 @@ export function buildModuleApi() {
     registerFumbleModifier: (key, modify, moduleId) => registerFumbleModifier(key, modify, moduleId),
     registerResonanceModifier: (key, spec, moduleId) => registerResonanceModifier(key, spec, moduleId),
     registerChargedItemRule: (key, spec, moduleId) => registerChargedItemRule(key, spec, moduleId),
+    // ELDRITCH ARTS BLOCK 9c (3.690.0): a kind of charged item (H23, the Orb)
+    // and a trait with one invested item at a time (H25, ORB). In module-api.mjs.
+    registerChargedKind: (key, spec, moduleId) => registerChargedKind(key, spec, moduleId),
+    registerOneInvestedTraits: (traits, moduleId) => registerOneInvestedTraits(traits, moduleId),
+    // ELDRITCH ARTS BLOCK 10 (3.693.0, H27): an item's investment cost (a
+    // relic's tier, a sentient item's two), a step before Invest Item, and a
+    // module's refusal (a bonded relic and another creature). In module-api.mjs.
+    registerInvestCost: (key, fn, moduleId) => registerInvestCost(key, fn, moduleId),
+    registerInvestPrepare: (key, fn, moduleId) => registerInvestPrepare(key, fn, moduleId),
+    registerInvestRefusal: (key, fn, moduleId) => registerInvestRefusal(key, fn, moduleId),
     registerPendingCastStep: (key, step, moduleId) => registerPendingCastStep(key, step, moduleId),
     // ELDRITCH ARTS BLOCK 6, GROUP C (3.684.0). "When you would fall
     // unconscious" (G7: Subconscious Casting, Eternal Vigil); a feat's
@@ -609,6 +625,27 @@ export function buildModuleApi() {
       // registered with `registerDeferredTeleport`.
       teleportationArrives: async (...args) => (await import("./trait-rules-workflow.mjs")).teleportationArrives(...args),
       teleportationFails: async (...args) => { const { teleportationFails } = await import("./trait-rules-workflow.mjs"); return teleportationFails(...args); },
+      // AN EXHAUSTION CHECK (3.689.0; Eldritch Arts' Chrono rune: "At the end of
+      // each turn that you use this rune; you must make an Exhaustion check …
+      // the difficulty … increases by one step"). The core's check (Easy, page
+      // 195's modifiers), with `modifier` a bonus (negative for a harder step).
+      rollExhaustionCheck: async (actor, opts = {}) => (await import("./combat/exhaustion-workflow.mjs")).rollExhaustionCheck(actor, opts),
+      // ELDRITCH ARTS BLOCK 9c (3.690.0).
+      // A ROD'S POWER, PAID (H24): `spendFromRod(actor, rod, pp, { reason })`
+      // spends through the one charged-item path (a rule's cut, the round's
+      // Rod stamp, Charge Depletion below 0) and resolves the card line;
+      // `rodUseRefusal(actor)` is why a Rod cannot be used now ("only one Rod
+      // may be used each round"), or "".
+      spendFromRod: async (actor, item, pp, opts = {}) => (await import("./charged-items-workflow.mjs")).spendFromRod(actor, item, pp, opts ?? {}),
+      rodUseRefusal: async (actor) => (await import("./trait-rules-workflow.mjs")).rodUseRefusal(actor),
+      // HELD SPELLS (Spellhold; see magic/spell-storing.mjs): open a hold
+      // window on an item (`armHold(actor, item, { capacityPP, label })` — the
+      // next cast is held in it), read its spells, release one (`{ ap }`: "1",
+      // "free"…), or let them fade.
+      armHold: async (actor, item, opts = {}) => (await import("./magic/spell-storing-workflow.mjs")).armHold(actor, item, opts ?? {}),
+      heldSpellsIn: async (item) => (await import("./magic/spell-storing-workflow.mjs")).heldSpellsIn(item),
+      releaseHeldSpell: async (actor, item, recordId, opts = {}) => (await import("./magic/spell-storing-workflow.mjs")).releaseHeldSpell(actor, item, recordId, opts ?? {}),
+      clearHeldSpells: async (item) => (await import("./magic/spell-storing-workflow.mjs")).clearHeldSpells(item),
       // CONVICTION, BY THE CORE'S RULE (3.681.0): `convictionState` resolves
       // `{ value, max, ok, reason }` (one point a round in combat);
       // `spendConviction` spends one and stamps the round, resolving whether it could.
@@ -626,6 +663,15 @@ export function buildModuleApi() {
       // none. Veil of Silence, Moonlight Precision, Shadow Initiate, Silent
       // Veil, Veilstride, Ghostscale. (Rolls read it through the
       // conditionals' `lightLevels` axis; this is for everything else.)
+      // AN ACTION RESOLVED AT A TOTAL ALREADY ROLLED (3.692.0; Eldritch Arts
+      // Block 7, Spirit Arrow's manoeuvre "using the attackers attack result").
+      // `actionKey` is a basic or skill action ("feint", "grappleAttack",
+      // "shoveAttack", "tripAttack", "disarmAttack"); `{ total, label, rounds }`.
+      // The action's DC, difficulty and size penalty apply; its conditions, a
+      // Shove's push and its clock land. Rolls nothing, spends nothing.
+      // Resolves `{ ok, degree, dc, total, lines }` — the lines for a card.
+      resolveBasicActionAtTotal: async (actor, target, actionKey, opts = {}) =>
+        (await import("./combat/basic-action-at-total-workflow.mjs")).resolveBasicActionAtTotal(actor, target, actionKey, opts ?? {}),
       lightLevelAt: async (token) => {
         const { ambientLightLevelAt } = await import("./light-workflow.mjs");
         return ambientLightLevelAt(token);

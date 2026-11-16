@@ -70,7 +70,7 @@ const MUTATIONS = [
   { name: "a module's reaction is not refused by a block", file: APW, from: "  if (blocked) return `${actor.name}: ${blocked}.`;", to: "  void blocked;", breaks: "C9" },
   { name: "the target is still offered a defence", file: AW, from: "  if (targetActor && !noReactions) {\n    const { offerDefences }", to: "  if (targetActor) {\n    const { offerDefences }", breaks: "C9" },
   { name: "the target is still offered a miss reaction", file: AW, from: "  if (outcome.resolved && !outcome.hits && targetActor && !noReactions) {", to: "  if (outcome.resolved && !outcome.hits && targetActor) {", breaks: "C9" },
-  { name: "the hook never says so", file: AW, from: "      noReactions: Boolean(noReactions)\n    });", to: "      noReactions: false\n    });", breaks: "C9" },
+  { name: "the hook never says so", file: AW, from: "      noReactions: Boolean(noReactions),\n", to: "      noReactions: false,\n", breaks: "C9" }, // RE-ANCHORED AT 3.689.0
   { name: "the conviction reroll is refused too (it is not a reaction)", file: AW, from: "  if (targetActor && !presetDice) {\n    const { offerAttackReroll", to: "  if (targetActor && !presetDice && !noReactions) {\n    const { offerAttackReroll", breaks: "C9" },
   // C10–C12
   { name: "THE GAP: an immunity never refuses", file: API, from: "        if (!t.isTemporarilyImmune(record, key, now)) return \"\";", to: "        return \"\";", breaks: "C10" },
@@ -104,7 +104,7 @@ const MUTATIONS = [
   { name: "the dialog is not told what a Refocus restores (review)", file: ACW, from: "      restores: refocusTarget ? [refocusTarget.system?.category, refocusTarget.name].map((v) => String(v ?? \"\").trim()).filter(Boolean) : [],\n", to: "", breaks: "R" },
   { name: "the dialog drops the restores and sheathed axes (review)", file: m("apps", "check-dialog.mjs"), from: "            sheathedGroups: sheathedGroups || sheathedGroupsOf(actor?.items ?? []), restores\n", to: "\n", breaks: "R" },
   // version
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.670.1\"", breaks: "Z0" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.694.0\"", to: "\"version\": \"3.670.1\"", breaks: "Z0" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-block7-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

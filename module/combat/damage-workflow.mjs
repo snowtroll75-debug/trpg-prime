@@ -344,7 +344,9 @@ export async function applyTypedDamage(targetActor, {
     const { damageReactionsBefore } = await import("../reactions/reactions-workflow.mjs");
     reactionLines.push(...await damageReactionsBefore(targetActor, {
       kind: spellName ? "spell" : "other", types: [type], magical: Boolean(magical) || Boolean(spellName),
-      spellName, sourceName
+      spellName, sourceName,
+      // H28 (3.693.0): the amount, for an answer that heals by a fraction of it.
+      amount: Math.max(0, Math.floor(Number(amount) || 0))
     }));
   }
 

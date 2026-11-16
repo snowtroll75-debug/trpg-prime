@@ -58,9 +58,9 @@ const MUTATIONS = [
   { name: "asked every packet of a cast", file: GD, from: "  if (askedInCast.has(entry)) return true;", to: "", breaks: "G13/D4" },
   { name: "outside a cast, asked once for ever", file: GD, from: "  if (!castKey) return false;\n  const entry", to: "  const entry", breaks: "G15" },
   // D — damage reactions
-  { name: "the types are not lower-cased", file: RW, from: "    types: Array.from(event.types ?? []).map((t) => String(t ?? \"\").trim().toLowerCase()).filter(Boolean),", to: "    types: Array.from(event.types ?? []),", breaks: "D1" },
+  { name: "the types are not lower-cased", file: RW, from: "    target, kind: String(event.kind ?? \"other\"),\n    types: Array.from(event.types ?? []).map((t) => String(t ?? \"\").trim().toLowerCase()).filter(Boolean),", to: "    target, kind: String(event.kind ?? \"other\"),\n    types: Array.from(event.types ?? []),", breaks: "D1" }, // 3.693.0: a later packet's own reading sits above
   { name: "an answer is not granted", file: RW, from: "      const granted = grantDefence(target, {", to: "      const granted = false && grantDefence(target, {", breaks: "D2" },
-  { name: "the last blow's grant is kept", file: RW, from: "  if (askOnceThisCast(target, scopeKey)) return [];\n  clearInstanceGrants(target);", to: "  if (askOnceThisCast(target, scopeKey)) return [];", breaks: "D3" },
+  { name: "the last blow's grant is kept", file: RW, from: "    return lines;\n  }\n  clearInstanceGrants(target);", to: "    return lines;\n  }", breaks: "D3" }, // 3.693.0 (H28): the repeat ask now heals before it returns
   { name: "a cast answer is held as one blow's", file: RW, from: "        scope: out.scope === \"cast\" ? \"cast\" : \"instance\", label: said(out)", to: "        scope: \"instance\", label: said(out)", breaks: "D4" },
   // K — cast and critical reactions
   { name: "a stopped cast is not stopped", file: RW, from: "      if (out?.stop) return { stop: true, lines };", to: "", breaks: "K1" },
@@ -104,7 +104,7 @@ const MUTATIONS = [
   { name: "the system data does not point back to its actor (review)", file: m("documents", "actor.mjs"), from: "      Object.defineProperty(this.system, \"parent\", { value: this, enumerable: false, configurable: true, writable: true });", to: "", breaks: "W36" },
   { name: "the parent is enumerable, and walked by every copy", file: m("documents", "actor.mjs"), from: "{ value: this, enumerable: false, configurable: true, writable: true }", to: "{ value: this, enumerable: true, configurable: true, writable: true }", breaks: "W36" },
   { name: "a storm asks nobody (review)", file: m("magic", "storm-workflow.mjs"), from: "        lines.push(...await spellDamageReactionsFor(actor, mode.type,", to: "        lines.push(...await (async () => [])(actor, mode.type,", breaks: "W37" },
-  { name: "a hazard asks nobody (review)", file: m("magic", "hazard-terrain-workflow.mjs"), from: "        await spellDamageReactionsFor(mover, spec.damageType,", to: "        await (async () => [])(mover, spec.damageType,", breaks: "W37" },
+  { name: "a hazard asks nobody (review)", file: m("magic", "hazard-terrain-workflow.mjs"), from: "        reactionLines = await spellDamageReactionsFor(mover, spec.damageType,", to: "        reactionLines = await (async () => [])(mover, spec.damageType,", breaks: "W37" }, // 3.693.0 (H28)
   { name: "a spell-damage site's question is not a spell's", file: RW, from: "    kind: \"spell\", types: [String(type ?? \"\").trim().toLowerCase()].filter(Boolean), magical: true,", to: "    kind: \"other\", types: [String(type ?? \"\").trim().toLowerCase()].filter(Boolean), magical: false,", breaks: "W40" },
   { name: "the question's scope is read once the answer is back (review)", file: RW, from: "        scope: out.scope === \"cast\" ? \"cast\" : \"instance\", label: said(out), castKey: scopeKey", to: "        scope: out.scope === \"cast\" ? \"cast\" : \"instance\", label: said(out)", breaks: "D (scope)" },
   { name: "a closed scope still holds a grant", file: GD, from: "  const castKey = wanted && castStack.includes(wanted) ? wanted : null;", to: "  const castKey = wanted;", breaks: "G19" },
@@ -119,9 +119,9 @@ const MUTATIONS = [
   { name: "a cast's scope never ends", file: CAST, from: "  } finally {\n    endCastScope(scope);\n  }", to: "  } finally {\n  }", breaks: "W14" },
   { name: "the struck creature is never asked at a critical", file: ATK, from: "    const reacted = await criticalReactionsFor({ attacker: actor, target: targetActor, weapon: weapon ?? null, bias, severity: severity ?? \"minor\" });", to: "    const reacted = { bias, lines: [] };", breaks: "W15" },
   { name: "a weapon's damage asks after the precision gate", file: ATK, from: "  const damageReactionLines = targetActor\n    ? await", to: "  const damageReactionLines = false\n    ? await", breaks: "W16" },
-  { name: "a spell attack's damage is never asked", file: CAST, from: "  for (const said of await spellDamageReactions(targetActor, spell, actor, [damageType])) lines.push(line(said));\n", to: "", breaks: "W17" },
+  { name: "a spell attack's damage is never asked", file: CAST, from: "  for (const said of await spellDamageReactions(targetActor, spell, actor, [damageType], dealt)) lines.push(line(said));\n", to: "", breaks: "W17" },
   { name: "a spell's damage is not magical", file: CAST, from: "    kind: \"spell\", types: types.filter(Boolean), magical: true, spellName: spell?.name ?? \"\",", to: "    kind: \"spell\", types: types.filter(Boolean), magical: false, spellName: spell?.name ?? \"\",", breaks: "W17" },
-  { name: "a missile's damage is never asked", file: SE, from: "      for (const said of await damageReactionsBefore(target, { kind: \"spell\", types: [type], magical: true })) lines?.push?.(line(said));", to: "", breaks: "W18" },
+  { name: "a missile's damage is never asked", file: SE, from: "      for (const said of await damageReactionsBefore(target, { kind: \"spell\", types: [type], magical: true, amount })) lines?.push?.(line(said));", to: "", breaks: "W18" },
   { name: "typed damage is never asked", file: DW, from: "    reactionLines.push(...await damageReactionsBefore(targetActor, {", to: "    reactionLines.push(...[], ...await (async () => [])({", breaks: "W19" },
   { name: "typed damage forgets the grant once met", file: DW, from: "    clearInstanceGrants(targetActor);\n  }\n  if (packet.healsInstead !== undefined) {", to: "  }\n  if (packet.healsInstead !== undefined) {", breaks: "W19" },
   { name: "a copied system loses its creature", file: DW, from: "    ? { ...targetActor.system, parent: targetActor, combat:", to: "    ? { ...targetActor.system, combat:", breaks: "W20" },
@@ -131,7 +131,7 @@ const MUTATIONS = [
   { name: "Conviction is spent past the round's limit", file: APW, from: "        if (!getConvictionState(actor).ok) return false;\n        await markConvictionSpent(actor);", to: "        await markConvictionSpent(actor);", breaks: "W26" },
   { name: "castAsReaction is not exported", file: SRS, from: "export async function castAsReaction(caster, spell, targetTokenIds = []) {", to: "async function castAsReaction(caster, spell, targetTokenIds = []) {", breaks: "W27" },
   // Z
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.687.1\"", to: "\"version\": \"3.680.1\"", breaks: "Z" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.694.0\"", to: "\"version\": \"3.680.1\"", breaks: "Z" }
 ];
 
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-ea-block3b-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }

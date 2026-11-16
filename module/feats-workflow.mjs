@@ -6507,6 +6507,9 @@ export const FEAT_AUTOMATION = {
       await postCard(actor, "Effortless Spell", [
         line(`<strong>1 PP</strong> spent — ${entry?.name ?? "the spell"} is sustained as a <strong>free action</strong> (no AP, no Sustain action).`)
       ]);
+      // "THE EFFECTS OF SUSTAIN A SPELL" include what a module answers on a
+      // Sustain (3.692.0, found in review: Metamagic Resonance's change of feat).
+      if (entry) Hooks.callAll("trgPrimeSpellSustained", { actor, entry, castId: String(entry.id ?? ""), spellName: String(entry.name ?? ""), effortless: true });
     }
   },
 

@@ -42,7 +42,7 @@ const MUTATIONS = [
   { file: HEAD, name: "R3 — the rod's share goes unsaid",
     from: "${ppSpent} PP spent${fromRod}${note}.", to: "${ppSpent} PP spent${note}.", breaks: "D1" },
   { file: CAST, name: "R3 — the cast never tells the headline",
-    from: ', rodPaid, rodName: rodSource?.name ?? "" };', to: " };", breaks: "D2" }
+    from: ', rodPaid, rodName: rodSource?.name ?? "", held: ', to: ", held: ", breaks: "D2" } // RE-ANCHORED AT 3.690.1
 ];
 
 function run() {

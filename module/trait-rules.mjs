@@ -219,12 +219,56 @@ export function rodRefusal(stamp, combat, { fromItemCast = false } = {}) {
   return "";
 }
 
+/**
+ * ONE ROD A CAST (3.691.0; Graham, 14 November 2026). The rods a cast has
+ * taken so far — a metamagic rod's power, a Rod of the Magi's draw, a module's
+ * rod (a PP source, a casting option), a Rod of Accuracy — each as
+ * {itemId, name}. All are chosen before any pays, so each passes the round's
+ * stamp (`rodRefusal`); this is the same rule within the one cast. The same
+ * rod twice (two of its powers) is one Rod.
+ *
+ * @param {Array<{itemId: string, name?: string}>} rods
+ * @returns {string} why the cast may not go on, or ""
+ */
+export function castRodsRefusal(rods = []) {
+  const named = new Map();
+  for (const r of Array.isArray(rods) ? rods : []) {
+    const id = String(r?.itemId ?? "").trim();
+    if (id && !named.has(id)) named.set(id, String(r?.name ?? "").trim() || "a Rod");
+  }
+  if (named.size <= 1) return "";
+  return `only one Rod may be used each round — ${[...named.values()].join(" and ")} were both taken for this cast`;
+}
+
+/** Whether a rod other than `itemId` is already among a cast's rods. */
+export function otherCastRod(rods = [], itemId = "") {
+  const id = String(itemId ?? "");
+  return (Array.isArray(rods) ? rods : []).find((r) => r?.itemId && String(r.itemId) !== id) ?? null;
+}
+
 /** Staff: "Only one item with the Staff trait may be invested by you at any one time." */
 export function staffInvestRefusal(item, items = []) {
   if (!itemHasTrait(item, "staff")) return "";
   const other = Array.from(items ?? []).find((i) => i !== item && i?.id !== item?.id
     && i?.system?.invested && itemHasTrait(i, "staff"));
   return other ? `only one Staff may be invested at a time — ${other.name} already is` : "";
+}
+
+/**
+ * ONE INVESTED ITEM PER TRAIT (3.690.0; Eldritch Arts Block 9c, H25): the
+ * Staff trait's rule for each trait a module names (`registerOneInvestedTraits`
+ * — the ORB trait: "Only one item with the Orb trait may be invested by you at
+ * any one time"). The first trait this item shares with an invested item.
+ */
+export function oneInvestedRefusal(item, items = [], traits = []) {
+  for (const trait of traits ?? []) {
+    const key = String(trait ?? "").trim().toLowerCase();
+    if (!key || !itemHasTrait(item, key)) continue;
+    const other = Array.from(items ?? []).find((i) => i !== item && i?.id !== item?.id
+      && i?.system?.invested && itemHasTrait(i, key));
+    if (other) return `only one item with the ${key[0].toUpperCase()}${key.slice(1)} trait may be invested at a time — ${other.name} already is`;
+  }
+  return "";
 }
 
 /** Invested: "must be invested using the Invest Item action before its abilities can be fully utilised." */

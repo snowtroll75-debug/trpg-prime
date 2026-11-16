@@ -179,7 +179,8 @@ const cast = read("module", "magic", "cast-workflow.mjs");
 
 ok("G1 ONE GATE, at the top of the one function every cast crosses",
   // 3.679.0: never a ritual's casting (its check is rolled already).
-  cast.includes("const storingNow = !stored && !isStoringSpell && !ritual && Boolean(readArmed(actor));"),
+  // RE-ANCHORED AT 3.690.0 (H26): a held spell's release is never stored.
+  cast.includes("const storingNow = !stored && !isStoringSpell && !ritual && !heldRelease && storesThisCast && Boolean(readArmed(actor));"), // 3.690.0 (review): nor a wand's or a scroll's spell
   "a spell that asked each caller to remember would work for one route and not another");
 // G2 CASTING SPELL STORING NEVER STORES ITSELF — the second casting
 // dismisses what is held, which is the book's own sentence and is
@@ -206,7 +207,8 @@ ok("G4b and the stored warp is used instead",
 
 // G5 THE EXIT IS AFTER THE PRICE AND BEFORE THE CHECK. Everything above
 // it is casting that happens; everything below is resolution.
-const exitAt = cast.indexOf("  if (storingNow) {");
+// RE-ANCHORED AT 3.690.0 (H26): a held cast does not take this exit.
+const exitAt = cast.indexOf("  if (storingNow && !holdingNow) {");
 ok("G5 the exit exists", exitAt > 0);
 ok("G5b AFTER the affordability guard, so a caster who cannot pay is refused first",
   // 3.616.0: the pool test counts a rod's draw (R13 of block 36).

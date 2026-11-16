@@ -24,8 +24,8 @@ const MUTATIONS = [
   { name: "a forced Resonance answered `true` is dropped", file: FRM, from: "      if (answer === true) out.push({ key, reason: key, line: \"\" });\n", to: "", breaks: "F6" },
   { name: "the module's fumble modifier is not added", file: CW, from: "    + featureFumbleMod + highMagicMod + moduleFumble.modifier;", to: "    + featureFumbleMod + highMagicMod;", breaks: "F9b" },
   { name: "THE CONTRACT (G1 ↔ G5): the rolls are not told the metamagic taken", file: CW, from: "      spell, metamagic: castMetamagic.keys, castOptions: castOptionsApplied.keys,", to: "      spell, metamagic: [], castOptions: castOptionsApplied.keys,", breaks: "F11" },
-  { name: "a forced Resonance is never rolled", file: CW, from: "    for (const event of forced) {", to: "    for (const event of []) {", breaks: "F12" },
-  { name: "a release's fumble does not say which check", file: CIW, from: "      check: { type: option.skill ? \"skill\" : \"spellcraft\", skill: option.skill ?? \"\" },\n", to: "", breaks: "F13" },
+  { name: "a forced Resonance is never rolled", file: CW, from: "    for (const event of forced) {\n      await rollResonanceEvent(actor, { reason: `${esc(event.reason)} — a Resonance event after ${esc(spell.name)}", to: "    for (const event of []) {\n      await rollResonanceEvent(actor, { reason: `${esc(event.reason)} — a Resonance event after ${esc(spell.name)}", breaks: "F12" }, // RE-ANCHORED AT 3.690.0 (a held spell's forced Resonance at its hold exit)
+  { name: "a release's fumble does not say which check", file: CIW, from: "      check: { type: bySkill ? \"skill\" : \"spellcraft\", skill: bySkill ? option.skill : \"\" },\n", to: "", breaks: "F13" }, // RE-ANCHORED AT 3.688.2
   { name: "an empty Resonance modifier is accepted", file: API, from: "  if (!k || (!roll && !force)) {", to: "  if (!k) {", breaks: "F7" },
   // C — G6, the charged items
   { name: "Resonant Conduit's free activation is charged", file: CIR, from: "  if (list.some((a) => a.free === true)) return { pp: 0, due: owed, free: true, cut: owed, labels };\n", to: "", breaks: "C2" },

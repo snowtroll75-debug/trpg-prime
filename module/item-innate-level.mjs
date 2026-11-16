@@ -16,9 +16,18 @@
 const SYSTEM_ID = "trg-prime";
 const GRANT_FLAG = "spellEffectRune";
 
-/** The owned item that granted this spell, or null. */
+/**
+ * The owned item that granted this spell, or null.
+ *
+ * A MODULE'S ITEM, BY ITS OWN SAY (3.694.0; Eldritch Arts' Dawnshield, which
+ * "can independently cast" its Cure, Graham's yes of 15 November 2026). A
+ * spell granted with `grantedBy: { sourceId, atItemLevel: true }` is cast at
+ * that item's level too. Opt-in: every other `grantedBy` (a feat, a class, a
+ * relic whose level is its wielder's) is read as before.
+ */
 export function grantingItemOf(spell, items = []) {
-  const id = spell?.flags?.[SYSTEM_ID]?.[GRANT_FLAG]?.itemId;
+  const flags = spell?.flags?.[SYSTEM_ID] ?? {};
+  const id = flags[GRANT_FLAG]?.itemId ?? (flags.grantedBy?.atItemLevel === true ? flags.grantedBy?.sourceId : null);
   if (!id) return null;
   return Array.from(items ?? []).find((item) => (item?.id ?? item?._id) === id) ?? null;
 }

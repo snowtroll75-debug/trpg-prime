@@ -18,6 +18,24 @@ import { itemLevelForPrice, priceForLevel } from "./magic-item-tables.mjs";
 import { maxPPPerCast } from "./magic/casting.mjs";
 
 /**
+ * RECHARGE ITEM'S PRINTED COST, FOR AN ITEM WHOSE KIND SETS ITS OWN
+ * (3.690.1, Block 9c's live test). The action prints "PP Cost 2." in its
+ * requirements; an Orb's is 4 ("The PP cost is 4 instead of 2"), and its
+ * card printed the 2 above the 4 it spent. The requirements are returned
+ * with that sentence naming the kind's cost, or unchanged.
+ *
+ * @param {string} requirements the action's printed requirements
+ * @param {{label?: string, rechargeItemPP?: number}|null} kindSpec the item's registered kind
+ * @returns {string}
+ */
+export function rechargeRequirementsFor(requirements, kindSpec) {
+  const text = String(requirements ?? "");
+  const pp = Math.trunc(Number(kindSpec?.rechargeItemPP) || 0);
+  if (pp <= 0) return text;
+  return text.replace(/PP Cost \d+\./, `PP Cost ${pp} (${kindSpec?.label || "this item"}).`);
+}
+
+/**
  * How much an invested charged item recovers each day.
  *
  * "During daily preparation, an invested, charged item will regain 1 PP
@@ -283,7 +301,13 @@ export function castFromItemOptions({
   casterLevel = 0,
   casterTradition = "",
   skillRanks = {},
-  hasUseMagicDevice = false
+  hasUseMagicDevice = false,
+  // A HIGH MAGIC CASTER (3.688.1; found live by Graham, 13 November 2026):
+  // the Archmage "do[es] not develop spells from a specific tradition and
+  // instead treat[s] all traditions as high magic" (Eldritch Arts), so a
+  // spell of a tradition they cast as High Magic is theirs. Worked out by the
+  // caller (`highMagicCast`), true or false.
+  highMagicCaster = false
 } = {}) {
   const pp = Math.max(0, Math.floor(Number(spellPPCost) || 0));
   const level = Math.max(0, Math.floor(Number(casterLevel) || 0));
@@ -294,7 +318,8 @@ export function castFromItemOptions({
   // and the skill path is offered once per tradition the spell has,
   // because a Wizard casting from a verdant wand rolls Nature and it is
   // not obvious from the item which skill that will be.
-  const sameTradition = spellTraditions.includes(casterKey) && Boolean(casterKey);
+  const sameTradition = (spellTraditions.includes(casterKey) && Boolean(casterKey))
+    || (Boolean(highMagicCaster) && spellTraditions.length > 0);
   const ranksIn = (skill) => Math.max(0, Math.floor(Number(skillRanks?.[skill]) || 0));
 
   // "YOUR CASTER LEVEL MUST MEET THE PP REQUIREMENTS (SEE CHAPTER 9)" —
