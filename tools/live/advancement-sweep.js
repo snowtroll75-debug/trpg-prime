@@ -68,7 +68,7 @@ globalThis.trgAdvancementSweep = async function ({ only = null, top = 20 } = {})
         if (row) {
           const want = { bab: row.bab, bdb: row.bdb, fortitude: row.fortitude, reflex: row.reflex, will: row.will };
           const got = { bab: s.combat.bab?.classTable, bdb: s.combat.bdb?.classTable,
-            fortitude: s.combat.saves?.fortitude?.class, reflex: s.combat.saves?.reflex?.class, will: s.combat.saves?.will?.class };
+            fortitude: s.combat.saves?.fortitude?.classTable, reflex: s.combat.saves?.reflex?.classTable, will: s.combat.saves?.will?.classTable };
           for (const k of Object.keys(want)) if (want[k] != null && Number(got[k]) !== Number(want[k])) out.mismatches.push(`L${L} ${k}: table ${want[k]}, actor ${got[k]}`);
           if (row.casterLevel != null && Number(s.progression?.casterLevel) !== Number(row.casterLevel)) out.mismatches.push(`L${L} casterLevel: table ${row.casterLevel}, actor ${s.progression?.casterLevel}`);
           if (row.pp != null && Number(s.progression?.pp) !== Number(row.pp)) out.mismatches.push(`L${L} pp: table ${row.pp}, actor ${s.progression?.pp}`);
