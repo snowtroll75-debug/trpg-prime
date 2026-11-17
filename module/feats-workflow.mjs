@@ -2712,9 +2712,9 @@ export const FEAT_AUTOMATION = {
   "speak in tongues": {
     hint: "Choose one language you know for your familiar to speak.",
     async use(actor, item) {
-      const { familiarMasterId } = await import("./familiar.mjs");
+      const { masterOfFamiliar } = await import("./familiar-workflow.mjs");
       const { actorLanguageState } = await import("./languages-workflow.mjs");
-      const master = game.actors?.get(familiarMasterId(actor)) ?? null;
+      const master = masterOfFamiliar(actor);
       if (!master) {
         ui.notifications.warn("Speak in Tongues: this familiar has no master to share a language with.");
         return;

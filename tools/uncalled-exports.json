@@ -6,7 +6,7 @@
   "generatedAt": "2026-11-17",
   "systemVersion": "3.697.0",
   "totalExportsChecked": 5777,
-  "orphanCount": 506,
+  "orphanCount": 505,
   "keep": {
     "module/familiar.mjs#familiarBaseAbilities": "Harness-only assertion, kept deliberately. It caught a real Dex bug at 3.234.1, which is the whole argument for keeping an assertion nothing ships against. (Reason on record in the 23 Aug handover.)",
     "module/traits.mjs#penetrateBarrierBehaviour": "Harness-only assertion, kept deliberately: the content it acts on has not been written yet, so there is nothing for it to be called from. Delete only when it is decided that content will never exist. (Reason on record in the 23 Aug handover.)",
@@ -428,7 +428,6 @@
     "module/extra-uses.mjs#EXTRA_USES_ABILITIES",
     "module/familiar-workflow.mjs#familiarAbilityNames",
     "module/familiar-workflow.mjs#HAS_FAMILIAR_FLAG",
-    "module/familiar-workflow.mjs#masterOfFamiliar",
     "module/familiar-workflow.mjs#rollFamiliarLoss",
     "module/familiar.mjs#EMPATHIC_LINK",
     "module/familiar.mjs#FAMILIAR_FEAT_NAME",
