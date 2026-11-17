@@ -309,6 +309,9 @@ export function extraCastingTimeIncrement(castAP) {
  */
 export function focusCheckModifier(magic) {
   if (!magic?.focusCasting) return null;
+  // INNER FOCUS (3.697.0): "take no penalty for not using your Spell Focus
+  // item" — no penalty, and no +1 either, since no focus is in hand.
+  if (!magic.focusReady && magic.focusIllusory) return null;
   return magic.focusReady
     ? { label: "Casting Focus", value: 1, type: "item" }
     : { label: "Casting without focus", value: -2, type: "circumstance" };
@@ -322,7 +325,7 @@ export function focusCheckModifier(magic) {
  * @returns {number} 10 when a focus caster lacks their focus, else 0.
  */
 export function focusFumblePenalty(magic) {
-  return magic?.focusCasting && !magic?.focusReady ? 10 : 0;
+  return magic?.focusCasting && !magic?.focusReady && !magic?.focusIllusory ? 10 : 0;
 }
 
 /**

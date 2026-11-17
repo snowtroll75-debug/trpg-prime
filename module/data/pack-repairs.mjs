@@ -2262,6 +2262,32 @@ export const PACK_REPAIRS = Object.freeze([
     to: [],
     reason: "The note said to add the ability by hand. Left on a copy whose damage now adds it, it invites adding it twice."
   },
+  // THE 3.697.0 AUDIT: three spells given the rails their printed effect
+  // already had (tools/declare-audit-3697.mjs holds the pack side).
+  {
+    id: "audit3697-changing-lungs-effects", pack: "spells", name: "Changing Lungs",
+    field: "effects", since: "3.697.0",
+    from: [],
+    to: [
+      { kind: "marker", target: "self", marker: "waterBreathing" },
+      { kind: "note", text: "You also breathe freely in a poisonous or toxic atmosphere: an inhaled poison or a toxic air hazard does not affect your breathing while the spell lasts (applied by the GM)." }
+    ],
+    reason: "\"You can breathe freely when underwater\": no rows, so the caster still drowned. Water Breathing's marker is the same rule."
+  },
+  {
+    id: "audit3697-long-arm-effects", pack: "spells", name: "Long Arm",
+    field: "effects", since: "3.697.0",
+    from: [],
+    to: [{ kind: "marker", target: "self", marker: "longArm" }],
+    reason: "\"Increasing your reach with those limbs by 5 feet\": no rows and no way to raise reach until the longArm marker."
+  },
+  {
+    id: "audit3697-inner-focus-effects", pack: "spells", name: "Inner Focus",
+    field: "effects", since: "3.697.0",
+    from: [],
+    to: [{ kind: "marker", target: "self", marker: "innerFocus" }],
+    reason: "\"No penalty for not using your Spell Focus item\": no rows, so the -2 and the +10 fumble still applied."
+  },
 ]);
 
 /* ==================================================================== *

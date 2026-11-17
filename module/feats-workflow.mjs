@@ -2655,6 +2655,118 @@ export const FEAT_AUTOMATION = {
    * Empathic Link is excluded from what can be given up: it is not part
    * of the allowance, so trading it away would cost a pick to get back.
    */
+  /*
+   * FAMILIAR ABILITIES THAT PROMISED A USE BUTTON (3.697.0).
+   *
+   * The familiars pack has told players, since it was written, to "press Use
+   * to choose" for these four. No entry here answered the press, so Use did
+   * nothing and the choice never reached the familiar (found by the 3.697.0
+   * audit: the item text claimed automation that FEAT_AUTOMATION did not
+   * hold). Each runs on the FAMILIAR, which owns the ability item, and each
+   * copy of a repeatable ability records its own choice, so taking Ability
+   * Enhancement twice raises two scores (or one score twice) as printed.
+   */
+  "energy resistant": {
+    hint: "Choose the energy type your familiar resists.",
+    async use(actor, item) {
+      const { WARDING_ENERGY_TYPES } = await import("./wizard.mjs");
+      const labels = { acid: "Acid", cold: "Cold", electricity: "Electricity", fire: "Fire", sonic: "Sonic" };
+      const picked = await chooseFromList("Energy Resistant", "Energy type",
+        WARDING_ENERGY_TYPES.map((k) => [k, labels[k]]), item.getFlag?.(SYSTEM_ID, "energyResistantChoice") ?? null);
+      if (!picked) return;
+      await replaceFeatEffect(actor, item, {
+        name: `Energy Resistant: ${labels[picked]}`,
+        img: item.img,
+        description: `Resistance to ${labels[picked]} (Familiar ability).`,
+        changes: [{ key: "system.combat.resistances", type: CHANGE_TYPE.ADD, value: `, ${labels[picked]}`, priority: 20 }]
+      });
+      await item.setFlag(SYSTEM_ID, "energyResistantChoice", picked);
+      await postCard(actor, "Energy Resistant", [
+        line(`<strong>${esc(actor.name)}</strong> resists <strong>${labels[picked]}</strong>. Press Use again to change it.`)
+      ]);
+    }
+  },
+
+  "ability enhancement": {
+    hint: "Choose the ability score this pick raises by 1.",
+    async use(actor, item) {
+      const { ATTRIBUTE_KEYS, ATTRIBUTE_LABELS } = await import("./config.mjs");
+      const picked = await chooseFromList("Ability Enhancement", "Ability score to raise by 1",
+        ATTRIBUTE_KEYS.map((k) => [k, ATTRIBUTE_LABELS[k]]), item.getFlag?.(SYSTEM_ID, "abilityEnhancementChoice") ?? null);
+      if (!picked) return;
+      await replaceFeatEffect(actor, item, {
+        name: `Ability Enhancement: ${ATTRIBUTE_LABELS[picked]} +1`,
+        img: item.img,
+        description: `${ATTRIBUTE_LABELS[picked]} +1 (Familiar ability).`,
+        changes: [{ key: `system.attributes.${picked}.other`, type: CHANGE_TYPE.ADD, value: "1", priority: 20 }]
+      });
+      await item.setFlag(SYSTEM_ID, "abilityEnhancementChoice", picked);
+      const copies = Array.from(actor.items ?? []).filter((i) => normalise(i.name) === "ability enhancement").length;
+      await postCard(actor, "Ability Enhancement", [
+        line(`<strong>${esc(actor.name)}</strong>: ${ATTRIBUTE_LABELS[picked]} +1.`),
+        ...(copies > 1 ? [line(`<em>${copies} picks of Ability Enhancement: the book allows one every four levels — check the familiar's level allows this many.</em>`)] : [])
+      ]);
+    }
+  },
+
+  "speak in tongues": {
+    hint: "Choose one language you know for your familiar to speak.",
+    async use(actor, item) {
+      const { familiarMasterId } = await import("./familiar.mjs");
+      const { actorLanguageState } = await import("./languages-workflow.mjs");
+      const master = game.actors?.get(familiarMasterId(actor)) ?? null;
+      if (!master) {
+        ui.notifications.warn("Speak in Tongues: this familiar has no master to share a language with.");
+        return;
+      }
+      const known = actorLanguageState(master).known;
+      if (!known.length) {
+        ui.notifications.warn(`Speak in Tongues: ${master.name} knows no languages to share.`);
+        return;
+      }
+      const previous = item.getFlag?.(SYSTEM_ID, "speakInTonguesChoice") ?? null;
+      const picked = await chooseFromList("Speak in Tongues", `One language ${master.name} knows`,
+        known.map((n) => [n, n]), previous);
+      if (!picked) return;
+      const current = String(actor.system?.identity?.languages ?? "").split(",").map((x) => x.trim()).filter(Boolean)
+        .filter((n) => !previous || n.toLowerCase() !== String(previous).toLowerCase());
+      if (!current.some((n) => n.toLowerCase() === picked.toLowerCase())) current.push(picked);
+      await actor.update({ "system.identity.languages": current.join(", ") });
+      await item.setFlag(SYSTEM_ID, "speakInTonguesChoice", picked);
+      await postCard(actor, "Speak in Tongues", [
+        line(`<strong>${esc(actor.name)}</strong> understands and speaks <strong>${esc(picked)}</strong>.`)
+      ]);
+    }
+  },
+
+  "general adeptness": {
+    hint: "Pick a general feat for your familiar (GM's discretion whether its form can use it).",
+    async use(actor, item) {
+      const { pickFromPack } = await import("./picker-workflow.mjs");
+      const owned = new Set(Array.from(actor.items ?? []).map((i) => normalise(i.name)));
+      const picked = await pickFromPack("feats", {
+        title: "General Adeptness — a general feat",
+        fields: ["system.category"],
+        filter: (e) => String(e.system?.category ?? "").trim().toLowerCase() === "general" && !owned.has(normalise(e.name)),
+        emptyMessage: "No general feat is left that this familiar does not already have."
+      });
+      if (!picked?.itemId) return;
+      // The pack the picker read it from (federated, as every picker is).
+      const pack = contentPack(picked.packName || "feats");
+      const feat = await pack?.getDocument(picked.itemId);
+      if (!feat) return;
+      const data = packItemData(feat);
+      foundry.utils.setProperty(data, `flags.${SYSTEM_ID}.grantedBy`, {
+        sourceId: item.id, sourceName: item.name, requested: feat.name
+      });
+      await actor.createEmbeddedDocuments("Item", [data]);
+      await postCard(actor, "General Adeptness", [
+        line(`<strong>${esc(actor.name)}</strong> gains <strong>${esc(feat.name)}</strong>.`),
+        ...(feat.system?.prerequisites ? [line(`<em>Prerequisites: ${esc(feat.system.prerequisites)} — and the GM decides whether its form can use it.</em>`)] : [])
+      ]);
+    }
+  },
+
   "versatile familiar": {
     hint: "Daily preparation: swap one of your familiar's abilities for another.",
     async use(actor) {

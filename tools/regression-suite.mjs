@@ -189,14 +189,23 @@ if (!args.report) {
       if (Date.now() - started > BUDGET_MS) { outOfTime = true; break; }
       const t0 = Date.now();
       let ok = true, code = 0, tail = "";
-      try {
-        execFileSync(process.execPath, [path.join(suite.root, "tools", script)], {
-          cwd: suite.root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 1 << 28,
-          env: { ...process.env, TRG_PRIME_ROOT: CORE, ...(SPELLS_DUMP ? { TRG_PRIME_DUMP: SPELLS_DUMP } : {}) }
-        });
-      } catch (err) {
-        ok = false; code = err.status ?? -1;
-        tail = `${err.stdout ?? ""}\n${err.stderr ?? ""}`.trim().split("\n").slice(-25).join("\n");
+      // ONE RETRY, AND ONLY FOR A PACK THAT WAS LOCKED. A check that opens a
+      // LevelDB pack in place fails with "Database failed to open" while any
+      // other process holds that pack. That says nothing about the rule under
+      // test, so it is run again once; anything else is reported as it fell.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        ok = true; code = 0; tail = "";
+        try {
+          execFileSync(process.execPath, [path.join(suite.root, "tools", script)], {
+            cwd: suite.root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 1 << 28,
+            env: { ...process.env, TRG_PRIME_ROOT: CORE, ...(SPELLS_DUMP ? { TRG_PRIME_DUMP: SPELLS_DUMP } : {}) }
+          });
+        } catch (err) {
+          ok = false; code = err.status ?? -1;
+          tail = `${err.stdout ?? ""}\n${err.stderr ?? ""}`.trim().split("\n").slice(-25).join("\n");
+        }
+        if (ok || !/Database failed to open|LEVEL_LOCKED/.test(tail)) break;
+        await new Promise((r) => setTimeout(r, 3000));
       }
       const blocked = !ok && isBlocked(tail);
       resultsOf(suite)[script] = { ok, blocked, code, ms: Date.now() - t0, ...(tail ? { tail } : {}) };

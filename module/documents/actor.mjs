@@ -52,9 +52,13 @@ import { heldSoulDrain, soulDrainWithHold } from "../conditions/soul-drain.mjs";
 import { companionCurrentSize, companionFeatEntries } from "../companion-feats.mjs";
 import { isFamiliar } from "../familiar.mjs";
 import {
-  familiarSaveEntries, prepareFamiliarHitPoints, prepareFamiliarProgression,
+  familiarSaveEntries, familiarSpeedEntries, prepareFamiliarHitPoints, prepareFamiliarProgression,
   prepareFamiliarSkills
 } from "../familiar-derive.mjs";
+import { findMarker } from "../magic/markers.mjs";
+
+/** Long Arm's reach, in feet (Chapter 10). */
+const LONG_ARM_FEET = 5;
 import { familiarModifierHP, familiarModifierResults, familiarModifierSaveEntries } from "../familiar-modifiers.mjs";
 
 /** Every ability name on an actor, for the familiar-ability gates. */
@@ -1111,6 +1115,11 @@ function prepareCombat(system, actor) {
     for (const [target, entries] of Object.entries(familiarSaveEntries(ownedAbilityNames))) {
       for (const entry of entries) actor.addBonus(target, entry);
     }
+    // Fast Movement (Familiar ability, 3.697.0): +15 feet to every speed
+    // the familiar has. Pooled before the movement step below resolves.
+    for (const [target, entries] of Object.entries(familiarSpeedEntries(ownedAbilityNames, combat.movement))) {
+      for (const entry of entries) actor.addBonus(target, entry);
+    }
     // A SOURCEBOOK'S FAMILIAR (3.680.0; Eldritch Arts D8): the Soulbound
     // Familiar's "your Charisma ability score as a class bonus to all saving
     // throws". See familiar-modifiers.mjs.
@@ -1121,7 +1130,10 @@ function prepareCombat(system, actor) {
   }
 
   const sizeEntry = SIZE_TABLE[system.identity?.size] ?? null;
-  if (sizeEntry) combat.reach = sizeEntry.reach;
+  // LONG ARM (3.697.0): +5 feet while the spell's marker lasts. Added here,
+  // on the line that sets reach from size, because that line runs after
+  // effects and would overwrite any change an effect made to reach.
+  if (sizeEntry) combat.reach = sizeEntry.reach + (findMarker(actor, "longArm") ? LONG_ARM_FEET : 0);
 
   // Wade Through the Mooks (Chapter 7, optional rule, NPC only): a
   // status penalty to attack rolls, defence, and other relevant checks
@@ -1794,6 +1806,9 @@ function prepareCombat(system, actor) {
   }
 
   if (system.magic) {
+    // INNER FOCUS (3.697.0): an illusory focus while the spell's marker
+    // lasts. Read by focusCheckModifier and focusFumblePenalty.
+    system.magic.focusIllusory = Boolean(findMarker(actor, "innerFocus"));
     // Caster Level (Chapter 9): a spellcasting class advances its caster
     // level on its own progression, which may lag behind character level
     // (e.g. a level-6 bard casts as caster level 3). The editable

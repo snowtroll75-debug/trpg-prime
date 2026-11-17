@@ -14078,6 +14078,61 @@
       "declaredAt": "2026-11-16",
       "systemVersion": "3.696.0",
       "reason": "CD13. \"Attempt to counteract one curse afflicting them.\" The H17 row (3.686.0) reached curse EFFECTS only, never a curse affliction (Mummy Rot's first step, Fiends & Fables). The affliction row runs first, quiet when there is none; the effect row stands down when it found one (\"one curse\")."
+    },
+    {
+      "id": "audit3697-changing-lungs-effects",
+      "pack": "spells",
+      "name": "Changing Lungs",
+      "path": "system.effects",
+      "from": [],
+      "to": [
+        {
+          "kind": "marker",
+          "target": "self",
+          "marker": "waterBreathing"
+        },
+        {
+          "kind": "note",
+          "text": "You also breathe freely in a poisonous or toxic atmosphere: an inhaled poison or a toxic air hazard does not affect your breathing while the spell lasts (applied by the GM)."
+        }
+      ],
+      "reason": "\"You can breathe freely when underwater ...\" The pack carried no rows, so the caster's breath clock still started and they drowned. Water Breathing's waterBreathing marker (3.617.0) is the same rule and the drowning workflow already reads it. The toxic-atmosphere half has no rail and is a note (3.697.0 audit).",
+      "declaredAt": "2026-11-17",
+      "systemVersion": "3.697.0"
+    },
+    {
+      "id": "audit3697-long-arm-effects",
+      "pack": "spells",
+      "name": "Long Arm",
+      "path": "system.effects",
+      "from": [],
+      "to": [
+        {
+          "kind": "marker",
+          "target": "self",
+          "marker": "longArm"
+        }
+      ],
+      "reason": "\"Your arms temporarily grow in length, increasing your reach with those limbs by 5 feet.\" No rows, and no rail: reach was set from size after effects. The new longArm marker is read on that line (3.697.0 audit).",
+      "declaredAt": "2026-11-17",
+      "systemVersion": "3.697.0"
+    },
+    {
+      "id": "audit3697-inner-focus-effects",
+      "pack": "spells",
+      "name": "Inner Focus",
+      "path": "system.effects",
+      "from": [],
+      "to": [
+        {
+          "kind": "marker",
+          "target": "self",
+          "marker": "innerFocus"
+        }
+      ],
+      "reason": "\"You do not need to provide focus spell components and take no penalty for not using your Spell Focus item.\" No rows, so a focus caster without the focus still took -2 and +10 on the fumble. The innerFocus marker waives both; no +1 is given, as no focus is held (3.697.0 audit; see TRG_CORE_RULES_AUDIT.md R2).",
+      "declaredAt": "2026-11-17",
+      "systemVersion": "3.697.0"
     }
   ]
 }

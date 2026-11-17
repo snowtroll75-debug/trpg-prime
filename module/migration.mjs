@@ -75,7 +75,9 @@ const WORLD_SCHEMA_SETTING = "worldSchemaVersion";
 // 3.666.1: the pack-copy pass re-gated for Hurling's magical ability score.
 // 3.666.3: stale queued copies of dedicated rows (Keldran's ten).
 // 3.666.4: effect entries baked into the stored defence lists.
-export const TRG_SCHEMA_VERSION = "3.666.4";
+// 3.697.0: the pack-copy pass re-gated for the core automation audit's
+// three spells (Changing Lungs, Long Arm, Inner Focus).
+export const TRG_SCHEMA_VERSION = "3.697.0";
 
 /**
  * Register the hidden world setting used to determine whether a migration is
@@ -779,7 +781,8 @@ export async function migrateWorldData(fromVersion = "") {
   // them. `verify-pack-repairs` F1b caught it the moment the entries landed,
   // which is the whole reason that check exists.
   // RE-VERSIONED TO 3.648.0: Channel The Aspect's four aspects.
-  const packCopies = (await runIf("3.666.1", "stale owned copies of repaired pack items",
+  // RE-VERSIONED TO 3.697.0: the core automation audit's three spells.
+  const packCopies = (await runIf("3.697.0", "stale owned copies of repaired pack items",
     () => migrateStalePackCopies([...actors, ...tokenActors], Array.from(game.items ?? []))))
     ?? { repaired: [], kept: [] };
   result.packCopies = packCopies;

@@ -141,8 +141,10 @@ const mig = read("module", "migration.mjs");
 // queued copies); what matters is that it still reaches 3.666.1.
 const stamp1022 = (/export const TRG_SCHEMA_VERSION = "([\d.]+)";/.exec(mig)?.[1] ?? "0").split(".").map(Number);
 const reaches1022 = stamp1022[0] > 3 || (stamp1022[0] === 3 && (stamp1022[1] > 666 || (stamp1022[1] === 666 && stamp1022[2] >= 1)));
-ok("C8 the migration's pack-copy pass is raised to 3.666.1, and the stamp reaches it",
-  /runIf\("3\.666\.1", "stale owned copies of repaired pack items"/.test(mig) && reaches1022);
+// AT 3.666.1 OR LATER (3.697.0): a later release re-gates the pass for its own
+// entries, which still carries Hurling's; held at exactly 3.666.1 it could not.
+ok("C8 the migration's pack-copy pass is raised to 3.666.1 or later, and the stamp reaches it",
+  (/runIf\("([\d.]+)", "stale owned copies of repaired pack items"/.exec(mig)?.[1] ?? "0").localeCompare("3.666.1", undefined, { numeric: true }) >= 0 && reaches1022);
 const fixes = JSON.parse(read("tools", "data-fixes.json")).fixes.filter((f) => f.name === "Hurling");
 equal("C9 the pack edit is declared in data-fixes", fixes.map((f) => f.path), ["system.damage", "system.effects"]);
 const spellDir = path.join(SYSTEM_ROOT, "packs", "spells");

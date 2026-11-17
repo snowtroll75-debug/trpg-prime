@@ -130,6 +130,28 @@ export const MARKERS = Object.freeze({
   // Breathing was drunk and its drinker still started a breath clock and
   // drowned. READ, not spent: the drowning workflow finds it each time the
   // creature goes under, and the effect's own hour ends it.
+  // LONG ARM (3.697.0): "Your arms temporarily grow in length, increasing
+  // your reach with those limbs by 5 feet." The spell had no rows, and
+  // nothing could raise reach: actor preparation sets it from size alone,
+  // after effects, so an effect on `combat.reach` was overwritten. READ by
+  // that same line, which adds the 5 feet while the marker lasts.
+  longArm: Object.freeze({
+    label: "Long Arm",
+    applied: "has 5 feet more reach",
+    reader: "module/documents/actor.mjs",
+    consumed: false
+  }),
+  // INNER FOCUS (3.697.0): "you do not need to provide focus spell
+  // components and take no penalty for not using your Spell Focus item." A
+  // focus caster without the focus took the -2 and the +10 fumble anyway.
+  // READ by actor preparation, which sets `magic.focusIllusory`; the two
+  // casting rules in casting.mjs waive the penalties on it.
+  innerFocus: Object.freeze({
+    label: "Inner Focus",
+    applied: "needs no focus item",
+    reader: "module/documents/actor.mjs",
+    consumed: false
+  }),
   waterBreathing: Object.freeze({
     label: "Water Breathing",
     applied: "can breathe underwater",

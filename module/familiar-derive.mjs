@@ -16,6 +16,7 @@
 import {
   familiarMaxHP, familiarProgression, hasFamiliarAbility
 } from "./familiar.mjs";
+import { SPEED_KEYS, speedBase } from "./combat/speed-pool.mjs";
 
 /**
  * Put the master's class-table numbers where the class's would go.
@@ -124,4 +125,34 @@ export function familiarSaveEntries(abilityNames = []) {
     "system.combat.saves.reflex": [entry],
     "system.combat.saves.will": [entry]
   };
+}
+
+/**
+ * FAST MOVEMENT (3.697.0): "Your familiar's movement types increase their
+ * speeds by 15 feet."
+ *
+ * The item has always said "Applied automatically", but nothing read it:
+ * its effect carried no change and no rule named it, so a familiar with
+ * Fast Movement moved at 25 feet like any other (found by the 3.697.0
+ * audit, measured on the familiars pack).
+ *
+ * ONLY THE SPEEDS IT HAS. A speed with no base of its own (a familiar
+ * without Flier has no fly speed) gains nothing: adding 15 to it would hand
+ * the familiar a speed the ability never gave. `speedBase` is the reading
+ * Quick Time uses for the same question. Untyped, as printed, so it adds to
+ * whatever else raises the speed.
+ *
+ * @param {string[]} abilityNames The familiar's ability item names.
+ * @param {object} movement `system.combat.movement`, before resolution.
+ * @returns {Object<string, object[]>} entries keyed by target path.
+ */
+const FAST_MOVEMENT_FEET = 15;
+export function familiarSpeedEntries(abilityNames = [], movement = {}) {
+  if (!hasFamiliarAbility(abilityNames, "Fast Movement")) return {};
+  const out = {};
+  for (const key of SPEED_KEYS) {
+    if (speedBase(movement?.[key]) <= 0) continue;
+    out[`system.combat.movement.${key}`] = [{ label: "Fast Movement", value: FAST_MOVEMENT_FEET, type: "untyped", source: "familiarAbility" }];
+  }
+  return out;
 }
