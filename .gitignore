@@ -1,1 +1,3 @@
 node_modules/
+tools/.regression-state.json
+tools/.regression-spells.json
