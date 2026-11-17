@@ -84,17 +84,24 @@ function suiteScripts(suite) {
   });
 }
 
-/** Fingerprint of everything under test. LevelDB housekeeping files are left out: opening a pack rewrites them. */
+/**
+ * Fingerprint of everything under test: the tracked tree of the paths that
+ * can change a check's result, plus any uncommitted change to them. Notes,
+ * reports and the live console scripts are left out, so committing a
+ * write-up does not throw away an hour of results. LevelDB housekeeping
+ * files are left out too: opening a pack rewrites them.
+ */
+const UNDER_TEST = [".", ":(exclude)*.md", ":(exclude)tools/live", ":(exclude)docs",
+  ":(exclude)**/LOG", ":(exclude)**/LOG.old", ":(exclude)**/CURRENT", ":(exclude)**/MANIFEST-*", ":(exclude)**/*.log"];
 function fingerprint(roots) {
   const h = crypto.createHash("sha1");
   for (const root of roots) {
     if (!fs.existsSync(root)) { h.update(`absent:${root}`); continue; }
     try {
-      h.update(execFileSync("git", ["-C", root, "rev-parse", "HEAD"], { encoding: "utf8" }));
-      h.update(execFileSync("git", ["-C", root, "diff", "HEAD", "--", ".",
-        ":(exclude)**/LOG", ":(exclude)**/LOG.old", ":(exclude)**/CURRENT", ":(exclude)**/MANIFEST-*",
-        ":(exclude)**/*.log", ":(exclude)tools/.regression-state.json"], { encoding: "utf8", maxBuffer: 1 << 28 }));
-      h.update(execFileSync("git", ["-C", root, "ls-files", "--others", "--exclude-standard", "--", ":(exclude)packs"], { encoding: "utf8" }));
+      const git = (...a) => execFileSync("git", ["-C", root, ...a], { encoding: "utf8", maxBuffer: 1 << 28 });
+      h.update(git("ls-tree", "-r", "HEAD", "--", ...UNDER_TEST));
+      h.update(git("diff", "HEAD", "--", ...UNDER_TEST));
+      h.update(git("ls-files", "--others", "--exclude-standard", "--", ...UNDER_TEST, ":(exclude)packs"));
     } catch {
       h.update(`nogit:${root}`);
     }
