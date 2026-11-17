@@ -19,7 +19,7 @@ const DIALOG = path.join(SYSTEM_ROOT, "module", "apps", "check-dialog.mjs");
 
 const MUTATIONS = [
   { name: "a named rider applies to every creature", file: RIDERS,
-    from: "    if (r.targetUuids.length && (!uuid || !r.targetUuids.includes(uuid))) return false;", to: "", breaks: "A5 — Judgement's die lands on the wrong creature" },
+    from: "  if ((rider.targetUuids ?? []).length && (!uuid || !rider.targetUuids.includes(uuid))) return false;", to: "", breaks: "A5 — Judgement's die lands on the wrong creature" },
   { name: "a burnt rider keeps applying", file: RIDERS,
     from: "    if (r.oncePerRound && used?.[r.id]) return false;", to: "", breaks: "A7 — once per round becomes every strike" },
   { name: "burning never marks anything", file: RIDERS,

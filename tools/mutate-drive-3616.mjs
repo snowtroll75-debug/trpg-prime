@@ -36,7 +36,7 @@ const MUTATIONS = [
   { file: FORMS, name: "R2 — a 3.616.0 form's signature is not read",
     from: '  return String(flag.signature ?? "").split("|")[1] ?? "";', to: '  return "";', breaks: "C1b" },
   { file: ATTACK, name: "R2 — the attack drops the flags",
-    from: '{ type: "weapon", name: weapon.name, system: weaponData, flags: weapon.flags }', to: '{ type: "weapon", name: weapon.name, system: weaponData }', breaks: "C2" },
+    from: '{ type: weapon.type === "shield" ? "shield" : "weapon", name: weapon.name, system: weaponData, flags: weapon.flags }', to: '{ type: weapon.type === "shield" ? "shield" : "weapon", name: weapon.name, system: weaponData }', breaks: "C2" },
   { file: FORMSF, name: "R2 — new forms carry no base",
     from: "itemId: grant.itemId, base: grant.base, signature:", to: "itemId: grant.itemId, signature:", breaks: "C3" },
   { file: HEAD, name: "R3 — the rod's share goes unsaid",

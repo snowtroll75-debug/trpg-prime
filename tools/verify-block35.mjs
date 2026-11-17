@@ -247,7 +247,9 @@ const row = (name, kind, i = 0) => (PLAN[name]?.effects ?? []).filter((e) => e.k
   ok("G7 the counteract never takes the casting's own effects",
     FX.includes("&& x.origin !== spell.uuid && !(castId && x.flags?.[SYSTEM_ID]?.castId === castId)"));
   ok("G8 more than the limit asks the caster which",
-    FX.includes("if (spec.limit && held.length > spec.limit) {"));
+    // 3.696.0 (CD3): the limit is the row's plus any warp bonus, and a
+    // `confirm` row always asks — the "more than the limit" half stands.
+    FX.includes("(rowLimit && held.length > rowLimit)"));
   const ballad = normaliseCounteract(row("Soothing Ballad", "counteract"));
   ok("G9 Soothing Ballad counteracts fear and paralysis, every one", ballad && ballad.limit === 0
     && ballad.conditions.includes("paralyzed") && ballad.traits.includes("fear"));

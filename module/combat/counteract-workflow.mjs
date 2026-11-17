@@ -16,7 +16,7 @@ const { DialogV2 } = foundry.applications.api;
  * prompts for both rather than assuming Spellcraft or a fixed DC formula —
  * see the README's amendments list.
  */
-export async function rollCounteractCheck(actor, { targetLevel = 0, dc: knownDC = null, circumstance = 0, dcFromLevel = false } = {}) {
+export async function rollCounteractCheck(actor, { targetLevel = 0, dc: knownDC = null, circumstance = 0, dcFromLevel = false, rollMode = null } = {}) {
   const maxCastablePP = maxPPPerCast(Number(actor.system?.magic?.casterLevelValue ?? 0));
   const skillEntries = Object.entries(actor.system?.skills ?? {}).map(
     ([key, skill]) => [key, skill.label ?? key]
@@ -142,6 +142,10 @@ export async function rollCounteractCheck(actor, { targetLevel = 0, dc: knownDC 
     subtitle: dc !== null ? `vs DC ${dc}` : "DC not specified — GM adjudicates",
     type,
     dc,
-    modifiers
+    modifiers,
+    // A SECRET COUNTERACT (3.696.0): one step of a cure in order (Mummy Rot —
+    // "a caster will not know if their attempts … have been successful until
+    // both castings have completed") is rolled blind.
+    ...(rollMode ? { rollMode } : {})
   });
 }

@@ -838,10 +838,18 @@ const DEGREE_NAMES = new Set(["heroic", "critical", "success", "partial", "failu
  */
 export function registerDegreeUpgrades(featName, entries, moduleId = null) {
   const key = registryKey(featName);
-  const list = (Array.isArray(entries) ? entries : [entries]).filter((e) =>
-    e?.actionKey && DEGREE_NAMES.has(String(e.from).toLowerCase()) && DEGREE_NAMES.has(String(e.to).toLowerCase()));
-  if (!key || !list.length) { problem(`registerDegreeUpgrades: "${featName}" needs a name and at least one { actionKey, from, to } with real degree names`); return false; }
-  registry.degreeUpgrades.set(key, list.map((e) => ({ actionKey: String(e.actionKey), from: String(e.from).toLowerCase(), to: String(e.to).toLowerCase() })));
+  // TWO SHAPES (3.696.0, CD7): an upgrade `{ actionKey, from, to }`, or a
+  // degree's bonus `{ actionKey, degree, bonusValue }` — Expert Autopsist's
+  // "On a Critical result, the circumstance bonus granted to a subsequent
+  // skill check increases from +2 to +4": the bonus the outcome's own text
+  // states, at that degree, is the feat's value instead.
+  const upgrade = (e) => e?.actionKey && DEGREE_NAMES.has(String(e.from).toLowerCase()) && DEGREE_NAMES.has(String(e.to).toLowerCase());
+  const bonus = (e) => e?.actionKey && DEGREE_NAMES.has(String(e.degree).toLowerCase()) && Number.isFinite(Number(e.bonusValue)) && Number(e.bonusValue) !== 0;
+  const list = (Array.isArray(entries) ? entries : [entries]).filter((e) => upgrade(e) || bonus(e));
+  if (!key || !list.length) { problem(`registerDegreeUpgrades: "${featName}" needs a name and at least one { actionKey, from, to } or { actionKey, degree, bonusValue } with real degree names`); return false; }
+  registry.degreeUpgrades.set(key, list.map((e) => (upgrade(e)
+    ? { actionKey: String(e.actionKey), from: String(e.from).toLowerCase(), to: String(e.to).toLowerCase() }
+    : { actionKey: String(e.actionKey), degree: String(e.degree).toLowerCase(), bonusValue: Math.trunc(Number(e.bonusValue)) })));
   noteContributor(moduleId);
   return true;
 }
@@ -1717,6 +1725,10 @@ export function registeredPPGrants() {
  *                under the same modifiers less the first roll's Conviction
  *                die, and the second result is locked: nothing after it may
  *                modify or reroll it. One reroll a check.
+ *                3.696.0 (CD1; Pillars of Faith's Spirit Intercession): an
+ *                answer may add `advantage: true` (the reroll is made with
+ *                advantage) and `keepBetter: true` (the better of the two
+ *                results stands, by degree then total; a tie keeps the second).
  *                3.685.0 (Eldritch Arts Block 7, H6; Mirror Reprise): on an
  *                attack check that hit, an answer `{ miss: true, line }` (with
  *                `label`) makes the hit a miss against that creature — no

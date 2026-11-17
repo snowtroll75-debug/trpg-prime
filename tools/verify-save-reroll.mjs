@@ -50,7 +50,7 @@ ok("F1 STRUCTURAL: the offer walks every token's spells for a row, gates on side
 const ck = fs.readFileSync(path.join(SYSTEM_ROOT, "module", "dice", "check.mjs"), "utf8");
 ok("F2 STRUCTURAL: the save path asks after Lucky Break, and only when Lucky Break found nothing", /const luck = await offerLuckyBreak\(check\);[\s\S]{0,400}if \(!luck\) \{\s*const answered = await offerSaveRerollSpells\(check\);/.test(ck));
 const aw = fs.readFileSync(path.join(SYSTEM_ROOT, "module", "combat", "attack-workflow.mjs"), "utf8");
-ok("F3 STRUCTURAL: the attack hands the target's HP to damageRidersFor", /targetHp: Number\(targetActor\?\.system\?\.resources\?\.hp\?\.value \?\? NaN\),\s*targetMax: Number\(targetActor\?\.system\?\.resources\?\.hp\?\.max \?\? 0\)(,[\s\S]{0,400}?)?\s*\}\s*\);/.test(aw));
+ok("F3 STRUCTURAL: the attack hands the target's HP to damageRidersFor", /targetHp: Number\(targetActor\?\.system\?\.resources\?\.hp\?\.value \?\? NaN\),\s*targetMax: Number\(targetActor\?\.system\?\.resources\?\.hp\?\.max \?\? 0\)(,[\s\S]{0,700}?)?\s*\}\s*\);/.test(aw));
 
 const EXPECTED = 19;
 equal("Z the suite ran every check it is meant to", checks + 1, EXPECTED);

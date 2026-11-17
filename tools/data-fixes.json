@@ -13048,6 +13048,1036 @@
       "declaredAt": "2026-11-08",
       "systemVersion": "3.686.0",
       "reason": "H18. \"+4 PP: the target is insane for 1 round per 1 failure.\" The warp carried `mods: {}` and bought nothing. `turnTablePer` is the turn table's rate, read by the `turnTable` row (a set: the smaller rate wins)."
+    },
+    {
+      "id": "cd0-speed-races-halfling",
+      "op": "editEffect",
+      "pack": "races",
+      "name": "Halfling",
+      "effect": "Halfling: size and speed",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "small",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land",
+          "mode": 5,
+          "value": "20",
+          "priority": 10
+        }
+      ],
+      "to": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "small",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land.base",
+          "mode": 5,
+          "value": "20",
+          "priority": 10
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd0-speed-races-human",
+      "op": "editEffect",
+      "pack": "races",
+      "name": "Human",
+      "effect": "Human: size and speed",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "medium",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land",
+          "mode": 5,
+          "value": "25",
+          "priority": 10
+        }
+      ],
+      "to": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "medium",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land.base",
+          "mode": 5,
+          "value": "25",
+          "priority": 10
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd0-speed-races-gnome",
+      "op": "editEffect",
+      "pack": "races",
+      "name": "Gnome",
+      "effect": "Gnome: size and speed",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "small",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land",
+          "mode": 5,
+          "value": "20",
+          "priority": 10
+        }
+      ],
+      "to": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "small",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land.base",
+          "mode": 5,
+          "value": "20",
+          "priority": 10
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd0-speed-races-ascendan",
+      "op": "editEffect",
+      "pack": "races",
+      "name": "Ascendan",
+      "effect": "Ascendan: size and speed",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "medium",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land",
+          "mode": 5,
+          "value": "25",
+          "priority": 10
+        }
+      ],
+      "to": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "medium",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land.base",
+          "mode": 5,
+          "value": "25",
+          "priority": 10
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd0-speed-races-elf",
+      "op": "editEffect",
+      "pack": "races",
+      "name": "Elf",
+      "effect": "Elf: size and speed",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "medium",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land",
+          "mode": 5,
+          "value": "30",
+          "priority": 10
+        }
+      ],
+      "to": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "medium",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land.base",
+          "mode": 5,
+          "value": "30",
+          "priority": 10
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd0-speed-races-kornargon",
+      "op": "editEffect",
+      "pack": "races",
+      "name": "Kornargon",
+      "effect": "Kornargon: size and speed",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "medium",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land",
+          "mode": 5,
+          "value": "25",
+          "priority": 10
+        }
+      ],
+      "to": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "medium",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land.base",
+          "mode": 5,
+          "value": "25",
+          "priority": 10
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd0-speed-races-orc",
+      "op": "editEffect",
+      "pack": "races",
+      "name": "Orc",
+      "effect": "Orc: size and speed",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "medium",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land",
+          "mode": 5,
+          "value": "25",
+          "priority": 10
+        }
+      ],
+      "to": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "medium",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land.base",
+          "mode": 5,
+          "value": "25",
+          "priority": 10
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd0-speed-races-dwarf",
+      "op": "editEffect",
+      "pack": "races",
+      "name": "Dwarf",
+      "effect": "Dwarf: size and speed",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "medium",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land",
+          "mode": 5,
+          "value": "20",
+          "priority": 10
+        }
+      ],
+      "to": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "medium",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land.base",
+          "mode": 5,
+          "value": "20",
+          "priority": 10
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd0-speed-companions-bear",
+      "op": "editEffect",
+      "pack": "companions",
+      "name": "Bear",
+      "effect": "Bear: size and speed",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "medium",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land",
+          "mode": 5,
+          "value": "35",
+          "priority": 10
+        }
+      ],
+      "to": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "medium",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land.base",
+          "mode": 5,
+          "value": "35",
+          "priority": 10
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd0-speed-companions-cat",
+      "op": "editEffect",
+      "pack": "companions",
+      "name": "Cat",
+      "effect": "Cat: size and speed",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "small",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land",
+          "mode": 5,
+          "value": "35",
+          "priority": 10
+        }
+      ],
+      "to": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "small",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land.base",
+          "mode": 5,
+          "value": "35",
+          "priority": 10
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd0-speed-companions-bird",
+      "op": "editEffect",
+      "pack": "companions",
+      "name": "Bird",
+      "effect": "Bird: size and speed",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "tiny",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land",
+          "mode": 5,
+          "value": "10",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.fly",
+          "mode": 5,
+          "value": "60",
+          "priority": 10
+        }
+      ],
+      "to": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "tiny",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land.base",
+          "mode": 5,
+          "value": "10",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.fly.base",
+          "mode": 5,
+          "value": "60",
+          "priority": 10
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd0-speed-companions-wolverine",
+      "op": "editEffect",
+      "pack": "companions",
+      "name": "Wolverine",
+      "effect": "Wolverine: size and speed",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "small",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land",
+          "mode": 5,
+          "value": "25",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.burrow",
+          "mode": 5,
+          "value": "10",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.climb",
+          "mode": 5,
+          "value": "10",
+          "priority": 10
+        }
+      ],
+      "to": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "small",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land.base",
+          "mode": 5,
+          "value": "25",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.burrow.base",
+          "mode": 5,
+          "value": "10",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.climb.base",
+          "mode": 5,
+          "value": "10",
+          "priority": 10
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd0-speed-companions-pony",
+      "op": "editEffect",
+      "pack": "companions",
+      "name": "Pony",
+      "effect": "Pony: size and speed",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "medium",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land",
+          "mode": 5,
+          "value": "30",
+          "priority": 10
+        }
+      ],
+      "to": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "medium",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land.base",
+          "mode": 5,
+          "value": "30",
+          "priority": 10
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd0-speed-companions-horse",
+      "op": "editEffect",
+      "pack": "companions",
+      "name": "Horse",
+      "effect": "Horse: size and speed",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "large",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land",
+          "mode": 5,
+          "value": "40",
+          "priority": 10
+        }
+      ],
+      "to": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "large",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land.base",
+          "mode": 5,
+          "value": "40",
+          "priority": 10
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd0-speed-companions-snake",
+      "op": "editEffect",
+      "pack": "companions",
+      "name": "Snake",
+      "effect": "Snake: size and speed",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "tiny",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land",
+          "mode": 5,
+          "value": "20",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.climb",
+          "mode": 5,
+          "value": "20",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.swim",
+          "mode": 5,
+          "value": "20",
+          "priority": 10
+        }
+      ],
+      "to": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "tiny",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land.base",
+          "mode": 5,
+          "value": "20",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.climb.base",
+          "mode": 5,
+          "value": "20",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.swim.base",
+          "mode": 5,
+          "value": "20",
+          "priority": 10
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd0-speed-companions-wolf",
+      "op": "editEffect",
+      "pack": "companions",
+      "name": "Wolf",
+      "effect": "Wolf: size and speed",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "small",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land",
+          "mode": 5,
+          "value": "40",
+          "priority": 10
+        }
+      ],
+      "to": [
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "small",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land.base",
+          "mode": 5,
+          "value": "40",
+          "priority": 10
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd0-speed-familiars-amphibious",
+      "op": "editEffect",
+      "pack": "familiars",
+      "name": "Amphibious",
+      "effect": "Amphibious (familiar)",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.combat.movement.swim",
+          "mode": 5,
+          "value": "25",
+          "priority": 20
+        }
+      ],
+      "to": [
+        {
+          "key": "system.combat.movement.swim.base",
+          "mode": 5,
+          "value": "25",
+          "priority": 20
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd0-speed-familiars-climber",
+      "op": "editEffect",
+      "pack": "familiars",
+      "name": "Climber",
+      "effect": "Climber (familiar)",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.combat.movement.climb",
+          "mode": 5,
+          "value": "25",
+          "priority": 20
+        }
+      ],
+      "to": [
+        {
+          "key": "system.combat.movement.climb.base",
+          "mode": 5,
+          "value": "25",
+          "priority": 20
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd0-speed-familiars-familiar",
+      "op": "editEffect",
+      "pack": "familiars",
+      "name": "Familiar",
+      "effect": "Familiar: stat block",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.attributes.strength.base",
+          "mode": 5,
+          "value": "0",
+          "priority": 10
+        },
+        {
+          "key": "system.attributes.dexterity.base",
+          "mode": 5,
+          "value": "1",
+          "priority": 10
+        },
+        {
+          "key": "system.attributes.constitution.base",
+          "mode": 5,
+          "value": "0",
+          "priority": 10
+        },
+        {
+          "key": "system.attributes.intelligence.base",
+          "mode": 5,
+          "value": "-2",
+          "priority": 10
+        },
+        {
+          "key": "system.attributes.wisdom.base",
+          "mode": 5,
+          "value": "2",
+          "priority": 10
+        },
+        {
+          "key": "system.attributes.charisma.base",
+          "mode": 5,
+          "value": "0",
+          "priority": 10
+        },
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "tiny",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land",
+          "mode": 5,
+          "value": "25",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.naturalArmourBase.natural",
+          "mode": 5,
+          "value": "1",
+          "priority": 10
+        }
+      ],
+      "to": [
+        {
+          "key": "system.attributes.strength.base",
+          "mode": 5,
+          "value": "0",
+          "priority": 10
+        },
+        {
+          "key": "system.attributes.dexterity.base",
+          "mode": 5,
+          "value": "1",
+          "priority": 10
+        },
+        {
+          "key": "system.attributes.constitution.base",
+          "mode": 5,
+          "value": "0",
+          "priority": 10
+        },
+        {
+          "key": "system.attributes.intelligence.base",
+          "mode": 5,
+          "value": "-2",
+          "priority": 10
+        },
+        {
+          "key": "system.attributes.wisdom.base",
+          "mode": 5,
+          "value": "2",
+          "priority": 10
+        },
+        {
+          "key": "system.attributes.charisma.base",
+          "mode": 5,
+          "value": "0",
+          "priority": 10
+        },
+        {
+          "key": "system.identity.size",
+          "mode": 5,
+          "value": "tiny",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.movement.land.base",
+          "mode": 5,
+          "value": "25",
+          "priority": 10
+        },
+        {
+          "key": "system.combat.naturalArmourBase.natural",
+          "mode": 5,
+          "value": "1",
+          "priority": 10
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd0-speed-familiars-flier",
+      "op": "editEffect",
+      "pack": "familiars",
+      "name": "Flier",
+      "effect": "Flier (familiar)",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.combat.movement.fly",
+          "mode": 5,
+          "value": "25",
+          "priority": 20
+        }
+      ],
+      "to": [
+        {
+          "key": "system.combat.movement.fly.base",
+          "mode": 5,
+          "value": "25",
+          "priority": 20
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd0-speed-familiars-burrower",
+      "op": "editEffect",
+      "pack": "familiars",
+      "name": "Burrower",
+      "effect": "Burrower (familiar)",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.combat.movement.burrow",
+          "mode": 5,
+          "value": "25",
+          "priority": 20
+        }
+      ],
+      "to": [
+        {
+          "key": "system.combat.movement.burrow.base",
+          "mode": 5,
+          "value": "25",
+          "priority": 20
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd0-speed-feats-swift-stride",
+      "op": "editEffect",
+      "pack": "feats",
+      "name": "Swift Stride",
+      "effect": "Swift Stride",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.combat.movement.land",
+          "mode": 2,
+          "value": "5",
+          "priority": 20
+        }
+      ],
+      "to": [
+        {
+          "key": "system.combat.movement.land.base",
+          "mode": 2,
+          "value": "5",
+          "priority": 20
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd0-speed-feats-fleet-footed",
+      "op": "editEffect",
+      "pack": "feats",
+      "name": "Fleet Footed",
+      "effect": "Fleet Footed: Speed +5",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.combat.movement.land",
+          "mode": 2,
+          "value": "5",
+          "priority": 20
+        }
+      ],
+      "to": [
+        {
+          "key": "system.combat.movement.land.base",
+          "mode": 2,
+          "value": "5",
+          "priority": 20
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD0 (Pillars of Faith audit, 16 Nov 2026). The bare speed node replaced the speed pool with a number; the next `land.other`/`land.status` change threw \"Cannot create property 'other' on number\" and stopped the actor's preparation (live: a core Human, then Bone Stride). Re-keyed to `.base` by migrateMovementEffectKeys' own rule; mode and value unchanged."
+    },
+    {
+      "id": "cd13-remove-disease-row",
+      "pack": "spells",
+      "name": "Remove Disease",
+      "path": "system.effects",
+      "from": [],
+      "to": [
+        {
+          "kind": "counteractAffliction",
+          "target": "targets",
+          "afflictionTypes": [
+            "disease"
+          ],
+          "label": "Remove Disease"
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD13. \"You attempt to counteract one disease afflicting the target.\" The spell carried no row and did nothing on the sheet. `counteractAffliction` of disease; an affliction declared to be cured in order (Mummy Rot) follows it (affliction-countered.mjs)."
+    },
+    {
+      "id": "cd13-remove-curse-affliction",
+      "pack": "spells",
+      "name": "Remove Curse",
+      "path": "system.effects",
+      "from": [
+        {
+          "kind": "counteract",
+          "target": "targets",
+          "traits": [
+            "curse"
+          ],
+          "limit": 1,
+          "label": "Remove Curse"
+        }
+      ],
+      "to": [
+        {
+          "kind": "counteractAffliction",
+          "target": "targets",
+          "afflictionTypes": [
+            "curse"
+          ],
+          "quietIfNone": true,
+          "label": "Remove Curse"
+        },
+        {
+          "kind": "counteract",
+          "target": "targets",
+          "traits": [
+            "curse"
+          ],
+          "limit": 1,
+          "label": "Remove Curse",
+          "skipIfCured": true
+        }
+      ],
+      "declaredAt": "2026-11-16",
+      "systemVersion": "3.696.0",
+      "reason": "CD13. \"Attempt to counteract one curse afflicting them.\" The H17 row (3.686.0) reached curse EFFECTS only, never a curse affliction (Mummy Rot's first step, Fiends & Fables). The affliction row runs first, quiet when there is none; the effect row stands down when it found one (\"one curse\")."
     }
   ]
 }

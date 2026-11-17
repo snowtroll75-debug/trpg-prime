@@ -66,7 +66,19 @@ export function normaliseCounteract(raw) {
   // HOW MANY ONE CASTING MAY ADDRESS: "one emotion effect" is one. Zero is
   // every one the target has, which is what Restore Senses always did.
   const limit = Math.max(0, Math.trunc(Number(raw.limit) || 0));
-  return { conditions, traits, limit, label: text(raw.label) };
+  // ALWAYS ASK (3.696.0, CD3): the caster confirms even a single candidate.
+  return { conditions, traits, limit, label: text(raw.label), confirm: raw.confirm === true };
+}
+
+/**
+ * HOW MANY ONE CASTING MAY ADDRESS, WITH ITS WARP (3.696.0, CD3). A limit of
+ * 0 is "every one" and stays so; otherwise the warp's `counteractLimitBonus`
+ * adds to it. Pure.
+ */
+export function counteractLimit(limit = 0, bonus = 0) {
+  const base = Math.max(0, Math.trunc(Number(limit) || 0));
+  if (!base) return 0;
+  return base + Math.max(0, Math.trunc(Number(bonus) || 0));
 }
 
 /**

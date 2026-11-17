@@ -25,6 +25,7 @@
  */
 import { resolveDamagePacket, effectiveDR } from "./damage.mjs";
 import { drAfterPenalty } from "./dr-penalty.mjs";
+import { drVersusFor } from "./dr-versus.mjs";
 import { actorDefences } from "../creature-traits.mjs";
 import { swarmReducedDR } from "../codex-trait-rules.mjs";
 import { ownedCreatureTypeSystem } from "../creature-type-rules.mjs";
@@ -227,7 +228,11 @@ export function resolveAgainstDefences(targetSystem, {
     : { armourDr: derivedDr, naturalDr: derivedNatural };
   const penalisedDr = penalised.armourDr;
   const penalisedNatural = penalised.naturalDr;
-  const swarmDr = attackerIsSwarm ? swarmReducedDR(penalisedDr) : penalisedDr;
+  // DR AGAINST THIS TYPE (3.696.0, CD4): Ossuary Lamellar's "+1 DR against
+  // slashing". The armour pool's, so an unarmoured location loses it with the
+  // armour; read off the target's applied effects — see combat/dr-versus.mjs.
+  const versusDr = applyDR ? drVersusFor(Array.from(targetSystem?.parent?.appliedEffects ?? []), type) : 0;
+  const swarmDr = attackerIsSwarm ? swarmReducedDR(penalisedDr + versusDr) : penalisedDr + versusDr;
   const swarmNatural = attackerIsSwarm ? swarmReducedDR(penalisedNatural) : penalisedNatural;
 
   const packet = resolveDamagePacket({

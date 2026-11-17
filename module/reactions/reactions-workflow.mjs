@@ -271,6 +271,15 @@ export async function checkReactionsAfter(check, verdict = null) {
     }
     if (!out?.reroll) continue;
     const first = check.outcome;
+    const firstDice = check.dice;
+    // THE REROLL WITH ADVANTAGE (3.696.0, CD1 — Pillars of Faith's Spirit
+    // Intercession, Vowbound Resolve, Continuity Unbroken, Revelation in
+    // Crisis: "reroll … with Advantage"). Combined with the roll's bias, as
+    // every other source of advantage is.
+    if (out.advantage === true) {
+      const [{ resolveBias }, { BIAS }] = await Promise.all([import("../conditionals.mjs"), import("../dice/check.mjs")]);
+      check.bias = resolveBias(check.bias, ["advantage"], BIAS);
+    }
     let next = check;
     if (typeof verdict?.reroll === "function") {
       // The caller's own reroll drops the first roll's Conviction die itself:
@@ -280,8 +289,27 @@ export async function checkReactionsAfter(check, verdict = null) {
     } else {
       await rerollForReaction(check, spec.key);
     }
+    const label = String(out.label ?? "").trim() || spec.key;
+    // …AND THE BETTER OF THE TWO (3.696.0, CD1): "use the better result". The
+    // default is unchanged — the second result stands (Q27).
+    if (out.keepBetter === true && keepFirst(first, next.outcome)) {
+      const second = next.outcome;
+      if (next === check) {
+        check.outcome = first;
+        check.dice = firstDice;
+        check.firstOutcome = second;
+      } else {
+        next = check;
+        lockCheck(check, spec.key);
+      }
+      next.extraDetailLines = [...(next.extraDetailLines ?? []),
+        `${label}: rerolled${out.advantage === true ? " with advantage" : ""} (${first?.total ?? "?"} and ${second?.total ?? "?"}); the better, ${first?.total ?? "?"}, stands and cannot be modified or rerolled.`];
+      return { check: next, rerolled: true, keptFirst: true, lines };
+    }
     next.extraDetailLines = [...(next.extraDetailLines ?? []),
-      `${String(out.label ?? "").trim() || spec.key}: rerolled (${first?.total ?? "?"} → ${next.outcome?.total ?? "?"}); the second result stands and cannot be modified or rerolled.`];
+      out.keepBetter === true
+        ? `${label}: rerolled${out.advantage === true ? " with advantage" : ""} (${first?.total ?? "?"} and ${next.outcome?.total ?? "?"}); the better, ${next.outcome?.total ?? "?"}, stands and cannot be modified or rerolled.`
+        : `${label}: rerolled (${first?.total ?? "?"} → ${next.outcome?.total ?? "?"}); the second result stands and cannot be modified or rerolled.`];
     return { check: next, rerolled: true, lines };
   }
   return { check, rerolled: false, lines };
@@ -446,4 +474,15 @@ export async function criticalReactionsFor(ctx) {
     }
   }
   return { bias, lines };
+}
+
+/**
+ * WHICH OF TWO RESULTS IS BETTER (3.696.0, CD1): the higher degree, and on the
+ * same degree the higher total. True when the first is strictly better — a tie
+ * keeps the second, as the default does. Pure.
+ */
+export function keepFirst(first, second) {
+  const rank = (o) => Number(o?.degree?.rank ?? -1);
+  if (rank(first) !== rank(second)) return rank(first) > rank(second);
+  return Number(first?.total ?? -Infinity) > Number(second?.total ?? -Infinity);
 }

@@ -82,8 +82,9 @@ const MUTATIONS = [
     // RE-ANCHORED AT 3.608.0: the pool now carries Shocking Grasp's metal row too.
     // RE-ANCHORED AT 3.616.0: and the Rod of Accuracy's row (R14 of block 36).
     // RE-ANCHORED AT 3.621.0: and the target's conditions (block 39's R7).
-    from: "  const stackedPool = applyStacking(\n    spellAttackBonusRows(actor.system?.combat?.attack?.checkModifiers).concat(metalRow ? [metalRow] : [])\n      .concat(conditionRows)\n      .concat(Array.isArray(extraAttackRows) ? extraAttackRows : []), {});",
-    to: "  const stackedPool = { modifiers: spellAttackBonusRows(actor.system?.combat?.attack?.checkModifiers).concat(metalRow ? [metalRow] : [])\n      .concat(conditionRows)\n      .concat(Array.isArray(extraAttackRows) ? extraAttackRows : []) };",
+    // RE-ANCHORED AT 3.695.0: and the caster's declared spell-attack rows (CD14).
+    from: "  const stackedPool = applyStacking(\n    spellAttackBonusRows(actor.system?.combat?.attack?.checkModifiers).concat(metalRow ? [metalRow] : [])\n      .concat(conditionRows)\n      .concat(Array.isArray(extraAttackRows) ? extraAttackRows : [])\n      .concat(Array.isArray(declaredAttackRows) ? declaredAttackRows : []), {});",
+    to: "  const stackedPool = { modifiers: spellAttackBonusRows(actor.system?.combat?.attack?.checkModifiers).concat(metalRow ? [metalRow] : [])\n      .concat(conditionRows)\n      .concat(Array.isArray(extraAttackRows) ? extraAttackRows : [])\n      .concat(Array.isArray(declaredAttackRows) ? declaredAttackRows : []) };",
     breaks: "E2 — Bless and Heroism would both apply, against the stacking rule"
   },
   {

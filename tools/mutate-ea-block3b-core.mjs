@@ -45,7 +45,7 @@ const MUTATIONS = [
   { name: "the attack's own reroll is ignored", file: RW, from: "    if (typeof verdict?.reroll === \"function\") {", to: "    if (false) {", breaks: "C13" },
   { name: "the attack's reroll is not locked", file: RW, from: "      next = await verdict.reroll(check);\n      lockCheck(next, spec.key);", to: "      next = await verdict.reroll(check);", breaks: "C13" },
   { name: "a throwing offer stops the asking", file: RW, from: "      console.error(`TRG Prime | check reaction \"${spec.key}\" (after)`, error);\n      continue;", to: "      throw error;", breaks: "C15" },
-  { name: "the card is not told the second result stands", file: RW, from: "      `${String(out.label ?? \"\").trim() || spec.key}: rerolled (${first?.total ?? \"?\"} → ${next.outcome?.total ?? \"?\"}); the second result stands and cannot be modified or rerolled.`]", to: "      \"\"]", breaks: "C9" },
+  { name: "the card is not told the second result stands", file: RW, from: "        : `${label}: rerolled (${first?.total ?? \"?\"} → ${next.outcome?.total ?? \"?\"}); the second result stands and cannot be modified or rerolled.`]", to: "        : \"\"]", breaks: "C9" },
   // G — granted defences
   { name: "actorDefences does not read the grants", file: CT, from: "  const granted = grantedDefencesOf(actorSystem?.parent ?? null);", to: "  const granted = grantedDefencesOf(null);", breaks: "G3/D2" },
   { name: "an immunity to all is not added", file: CT, from: "...granted.immunities, ...(granted.immuneAll ? [ALL_DAMAGE] : [])]);", to: "...granted.immunities]);", breaks: "G7" },
@@ -131,7 +131,7 @@ const MUTATIONS = [
   { name: "Conviction is spent past the round's limit", file: APW, from: "        if (!getConvictionState(actor).ok) return false;\n        await markConvictionSpent(actor);", to: "        await markConvictionSpent(actor);", breaks: "W26" },
   { name: "castAsReaction is not exported", file: SRS, from: "export async function castAsReaction(caster, spell, targetTokenIds = []) {", to: "async function castAsReaction(caster, spell, targetTokenIds = []) {", breaks: "W27" },
   // Z
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.694.0\"", to: "\"version\": \"3.680.1\"", breaks: "Z" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.696.3\"", to: "\"version\": \"3.680.1\"", breaks: "Z" }
 ];
 
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-ea-block3b-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }

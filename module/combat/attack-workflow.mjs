@@ -1,6 +1,8 @@
 import { summonedTraitsOf } from "../magic/control-register-workflow.mjs";
 import { DAMAGE_TYPES, SIZE_TABLE } from "../config.mjs";
 import { actionDamagePackets, alignedPacketTraits, creatureSecondaryPackets } from "./creature-secondary.mjs";
+import { typedRiderPackets, declaredDamageRiders as declaredRidersForCritical, criticalRiders } from "./damage-riders.mjs";
+import { isLivingCreature } from "../kind-targeting.mjs";
 import { TRGCheck } from "../dice/check.mjs";
 import {
   armourRendingValue,
@@ -607,7 +609,10 @@ export function weaponManeuverModifiers(actor, weapon) {
   const exemplar = weaponExemplarBonusFor(
     weaponExemplarPicks(actor), weaponExemplarTierCount(Number(system.identity?.level ?? 0)), weaponData.group);
   if (exemplar) rows.push({ label: `Weapon Exemplar (${weaponData.group})`, value: exemplar, type: "class" });
-  const proficiency = proficiencyOf(proficiencyProfile(actor), { type: "weapon", name: weapon.name, system: weaponData, flags: weapon.flags });
+  // A SHIELD'S BASH CARRYING THE MANEUVER (3.696.0, CD6) is met by SHIELD
+  // proficiency — found live: an Ossuary Board's "heavy" category read as a
+  // heavy weapon, -4 for a creature trained with heavy shields.
+  const proficiency = proficiencyOf(proficiencyProfile(actor), { type: weapon.type === "shield" ? "shield" : "weapon", name: weapon.name, system: weaponData, flags: weapon.flags });
   if (!proficiency.proficient) {
     rows.push({ label: `Non-proficient — ${proficiency.why}`, value: -4, type: "untyped" });
   }
@@ -2386,7 +2391,11 @@ export async function rollWeaponAttack(actor, weapon, {
       targetMax: Number(targetActor?.system?.resources?.hp?.max ?? 0),
       // AND WHAT IT IS (3.630.0), for a rider that grows against a kind of creature.
       targetTypes: creatureTypesOf(targetActor?.system ?? {}),
-      targetTraits: creatureTraits(targetActor?.system ?? {})
+      targetTraits: creatureTraits(targetActor?.system ?? {}),
+      // THE WEAPON, AND WHETHER THE TARGET LIVES (3.696.0, CD2): Blood
+      // Awakened's Bite or Fangs against a living creature.
+      weaponName: weapon?.name ?? "",
+      living: targetActor ? isLivingCreature(targetActor.system ?? {}) : true
     }
   );
 
@@ -4685,6 +4694,29 @@ export async function rollCriticalInjury(
       // defender's bleed result arms it, the attacker's live covenant stops
       // the attacker's bleeding. See codex-hooks-workflow.mjs.
       Hooks.callAll("trgPrimeCriticalInjury", { attacker: actor, target: targetActor, severity, tags: [...timed, ...selfTimed, ...textTimed] });
+      // WHAT A RIDER LAYS ON A CRITICAL (3.696.0, CD2/CD12): Hunter's Fangs'
+      // Bleed 1 "whenever your Fangs inflict a critical injury upon a living
+      // creature"; Final Sanction's −1 status to DB after "a Critical hit
+      // against your Judged Subject". Not limited by the rider's round.
+      for (const rider of criticalRiders(declaredRidersForCritical(Array.from(actor.appliedEffects ?? actor.effects ?? [])), {
+        targetUuid: targetActor.uuid ?? "", weaponName: weapon?.name ?? "", spell: !weapon, living: isLivingCreature(targetActor.system ?? {})
+      })) {
+        const said = [];
+        if (rider.onCritical.conditions.length) {
+          const got = await relayConditionTags(targetActor, rider.onCritical.conditions, {}, () => applyConditionTags(targetActor, rider.onCritical.conditions, {}));
+          said.push(formatAppliedTags(got));
+        }
+        if (rider.onCritical.effect) {
+          const { createEffectsOn } = await import("./target-relay-workflow.mjs");
+          await createEffectsOn(targetActor, [{ img: "icons/svg/downgrade.svg", ...rider.onCritical.effect, origin: rider.onCritical.effect.origin ?? actor.uuid }]);
+          // NAMED ONCE (found live, 3.696.0): "Final Sanction: Final Sanction: −1
+          // status to DB" — an effect already named for its rider drops the prefix.
+          const effectName = String(rider.onCritical.effect.name ?? "");
+          const labelled = `${rider.onCritical.label}: `;
+          said.push(effectName.startsWith(labelled) ? effectName.slice(labelled.length) : effectName || rider.onCritical.label);
+        }
+        lines.push(line(`<em>${rider.onCritical.label}: ${said.filter(Boolean).join("; ")} on ${targetActor.name}.</em>`));
+      }
       lines.push(
         line(
           `<em>Applied to ${targetActor.name}:</em> ` +
@@ -6043,7 +6075,10 @@ async function resolveWeaponDamageInScope(
     // book's secondary damage, a packet of its own type like the rest.
     ...creatureSecondaryPackets(weapon, targetActor?.system ?? null),
     // AN ACTION'S OWN "+2d12 bludgeoning" (3.649.0, block 16 R4/R5).
-    ...actionDamagePackets(extraTypedDamage, weapon)
+    ...actionDamagePackets(extraTypedDamage, weapon),
+    // A RIDER OF ITS OWN TYPE (3.696.0, CD2): Blood Awakened's essence on a
+    // piercing Bite. Untyped riders still join the formula above.
+    ...(replacingFlat ? [] : typedRiderPackets(damageRiders ?? []))
   ];
 
   // Spin (Chapter 6): whatever bonus was built up by a prior Spin
@@ -6123,8 +6158,10 @@ async function resolveWeaponDamageInScope(
     const parts = Array.isArray(precisionParts) && precisionParts.length ? precisionParts : [{ dice: precision, label: "Precision Hunter", why: "first damage against your hunted prey this round" }];
     for (const part of parts) lines.push(line(`<strong>${part.label}</strong> — +${part.dice}d6 precision damage (${part.why}).`));
   }
+  // A TYPED RIDER (3.696.1) is its own packet, said below with its type —
+  // found live: "+1d6 secondary damage" here read as added to the weapon's.
   for (const rider of replacingFlat ? [] : damageRiders ?? []) {
-    lines.push(line(`<strong>${rider.label}</strong> — +${rider.dice} secondary damage${rider.grownBy ? ` (with ${rider.grownBy})` : ""}${rider.oncePerRound ? " (first damage this round)" : ""}.`));
+    lines.push(line(`<strong>${rider.label}</strong> — +${rider.dice} secondary damage${rider.grownBy ? ` (with ${rider.grownBy})` : ""}${rider.oncePerRound ? " (first damage this round)" : ""}${rider.damageType ? ` — ${rider.damageType}, rolled as its own packet` : ""}.`));
   }
   // WITH NOBODY TARGETED, the typed extras are said rather than lost.
   if (!targetActor && !replacingFlat) {

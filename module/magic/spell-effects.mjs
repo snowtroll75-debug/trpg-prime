@@ -30,7 +30,7 @@ import { warpedDurationText } from "./active-spells.mjs";
  */
 
 import { quickenedActionsFor } from "../combat/restricted-ap.mjs";
-import { afflictionCounteredBy } from "../affliction-countered.mjs";
+import { afflictionReachedBy, cureStepOutcome, CURE_STEPS_FLAG } from "../affliction-countered.mjs";
 import { lightTraitDefaultRow, morphStrikeIsMagical } from "../trait-rules.mjs";
 import { SKILLS } from "../config.mjs";
 import { speedBase } from "../combat/speed-pool.mjs";
@@ -1617,6 +1617,8 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
     }
   }
 
+  // Targets whose curse Remove Curse's affliction row already attempted (3.695.0).
+  const curedThisCast = new Set();
   for (const effect of effects) {
     // A ROW A WARP UNLOCKS, OR THE CAST'S TOTAL PP DECIDES (3.611.0). See
     // magic/condition-warp.mjs — Animal Healing's added reliefs, Banish
@@ -2049,6 +2051,18 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           {
             const excess = Math.max(0, (amount + conduit) - healed);
             if (excess > 0 && !wasDying) globalThis.Hooks?.callAll?.("trgPrimeOverheal", { caster, target, excess, healed, spell });
+            /*
+             * EVERY SPELL HEAL, ANNOUNCED (3.696.0, CD9 of the Pillars of Faith
+             * audit). Gift of Healing, Healer's Touch, Restorative Hands,
+             * Lifebound Ward and Rejuvenating Surge answer "when a Healing
+             * spell you cast restores HP" — and each was a Use pressed after
+             * the spell, with the PP and the amount typed in. `ppSpent` is the
+             * PP the spell was cast at; `dying` whether the target was Dying,
+             * whose heal bought back a step of Dying instead of HP; `excess`
+             * what lay beyond the maximum. Fired per target, on the casting
+             * client, after the heal is written.
+             */
+            globalThis.Hooks?.callAll?.("trgPrimeSpellHealed", { caster, target, spell, healed, excess, dying: wasDying, ppSpent: Math.max(0, Math.trunc(Number(castPP) || Number(spell?.system?.ppCost ?? 0) || 0)), castId: castId ?? null });
           }
           lines.push(
             line(`${target.name}: healed <strong>${healed}</strong> HP${formula ? ` (${formula})` : ""}${conduit ? ` — includes +${conduit} from Mystical Conduit` : ""}.`)
@@ -2855,12 +2869,18 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           // A CURSE THAT A DISEASE CURE REACHES (3.633.0, F&F 3.0 R8): the
           // Aboleth's Slime — "a remove disease can counter this curse" —
           // declares `flags.trg-prime.counteredAs: ["disease"]`.
+          // …AND ONE CURED IN ORDER (3.695.0): Mummy Rot is a disease that a
+          // Remove Curse must reach first — see affliction-countered.mjs.
           const afflictions = Array.from(target.items ?? []).filter((i) => i.type === "affliction"
-            && afflictionCounteredBy(i, kinds));
+            && afflictionReachedBy(i, kinds));
           if (!afflictions.length) {
-            lines.push(line(`${target.name} has no ${kinds.join(" or ")} to counteract.`));
+            // QUIET WHEN THE SPELL HAS ANOTHER ROW FOR IT (3.695.0): Remove
+            // Curse's own counteract row speaks for a target with no curse.
+            if (!effect.quietIfNone) lines.push(line(`${target.name} has no ${kinds.join(" or ")} to counteract.`));
             break;
           }
+          // ONE CURSE (3.695.0): the effect row after this one stands down.
+          curedThisCast.add(target.uuid);
           let chosen = afflictions[0];
           if (afflictions.length > 1) {
             const { DialogV2 } = foundry.applications.api;
@@ -2876,13 +2896,35 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           const level = Math.max(0, Number(chosen.system?.level ?? 0) || 0);
           const dc = afflictionSaveDC(level, chosen.system ?? 0);
           const { rollCounteractCheck } = await import("../combat/counteract-workflow.mjs");
-          const result = await rollCounteractCheck(caster, { targetLevel: level, dc });
+          // A STEP OF A CURE IN ORDER IS ROLLED BLIND (3.696.0; found live on
+          // 3.695.0 — the counteract card told the caster the degree).
+          const { cureIsOrdered } = await import("../affliction-countered.mjs");
+          const { BLIND_ROLL_MODE } = await import("../traits.mjs");
+          const result = await rollCounteractCheck(caster, { targetLevel: level, dc, ...(cureIsOrdered(chosen) ? { rollMode: BLIND_ROLL_MODE } : {}) });
           const degree = result?.outcome?.degree;
           if (!degree) {
             lines.push(line(`<em>${chosen.name}: the counteract check was not completed — resolve it by hand.</em>`));
             break;
           }
-          if (["heroic", "critical", "success"].includes(degree.key)) {
+          const succeeded = ["heroic", "critical", "success"].includes(degree.key);
+          // CURED IN ORDER (3.695.0): the step is recorded, and the caster is
+          // not told whether it worked until the last step is cast — the GM is.
+          const ordered = cureStepOutcome(chosen, kinds, succeeded);
+          if (ordered) {
+            const gm = globalThis.ChatMessage?.getWhisperRecipients?.("GM") ?? [];
+            await ChatMessage.create({ content: `<p><strong>${chosen.name}</strong> on ${target.name}: the ${ordered.step} step ${succeeded ? "succeeds" : "fails"} (${degree.label}, DC ${dc}).${ordered.last ? (ordered.ends ? " The cure is complete." : " The cure fails; it begins again from its first step.") : ""}</p>`, whisper: gm.map((u) => u.id), speaker: ChatMessage.getSpeaker?.({ actor: caster }) });
+            if (ordered.ends) {
+              await chosen.delete();
+              lines.push(line(`${target.name}: <strong>${chosen.name}</strong> is purged.`));
+            } else {
+              await chosen.update({ [`flags.${SYSTEM_ID}.${CURE_STEPS_FLAG}`]: ordered.steps });
+              lines.push(line(ordered.last
+                ? `${target.name}: <strong>${chosen.name}</strong> remains — the cure did not take.`
+                : `${target.name}: the ${ordered.step} of <strong>${chosen.name}</strong> is attempted. Whether it held is known only once the cure is complete.`));
+            }
+            break;
+          }
+          if (succeeded) {
             await chosen.delete();
             lines.push(line(`${target.name}: <strong>${chosen.name}</strong> is counteracted (${degree.label}) and ends.`));
           } else {
@@ -6863,7 +6905,10 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           break;
         }
         case "counteract": {
-          const { normaliseCounteract, counteractCandidates, counteractedLine,
+          // ONE CURSE (3.695.0): Remove Curse's affliction row found one on this
+          // target and attempted it, so the effect row stands down.
+          if (effect.skipIfCured && curedThisCast.has(target.uuid)) break;
+          const { normaliseCounteract, counteractCandidates, counteractLimit, counteractedLine,
             counteractFailedLine, nothingToCounteractLine } =
             await import("./counteract-row.mjs");
           const spec = normaliseCounteract(effect);
@@ -6896,9 +6941,17 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           const { actorConditionHeld, counteractAsOf } = await import("../conditions/held-conditions.mjs");
           let held = counteractCandidates(spec, (c) => Boolean(target.hasCondition?.(c)) && !actorConditionHeld(target, c), traitedRows);
           // "ONE EMOTION EFFECT" — the caster picks which, when there is a choice.
-          if (spec.limit && held.length > spec.limit) {
+          // …AND MORE, BY A WARP (3.696.0, CD3): "+1 additional effect" warps
+          // (Break the Evil Eye, Sever Influence, Sever Soulchain) raise the
+          // limit by `counteractLimitBonus`. A row with no limit stays unlimited.
+          const rowLimit = counteractLimit(spec.limit, warpMods?.counteractLimitBonus);
+          // …AND ALWAYS ASKED WHEN THE ROW SAYS SO (3.696.0, CD3): `confirm:
+          // true` asks even for one candidate, with "none of these" — an
+          // Enchantment row cannot tell a charm from a Bless the target
+          // welcomed ("voluntarily accepted magical effects" are excluded).
+          if (held.length && (spec.confirm || (rowLimit && held.length > rowLimit))) {
             const { promptCounteractChoice } = await import("./counteract-workflow-choice.mjs");
-            held = await promptCounteractChoice(spell.name, target.name, held, spec.limit);
+            held = await promptCounteractChoice(spell.name, target.name, held, rowLimit, { confirm: spec.confirm });
           }
           if (!held.length) {
             // SAID, NOT ROLLED. A check against nothing reads as a failure

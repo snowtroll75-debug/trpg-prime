@@ -245,7 +245,13 @@ ok("W9 the helper for modules", /conditionHeld: async \(actor, key\) => \(await 
     await db.open();
     for await (const [key, value] of db.iterator()) if (key.startsWith("!items!") && !key.slice(7).includes("!") && value?.name === "Remove Curse") rc = value;
   } catch (err) { ok("X4 the spells pack opens", false, String(err?.message ?? err)); } finally { await db.close().catch(() => {}); }
-  equal("X4 the shipped pack carries it (tools/declare-ea-block8a-core.mjs)", rc?.system?.effects, row.to);
+  // RE-POINTED AT 3.695.0 (CD13): a later declared row builds on this one —
+  // the curse-affliction row ahead of it, and this row standing down when that
+  // found a curse. The pack carries the newest row declared for the field,
+  // which keeps this row's counteract in full.
+  const latest = [...fixes].reverse().find((f) => f.pack === "spells" && f.name === "Remove Curse" && f.path === "system.effects");
+  equal("X4 the shipped pack carries the newest declared row (tools/data-fixes.json)", rc?.system?.effects, latest?.to);
+  ok("X4b …which keeps this row's counteract", (latest?.to ?? []).some((r) => r.kind === "counteract" && JSON.stringify({ ...r, skipIfCured: undefined }) === JSON.stringify({ ...row.to[0], skipIfCured: undefined })));
 }
 
 if (failures.length) { console.log(`verify-held-conditions: ${checks} checks — ${failures.length} FAILED`); for (const f of failures) console.log(`  ✗ ${f}`); process.exitCode = 1; }

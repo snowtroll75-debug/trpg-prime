@@ -55,9 +55,9 @@ equal("A6 the attacker's own affliction item is found by name; none, null", [
 ], ["s", null]);
 const cure = await mod("affliction-countered.mjs");
 equal("A7 a disease cure reaches a disease, and a curse that declares it; not an ordinary curse", [
-  cure.afflictionCounteredBy({ system: { afflictionType: "disease" } }, ["disease"]),
-  cure.afflictionCounteredBy({ system: { afflictionType: "curse" }, flags: { "trg-prime": { counteredAs: ["disease"] } } }, ["disease", "poison"]),
-  cure.afflictionCounteredBy({ system: { afflictionType: "curse" } }, ["disease"])
+  cure.afflictionReachedBy({ system: { afflictionType: "disease" } }, ["disease"]),
+  cure.afflictionReachedBy({ system: { afflictionType: "curse" }, flags: { "trg-prime": { counteredAs: ["disease"] } } }, ["disease", "poison"]),
+  cure.afflictionReachedBy({ system: { afflictionType: "curse" } }, ["disease"])
 ], [true, true, false]);
 
 /* ------------------------------------------------------------ A. Mucus Cloud (R7) */
@@ -127,7 +127,8 @@ ok("B1 the cast takes the printed innate attack and DC", /const innateAttackHere
 ok("B2 the sheet shows the printed pair", /row\.innateAttack = innateAttackFor\(item, (?:innateAbility|ownAbility), innateLevel\)\.value;/.test(src.sheet) && /row\.innateSave = innateSaveFor\(item, (?:innateAbility|ownAbility), innateLevel\)\.value;/.test(src.sheet));
 ok("B3 a creature's secondary packets join the strike's typed extras, with the target", /\.\.\.creatureSecondaryPackets\(weapon, targetActor\?\.system \?\? null\),?\n/.test(src.attack));
 ok("B4 a weapon's after-strikes are read, and its own affliction exposed", /for \(const spec of weaponAfterStrikes\(weapon\)\) \{\n\s+const at = specs\.findIndex\(\(s\) => s\.key === spec\.key\);\n\s+if \(at < 0\) specs\.push\(spec\);/.test(src.after) && /const own = ownAfflictionItem\(actor, affliction\);/.test(src.after) && /data = own\.toObject\(\);/.test(src.after));
-ok("B5 a counteract asks which cures reach the affliction", /&& afflictionCounteredBy\(i, kinds\)\);/.test(src.spells));
+// RE-POINTED AT 3.695.0: afflictionReachedBy asks afflictionCounteredBy, and a cure sequence too.
+ok("B5 a counteract asks which cures reach the affliction", /&& afflictionReachedBy\(i, kinds\)\);/.test(src.spells) && /if \(afflictionCounteredBy\(item, kinds\)\) return true;/.test(read("module", "affliction-countered.mjs")));
 ok("B6 the aura reads the emitter's state, the subject's traits, and lays the trait effect", /\.\.\.\(Array\.from\(token\.actor\?\.effects \?\? \[\]\)\.some\(\(e\) => !e\.disabled && e\.getFlag\?\.\(SYSTEM_ID, "submerged"\)\) \? \["submerged"\] : \[\]\),/.test(src.auraWf) && /traits: creatureTraits\(token\.actor\?\.system \?\? \{\}\)\.map/.test(src.auraWf) && /lines\.push\(await applyAuraTraitEffect\(actor, aura\.traitEffect, \{ source: emitterToken\?\.name \?\? aura\.name \}\)\);/.test(src.auraWf));
 ok("B7 Mucus-Bound grants its trait as a flag on a world clock, and the breath is settled both ways", /grantedTraits: effect\.traits, \[END_TIME_FLAG\]: now \+ effect\.seconds/.test(src.traitFx) && /await settleBreath\(actor, effect\.name\);/.test(src.traitFx) && /settleBreath\(actor, `\$\{effect\.name\} ends`\)/.test(src.traitFx) && /registerAuraTraitEffectHooks\(\);/.test(src.init));
 ok("B8 further packets are rolled once and applied per target under the same save", /for \(const extra of spec\.extraDamage \?\? \[\]\) \{/.test(src.peril) && /const extraAmount = Math\.floor\(extra\.roll\.total \* bs\.damageMultiplier\);/.test(src.peril));

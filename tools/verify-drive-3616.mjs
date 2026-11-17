@@ -72,7 +72,7 @@ const FORMSF = strip(read("module", "charged-weapon-forms-workflow.mjs"));
     proficiencyOf(wizard, { type: "weapon", name: "Staff", system: { category: "Simple", group: "Club" } }).proficient
     && proficiencyOf(wizard, { type: "weapon", name: "Dagger", system: { category: "Simple", group: "Knife" } }).proficient);
   ok("C2 the attack asks with the weapon's flags",
-    ATTACK.includes('{ type: "weapon", name: weapon.name, system: weaponData, flags: weapon.flags }')
+    ATTACK.includes('{ type: weapon.type === "shield" ? "shield" : "weapon", name: weapon.name, system: weaponData, flags: weapon.flags }')
     && /name: weapon\.name,\s*flags: weapon\.flags,/.test(ATTACK));
   ok("C3 new forms carry their base", FORMSF.includes("itemId: grant.itemId, base: grant.base, signature: weaponFormSignature(grant)"));
 }

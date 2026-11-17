@@ -1228,9 +1228,17 @@ function baseCheckConfiguration(actor, action, invokedSkillKey, targetActor) {
     // weapon — built by `weaponManeuverModifiers` from the same helpers a
     // Strike uses. See its comment.
     const maneuverTrait = { shoveAttack: "shove", tripAttack: "trip" }[action.key];
+    // THE CHECK NAMES WHAT IT IS MADE WITH (3.696.2; Graham, live): a Shove
+    // made with Ossuary Board's bash, or a Shove- or Trip-trait weapon, is
+    // not an "Unarmed attack check".
+    let madeWith = "";
     if (maneuverTrait) {
       const weapon = maneuverWeapon(Array.from(actor.items ?? []), maneuverTrait);
+      if (weapon) madeWith = weapon.type === "shield" ? `Shield Bash attack with ${weapon.name}` : `Attack check with ${weapon.name}`;
       if (weapon) modifiers.push(...weaponManeuverModifiers(actor, weapon));
+      // MADE WITH A SHIELD'S BASH (3.696.0, CD6): Ossuary Board's "gains the
+      // Shove trait" — named on the card, as a Shove-trait weapon's bonus is.
+      if (weapon?.type === "shield") modifiers.push({ label: `${action.name} with ${weapon.name}'s Shield Bash (${maneuverTrait} trait)`, value: 0, type: "untyped" });
     }
 
     // Disarm/Grapple/Shove/Trip Attack (Chapter 4): each action's own
@@ -1255,7 +1263,7 @@ function baseCheckConfiguration(actor, action, invokedSkillKey, targetActor) {
 
     return {
       type: "attack",
-      label: `${action.name} — ${kind.label}`,
+      label: `${action.name} — ${madeWith || kind.label}`,
       modifiers
     };
   }
@@ -4985,6 +4993,17 @@ async function applyActionOutcome({
       // Deception's Fumble and Aid's bonus each had their own rule AND this
       // reader's unscoped copy — Keldran held ten. See dedicated-rows.mjs.
       const modifier = readsGenericModifier(action) ? extractModifier(outcome.text) : null;
+      // A FEAT'S VALUE FOR THIS DEGREE'S STATED BONUS (3.696.0, CD7): Expert
+      // Autopsist's +4 for Perform Autopsy's Critical +2 — skill-feats.mjs.
+      if (modifier) {
+        const { degreeBonusFor } = await import("../skill-feats.mjs");
+        const featNames = Array.from(actor.items ?? []).filter((i) => i.type === "feat").map((i) => i.name);
+        const raised = degreeBonusFor(action.key, degree, featNames);
+        if (raised && Math.sign(raised.value) === Math.sign(modifier.value)) {
+          lines.push(line(`<em>${raised.feat}: the ${modifier.type} bonus is ${raised.value > 0 ? "+" : ""}${raised.value} instead of ${modifier.value > 0 ? "+" : ""}${modifier.value}.</em>`));
+          modifier.value = raised.value;
+        }
+      }
       if (modifier) {
         const holder = modifier.subject === "target" ? targetActor : actor;
         if (holder) {

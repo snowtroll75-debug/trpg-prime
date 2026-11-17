@@ -541,7 +541,8 @@ function bodyOf(src, signature) {
       (sizeSpeed?.changes ?? []).find((c) => /identity\.size$/.test(String(c.key)))?.value ?? ""
     ).toLowerCase();
     const declaredSpeed = Number(
-      (sizeSpeed?.changes ?? []).find((c) => /movement\.land$/.test(String(c.key)))?.value ?? NaN
+      // RE-POINTED AT 3.695.0 (CD0): the pool's base, not the bare node.
+      (sizeSpeed?.changes ?? []).find((c) => /movement\.land\.base$/.test(String(c.key)))?.value ?? NaN
     );
     eq(`J13 ${race} size`, declaredSize, printed.size);
     eq(`J14 ${race} speed`, declaredSpeed, printed.speed);

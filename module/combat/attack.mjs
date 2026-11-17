@@ -330,7 +330,23 @@ export function maneuverWeapon(weapons, traitName) {
       item.type === "weapon" &&
       item.system?.equipped &&
       pattern.test(String(item.system?.traits ?? ""))
-  ) ?? null;
+  ) ?? bashTraitShield(weapons, traitName);
+}
+
+/**
+ * A SHIELD WHOSE BASH CARRIES THE TRAIT (3.696.0, CD6 of the Pillars of Faith
+ * audit). Ossuary Board: "A Shield Bash made with an Ossuary Board gains the
+ * Shove trait." Declared on the shield, `flags.trg-prime.bashTraits:
+ * ["shove"]`, and only for a shield that can bash at all (equipped, with a
+ * Shield Bash damage). The Shove is then made "with" the shield, as with a
+ * Shove-trait weapon — the card names it. Pure.
+ */
+function bashTraitShield(items, traitName) {
+  const want = String(traitName ?? "").trim().toLowerCase();
+  return (items ?? []).find((item) => item.type === "shield" && item.system?.equipped
+    && String(item.system?.shieldBashDamage ?? "").trim()
+    && (Array.isArray(item.flags?.["trg-prime"]?.bashTraits) ? item.flags["trg-prime"].bashTraits : [])
+      .some((t) => String(t ?? "").trim().toLowerCase() === want)) ?? null;
 }
 
 const SIZE_ORDER = [

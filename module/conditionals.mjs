@@ -572,7 +572,20 @@ const EQUIPMENT_TYPES = Object.freeze(["armour", "shield", "weapon", "gear"]);
  */
 function equipmentInUse(item) {
   if (!EQUIPMENT_TYPES.includes(String(item?.type ?? ""))) return true;
+  // THE INVESTED TRAIT GATES CONDITIONALS TOO (3.695.0; Graham's ruling, 16 Nov 2026,
+  // Pillars of Faith audit U4). "Must be invested using the Invest Item
+  // action before its abilities can be fully utilised" — the rule
+  // `wondrousActive` (3.617.0) and `investedRefusal` already apply to an
+  // item's declared wondrous effects and its activations. A conditional on
+  // an Invested-trait item (Ancestor's Locket, Boneglass Monocle…) applied
+  // as soon as the item was equipped.
+  if (hasInvestedTrait(item) && !item?.system?.invested) return false;
   return wornAndStanding(item);
+}
+
+/** The Invested trait, read from the item's trait list. Pure. */
+function hasInvestedTrait(item) {
+  return String(item?.system?.traits ?? "").toLowerCase().split(/[,;]/).map((t) => t.trim()).includes("invested");
 }
 
 export function collectConditionals(items = [], effects = [], declared = [], scaling = {}) {

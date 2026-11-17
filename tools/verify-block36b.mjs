@@ -297,7 +297,8 @@ async function packRows(pack) {
     // a cast option's attack-only rows and the gate's attack-only rows.
     // RE-POINTED AT 3.688.0 (Eldritch Arts Block 9a, H19): and a cast item's attack row.
     CAST.includes("extraAttackRows: [...(accuracyAttackRow ? [accuracyAttackRow] : []), ...(castOptionsApplied.attackRows ?? []), ...castItems.attackRows, ...gateAttackOnlyRows],")
-    && CAST.includes(".concat(Array.isArray(extraAttackRows) ? extraAttackRows : []), {});"));
+    // RE-POINTED AT 3.695.0: the caster's declared spell-attack rows join after it.
+    && CAST.includes(".concat(Array.isArray(extraAttackRows) ? extraAttackRows : [])\n      .concat(Array.isArray(declaredAttackRows) ? declaredAttackRows : []), {});"));
   const alert = rod("Rod of Alertness", { checkAdvantage: { subjects: ["perception", "senseMotive"], cost: 2 } });
   ok("E5 R14 — the Rod of Alertness on Perception and Sense Motive only",
     advantageRodFor([alert], "perception")?.cost === 2 && advantageRodFor([alert], "senseMotive") && advantageRodFor([alert], "stealth") === null);

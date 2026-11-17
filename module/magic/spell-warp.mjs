@@ -294,6 +294,11 @@ function emptyWarpMods() {
     // SONIC BOLT (3.608.0). A COUNT of armour steps a critical reads
     // through; see `armourBypassCategories` in attack-riders.mjs.
     armourStep: 0,
+    // ONE MORE EFFECT A COUNTERACT MAY ADDRESS (3.696.0, CD3): Break the Evil
+    // Eye's "Counteract one additional eligible effect", Sever Influence's
+    // "two eligible effects", Sever Soulchain's. Added to the row's limit by
+    // `counteractLimit` (counteract-row.mjs); purchases add.
+    counteractLimitBonus: 0,
     // SIZE ALTERATION (3.608.0). `sizeReach` is one more step AND one size
     // larger still reached — "two steps, or a large creature by one step";
     // `sizeReverse` turns the growth into a reduction. See
@@ -707,6 +712,7 @@ export function aggregateWarpSelection(warps, form) {
     if (m.sizeSteps) mods.sizeSteps = Math.max(int0(mods.sizeSteps), Number(m.sizeSteps) || 0);
     if (m.extraFormAttacks) mods.extraFormAttacks += Number(m.extraFormAttacks) * times;
     if (m.armourStep) mods.armourStep += Number(m.armourStep) * times;
+    if (m.counteractLimitBonus) mods.counteractLimitBonus += Number(m.counteractLimitBonus) * times;
     // A TOTAL, like `sizeSteps`: "two steps" bought twice is two steps.
     if (m.sizeReach) mods.sizeReach = Math.max(int0(mods.sizeReach), Number(m.sizeReach) || 0);
     if (m.sizeReverse) mods.sizeReverse = true;
@@ -1050,6 +1056,7 @@ export function mergeWarpSelections(first, second) {
       // AN AFTER-THE-CHECK PURCHASE ADDS TO ONE MADE BEFORE (3.608.0) — two
       // steps bought in two halves are two steps.
       armourStep: Number(a.mods?.armourStep ?? 0) + Number(b.mods?.armourStep ?? 0),
+      counteractLimitBonus: Number(a.mods?.counteractLimitBonus ?? 0) + Number(b.mods?.counteractLimitBonus ?? 0),
       sizeReach: Math.max(Number(a.mods?.sizeReach ?? 0), Number(b.mods?.sizeReach ?? 0)),
       sizeReverse: Boolean(a.mods?.sizeReverse || b.mods?.sizeReverse),
       defenceValue: b.mods?.defenceValue ?? a.mods?.defenceValue ?? null,

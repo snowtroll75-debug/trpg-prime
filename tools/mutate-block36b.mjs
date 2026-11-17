@@ -106,7 +106,8 @@ const MUTATIONS = [
   { file: RODS, name: "R14 — Accuracy past +2",
     from: "  const n = Math.max(0, Math.min(Number(rod?.maxPP ?? 0), Math.floor(Number(pp) || 0)));", to: "  const n = Math.max(0, Math.floor(Number(pp) || 0));", breaks: "E4" },
   { file: CAST, name: "R14 — Accuracy's row never reaches the attack",
-    from: "      .concat(Array.isArray(extraAttackRows) ? extraAttackRows : []), {});", to: ", {});", breaks: "E4b" },
+    // RE-POINTED AT 3.695.0: the declared attack rows follow on the next line.
+    from: "      .concat(Array.isArray(extraAttackRows) ? extraAttackRows : [])\n", to: "", breaks: "E4b" },
   { file: RODS, name: "R14 — Alertness on any skill",
     from: "    const matches = (key && subjects.includes(key)) || (action && actions.includes(action)) || (types.length && types.includes(String(checkType ?? \"\")));\n    if (!matches) continue;\n    return { ...rodRow(item), cost: Math.max(0, Math.floor(Number(spec.cost ?? 2) || 0)) };", to: "    return { ...rodRow(item), cost: Math.max(0, Math.floor(Number(spec.cost ?? 2) || 0)) };", breaks: "E5" },
   { file: RODS, name: "R16 — a broken rod still works",

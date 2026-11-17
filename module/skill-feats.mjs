@@ -275,3 +275,23 @@ export function shadowbornStepNote(result, actionKey) {
   if (String(actionKey ?? "").trim() !== "escape") return base;
   return `${base} <em>You may <strong>Step</strong> up to 5 feet instead of Striding.</em>`;
 }
+
+/**
+ * A DEGREE'S BONUS, BY A MODULE FEAT (3.696.0, CD7). Expert Autopsist: "On a
+ * Critical result, the circumstance bonus granted to a subsequent skill check
+ * increases from +2 to +4." Registered as `{ actionKey, degree, bonusValue }`
+ * through `registerDegreeUpgrades`; the first owned feat that matches wins.
+ *
+ * @returns {{value: number, feat: string}|null} the value the outcome's own
+ *   stated bonus becomes, or null
+ */
+export function degreeBonusFor(actionKey, degree, featNames = []) {
+  const key = String(actionKey ?? "").trim();
+  const rolled = String(degree ?? "").trim().toLowerCase();
+  for (const name of Array.isArray(featNames) ? featNames : []) {
+    const declared = registeredDegreeUpgrades(name);
+    const match = (declared ?? []).find((u) => u.actionKey === key && u.degree === rolled && Number.isFinite(u.bonusValue));
+    if (match) return { value: match.bonusValue, feat: String(name).trim() };
+  }
+  return null;
+}

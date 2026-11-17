@@ -44,7 +44,7 @@ const MUTATIONS = [
   { name: "the creature's secondary packets are not rolled", file: ATTACK, from: "    ...creatureSecondaryPackets(weapon, targetActor?.system ?? null),\n", to: "", breaks: "B3" },
   { name: "a weapon's after-strikes are not read", file: AFTER, from: "    if (at < 0) specs.push(spec);\n", to: "", breaks: "B4" },
   { name: "the attacker's own affliction is not looked for", file: AFTER, from: "  const own = ownAfflictionItem(actor, affliction);", to: "  const own = null;", breaks: "B4" },
-  { name: "a counteract reads only the type", file: SPELLS, from: "            && afflictionCounteredBy(i, kinds));", to: "            && kinds.includes(String(i.system?.afflictionType ?? \"\").toLowerCase()));", breaks: "B5" },
+  { name: "a counteract reads only the type", file: SPELLS, from: "            && afflictionReachedBy(i, kinds));", to: "            && kinds.includes(String(i.system?.afflictionType ?? \"\").toLowerCase()));", breaks: "B5" },
   { name: "the emitter is never submerged", file: AURAWF, from: "e.getFlag?.(SYSTEM_ID, \"submerged\")) ? [\"submerged\"] : []),", to: "e.getFlag?.(SYSTEM_ID, \"submergedNever\")) ? [\"submerged\"] : []),", breaks: "B6" },
   { name: "the failure lays no Mucus-Bound", file: AURAWF, from: "    lines.push(await applyAuraTraitEffect(actor, aura.traitEffect, { source: emitterToken?.name ?? aura.name }));", to: "", breaks: "B6" },
   { name: "Mucus-Bound grants no trait", file: TRAITFX, from: "grantedTraits: effect.traits, [END_TIME_FLAG]: now + effect.seconds", to: "[END_TIME_FLAG]: now + effect.seconds", breaks: "B7" },
