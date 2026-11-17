@@ -12,6 +12,8 @@ const AC = M("documents", "actor.mjs");
 const FW = M("feats-workflow.mjs");
 const MK = M("magic", "markers.mjs");
 const CA = M("magic", "casting.mjs");
+const SA = M("magic", "spell-adder.mjs");
+const CW = M("magic", "cast-workflow.mjs");
 const PR = M("data", "pack-repairs.mjs");
 const DF = path.join(SYSTEM_ROOT, "tools", "data-fixes.json");
 const SJ = path.join(SYSTEM_ROOT, "system.json");
@@ -41,6 +43,12 @@ const MUTATIONS = [
   { name: "E the owned-copy repair names a different marker", file: PR, from: "    to: [{ kind: \"marker\", target: \"self\", marker: \"longArm\" }],\n    reason: \"\\\"Increasing your reach", to: "    to: [{ kind: \"marker\", target: \"self\", marker: \"longArms\" }],\n    reason: \"\\\"Increasing your reach" },
   { name: "E the owned-copy repair for Inner Focus missing", file: PR, from: "    id: \"audit3697-inner-focus-effects\", pack: \"spells\", name: \"Inner Focus\",\n    field: \"effects\"", to: "    id: \"audit3697-inner-focus-effectsX\", pack: \"spells\", name: \"Inner Focus\",\n    field: \"effects\"" },
   { name: "E data-fixes declares a different Changing Lungs", file: DF, from: "          \"marker\": \"waterBreathing\"\n        },\n        {\n          \"kind\": \"note\",\n          \"text\": \"You also breathe", to: "          \"marker\": \"waterBreathingX\"\n        },\n        {\n          \"kind\": \"note\",\n          \"text\": \"You also breathe" },
+  { name: "F Spell Battery read under another name", file: SA, from: "&& String(i.name ?? \"\").trim().toLowerCase() === \"spell battery\");", to: "&& String(i.name ?? \"\").trim().toLowerCase() === \"battery\");" },
+  { name: "F Spell Battery ignores the 30 feet", file: SA, from: "    if (Number.isFinite(feet) && feet > SPELL_BATTERY_FEET) continue;\n", to: "" },
+  { name: "F Spell Battery counts at 30 feet as out of range", file: SA, from: "feet > SPELL_BATTERY_FEET) continue;", to: "feet >= SPELL_BATTERY_FEET) continue;" },
+  { name: "F an unmeasured familiar does not say the range is the table's", file: SA, from: "Spell Battery${Number.isFinite(feet) ? \"\" : \" (within 30 ft)\"}", to: "Spell Battery" },
+  { name: "F an unmeasured familiar refused", file: SA, from: "    if (Number.isFinite(feet) && feet > SPELL_BATTERY_FEET) continue;", to: "    if (!Number.isFinite(feet) || feet > SPELL_BATTERY_FEET) continue;" },
+  { name: "F the cast never asks the familiars", file: CW, from: "withWondrousAdders(withWondrousAdders(spellAdderSources(actor), wondrous), battery)", to: "withWondrousAdders(spellAdderSources(actor), wondrous)" },
   { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.697.0\"", to: "\"version\": \"3.696.3\"" }
 ];
 

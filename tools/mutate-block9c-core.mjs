@@ -42,7 +42,7 @@ const MUTATIONS = [
   { name: "a wondrous resistance not joined to the actor's", file: ACT, from: "      system.combat.resistances = [String(system.combat.resistances ?? \"\"), ...wondrousEffects.resistances].filter(Boolean).join(\", \");", to: "" },
   { name: "the pool drops a scope", file: SA, from: "      ...(Array.isArray(w?.spellTraits) && w.spellTraits.length ? { spellTraits: w.spellTraits.map((t) => String(t).toLowerCase()) } : {})", to: "" },
   { name: "a scoped adder pays for any spell", file: SA, from: "  const sources = (rated?.sources ?? []).filter((s) => !Array.isArray(s?.spellTraits) || !s.spellTraits.length\n    || s.spellTraits.some((t) => have.includes(String(t).toLowerCase())));", to: "  const sources = rated?.sources ?? [];" },
-  { name: "the cast offers every adder", file: CW, from: "    const rated = spellAdderFor(withWondrousAdders(spellAdderSources(actor), wondrous), spellData.traits ?? \"\");", to: "    const rated = withWondrousAdders(spellAdderSources(actor), wondrous);" },
+  { name: "the cast offers every adder", file: CW, from: "    const rated = spellAdderFor(withWondrousAdders(withWondrousAdders(spellAdderSources(actor), wondrous), battery), spellData.traits ?? \"\");", to: "    const rated = withWondrousAdders(withWondrousAdders(spellAdderSources(actor), wondrous), battery);" },
   { name: "an item conditional read below its PP floor", file: CON, from: "        if (minPP > 0 && itemPP < minPP) return;", to: "" },
   // H24
   { name: "a trait row dropped", file: CO, from: "  if (traits.length) return { traits, value, label: str(label) || \"Casting option\" };", to: "" },

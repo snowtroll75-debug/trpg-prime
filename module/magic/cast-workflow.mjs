@@ -2641,7 +2641,18 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
     // ONLY THE ADDERS THAT PAY FOR THIS SPELL (3.690.0, H23): a scoped one
     // (the Orb of Emberlight's fire spells) counts for its spells alone.
     const { spellAdderFor } = await import("./spell-adder.mjs");
-    const rated = spellAdderFor(withWondrousAdders(spellAdderSources(actor), wondrous), spellData.traits ?? "");
+    // AND THE FAMILIAR'S SPELL BATTERY (3.697.0), within 30 feet.
+    const { familiarSpellAdders } = await import("./spell-adder.mjs");
+    const { familiarsOf } = await import("../familiar-workflow.mjs");
+    const { activeToken, distanceBetween } = await import("../combat/geometry.mjs");
+    const casterToken = activeToken(actor);
+    const battery = familiarSpellAdders(familiarsOf(actor), {
+      distanceTo: (familiar) => {
+        const t = activeToken(familiar);
+        return casterToken && t ? distanceBetween(casterToken, t) : null;
+      }
+    });
+    const rated = spellAdderFor(withWondrousAdders(withWondrousAdders(spellAdderSources(actor), wondrous), battery), spellData.traits ?? "");
     const spent = Number(actor.getFlag?.(SYSTEM_ID, SPELL_ADDER_USED_FLAG)) || 0;
     const left = spellAdderRemaining(rated.total, spent);
     if (left > 0) {

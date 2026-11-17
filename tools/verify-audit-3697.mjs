@@ -10,6 +10,7 @@
  *   C  Long Arm: a longArm marker, read where reach is set from size.
  *   D  Inner Focus: an innerFocus marker; the casting focus rules waive the
  *      -2 and the +10 fumble on it, and give no +1.
+ *   F  Spell Battery: the caster's familiar is a +1 Spell Adder within 30 ft.
  *   E  The pack carries the three spells' new rows, exactly as data-fixes
  *      declares them, and the owned-copy repairs say the same thing.
  *   Z  The version.
@@ -101,6 +102,26 @@ const mod = (...p) => import(new URL(`../module/${p.join("/")}`, import.meta.url
   }
   const markersUsed = AUDIT_3697_FIXES.flatMap((f) => f.to).filter((r) => r.kind === "marker").map((r) => r.marker);
   equal("E4 the three rows use the three markers", markersUsed, ["waterBreathing", "longArm", "innerFocus"]);
+}
+
+/* F — Spell Battery -------------------------------------------------------- */
+{
+  const sa = await mod("magic", "spell-adder.mjs");
+  const fam = (name, abilities) => ({ name, items: abilities.map((n) => ({ type: "ability", name: n })) });
+  const owl = fam("Owl", ["Empathic Link", "Spell Battery"]);
+  const cat = fam("Cat", ["Empathic Link", "Fast Movement"]);
+  equal("F1 a familiar with Spell Battery is a +1 Spell Adder; one without it is not",
+    sa.familiarSpellAdders([owl, cat], { distanceTo: () => 10 }), [{ label: "Owl: Spell Battery", value: 1 }]);
+  equal("F2 …but not when it is measured more than 30 feet away; exactly 30 still counts",
+    [sa.familiarSpellAdders([owl], { distanceTo: () => 35 }).length, sa.familiarSpellAdders([owl], { distanceTo: () => 30 }).length], [0, 1]);
+  equal("F3 with no measurable distance it counts, and says the range is the table's",
+    sa.familiarSpellAdders([owl]), [{ label: "Owl: Spell Battery (within 30 ft)", value: 1 }]);
+  equal("F4 it joins the caster's own adders as one more source",
+    sa.withWondrousAdders(sa.withWondrousAdders({ sources: [{ label: "Ring", value: 2 }], total: 2 }, []), sa.familiarSpellAdders([owl])).total, 3);
+  const cw = read("module", "magic", "cast-workflow.mjs");
+  ok("F5 the cast asks the caster's familiars, measured token to token",
+    /const battery = familiarSpellAdders\(familiarsOf\(actor\), \{[\s\S]{0,200}distanceBetween\(casterToken, t\)/.test(cw)
+      && /withWondrousAdders\(withWondrousAdders\(spellAdderSources\(actor\), wondrous\), battery\)/.test(cw));
 }
 
 /* Z ------------------------------------------------------------------------ */

@@ -120,6 +120,47 @@ export function withWondrousAdders(base, wondrous = []) {
 }
 
 /**
+ * SPELL BATTERY (3.697.0): "Your familiar acts as a +1 Spell Adder allowing
+ * you to cast any one spell from your repertoire each day with no power
+ * point cost. Your familiar must be within 30 feet of you to use this
+ * ability."
+ *
+ * The ability that DEFINES the Spell Adder was the one carrier never read:
+ * it sits on the familiar, and `spellAdderSources` reads only the caster's
+ * own items (found by the 3.697.0 audit). So the cast and the daily reset
+ * hand in the caster's familiars and this rates each one carrying Spell
+ * Battery at +1, merged with `withWondrousAdders` like any other source.
+ *
+ * THE 30 FEET. `distanceTo(familiar)` answers in feet when both tokens are
+ * on the scene; a familiar measured further away gives nothing. When no
+ * distance can be measured (no scene, a token missing) the familiar still
+ * counts, and its label says the range is the table's to check, rather than
+ * refusing a cast the rules may allow.
+ *
+ * @param {Actor[]} familiars the caster's familiars
+ * @param {{distanceTo?: (familiar: Actor) => (number|null)}} [options]
+ * @returns {Array<{label: string, value: number}>}
+ */
+export function familiarSpellAdders(familiars = [], { distanceTo = null } = {}) {
+  const out = [];
+  for (const familiar of familiars ?? []) {
+    const has = Array.from(familiar?.items ?? []).some((i) => i?.type === "ability"
+      && String(i.name ?? "").trim().toLowerCase() === "spell battery");
+    if (!has) continue;
+    const feet = typeof distanceTo === "function" ? distanceTo(familiar) : null;
+    if (Number.isFinite(feet) && feet > SPELL_BATTERY_FEET) continue;
+    out.push({
+      label: `${familiar.name}: Spell Battery${Number.isFinite(feet) ? "" : " (within 30 ft)"}`,
+      value: 1
+    });
+  }
+  return out;
+}
+
+/** Spell Battery's range, in feet. */
+const SPELL_BATTERY_FEET = 30;
+
+/**
  * THE ADDERS THAT MAY PAY FOR THIS SPELL (3.690.0; Eldritch Arts Block 9c,
  * H23). A source with `spellTraits` pays only for a spell carrying one of them
  * (the Orb of Emberlight's "+1 Spell Adder for spells with the fire trait");

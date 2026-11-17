@@ -144,7 +144,7 @@ ok("H23 …and its picker shows that price on the item's row", /kindPP: register
 ok("H23 the actor joins a wondrous resistance to its own",
   /if \(wondrousEffects\.resistances\?\.length && system\.combat\) \{\n\s*system\.combat\.resistances = \[String\(system\.combat\.resistances \?\? ""\), \.\.\.wondrousEffects\.resistances\]\.filter\(Boolean\)\.join\(", "\);/.test(actSrc));
 ok("H23 the cast offers only the adders that pay for its spell",
-  /const rated = spellAdderFor\(withWondrousAdders\(spellAdderSources\(actor\), wondrous\), spellData\.traits \?\? ""\);/.test(cw));
+  /const rated = spellAdderFor\(withWondrousAdders\(withWondrousAdders\(spellAdderSources\(actor\), wondrous\), battery\), spellData\.traits \?\? ""\);/.test(cw));
 {
   const item = (uses) => ({ id: "o1", name: "Orb", type: "gear", system: { uses, equipped: true }, flags: { "trg-prime": { conditionals: [
     { kind: "modifier", value: 1, type: "item", label: "Ley lines", when: { actions: ["eaTapLeyLine"] } },
