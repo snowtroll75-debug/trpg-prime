@@ -97,14 +97,23 @@ function fingerprint(roots) {
   const h = crypto.createHash("sha1");
   for (const root of roots) {
     if (!fs.existsSync(root)) { h.update(`absent:${root}`); continue; }
-    try {
-      const git = (...a) => execFileSync("git", ["-C", root, ...a], { encoding: "utf8", maxBuffer: 1 << 28 });
-      h.update(git("ls-tree", "-r", "HEAD", "--", ...UNDER_TEST));
-      h.update(git("diff", "HEAD", "--", ...UNDER_TEST));
-      h.update(git("ls-files", "--others", "--exclude-standard", "--", ...UNDER_TEST, ":(exclude)packs"));
-    } catch {
+    // NOT SWALLOWED (3.697.0). The first version caught every git error and
+    // hashed a constant instead — and `git ls-tree` rejects exclude pathspecs,
+    // so it ALWAYS failed: every tree had the same fingerprint and a stale
+    // result could have been reused. `ls-files -s` (the index, with blob ids)
+    // takes the same pathspecs; a folder that is not a git checkout is hashed
+    // by name and said so, and any other git failure stops the run.
+    const git = (...a) => execFileSync("git", ["-C", root, ...a], { encoding: "utf8", maxBuffer: 1 << 28, stdio: ["ignore", "pipe", "pipe"] });
+    let inside = false;
+    try { inside = git("rev-parse", "--is-inside-work-tree").trim() === "true"; } catch { inside = false; }
+    if (!inside) {
+      process.stdout.write(`  note: ${root} is not a git checkout; its changes cannot be fingerprinted.\n`);
       h.update(`nogit:${root}`);
+      continue;
     }
+    h.update(git("ls-files", "-s", "--", ...UNDER_TEST));
+    h.update(git("diff", "HEAD", "--", ...UNDER_TEST));
+    h.update(git("ls-files", "--others", "--exclude-standard", "--", ...UNDER_TEST, ":(exclude)packs"));
   }
   return h.digest("hex");
 }
@@ -228,14 +237,19 @@ for (const suite of suites) {
     continue;
   }
   const done = scripts.filter((s) => resultsOf(suite)[s]);
-  const failed = done.filter((s) => !resultsOf(suite)[s].ok && !resultsOf(suite)[s].blocked);
-  const blocked = done.filter((s) => resultsOf(suite)[s].blocked);
+  // A MUTATION FILE WHOSE VERIFY IS BLOCKED IS BLOCKED TOO: it refuses to
+  // run ("already fails on an unmodified tree") for exactly the same reason.
+  const verifyBlocked = (s) => s.startsWith("mutate-") && resultsOf(suite)[s.replace(/^mutate-/, "verify-")]?.blocked
+    && /already fails on an unmodified|already fails on the unmutated/.test(resultsOf(suite)[s].tail ?? "");
+  const isBlocked = (s) => resultsOf(suite)[s].blocked || verifyBlocked(s);
+  const failed = done.filter((s) => !resultsOf(suite)[s].ok && !isBlocked(s));
+  const blocked = done.filter((s) => !resultsOf(suite)[s].ok && isBlocked(s));
   if (blocked.length) anyBlocked = true;
   const unpaired = suite.kind === "module" ? scripts.filter((s) => s.startsWith("verify-") && !scripts.includes(s.replace(/^verify-/, "mutate-"))).length : 0;
   if (done.length < scripts.length || failed.length) red = true;
   process.stdout.write(`  ${done.length === scripts.length ? (failed.length ? "FAIL   " : "pass   ") : "PARTIAL"}  ${suite.label}: ${done.length}/${scripts.length} run, ${failed.length} failed${blocked.length ? `, ${blocked.length} blocked` : ""}`
     + `${unpaired ? ` (${unpaired} verify file(s) have no mutate file)` : ""}\n`);
-  for (const s of blocked) process.stdout.write(`      BLOCKED ${s}: ${resultsOf(suite)[s].tail.split("\n").find((l) => /ENOENT|needs/.test(l))?.trim()}\n`);
+  for (const s of blocked) process.stdout.write(`      BLOCKED ${s}: ${resultsOf(suite)[s].tail.split("\n").find((l) => /ENOENT|needs|already fails/.test(l))?.trim()}\n`);
   for (const s of failed) {
     process.stdout.write(`      FAIL ${s}\n${resultsOf(suite)[s].tail.split("\n").map((l) => `        ${l}`).join("\n")}\n`);
   }
