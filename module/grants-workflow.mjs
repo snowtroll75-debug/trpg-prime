@@ -10,6 +10,12 @@ import { packItemData } from "./items.mjs";
 import { contentPack } from "./content-packs.mjs";
 import { sourcePackageOf } from "./sourcebooks.mjs";
 
+/** "darkvision (60 ft.)", "darkvision 60 ft" -> "darkvision" (as codex-inheritance.mjs's codexBaseName). */
+function abilityBaseName(name) {
+  return String(name ?? "").trim().toLowerCase().replace(/\s*\(.*?\)\s*$/, "").replace(/\s+\d+\s*ft\.?\s*$/, "").trim();
+}
+
+
 function line(text) {
   return `<p style="margin:2px 0">${text}</p>`;
 }
@@ -369,9 +375,20 @@ export async function applyGrant(
   // two things happened. restoreRemovedAbilities has read the actor's
   // own items this way since it was written; every other grant path
   // simply never did.
-  const held = new Set(
-    Array.from(actor.items ?? []).map((i) => String(i.name).trim().toLowerCase())
-  );
+  //
+  // A PRINTED RANGE IS THE SAME ABILITY (proposed 3.699.0; joint Codex /
+  // Fiends & Fables audit, 18 Nov 2026, CO-01). A published creature prints
+  // its sense with its range — "Darkvision (60 ft.)", "Darkvision 75 ft" —
+  // and its creature type grants "Darkvision". Matched on the exact name,
+  // the next grant pass (any item added or removed) handed every such
+  // creature a second, generic Darkvision. An ABILITY is held under its base
+  // name as well, by the same rule Codex inheritance uses to find its entry.
+  const held = new Set();
+  for (const i of Array.from(actor.items ?? [])) {
+    const name = String(i.name).trim().toLowerCase();
+    held.add(name);
+    if (i.type === "ability") held.add(abilityBaseName(name));
+  }
   const toCreate = resolved.filter(
     (entry) => !alreadyGranted.has(String(entry.requested).trim().toLowerCase()) &&
       !held.has(String(entry.requested).trim().toLowerCase()) && !isSuppressed(entry)
