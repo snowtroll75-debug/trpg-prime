@@ -85,3 +85,27 @@ Existing checks changed, and why:
 10. **Inner Focus.** On a focus caster with Focus Ready unticked, cast a spell: no "Casting without focus" −2, and no +10 on a forced fumble. Tick Focus Ready: +1 as before.
 11. **Advancement sweep.** Run it again (`await trgAdvancementSweep()`). Same results as §4.
 12. **Regression in the modules.** Pick one Pillars of Faith, Inner Tempest and Eldritch Arts feature each that was live-tested on 3.696.x (for example Judgement on a Grimward spell, Root's Trip DC, the Aegis of Valtea's relic grants) and repeat it.
+
+## 6. 3.698.0 (Graham's rulings, 18 November 2026)
+
+### Run
+
+| Test | Result |
+|---|---|
+| `verify-audit-3698` / `mutate-audit-3698` | 21 checks green; 15 of 15 mutations caught |
+| `verify-audit-3697` / `mutate-audit-3697` | 35 green (B3's window widened); 32 of 32 caught |
+| Every verify file that touches grants, grant-autorun, the migration gates, pack repairs, data fixes or Ability Enhancement | 58 files, all green |
+| `verify-no-undefined-names`, `verify-rules-have-callers` | green (821 files; 505 of 5,781 exports uncalled, backlog unchanged) |
+| Module suites against 3.698.0 | Identical to 3.697.0. Pillars of Faith 11/11; Inner Tempest 19 pass, 2 blocked, 1 module-side; Eldritch Arts 55 pass, 1 blocked, 1 module-side. No pass turned to fail. |
+| Full core sweep on 3.698.0 | Still running when the ZIP was built (it takes about 2½ hours). Its result is reported when it finishes. |
+
+### 3.697.0 live
+
+Run in the Test world on 18 November; see `live-testing-report-3.697.0.md`. Every 3.697.0 fix passed live.
+
+### Live-test plan for 3.698.0 (after install)
+
+1. **Migration:** offered 3.697.0 → 3.698.0. An owned Flame Blade still at "30 feet" / "1 creature" is cleared.
+2. **Level drop:** a Fighter at 13th, XP set to 8th. A notice reads "Granted above level 8, removed: Unbreakable Resolve, Weapon Supremacy." Raising XP back re-grants both. `trgAdvancementSweep()` should now report no orphans.
+3. **Ability Enhancement:** a 5th-level familiar with three copies. Two take Dexterity; the third Use is refused with "at level 5 a familiar may have 2".
+4. **Flame Blade:** casting asks for no target.

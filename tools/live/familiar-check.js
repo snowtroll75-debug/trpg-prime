@@ -9,6 +9,8 @@
  *
  * On 3.696.3 (measured 17 Nov 2026): land 25 → 25, no Energy Resistant
  * Use, Spell Battery worth 0. On 3.697.0 it should read 25 → 40, a Use, and 1.
+ * (`helpers.familiarsOf` is async: awaited since 18 Nov, when the first
+ * live run threw on it.)
  */
 globalThis.trgFamiliarCheck = async function () {
   if (!/test|audit/i.test(game.world.title)) throw new Error(`refusing to run in "${game.world.title}": use a test world`);
@@ -25,7 +27,7 @@ globalThis.trgFamiliarCheck = async function () {
   try {
     const [feat] = await master.createEmbeddedDocuments("Item", [famFeat.toObject()]);
     const made = await H.createFamiliarFor(master, feat);
-    familiar = made?.documentName === "Actor" ? made : (H.familiarsOf(master)[0] ?? null);
+    familiar = made?.documentName === "Actor" ? made : ((await H.familiarsOf(master))[0] ?? null);
     const land = () => { const l = familiar.system.combat.movement.land; return typeof l === "object" ? l.total : l; };
     out.landBefore = land();
     await familiar.createEmbeddedDocuments("Item", ["Fast Movement", "Spell Battery", "Energy Resistant"].map((n) => docs.find((d) => d.name === n).toObject()));
@@ -34,7 +36,7 @@ globalThis.trgFamiliarCheck = async function () {
     const sa = await import("/systems/trg-prime/module/magic/spell-adder.mjs");
     out.energyResistantUse = "energy resistant" in fw.FEAT_AUTOMATION;
     out.spellBattery = typeof sa.familiarSpellAdders === "function"
-      ? sa.familiarSpellAdders(H.familiarsOf(master)).reduce((s, x) => s + x.value, 0)
+      ? sa.familiarSpellAdders(await H.familiarsOf(master)).reduce((s, x) => s + x.value, 0)
       : 0;
   } catch (e) {
     out.error = String(e?.stack ?? e).slice(0, 500);
