@@ -65,5 +65,17 @@ Highlights, all equal in every configuration that runs them:
    - Fiends & Fables adds the card to the 43 Eternals, matching what their type grants;
    - or the Codex skips type-granted text cards on imported creatures.
 
-   This needs Graham's choice. It is not yet in the defect register.
+   Graham chose the first option: Fiends & Fables 0.46.2 adds the card to the 43 Eternals (FF-17), and Codex 0.2.2 prices type-granted abilities through the type ledger (CX-08).
 2. **Battery duplicate check (not a defect).** The battery flags "Source Stat Calibration ×2" on the Codex Ghoul variant. These are the published Ghoul's two distinct calibration items (HP +17 and Fortitude +1), also present on Ghast, Human Ghost and Belkar Storm Lord. The battery's name-based duplicate check should ignore them.
+
+## Re-test: Codex 0.2.2 and Fiends & Fables 0.46.2 (18 November 2026, 19:15)
+
+Installed by Graham; the world was already at schema 3.699.0 and no migration was offered.
+
+| Check | Result |
+|---|---|
+| Published Eternals carrying Returned Essence | 47 of 47, once each |
+| Codex unchanged apply on Quasit, Archangel, Succubus and Draeglir Halya variants | **Identical actors**: nothing added or removed; Returned Essence present once; not listed as unresolved in the ledger |
+| Shared battery, all modules | Every check passes (Archangel DR 28; Behir and Mummy immunities; 30-ft breath at 0 PP; archer; dragon advance with no duplicates and Bite 1d6 cold; Zombie, Skeleton, Lich and Werewolf clean; Codex-built ledger 162). The only flag is the Ghoul's two distinct calibration items, which is published data, as above |
+
+Cleaned up: test actors, scene, chat cards and stored test keys. The world was left paused on Caves.
