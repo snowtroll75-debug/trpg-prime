@@ -147,4 +147,4 @@ Run in the Test world on 18 November on 3.698.2: see `live-testing-report-3.698.
 | `verify-audit-3698` / `mutate-audit-3698` | 46 checks green; 35 of 35 mutations caught |
 | Every core verify file (380) | All green |
 | Module suites against 3.698.3 | Same as every run since 3.697.0: Pillars of Faith 11/11; Inner Tempest 19 pass, 2 blocked, `mutate-block8` failing on the module side; Eldritch Arts 55 pass, 1 blocked, `mutate-block10b` failing on the module side |
-| Live | The two fixes need 3.698.3 installed: cast Flame Blade and confirm no Customise dialog, and that the card reads "Scimitar (Flame Blade) — fire damage". |
+| Live | **Pass** (live-testing-report-3.698.md). Flame Blade and Eldritch Weapon open no Customise dialog. The cards read "Scimitar (Flame Blade) — fire damage" and "Morning Star of pure force — force damage". A Scimitar added by hand is still offered for customising. |

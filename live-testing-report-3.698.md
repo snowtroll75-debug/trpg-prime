@@ -20,6 +20,14 @@
 
 Also corrected in the notes: the conjured item is named **Scimitar**, not "Flame Blade".
 
-## Not tested live
+## 3.698.3 re-test (18 November, 09:35)
 
-The two 3.698.3 fixes themselves. They need 3.698.3 installed.
+Installed 3.698.3. No migration was offered, which is correct: the schema stays at 3.698.2. Wizard 5, dice fixed at 18.
+
+| Check | Result |
+|---|---|
+| Cast Flame Blade | **Pass.** No Customise dialog. Card: "ZZ Audit FB Wizard: Scimitar (Flame Blade) — fire damage (1 minute)." |
+| Cast Eldritch Weapon | **Pass.** The Shape the Weapon dialog as before, then no Customise dialog. Card unchanged: "Morning Star of pure force — force damage (1 minute)." |
+| A Scimitar from the weapons pack added by hand | **Pass.** Customise Scimitar still opens (cancelled). |
+
+The test actor was deleted. World time 0, and the world's 3 actors are untouched.
