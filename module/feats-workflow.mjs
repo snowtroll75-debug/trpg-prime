@@ -2691,6 +2691,17 @@ export const FEAT_AUTOMATION = {
     hint: "Choose the ability score this pick raises by 1.",
     async use(actor, item) {
       const { ATTRIBUTE_KEYS, ATTRIBUTE_LABELS } = await import("./config.mjs");
+      // ONE PICK PER FOUR LEVELS (3.698.0, Graham): a copy that has not yet
+      // chosen may only do so while the familiar's level allows another.
+      const { abilityEnhancementAllowance } = await import("./familiar.mjs");
+      const familiarLevel = Number(actor.system?.progression?.level ?? actor.system?.identity?.level ?? 1) || 1;
+      const allowance = abilityEnhancementAllowance(familiarLevel);
+      const chosenElsewhere = Array.from(actor.items ?? []).filter((i) => i.id !== item.id
+        && normalise(i.name) === "ability enhancement" && i.getFlag?.(SYSTEM_ID, "abilityEnhancementChoice")).length;
+      if (!item.getFlag?.(SYSTEM_ID, "abilityEnhancementChoice") && chosenElsewhere >= allowance) {
+        ui.notifications.warn(`Ability Enhancement: at level ${familiarLevel} a familiar may have ${allowance} (one per four levels), and ${chosenElsewhere} already chosen.`);
+        return;
+      }
       const picked = await chooseFromList("Ability Enhancement", "Ability score to raise by 1",
         ATTRIBUTE_KEYS.map((k) => [k, ATTRIBUTE_LABELS[k]]), item.getFlag?.(SYSTEM_ID, "abilityEnhancementChoice") ?? null);
       if (!picked) return;
@@ -2701,10 +2712,8 @@ export const FEAT_AUTOMATION = {
         changes: [{ key: `system.attributes.${picked}.other`, type: CHANGE_TYPE.ADD, value: "1", priority: 20 }]
       });
       await item.setFlag(SYSTEM_ID, "abilityEnhancementChoice", picked);
-      const copies = Array.from(actor.items ?? []).filter((i) => normalise(i.name) === "ability enhancement").length;
       await postCard(actor, "Ability Enhancement", [
-        line(`<strong>${esc(actor.name)}</strong>: ${ATTRIBUTE_LABELS[picked]} +1.`),
-        ...(copies > 1 ? [line(`<em>${copies} picks of Ability Enhancement: the book allows one every four levels — check the familiar's level allows this many.</em>`)] : [])
+        line(`<strong>${esc(actor.name)}</strong>: ${ATTRIBUTE_LABELS[picked]} +1 (${chosenElsewhere + 1} of ${allowance} at level ${familiarLevel}).`)
       ]);
     }
   },

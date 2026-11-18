@@ -77,7 +77,8 @@ const WORLD_SCHEMA_SETTING = "worldSchemaVersion";
 // 3.666.4: effect entries baked into the stored defence lists.
 // 3.697.0: the pack-copy pass re-gated for the core automation audit's
 // three spells (Changing Lungs, Long Arm, Inner Focus).
-export const TRG_SCHEMA_VERSION = "3.697.0";
+// 3.698.0: re-gated again for Flame Blade's range and targets.
+export const TRG_SCHEMA_VERSION = "3.698.0";
 
 /**
  * Register the hidden world setting used to determine whether a migration is
@@ -782,7 +783,8 @@ export async function migrateWorldData(fromVersion = "") {
   // which is the whole reason that check exists.
   // RE-VERSIONED TO 3.648.0: Channel The Aspect's four aspects.
   // RE-VERSIONED TO 3.697.0: the core automation audit's three spells.
-  const packCopies = (await runIf("3.697.0", "stale owned copies of repaired pack items",
+  // RE-VERSIONED TO 3.698.0: Flame Blade's range and targets (Graham).
+  const packCopies = (await runIf("3.698.0", "stale owned copies of repaired pack items",
     () => migrateStalePackCopies([...actors, ...tokenActors], Array.from(game.items ?? []))))
     ?? { repaired: [], kept: [] };
   result.packCopies = packCopies;

@@ -1,4 +1,4 @@
-import { alreadyGrantedNames, matchGrants, parseGrantList, parseLevelledGrantList, parseMaybeLevelledGrantList } from "./grants.mjs";
+import { alreadyGrantedNames, levelledGrantsAboveLevel, matchGrants, parseGrantList, parseLevelledGrantList, parseMaybeLevelledGrantList } from "./grants.mjs";
 import { runExclusiveForActor } from "./grant-queue.mjs";
 import { applySpecialistSkillGrants, declaresSpecialistSkills, specialistAlternativeOwed } from "./specialist-grants.mjs";
 import { alignmentFeat, alignmentFeatNames, aspectItems, divineResolveTopUp } from "./crusader.mjs";
@@ -589,6 +589,51 @@ export const GRANT_FIELDS = Object.freeze({
     { field: "grantedAbilities", pack: "abilities" }
   ]
 });
+
+/** Which item type a levelled grant field's pack delivers. */
+const LEVELLED_PACK_TYPES = Object.freeze({ feats: "feat", abilities: "ability", spells: "spell" });
+
+/**
+ * TAKE BACK LEVELLED GRANTS ABOVE THE CHARACTER'S LEVEL (3.698.0, Graham's
+ * ruling on U1). Every item on the actor whose GRANT_FIELDS entry is
+ * levelled — a class's abilities, feats and spells, an ability's spells, a
+ * wizard school's specialist spells — has its own grants checked against
+ * the level now. The divine aspect is left to R7's own pass
+ * (`pruneAspectBonusSpells`), which also spares the specialist pick.
+ *
+ * Deleting a granted item takes down what IT granted (grant-cleanup's
+ * cascade), so a removed ability's own grants go with it. A choice
+ * recorded on a removed ability is lost; levelling up again re-grants the
+ * ability and asks again.
+ *
+ * @param {Actor} actor
+ * @returns {Promise<string[]>} one line per removal, for the notification
+ */
+export async function pruneLevelledGrantsAboveLevel(actor) {
+  if (!actor?.items) return [];
+  const level = Number(actor.system?.identity?.level ?? 1) || 1;
+  const items = Array.from(actor.items);
+  const ids = [];
+  for (const source of items) {
+    if (source.type === "divine-aspect") continue;
+    const fields = (GRANT_FIELDS[source.type] ?? []).filter((f) => f.levelled);
+    if (!fields.length) continue;
+    const mine = items.filter((i) => i.flags?.["trg-prime"]?.grantedBy?.sourceId === source.id);
+    for (const f of fields) {
+      const type = LEVELLED_PACK_TYPES[f.pack];
+      const granted = mine.filter((i) => !type || i.type === type)
+        .map((i) => ({ id: i.id, requested: i.flags["trg-prime"].grantedBy.requested }));
+      ids.push(...levelledGrantsAboveLevel({
+        entries: parseMaybeLevelledGrantList(source.system?.[f.field]), granted, level
+      }));
+    }
+  }
+  const unique = [...new Set(ids)].filter((id) => actor.items.get(id));
+  if (!unique.length) return [];
+  const names = unique.map((id) => actor.items.get(id)?.name).filter(Boolean);
+  await actor.deleteEmbeddedDocuments("Item", unique);
+  return [`Granted above level ${level}, removed: ${names.join(", ")}.`];
+}
 
 /**
  * The reaction feat a Crusader's deific aspect hands over.

@@ -2288,6 +2288,22 @@ export const PACK_REPAIRS = Object.freeze([
     to: [{ kind: "marker", target: "self", marker: "innerFocus" }],
     reason: "\"No penalty for not using your Spell Focus item\": no rows, so the -2 and the +10 fumble still applied."
   },
+  // GRAHAM'S RULING ON FLAME BLADE (3.698.0, rules audit R3): no range and
+  // no targets (tools/declare-audit-3698.mjs holds the pack side).
+  {
+    id: "audit3698-flame-blade-range", pack: "spells", name: "Flame Blade",
+    field: "range", since: "3.698.0",
+    from: "30 feet",
+    to: "",
+    reason: "Graham, 18 Nov 2026: no range; the blade springs from the caster's hand."
+  },
+  {
+    id: "audit3698-flame-blade-targets", pack: "spells", name: "Flame Blade",
+    field: "targets", since: "3.698.0",
+    from: "1 creature",
+    to: "",
+    reason: "Graham, 18 Nov 2026: no targets."
+  },
 ]);
 
 /* ==================================================================== *

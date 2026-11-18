@@ -91,6 +91,48 @@ export function parseMaybeLevelledGrantList(text) {
 }
 
 /**
+ * LEVELLED GRANTS ABOVE THE CHARACTER'S LEVEL (3.698.0, Graham's ruling on
+ * U1 of the 3.697.0 audit). Class abilities and feats "arrive at the level
+ * indicated", and the grant only ever added: a Fighter dropped from 13th to
+ * 8th kept Weapon Supremacy and Unbreakable Resolve. The same reasoning as
+ * R7 (a divine aspect's bonus spells), extended to every levelled grant.
+ *
+ * COUNTED, NOT JUST LOOKED UP. A list may name the same thing twice at two
+ * levels ("1: X, 5: X" for a second copy); at 3rd level only one copy is
+ * due. So for each name the number of entries at or below the level is
+ * what the character keeps, and any copies beyond that go — the last ones
+ * listed first. A name the list does not mention is never touched: it came
+ * from a choice or by hand, not from this list.
+ *
+ * @param {object} p
+ * @param {{level: number, name: string}[]} p.entries the source's levelled list
+ * @param {{id: string, requested: string}[]} p.granted items this source granted
+ * @param {number} p.level the character's level
+ * @returns {string[]} item ids to remove
+ */
+export function levelledGrantsAboveLevel({ entries = [], granted = [], level = 1 } = {}) {
+  const lvl = Number(level) || 1;
+  const key = (n) => String(n ?? "").trim().toLowerCase();
+  const due = new Map();
+  for (const e of entries ?? []) {
+    const k = key(e?.name);
+    if (!k) continue;
+    if (!due.has(k)) due.set(k, 0);
+    if ((Number(e.level) || 1) <= lvl) due.set(k, due.get(k) + 1);
+  }
+  const held = new Map();
+  for (const g of granted ?? []) {
+    const k = key(g?.requested);
+    if (!due.has(k)) continue;
+    if (!held.has(k)) held.set(k, []);
+    held.get(k).push(g.id);
+  }
+  const out = [];
+  for (const [k, ids] of held) out.push(...ids.slice(due.get(k)));
+  return out;
+}
+
+/**
  * @param {string[]} requestedNames Names as stored on the granting item
  *   (e.g. Background.system.grantedFeats).
  * @param {Array<{name: string, [key: string]: any}>} availableIndex

@@ -305,6 +305,14 @@ export function registerGrantAutorun() {
     const pruned = await pruneAspectBonusSpells(actor);
     if (pruned.length) ui.notifications.info(`${actor.name} — ${pruned.join(" ")}`);
 
+    // AND EVERY OTHER LEVELLED GRANT ABOVE IT (3.698.0, Graham's ruling on
+    // U1 of the 3.697.0 audit): class abilities and feats, an ability's
+    // spells, a school's specialist spells. A Fighter dropped from 13th to
+    // 8th kept Weapon Supremacy and Unbreakable Resolve until this.
+    const { pruneLevelledGrantsAboveLevel } = await import("./grants-workflow.mjs");
+    const taken = await pruneLevelledGrantsAboveLevel(actor);
+    if (taken.length) ui.notifications.info(`${actor.name} — ${taken.join(" ")}`);
+
     // Reported, not silent. A pool that changes by itself is alarming when
     // nothing says why — and this is the moment the player is looking at
     // their sheet.

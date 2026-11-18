@@ -441,3 +441,15 @@ export function familiarActorData({
 /** The size ladder, re-exported so callers need only this module. */
 export { SIZE_STEPS };
 export { SYSTEM_ID as FAMILIAR_SYSTEM_ID };
+
+/**
+ * ABILITY ENHANCEMENT'S ALLOWANCE (3.698.0, Graham's ruling on R7 of the
+ * 3.697.0 rules audit). "May be selected multiple times but never more than
+ * once every four levels": once at levels 1-4, twice at 5-8, and so on.
+ *
+ * @param {number} level the familiar's level (its master's, mirrored)
+ * @returns {number} how many copies may carry a +1
+ */
+export function abilityEnhancementAllowance(level) {
+  return Math.max(1, Math.ceil((Math.floor(Number(level)) || 1) / 4));
+}

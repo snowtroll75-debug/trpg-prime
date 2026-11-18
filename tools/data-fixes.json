@@ -14133,6 +14133,28 @@
       "reason": "\"You do not need to provide focus spell components and take no penalty for not using your Spell Focus item.\" No rows, so a focus caster without the focus still took -2 and +10 on the fumble. The innerFocus marker waives both; no +1 is given, as no focus is held (3.697.0 audit; see TRG_CORE_RULES_AUDIT.md R2).",
       "declaredAt": "2026-11-17",
       "systemVersion": "3.697.0"
+    },
+    {
+      "id": "audit3698-flame-blade-range",
+      "pack": "spells",
+      "name": "Flame Blade",
+      "path": "system.range",
+      "from": "30 feet",
+      "to": "",
+      "reason": "Graham, 18 Nov 2026 (rules audit R3): Flame Blade has no range. The blade springs from the caster's hand.",
+      "declaredAt": "2026-11-18",
+      "systemVersion": "3.698.0"
+    },
+    {
+      "id": "audit3698-flame-blade-targets",
+      "pack": "spells",
+      "name": "Flame Blade",
+      "path": "system.targets",
+      "from": "1 creature",
+      "to": "",
+      "reason": "Graham, 18 Nov 2026 (rules audit R3): Flame Blade has no targets. With one, the cast asked the caster to pick a creature for a blade they hold.",
+      "declaredAt": "2026-11-18",
+      "systemVersion": "3.698.0"
     }
   ]
 }

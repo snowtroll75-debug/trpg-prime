@@ -56,7 +56,7 @@ const mod = (...p) => import(new URL(`../module/${p.join("/")}`, import.meta.url
       && /"energy resistant": \{[\s\S]{0,400}WARDING_ENERGY_TYPES/.test(fw));
   ok("B3 Ability Enhancement adds 1 to the chosen score's untyped slot, one effect per copy of the ability",
     /key: `system\.attributes\.\$\{picked\}\.other`, type: CHANGE_TYPE\.ADD, value: "1"/.test(fw)
-      && /"ability enhancement": \{[\s\S]{0,900}replaceFeatEffect\(actor, item,/.test(fw));
+      && /"ability enhancement": \{[\s\S]{0,2000}replaceFeatEffect\(actor, item,/.test(fw));
   ok("B4 Speak in Tongues offers the master's known languages and swaps out its own earlier pick",
     /actorLanguageState\(master\)\.known/.test(fw) && /\.filter\(\(n\) => !previous \|\| n\.toLowerCase\(\) !== String\(previous\)\.toLowerCase\(\)\)/.test(fw));
   ok("B5 General Adeptness picks a general feat it does not have, and records the ability as its source",
@@ -126,7 +126,7 @@ const mod = (...p) => import(new URL(`../module/${p.join("/")}`, import.meta.url
 
 /* Z ------------------------------------------------------------------------ */
 const sys = JSON.parse(read("system.json"));
-equal("Z the version is 3.697.0, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.697.0/")], ["3.697.0", "3.697.0", true]);
+equal("Z the version is 3.698.0 (3.697.0 or later), and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.698.0/")], ["3.698.0", "3.698.0", true]);
 
 console.log(`verify-audit-3697: ${checks} checks — ${failures.length ? `${failures.length} FAILED` : "all green."}`);
 for (const f of failures) console.log(`  ✗ ${f}`);

@@ -108,7 +108,7 @@ ok("H28r the cage rolls first, passes it and shows the lines", /reactionLines = 
 
 /* Z ------------------------------------------------------------------ */
 const sys = JSON.parse(read("system.json"));
-equal("Z the version is 3.694.0, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.697.0/")], ["3.697.0", "3.697.0", true]);
+equal("Z the version is 3.694.0, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.698.0/")], ["3.698.0", "3.698.0", true]);
 
 if (failures.length) {
   console.log(`verify-ea-block10-core: ${checks} checks, ${failures.length} failure(s).`);
