@@ -1,23 +1,19 @@
-# TRG Prime Core — Unresolved (3.697.0, updated for 3.698.0)
+# TRG Prime Core — Unresolved (3.697.0, updated for 3.698.1)
 
 17 November 2026. Everything this audit found and did **not** close, grouped by what it is waiting on: a ruling, a core change, or something only you can do.
 
 ## Ruled by Graham on 18 November 2026, built in 3.698.0
 
 - **U1, level drop: option 1.** Levelled grants above the new level are taken back, with a notification. That covers class abilities, feats and spells, an ability's spells, and a school's specialist spells. The divine aspect keeps R7's own pass.
-- **U2, Flame Blade: no range and no targets.** Range and targets cleared. Still open: the conjured blade's damage type (U12).
+- **U2, Flame Blade: no range and no targets.** Range and targets cleared. The blade itself is U12, below.
 - **U3, Inner Focus: confirmed as built.** No penalty, no bonus, no somatic stand-in.
 - **U4, Ability Enhancement: once per four levels.** One pick at levels 1–4, two at 5–8, and so on. Read from the familiar's mirrored level, and a pick beyond the allowance is refused.
 
-### U12. Flame Blade's blade (follow-up to U2)
+### U12. Flame Blade's blade: ruled "fire", built in 3.698.1
 
-**The plan:** with no range or targets, Flame Blade can become a conjured scimitar in the caster's hand, attacking with Spellcraft −2.
+A conjured Scimitar in the caster's hand for the minute. It deals fire damage (so fire criticals) and attacks with Spellcraft −2 in place of the attack bonus, through a new Spellcraft attack rail.
 
-**What it needs:**
-- your answer on the damage: **fire**, or slashing with fire criticals;
-- a core rail for "attack with Spellcraft −2", which does not exist yet.
-
-**Until then** the spell casts and lasts its minute, and the blade is played from the card.
+**One small question left:** the blade is a pack Scimitar, so it uses the caster's martial proficiency, as Eldritch Weapon does. A caster without martial proficiency takes the −4 for an untrained weapon. If "as if it were a scimitar" should waive proficiency, it is one line to change.
 
 ## The rulings as they were asked (kept for the record)
 

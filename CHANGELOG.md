@@ -2,9 +2,19 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.698.1 — 18 November 2026: Flame Blade's blade
+
+Merged to `main` with Graham's approval, together with 3.697.0 and 3.698.0.
+
+- **Flame Blade (U12, ruled "fire"):** casting puts a conjured Scimitar in the caster's hand for the spell's minute. It deals fire damage, so its criticals are fire criticals, and attacks with Spellcraft −2 in place of the attack bonus. It is removed when the spell ends.
+- **Conjured weapons:** a row can now name its weapon (`weapons: ["Scimitar"]`) and roll on Spellcraft (`attackBase: "spellcraft"`, `attackAdjust`). The shaping dialog names the spell's own damage type instead of always saying force. Eldritch Weapon and Shadow Weapon are unchanged.
+- **Attack:** a new `spellcraftAttackRow` (combat/attack-base.mjs) replaces the attack bonus, and the Finesse, declared-ability and ranged-Dexterity swaps it stands in for, with one named row.
+- **Migration:** re-gated to 3.698.1, so owned Flame Blades get the blade.
+- **Harness:** `verify-audit-3698` / `mutate-audit-3698` now 37 checks / 26 mutations. `verify-spell-range`, `verify-spell-book-fields` and `verify-ranged-ability` re-anchored on the 3.698.0 Flame Blade ruling, which the targeted 3.698.0 run had not reached.
+
 ## 3.698.0 — 18 November 2026: Graham's rulings on the audit
 
-Branch `audit/release-3.698`, from 3.697.0. Not on `main`.
+Branch `audit/release-3.698`, from 3.697.0.
 
 - **Level drop:** levelled grants above the new level are taken back, with a notification (U1). This covers class abilities, feats and spells, an ability's spells and a school's specialist spells.
 - **Flame Blade:** no range, no targets (R3).
@@ -14,7 +24,7 @@ Branch `audit/release-3.698`, from 3.697.0. Not on `main`.
 
 ## 3.697.0 — 17 November 2026: the core automation audit
 
-Branch `audit/fixes` → `audit/release-3.697`, from 3.696.3. **Not on `main`:** awaiting Graham's approval to merge and publish.
+Branch `audit/fixes` → `audit/release-3.697`, from 3.696.3. Merged to `main` with 3.698.1.
 
 ### Fixed
 - **Fast Movement (familiar):** +15 ft to every speed the familiar has. The item said "Applied automatically", but nothing applied it.

@@ -2294,7 +2294,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             lines.push(line(`<em>${spell.name} found no weapon it could shape.</em>`));
             break;
           }
-          const chosen = await promptConjuredWeapon(spell.name, options);
+          const chosen = await promptConjuredWeapon(spell.name, options, weaponSpec.damageType);
           if (!chosen) {
             lines.push(line(`<em>${spell.name} was not given a shape.</em>`));
             break;

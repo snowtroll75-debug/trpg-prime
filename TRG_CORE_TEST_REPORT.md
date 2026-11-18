@@ -97,7 +97,7 @@ Existing checks changed, and why:
 | Every verify file that touches grants, grant-autorun, the migration gates, pack repairs, data fixes or Ability Enhancement | 58 files, all green |
 | `verify-no-undefined-names`, `verify-rules-have-callers` | green (821 files; 505 of 5,781 exports uncalled, backlog unchanged) |
 | Module suites against 3.698.0 | Identical to 3.697.0. Pillars of Faith 11/11; Inner Tempest 19 pass, 2 blocked, 1 module-side; Eldritch Arts 55 pass, 1 blocked, 1 module-side. No pass turned to fail. |
-| Full core sweep on 3.698.0 | Still running when the ZIP was built (it takes about 2½ hours). Its result is reported when it finishes. |
+| Full core sweep on 3.698.0 | Stopped by the environment after 179 files (every one green). Superseded by the 3.698.1 run below. |
 
 ### 3.697.0 live
 
@@ -109,3 +109,21 @@ Run in the Test world on 18 November; see `live-testing-report-3.697.0.md`. Ever
 2. **Level drop:** a Fighter at 13th, XP set to 8th. A notice reads "Granted above level 8, removed: Unbreakable Resolve, Weapon Supremacy." Raising XP back re-grants both. `trgAdvancementSweep()` should now report no orphans.
 3. **Ability Enhancement:** a 5th-level familiar with three copies. Two take Dexterity; the third Use is refused with "at level 5 a familiar may have 2".
 4. **Flame Blade:** casting asks for no target.
+
+## 7. 3.698.1 (Flame Blade's blade, 18 November 2026)
+
+| Test | Result |
+|---|---|
+| `verify-audit-3698` / `mutate-audit-3698` | 37 checks green; 26 of 26 mutations caught |
+| **Every** core verify file (380, including the 11-minute `verify-checks-read-source`) | All green after three re-anchors. `verify-spell-range` (S4 148→149 self-only, U4 465/227→464/228) and `verify-spell-book-fields` (Flame Blade's blank range and targets declared) moved with **3.698.0's** ruling, which its targeted run had not reached. `verify-ranged-ability` W1 accepts the Spellcraft guard. |
+| Mutate files for everything touched | `mutate-audit-3698`, `mutate-audit-3697`, `mutate-conjured-weapon`, `mutate-ea-block3a-core`, `mutate-ranged-ability`, `mutate-spell-range`, `mutate-spell-book-fields`: all caught, trees restored |
+| `verify-no-undefined-names`, `verify-rules-have-callers` | green; backlog unchanged |
+| Module suites against 3.698.1 | Identical to 3.697.0 and 3.698.0. Pillars of Faith 11/11; Inner Tempest 19 pass, 2 blocked (book text), `mutate-block8` module-side (U11); Eldritch Arts 55 pass, 1 blocked (book text), `mutate-block10b` module-side. |
+| Rest of the core mutate files | Not re-run for 3.698.1 (about two hours). None anchors on the files changed, which was checked by search before the run above. |
+
+### Live, after install
+
+1. Migration offered 3.697.0 (or 3.698.0) → 3.698.1; an owned Flame Blade gains its blade row.
+2. Cast Flame Blade: no target asked, no dialog; "Flame Blade" (Scimitar) appears unequipped; equip and strike. The card shows "Spellcraft N −2 in place of attack bonus M"; damage is fire; a critical rolls on the fire table.
+3. After a minute of world time the blade is gone.
+4. The 3.698.0 plan in §6 (level drop, Ability Enhancement, Flame Blade target).

@@ -63,7 +63,7 @@ const MUTATIONS = [
   { name: "CD9 no announcement", file: SFX, from: "            globalThis.Hooks?.callAll?.(\"trgPrimeSpellHealed\",", to: "            globalThis.Hooks?.callAll?.(\"trgPrimeSpellHealedX\"," },
   { name: "BL the cure step rolled openly", file: SFX, from: "...(cureIsOrdered(chosen) ? { rollMode: BLIND_ROLL_MODE } : {})", to: "...({})" },
   { name: "BL any affliction is ordered", file: CURE, from: "  return Boolean(cureSequenceOf(item));", to: "  return true;" },
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.698.0\"", to: "\"version\": \"3.695.0\"" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.698.1\"", to: "\"version\": \"3.695.0\"" }
 ];
 
 const verify = path.join(SYSTEM_ROOT, "tools", "verify-fixes-3696-0.mjs");

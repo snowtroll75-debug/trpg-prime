@@ -13,6 +13,11 @@ const GA = M("grant-autorun.mjs");
 const FA = M("familiar.mjs");
 const FW = M("feats-workflow.mjs");
 const PR = M("data", "pack-repairs.mjs");
+const CW = M("magic", "conjured-weapon.mjs");
+const CWF = M("magic", "conjured-weapon-workflow.mjs");
+const AB = M("combat", "attack-base.mjs");
+const AW = M("combat", "attack-workflow.mjs");
+const MG = M("migration.mjs");
 const SJ = path.join(SYSTEM_ROOT, "system.json");
 const MUTATIONS = [
   { name: "A an entry AT the level counts as above it", file: G, from: "    if ((Number(e.level) || 1) <= lvl) due.set(k, due.get(k) + 1);", to: "    if ((Number(e.level) || 1) < lvl) due.set(k, due.get(k) + 1);" },
@@ -29,7 +34,18 @@ const MUTATIONS = [
   { name: "C the allowance never enforced", file: FW, from: "      if (!item.getFlag?.(SYSTEM_ID, \"abilityEnhancementChoice\") && chosenElsewhere >= allowance) {", to: "      if (false) {" },
   { name: "C the familiar's own level, not its master's", file: FW, from: "Number(actor.system?.progression?.level ?? actor.system?.identity?.level ?? 1)", to: "Number(actor.system?.identity?.level ?? 1)" },
   { name: "D Flame Blade's owned copies keep the 30 feet", file: PR, from: "    id: \"audit3698-flame-blade-range\", pack: \"spells\", name: \"Flame Blade\",\n    field: \"range\"", to: "    id: \"audit3698-flame-blade-rangeX\", pack: \"spells\", name: \"Flame Blade\",\n    field: \"range\"" },
-  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.698.0\"", to: "\"version\": \"3.697.0\"" }
+  { name: "E the named weapon ignored (every martial one-hander offered)", file: CW, from: "  if (names.length && !names.includes(text(item?.name).toLowerCase())) return false;\n", to: "" },
+  { name: "E the attack base dropped from the row", file: CW, from: "    attackBase,\n    attackAdjust:", to: "    attackBase: \"\",\n    attackAdjust:" },
+  { name: "E the copy never told it rolls on Spellcraft", file: CW, from: "  if (rule?.attackBase) {\n    data.flags = data.flags ?? {};", to: "  if (false) {\n    data.flags = data.flags ?? {};" },
+  { name: "E the −2 ignored", file: AB, from: "    value: spellcraft + adjust - ab,", to: "    value: spellcraft - ab," },
+  { name: "E Spellcraft added on top of the attack bonus", file: AB, from: "    value: spellcraft + adjust - ab,", to: "    value: spellcraft + adjust," },
+  { name: "E only taken when it helps", file: AB, from: "  const signed = adjust ?", to: "  if (spellcraft + adjust <= ab) return null;\n  const signed = adjust ?" },
+  { name: "E the strike never pushes the row", file: AW, from: "    if (row) modifiers.push(row);\n  }\n\n  const sweepTargets", to: "  }\n\n  const sweepTargets" },
+  { name: "E Finesse still added to a Spellcraft attack", file: AW, from: "if (finesseBonus && !spellcraftBased)", to: "if (finesseBonus)" },
+  { name: "E the dialog still says force", file: CWF, from: "It deals ${damageType} damage", to: "It deals force damage" },
+  { name: "E owned Flame Blades never get the blade", file: MG, from: "runIf(\"3.698.1\", \"stale owned copies of repaired pack items\"", to: "runIf(\"3.698.0\", \"stale owned copies of repaired pack items\"" },
+  { name: "E the owned-copy repair forgets the blade", file: PR, from: "    id: \"audit3698-flame-blade-effects\", pack: \"spells\"", to: "    id: \"audit3698-flame-blade-effectsX\", pack: \"spells\"" },
+  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.698.1\"", to: "\"version\": \"3.698.0\"" }
 ];
 
 const verify = path.join(SYSTEM_ROOT, "tools", "verify-audit-3698.mjs");

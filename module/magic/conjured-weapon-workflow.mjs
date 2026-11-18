@@ -36,7 +36,7 @@ export async function conjurableWeapons(spec, warpMods) {
 }
 
 /** Which of them does the caster want? */
-export async function promptConjuredWeapon(spellName, choices) {
+export async function promptConjuredWeapon(spellName, choices, damageType = "force") {
   if (!choices.length) return null;
   if (choices.length === 1) return choices[0];
   const { DialogV2 } = foundry.applications.api;
@@ -46,7 +46,7 @@ export async function promptConjuredWeapon(spellName, choices) {
   const picked = await DialogV2.prompt({
     window: { title: `${spellName} — Shape the Weapon` },
     classes: ["trg-prime", "trg-check-dialog"],
-    content: `<div class="trg-prime trg-check-dialog"><p class="hint">It deals force damage whatever shape you give it.</p>${rows}</div>`,
+    content: `<div class="trg-prime trg-check-dialog"><p class="hint">It deals ${damageType} damage whatever shape you give it.</p>${rows}</div>`,
     ok: {
       label: "Create",
       callback: (event, button) => {

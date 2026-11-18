@@ -2304,6 +2304,19 @@ export const PACK_REPAIRS = Object.freeze([
     to: "",
     reason: "Graham, 18 Nov 2026: no targets."
   },
+  // FLAME BLADE'S BLADE (3.698.1, U12): "Flame Blade is fire." A conjured
+  // Scimitar, fire damage and criticals, on Spellcraft at -2.
+  {
+    id: "audit3698-flame-blade-effects", pack: "spells", name: "Flame Blade",
+    field: "effects", since: "3.698.1",
+    from: [],
+    to: [{
+      kind: "conjuredWeapon", label: "Flame Blade", target: "self",
+      categories: ["Martial"], weapons: ["Scimitar"], hands: 1, melee: true,
+      damageType: "fire", attackBase: "spellcraft", attackAdjust: -2
+    }],
+    reason: "Graham, 18 Nov 2026: the blade is fire; it attacks with Spellcraft at -2."
+  },
 ]);
 
 /* ==================================================================== *

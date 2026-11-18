@@ -283,7 +283,9 @@ const selfBound = spells.filter((s) =>
 // gate already reads as no limit to enforce. See
 // tools/author-block26-effects.mjs for the full reasoning; it is the one
 // printed parameter this block changed.
-equal("S4 148 SPELLS BECOME SELF-ONLY", selfBound.length, 148,
+// 148 → 149 AT 3.698.0: Flame Blade, ruled to have no range and no targets
+// (Graham, 18 Nov 2026). Its blade is held, not cast at anyone.
+equal("S4 149 SPELLS BECOME SELF-ONLY", selfBound.length, 149,
   "measured before building rather than discovered after");
 
 const reaching = selfBound.filter((s) => (s.system?.effects ?? [])
@@ -419,7 +421,8 @@ const gated = spells.filter((s) => spellRangeFeet(s.system?.range) !== null);
 const ungated = spells.filter((s) => spellRangeFeet(s.system?.range) === null);
 // 464/228 → 465/227 AT 3.611.0: Death's Defiance's 20-foot radius became
 // the reach of the creatures it targets (block 34's R7).
-equal("U4 THE PACK SPLITS 465 GATED / 227 UNGATED", `${gated.length}/${ungated.length}`, "465/227",
+// 465/227 → 464/228 AT 3.698.0: Flame Blade's 30 feet removed (Graham).
+equal("U4 THE PACK SPLITS 464 GATED / 228 UNGATED", `${gated.length}/${ungated.length}`, "464/228",
   "an exact measurement, and it corrects a first draft that wrote 475/217 from impression — "
   + "the 217 blanks are joined by 6 planetary, 3 varies, 1 unlimited and 1 see-text");
 ok("U5 AND EVERY UNGATED ONE IS UNGATED FOR A NAMED REASON",

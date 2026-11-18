@@ -15,10 +15,10 @@
  */
 const SYSTEM_ID = "trg-prime";
 
-/** The base a weapon declares: "bab" (the default) or "bsb". */
+/** The base a weapon declares: "bab" (the default), "bsb" or "spellcraft". */
 export function attackBaseOf(weapon) {
   const raw = String(weapon?.flags?.[SYSTEM_ID]?.attackBase ?? "").trim().toLowerCase();
-  return raw === "bsb" ? "bsb" : "bab";
+  return raw === "bsb" || raw === "spellcraft" ? raw : "bab";
 }
 
 /** The actor's BSB, as Spellcraft counts it. */
@@ -63,4 +63,39 @@ export function attackBaseRow(weapon, system) {
   const bsb = bsbTotal(system);
   if (bsb <= bab) return null;
   return { label: `BSB ${bsb} in place of BAB ${bab}`, value: bsb - bab, type: "untyped" };
+}
+
+/**
+ * AN ATTACK ROLLED ON SPELLCRAFT (3.698.1; Flame Blade, Graham's ruling U12).
+ *
+ * "You wield this blade-like beam as if it were a scimitar using your
+ * Spellcraft bonus at -2 for your AB." The weapon declares
+ * `flags.trg-prime.attackBase: "spellcraft"` and `attackAdjust: -2`. Not a
+ * "may" like the Dragon's claws: the blade has no attack bonus of its own,
+ * so the row is taken whether it helps or hurts.
+ *
+ * THE ATTACK'S TOTAL ALREADY HOLDS THE ATTACK BONUS, and with it whatever
+ * ability swap the strike made (Finesse, a declared ability), so `inPlaceOf`
+ * is that whole number; the row is the difference, named on the card. What
+ * the strike adds afterwards (the multiple attack penalty, circumstance,
+ * conditions, the weapon's own quality) still applies.
+ *
+ * Pure.
+ *
+ * @param {object} weapon the weapon item (or its data)
+ * @param {object} system the actor's system data
+ * @param {number} inPlaceOf the attack bonus the strike would otherwise use
+ * @returns {{label: string, value: number, type: string}|null}
+ */
+export function spellcraftAttackRow(weapon, system, inPlaceOf) {
+  if (attackBaseOf(weapon) !== "spellcraft") return null;
+  const adjust = Math.trunc(Number(weapon?.flags?.[SYSTEM_ID]?.attackAdjust ?? 0)) || 0;
+  const spellcraft = Math.trunc(Number(system?.magic?.spellcraft?.total ?? 0)) || 0;
+  const ab = Math.trunc(Number(inPlaceOf ?? 0)) || 0;
+  const signed = adjust ? ` ${adjust > 0 ? "+" : "\u2212"}${Math.abs(adjust)}` : "";
+  return {
+    label: `Spellcraft ${spellcraft}${signed} in place of attack bonus ${ab}`,
+    value: spellcraft + adjust - ab,
+    type: "untyped"
+  };
 }

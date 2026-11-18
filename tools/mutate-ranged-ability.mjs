@@ -77,7 +77,7 @@ const MUTATIONS = [
   {
     file: W,
     name: "W1 the rule is imported and never called",
-    from: "  const rangedAbilityBonus = rangedAbilityAdjustment(",
+    from: "  const rangedAbilityBonus = spellcraftBased ? 0 : rangedAbilityAdjustment(",
     to: "  const rangedAbilityBonus = 0 * rangedAbilityAdjustment(",
     breaks: "W1/W2 — the project's most-repeated defect, in its purest form"
   },

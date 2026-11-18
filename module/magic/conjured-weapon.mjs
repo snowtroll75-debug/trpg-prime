@@ -56,13 +56,22 @@ export function normaliseConjuredWeapon(raw = {}) {
   if (raw?.kind !== "conjuredWeapon") return null;
   const categories = list(raw.categories);
   if (!categories.length) return null;
+  const attackBase = text(raw.attackBase).toLowerCase() === "spellcraft" ? "spellcraft" : "";
   return {
     label: text(raw.label) || "Conjured Weapon",
     target: text(raw.target) || "self",
     categories,
+    // ONE NAMED WEAPON (3.698.1, Flame Blade): "as if it were a scimitar".
+    // Empty means any weapon of the categories, as Eldritch Weapon asks.
+    weapons: list(raw.weapons),
     hands: Number.isFinite(Number(raw.hands)) ? Math.trunc(Number(raw.hands)) : 1,
     melee: raw.melee !== false,
-    damageType: text(raw.damageType) || CONJURED_WEAPON_DAMAGE
+    damageType: text(raw.damageType) || CONJURED_WEAPON_DAMAGE,
+    // "USING YOUR SPELLCRAFT BONUS AT -2 FOR YOUR AB" (3.698.1, Flame Blade):
+    // the attack is rolled on Spellcraft, adjusted, in place of the attack
+    // bonus. Empty means the wielder's own attack bonus.
+    attackBase,
+    attackAdjust: attackBase && Number.isFinite(Number(raw.attackAdjust)) ? Math.trunc(Number(raw.attackAdjust)) : 0
   };
 }
 
@@ -99,6 +108,8 @@ export function conjuredWeaponAllows(spec, warpMods, item) {
   const cats = conjuredWeaponCategories(rule, warpMods).map((c) => c.toLowerCase());
   const category = text(item?.system?.category).toLowerCase();
   if (!cats.includes(category)) return false;
+  const names = list(rule.weapons).map((n) => n.toLowerCase());
+  if (names.length && !names.includes(text(item?.name).toLowerCase())) return false;
   if (rule.hands != null && Number(item?.system?.hands ?? 1) !== Number(rule.hands)) return false;
   if (rule.melee) {
     /* A THROWN WEAPON IS STILL A MELEE WEAPON, and a bow is not.
@@ -145,6 +156,14 @@ export function conjuredWeaponData(spec, base = {}) {
   data.system = data.system ?? {};
   data.system.damageType = rule?.damageType ?? CONJURED_WEAPON_DAMAGE;
   data.system.equipped = false;
+  if (rule?.attackBase) {
+    data.flags = data.flags ?? {};
+    data.flags["trg-prime"] = {
+      ...(data.flags["trg-prime"] ?? {}),
+      attackBase: rule.attackBase,
+      attackAdjust: Number(rule.attackAdjust ?? 0) || 0
+    };
+  }
   return data;
 }
 

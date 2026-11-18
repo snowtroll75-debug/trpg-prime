@@ -9,6 +9,7 @@
  *      anything the class list does not name; the divine aspect is left to R7.
  *   C  Rules audit R7: Ability Enhancement, once per four levels.
  *   D  Rules audit R3: Flame Blade has no range and no targets.
+ *   E  U12 (3.698.1): Flame Blade's blade is a fire Scimitar on Spellcraft −2.
  *   Z  The version.
  */
 import fs from "node:fs";
@@ -16,7 +17,7 @@ import os from "node:os";
 import path from "node:path";
 import { ClassicLevel } from "classic-level";
 import { SYSTEM_ROOT } from "./lib/sources.mjs";
-import { AUDIT_3698_FIXES } from "./declare-audit-3698.mjs";
+import { AUDIT_3698_FIXES, FLAME_BLADE_ROW } from "./declare-audit-3698.mjs";
 
 let checks = 0;
 const failures = [];
@@ -116,9 +117,65 @@ const FIGHTER = "1: Warrior's Resolve, 1: Martial Training, 2: Battle Readiness,
   }
 }
 
+/* E — Flame Blade's blade (3.698.1) ---------------------------------------- */
+{
+  const packDocs = async (name, pick) => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `v3698-${name}-`));
+    fs.cpSync(path.join(SYSTEM_ROOT, "packs", name), tmp, { recursive: true });
+    const db = new ClassicLevel(tmp, { valueEncoding: "json" });
+    const out = [];
+    for await (const [, v] of db.iterator({ gte: "!items!", lt: "!items!~" })) if (pick(v)) out.push(v);
+    await db.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+    return out;
+  };
+  const [fb] = await packDocs("spells", (v) => v.name === "Flame Blade");
+  const [ew] = await packDocs("spells", (v) => v.name === "Eldritch Weapon");
+  const weapons = await packDocs("weapons", (v) => v.type === "weapon");
+  equal("E1 the pack's Flame Blade carries the blade", fb?.system?.effects, [FLAME_BLADE_ROW]);
+  const cw = await mod("magic", "conjured-weapon.mjs");
+  const spec = cw.normaliseConjuredWeapon(fb?.system?.effects?.[0]);
+  equal("E2 the row reads: fire, Spellcraft, −2, the Scimitar alone",
+    [spec?.damageType, spec?.attackBase, spec?.attackAdjust, spec?.weapons], ["fire", "spellcraft", -2, ["Scimitar"]]);
+  const choices = cw.conjuredWeaponChoices(spec, {}, weapons);
+  equal("E3 the only weapon offered is the Scimitar (so no dialog)", choices.map((w) => w.name), ["Scimitar"]);
+  const made = cw.conjuredWeaponData(spec, choices[0]);
+  equal("E4 the copy deals fire, so its criticals are fire criticals",
+    [made.system?.damageType, made.system?.damage], ["fire", "1d6"]);
+  equal("E5 the copy declares Spellcraft −2", [made.flags?.["trg-prime"]?.attackBase, made.flags?.["trg-prime"]?.attackAdjust], ["spellcraft", -2]);
+  const ewSpec = cw.normaliseConjuredWeapon(ew?.system?.effects?.find((e) => e.kind === "conjuredWeapon"));
+  const ewChoices = cw.conjuredWeaponChoices(ewSpec, {}, weapons);
+  const ewMade = cw.conjuredWeaponData(ewSpec, ewChoices[0]);
+  ok("E6 Eldritch Weapon unchanged: several simple weapons, force, the wielder's own attack bonus",
+    ewChoices.length > 3 && ewMade.system?.damageType === "force" && ewMade.flags?.["trg-prime"]?.attackBase === undefined,
+    `${ewChoices.length} choices, ${ewMade.system?.damageType}, ${ewMade.flags?.["trg-prime"]?.attackBase}`);
+
+  const ab = await mod("combat", "attack-base.mjs");
+  const system = { magic: { spellcraft: { total: 11 }, bsb: 0 }, progression: { bsb: 6 }, combat: { bab: { total: 8 }, attack: { total: 12 } } };
+  const blade = { flags: { "trg-prime": { attackBase: "spellcraft", attackAdjust: -2 } } };
+  const row = ab.spellcraftAttackRow(blade, system, 12);
+  equal("E7 Spellcraft 11 −2 in place of an attack bonus of 12 is a −3 row", row?.value, -3);
+  ok("E8 the row is named on the card", /Spellcraft 11 \u2212\s?2 in place of attack bonus 12/.test(row?.label ?? "") || /Spellcraft 11 −2 in place of attack bonus 12/.test(row?.label ?? ""), row?.label);
+  equal("E9 and taken when it helps too (not a \"may\")", ab.spellcraftAttackRow(blade, { magic: { spellcraft: { total: 15 } } }, 4)?.value, 9);
+  equal("E10 an ordinary weapon has no Spellcraft row, nor a BSB row from it",
+    [ab.spellcraftAttackRow({}, system, 12), ab.attackBaseRow(blade, system), ab.attackBaseOf(blade), ab.attackBaseOf({})], [null, null, "spellcraft", "bab"]);
+
+  const aw = read("module", "combat", "attack-workflow.mjs");
+  ok("E11 the strike pushes the Spellcraft row against the attack total",
+    /if \(spellcraftBased\) \{\s*const row = spellcraftAttackRow\(weapon, actor\.system, Number\(actor\.system\.combat\?\.attack\?\.total \?\? 0\)\);\s*if \(row\) modifiers\.push\(row\);/.test(aw));
+  ok("E12 and drops the ability swaps it replaces (Finesse, a declared ability, Dexterity at range)",
+    aw.includes("if (finesseBonus && !spellcraftBased)") && aw.includes("if (!isRanged && !spellcraftBased)") && aw.includes("const rangedAbilityBonus = spellcraftBased ? 0 :"));
+  const cwf = read("module", "magic", "conjured-weapon-workflow.mjs");
+  ok("E13 the shaping dialog names the spell's damage type, not always force",
+    cwf.includes("It deals ${damageType} damage") && read("module", "magic", "spell-effects.mjs").includes("promptConjuredWeapon(spell.name, options, weaponSpec.damageType)"));
+  const mig = read("module", "migration.mjs");
+  ok("E14 the owned-copy pass is re-gated so existing Flame Blades get the blade",
+    mig.includes('TRG_SCHEMA_VERSION = "3.698.1"') && mig.includes('runIf("3.698.1", "stale owned copies of repaired pack items"'));
+}
+
 /* Z ------------------------------------------------------------------------ */
 const sys = JSON.parse(read("system.json"));
-equal("Z the version is 3.698.0, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.698.0/")], ["3.698.0", "3.698.0", true]);
+equal("Z the version is 3.698.1, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.698.1/")], ["3.698.1", "3.698.1", true]);
 
 console.log(`verify-audit-3698: ${checks} checks — ${failures.length ? `${failures.length} FAILED` : "all green."}`);
 for (const f of failures) console.log(`  ✗ ${f}`);

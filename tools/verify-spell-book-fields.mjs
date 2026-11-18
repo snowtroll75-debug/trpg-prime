@@ -93,6 +93,14 @@ const savesAgree = (packV, bookV, bookEntry) => {
  * that has stopped asking a real question, which D1 is here to prevent.
  */
 const DECLARED = {
+  "FLAMEBLADE|range": {
+    pack: "", book: "30 feet",
+    why: "RULED 18 November 2026 (rules audit R3, \"Should have no range or targets\"). The blade \"springs forth from your hand\" and is wielded as a scimitar, so nothing is cast at a distance; with the printed range and target the cast asked the caster to pick a creature 30 feet away. The reference records what the book SAYS, so the difference is declared here."
+  },
+  "FLAMEBLADE|targets": {
+    pack: "", book: "1 creature",
+    why: "The same ruling as FLAMEBLADE|range. The blade is struck with, not cast at anyone, so `spellNeedsTarget` must not ask; C2 below reads this declaration too."
+  },
   "NATURESBOUNTY|duration": {
     pack: "1 minute", book: "",
     why: "RULED 2 October 2026 (block 35's R10). The page prints no Duration line, and its body says the food \"deteriorates and disintegrates into dust after 1 minute\" if uneaten — the clock the conjured fruit keeps. Without it the fruit would be permanent, the Goodberry fault of 3.590.0."
@@ -286,7 +294,8 @@ const lostTargets = [];
 for (const [k, p] of packBy) {
   const b = bookBy.get(k);
   if (!b) continue;
-  if (norm(b.targets) && !norm(p.targets)) lostTargets.push(p.name);
+  // A DECLARED BLANK IS A RULING, NOT A LOSS (Flame Blade, 18 Nov 2026).
+  if (norm(b.targets) && !norm(p.targets) && !DECLARED[`${k}|targets`]) lostTargets.push(p.name);
 }
 ok("C2 no spell has lost its Targets line", lostTargets.length === 0,
   `${lostTargets.length}: ${lostTargets.slice(0, 10).join(", ")} — spellNeedsTarget reads this field`);

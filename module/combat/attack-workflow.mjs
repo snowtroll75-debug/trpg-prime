@@ -1652,6 +1652,11 @@ export async function rollWeaponAttack(actor, weapon, {
     const row = attackBaseRow(weapon, actor.system);
     if (row) modifiers.push(row);
   }
+  // SPELLCRAFT IN PLACE OF THE ATTACK BONUS (3.698.1; Flame Blade). Read
+  // before the ability swaps below, which it replaces: the row is pushed
+  // after them, once their size is known.
+  const { attackBaseOf, spellcraftAttackRow } = await import("./attack-base.mjs");
+  const spellcraftBased = attackBaseOf(weapon) === "spellcraft";
 
   // CRIMSON COVENANT (3.632.0; Fiends & Fables 3.0 block 2, ruling 2): armed
   // by a bleed result of 5+, spent by this attack — see codex-feat-rules.mjs.
@@ -1707,14 +1712,14 @@ export async function rollWeaponAttack(actor, weapon, {
     Number(system.combat?.attack?.ability ?? 0),
     Number(system.attributes?.dexterity?.total ?? 0)
   );
-  if (finesseBonus) {
+  if (finesseBonus && !spellcraftBased) {
     modifiers.push({ label: "Finesse (Dexterity)", value: finesseBonus, type: "untyped" });
   }
   // A DECLARED ABILITY FOR THE MELEE STRIKE (3.684.0; Eldritch Arts Block 6,
   // G25): Clever Strike's Intelligence. The best of the current ability,
   // Finesse's Dexterity and the declared ones, so the two never both add —
   // see combat/melee-ability.mjs.
-  if (!isRanged) {
+  if (!isRanged && !spellcraftBased) {
     const { declaredMeleeAbilities, bestMeleeAbility } = await import("./melee-ability.mjs");
     const declared = declaredMeleeAbilities([...Array.from(actor.items ?? []), ...Array.from(actor.appliedEffects ?? [])], "attack");
     const better = declared.length
@@ -1736,7 +1741,7 @@ export async function rollWeaponAttack(actor, weapon, {
    * player cannot see is how the wrong ability survived here in the first
    * place. See `rangedAbilityAdjustment` in attack.mjs for the ruling.
    */
-  const rangedAbilityBonus = rangedAbilityAdjustment(
+  const rangedAbilityBonus = spellcraftBased ? 0 : rangedAbilityAdjustment(
     isRanged,
     Number(system.combat?.attack?.ability ?? 0),
     Number(system.attributes?.dexterity?.total ?? 0)
@@ -1747,6 +1752,11 @@ export async function rollWeaponAttack(actor, weapon, {
       value: rangedAbilityBonus,
       type: "untyped"
     });
+  }
+
+  if (spellcraftBased) {
+    const row = spellcraftAttackRow(weapon, actor.system, Number(actor.system.combat?.attack?.total ?? 0));
+    if (row) modifiers.push(row);
   }
 
   const sweepTargets = actor.getFlag(SYSTEM_ID, "sweepTargets")?.[weapon.id] ?? [];
