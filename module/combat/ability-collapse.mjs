@@ -59,9 +59,38 @@
  *
  *    FLAGGED FOR GRAHAM. If the ruling is that Charisma should collapse a
  *    mindless creature after all, this is one constant, not a rewrite.
+ *
+ *    RULED, AND WIDENED (3.699.0). Graham, 18 Nov 2026: "If a creature
+ *    gains the mindless trait, this may immobilise them based upon the
+ *    mental penalties. Creatures with the mindless trait should be immune
+ *    to this." A mindless creature is excused the collapse of all three
+ *    MENTAL scores — Intelligence, Wisdom and Charisma — not only the two
+ *    the Mindless penalty drives down. Strength, Dexterity and
+ *    Constitution still collapse it like anything else.
+ *
+ * 4. A MINDLESS ETHIC IS MINDLESS HERE (3.699.0). Every published block
+ *    writes mindlessness as its Ethics line ("Ethics Mindless": "lack any
+ *    discernible consciousness"), and many carry no Mindless trait — the
+ *    Skeleton Warrior and Skeleton Champion print INT -5 / CHA -5 and
+ *    were knocked unconscious by the first effect change that settled
+ *    them. For THIS rule only, the Mindless ethic counts: the ethic does
+ *    not bring the trait's -5 penalty or its Mental immunity with it
+ *    (config.mjs keeps the two apart, and that is unchanged).
  */
 
-import { MINDLESS_PENALISED_ATTRIBUTES, isMindless } from "../creature-traits.mjs";
+import { isMindless } from "../creature-traits.mjs";
+
+/**
+ * The mental scores a mindless creature is never collapsed by (3.699.0;
+ * Graham, 18 Nov 2026). See readings 3 and 4 in the header.
+ */
+const MINDLESS_COLLAPSE_EXEMPT = Object.freeze(["intelligence", "wisdom", "charisma"]);
+
+/** Mindless for this rule: the trait, or the Mindless ethic (reading 4). */
+function mindlessForCollapse(actorSystem) {
+  if (isMindless(actorSystem)) return true;
+  return String(actorSystem?.identity?.ethics ?? "").trim().toLowerCase() === "mindless";
+}
 
 /**
  * The score at which an ability stops functioning.
@@ -119,7 +148,7 @@ export const ABILITY_COLLAPSE = Object.freeze({
  */
 export function collapseExempt(key, mindless) {
   if (!mindless) return false;
-  return MINDLESS_PENALISED_ATTRIBUTES.includes(key);
+  return MINDLESS_COLLAPSE_EXEMPT.includes(key);
 }
 
 /**
@@ -186,7 +215,7 @@ function abilityTotals(actorSystem) {
  * @returns {{dead: boolean, conditions: string[], reasons: Array<object>}}
  */
 export function actorAbilityCollapse(actorSystem) {
-  return abilityCollapse(abilityTotals(actorSystem), { mindless: isMindless(actorSystem) });
+  return abilityCollapse(abilityTotals(actorSystem), { mindless: mindlessForCollapse(actorSystem) });
 }
 
 /**
@@ -262,6 +291,6 @@ export function constitutionIsFatal(actorSystem) {
   // Constitution is not in the Mindless penalty's list, so the exemption
   // cannot reach it — asked through the same function regardless, so that
   // stays true by construction rather than by my remembering it.
-  if (collapseExempt("constitution", isMindless(actorSystem))) return false;
+  if (collapseExempt("constitution", mindlessForCollapse(actorSystem))) return false;
   return value <= COLLAPSE_THRESHOLD;
 }

@@ -80,7 +80,10 @@ const WORLD_SCHEMA_SETTING = "worldSchemaVersion";
 // 3.698.0: re-gated again for Flame Blade's range and targets.
 // 3.698.1: and again for Flame Blade's blade.
 // 3.698.2: and again for the blade's proficiency.
-export const TRG_SCHEMA_VERSION = "3.698.2";
+// 3.699.0: the pack-copy and declared-effect passes re-gated for the joint
+// Codex / Fiends & Fables audit (Eternal's Death State; Ooze's disease and
+// precision immunities).
+export const TRG_SCHEMA_VERSION = "3.699.0";
 
 /**
  * Register the hidden world setting used to determine whether a migration is
@@ -788,7 +791,8 @@ export async function migrateWorldData(fromVersion = "") {
   // RE-VERSIONED TO 3.698.0: Flame Blade's range and targets (Graham).
   // RE-VERSIONED TO 3.698.1: Flame Blade's blade (Graham, U12).
   // RE-VERSIONED TO 3.698.2: the blade's proficiency (Graham).
-  const packCopies = (await runIf("3.698.2", "stale owned copies of repaired pack items",
+  // RE-VERSIONED TO 3.699.0: Eternal's Death State (Graham, RD-01).
+  const packCopies = (await runIf("3.699.0", "stale owned copies of repaired pack items",
     () => migrateStalePackCopies([...actors, ...tokenActors], Array.from(game.items ?? []))))
     ?? { repaired: [], kept: [] };
   result.packCopies = packCopies;
@@ -841,7 +845,10 @@ export async function migrateWorldData(fromVersion = "") {
   // 3.627.1 — OWNED EFFECTS of items whose pack effect was corrected: the
   // Undead creature type's missing disease immunity (Graham, 7 Oct 2026).
   // See EFFECT_REPAIRS in data/pack-repairs.mjs and migrateOwnedEffectRepairs.
-  const effectRepairs = (await runIf("3.627.1", "declared effect repairs on owned items (Undead disease immunity)",
+  // RE-VERSIONED TO 3.699.0: the Ooze type's disease and precision
+  // immunities (Graham, CO-02 and RD-08). Old-value matched, so a copy the
+  // 3.627.1 pass already repaired reads as current and is skipped.
+  const effectRepairs = (await runIf("3.699.0", "declared effect repairs on owned items (Undead disease; Ooze disease and precision)",
     () => migrateOwnedEffectRepairs(actors, tokenActors, Array.from(game.items ?? [])))) ?? [];
   result.effectRepairs = effectRepairs;
 

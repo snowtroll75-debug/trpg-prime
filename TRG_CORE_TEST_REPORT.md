@@ -148,3 +148,36 @@ Run in the Test world on 18 November on 3.698.2: see `live-testing-report-3.698.
 | Every core verify file (380) | All green |
 | Module suites against 3.698.3 | Same as every run since 3.697.0: Pillars of Faith 11/11; Inner Tempest 19 pass, 2 blocked, `mutate-block8` failing on the module side; Eldritch Arts 55 pass, 1 blocked, `mutate-block10b` failing on the module side |
 | Live | **Pass** (live-testing-report-3.698.md). Flame Blade and Eldritch Weapon open no Customise dialog. The cards read "Scimitar (Flame Blade) — fire damage" and "Morning Star of pure force — force damage". A Scimitar added by hand is still offered for customising. |
+
+## 10. 3.699.0 (rulings from the joint Codex / Fiends & Fables audit, 18 November 2026)
+
+| Test | Result |
+|---|---|
+| `verify-joint-audit-3699` / `mutate-joint-audit-3699` (new) | 34 checks green; 16 of 16 mutations caught |
+| `verify-chapter1` / `mutate-chapter1` (ability collapse) | 302 checks green; 52 of 52 mutations caught |
+| Full regression suite, core (`tools/regression-suite.mjs`) | **759 of 759 pass** |
+| Pillars of Faith 0.12.5 | 11 / 11 pass |
+| Inner Tempest 1.0.4 (repository) | 19 pass, 2 blocked (`verify-block5` / `mutate-block5`, book text), `mutate-block8` failing on the module side. Same as every run since 3.697.0 |
+| Eldritch Arts 0.17.2 | 55 pass, 1 blocked (`mutate-book-extract`), `mutate-block10b` failing on the module side (2 of 25). Same as every run since 3.697.0 |
+
+How the suite ran:
+- **Sittings.** The core suite ran in several sittings, because this environment stops long processes. A run killed mid-mutation was restored from the harness snapshot before it resumed.
+- **Fixes made during the run:** three version and gate anchors left behind by the 3.699.0 re-gating:
+  - `verify-audit-3698` E14 now accepts a gate at or after 3.698.2;
+  - `mutate-audit-3698` and `mutate-live-fixes-3-627-1` anchor on the 3.699.0 gate;
+  - `mutate-chapter1` O5 and O6 anchor on the new exemption list.
+- **Read-source fix:** `verify-checks-read-source` caught one read-only claim in the new verify file (A7). It was rewritten to check the behaviour instead.
+- **Two keeps removed from `uncalled-exports.json`:** `attackBaseOf` and `mayAskFor` now have real callers, so they no longer need to be kept.
+- **Carried-forward results.** After the one-line anchor fix in `mutate-live-fixes-3-627-1`, the recorded results were carried forward. That file was re-run, together with the meta checks: `verify-no-undefined-names`, `verify-rules-have-callers`, `verify-checks-read-source` and `mutate-checks-read-source`.
+- **Module test copies.** These were missing their npm dependencies on the first module run; they were re-run after `npm install`.
+
+### Live (owed)
+
+After installation in the Test world:
+- a Skeleton Warrior and a creature given the Mindless trait while collapsed;
+- Swim and Climb checks against plain Athletics and Climbing;
+- a Keen Sense creature's Perception total;
+- an Eternal at 0 HP;
+- an Ooze against disease and precision;
+- Ghost on a Ghoul (one Darkvision);
+- the migration offered once, repairing owned Eternal and Ooze copies.

@@ -126,7 +126,7 @@ const mod = (...p) => import(new URL(`../module/${p.join("/")}`, import.meta.url
 
 /* Z ------------------------------------------------------------------------ */
 const sys = JSON.parse(read("system.json"));
-equal("Z the version is 3.698.4 (3.697.0 or later), and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.698.4/")], ["3.698.4", "3.698.4", true]);
+equal("Z the version is 3.699.0 (3.697.0 or later), and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.699.0/")], ["3.699.0", "3.699.0", true]);
 
 console.log(`verify-audit-3697: ${checks} checks — ${failures.length ? `${failures.length} FAILED` : "all green."}`);
 for (const f of failures) console.log(`  ✗ ${f}`);

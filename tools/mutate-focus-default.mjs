@@ -21,7 +21,7 @@ const MUTATIONS = [
   { name: "the migration touches innate spells", file: MG, from: "      if (!FOCUS_DEFAULT_TYPES.includes(item.type)) continue;\n", to: "", breaks: "D2" },
   { name: "the migration overwrites a full count", file: MG, from: "      if (Number.isFinite(stored) && stored >= max) continue;\n      updates.push({ _id: item.id, \"system.usesValue\": max });", to: "      updates.push({ _id: item.id, \"system.usesValue\": max });", breaks: "D2" },
   { name: "the migration skips tokens", file: MG, from: "  for (const actor of [...actors, ...tokenActors]) {\n    if (!actor) continue;\n    const updates = [];\n    for (const item of Array.from(actor.items ?? [])) {\n      if (!FOCUS_DEFAULT_TYPES", to: "  for (const actor of [...actors]) {\n    if (!actor) continue;\n    const updates = [];\n    for (const item of Array.from(actor.items ?? [])) {\n      if (!FOCUS_DEFAULT_TYPES", breaks: "D1" },
-  { name: "the schema stamp is left behind", file: MG, from: "export const TRG_SCHEMA_VERSION = \"3.698.4\";", to: "export const TRG_SCHEMA_VERSION = \"3.648.0\";", breaks: "D3" },
+  { name: "the schema stamp is left behind", file: MG, from: "export const TRG_SCHEMA_VERSION = \"3.699.0\";", to: "export const TRG_SCHEMA_VERSION = \"3.648.0\";", breaks: "D3" },
   { name: "the Use button never spends", file: U, from: "  return a === b;\n}", to: "  return false;\n}", breaks: "F1" },
   { name: "a handler's own spend is spent again", file: U, from: "  return a === b;\n}", to: "  return true;\n}", breaks: "F2" },
   { name: "a cancelled Use spends", file: U, from: "  if (!acted) return false;\n", to: "", breaks: "F2" },

@@ -281,15 +281,15 @@ const MUTATIONS = [
   {
     file: AC,
     name: "O5 the mindless exemption is hard-coded away from the penalty it excuses",
-    from: "  return MINDLESS_PENALISED_ATTRIBUTES.includes(key);",
+    from: "  return MINDLESS_COLLAPSE_EXEMPT.includes(key);",
     to: '  return key === "intelligence";',
     breaks: "O17/O18 — every mindless creature in the game falls unconscious from its Charisma"
   },
   {
     file: AC,
     name: "O6 the exemption spreads to Constitution",
-    from: "  return MINDLESS_PENALISED_ATTRIBUTES.includes(key);",
-    to: '  return MINDLESS_PENALISED_ATTRIBUTES.includes(key) || key === "constitution";',
+    from: "  return MINDLESS_COLLAPSE_EXEMPT.includes(key);",
+    to: '  return MINDLESS_COLLAPSE_EXEMPT.includes(key) || key === "constitution";',
     breaks: "O19 — a mindless creature would become unkillable by Constitution"
   },
   {

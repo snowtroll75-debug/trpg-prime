@@ -180,8 +180,15 @@ const FIGHTER = "1: Warrior's Resolve, 1: Martial Training, 2: Battle Readiness,
   ok("E13 the shaping dialog names the spell's damage type, not always force",
     cwf.includes("It deals ${damageType} damage") && read("module", "magic", "spell-effects.mjs").includes("promptConjuredWeapon(spell.name, options, weaponSpec.damageType)"));
   const mig = read("module", "migration.mjs");
-  ok("E14 the owned-copy pass is re-gated so existing Flame Blades get the blade",
-    mig.includes('TRG_SCHEMA_VERSION = "3.698.2"') && mig.includes('runIf("3.698.2", "stale owned copies of repaired pack items"'));
+  // At 3.698.2 or later: 3.699.0 re-gated the same pass again for Eternal's
+  // Death State, which still runs it for every world that predates 3.698.2.
+  {
+    const atLeast = (a, b) => String(a).localeCompare(b, undefined, { numeric: true }) >= 0;
+    const gate = /runIf\("([\d.]+)", "stale owned copies of repaired pack items"/.exec(mig)?.[1] ?? "0";
+    const stamp = /TRG_SCHEMA_VERSION = "([\d.]+)"/.exec(mig)?.[1] ?? "0";
+    ok("E14 the owned-copy pass is re-gated so existing Flame Blades get the blade",
+      atLeast(gate, "3.698.2") && atLeast(stamp, gate), `gate ${gate}, stamp ${stamp}`);
+  }
 
   // 3.698.2: "The caster is always proficient."
   equal("E15 the blade is marked as the caster's own", made.flags?.["trg-prime"]?.casterProficient, true);
@@ -221,7 +228,7 @@ const FIGHTER = "1: Warrior's Resolve, 1: Martial Training, 2: Battle Readiness,
 
 /* Z ------------------------------------------------------------------------ */
 const sys = JSON.parse(read("system.json"));
-equal("Z the version is 3.698.4, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.698.4/")], ["3.698.4", "3.698.4", true]);
+equal("Z the version is 3.699.0, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.699.0/")], ["3.699.0", "3.699.0", true]);
 
 console.log(`verify-audit-3698: ${checks} checks — ${failures.length ? `${failures.length} FAILED` : "all green."}`);
 for (const f of failures) console.log(`  ✗ ${f}`);

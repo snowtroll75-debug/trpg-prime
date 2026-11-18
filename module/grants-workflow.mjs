@@ -376,7 +376,7 @@ export async function applyGrant(
   // own items this way since it was written; every other grant path
   // simply never did.
   //
-  // A PRINTED RANGE IS THE SAME ABILITY (proposed 3.699.0; joint Codex /
+  // A PRINTED RANGE IS THE SAME ABILITY (3.699.0; joint Codex /
   // Fiends & Fables audit, 18 Nov 2026, CO-01). A published creature prints
   // its sense with its range — "Darkvision (60 ft.)", "Darkvision 75 ft" —
   // and its creature type grants "Darkvision". Matched on the exact name,

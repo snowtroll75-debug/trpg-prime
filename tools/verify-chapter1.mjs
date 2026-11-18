@@ -84,7 +84,8 @@ import {
   abilityCollapse,
   collapseExempt,
   collapseTransition,
-  constitutionIsFatal
+  constitutionIsFatal,
+  actorAbilityCollapse
 } from "../module/combat/ability-collapse.mjs";
 import { MINDLESS_PENALISED_ATTRIBUTES } from "../module/creature-traits.mjs";
 
@@ -778,9 +779,23 @@ function bodyOf(src, signature) {
   // which is what must not drift.
   eq("O16 a mindless creature is not comatose from Intelligence", at({ intelligence: -5 }, true).conditions, []);
   eq("O17 nor unconscious from Charisma", at({ charisma: -5 }, true).conditions, []);
-  eq("O18 the exemption covers exactly what the Mindless penalty drives",
+  // 3.699.0 (Graham, 18 Nov 2026): all three MENTAL scores are excused,
+  // which still covers everything the Mindless penalty drives down.
+  eq("O18 the exemption covers the three mental scores",
     Object.keys(ABILITY_COLLAPSE).filter((k) => collapseExempt(k, true)).sort(),
-    [...MINDLESS_PENALISED_ATTRIBUTES].sort());
+    ["charisma", "intelligence", "wisdom"]);
+  ok("O18a ...which includes everything the Mindless penalty drives",
+    MINDLESS_PENALISED_ATTRIBUTES.every((k) => collapseExempt(k, true)));
+  eq("O18b a mindless creature is not unconscious from Wisdom", at({ wisdom: -5 }, true).conditions, []);
+  ok("O18c the Mindless ethic counts for this rule (Skeleton Warrior: INT -5, CHA -5, no trait)",
+    actorAbilityCollapse({ identity: { ethics: "Mindless" }, details: { traits: "" },
+      attributes: { intelligence: { total: -5 }, charisma: { total: -5 }, strength: { total: 3 } } }).conditions.length === 0);
+  ok("O18d an ordinary ethic does not",
+    actorAbilityCollapse({ identity: { ethics: "Prudence" }, details: { traits: "" },
+      attributes: { intelligence: { total: -5 } } }).conditions.includes("unconscious"));
+  ok("O18e the Mindless trait still counts",
+    actorAbilityCollapse({ identity: { ethics: "" }, details: { traits: "Construct, Mindless" },
+      attributes: { intelligence: { total: -5 }, wisdom: { total: -5 } } }).conditions.length === 0);
   ok("O19 mindlessness does not excuse a fatal Constitution",
     at({ constitution: -5 }, true).dead === true,
     "Constitution is not on the Mindless penalty's list, so nothing may excuse it");

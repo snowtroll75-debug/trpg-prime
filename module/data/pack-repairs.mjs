@@ -2325,6 +2325,15 @@ export const PACK_REPAIRS = Object.freeze([
     }],
     reason: "Graham, 18 Nov 2026: the blade is fire; it attacks with Spellcraft at -2; the caster is always proficient with it."
   },
+  // GRAHAM'S RULING RD-01 (3.699.0; joint Codex / Fiends & Fables audit):
+  // the Creature Codex Death State table governs, and Eternal is 0.
+  {
+    id: "rd01-eternal-no-death-state", pack: "creature-types", name: "Eternal",
+    field: "noDeathState", since: "3.699.0",
+    from: false,
+    to: true,
+    reason: "Graham, 18 Nov 2026 (RD-01): an Eternal has no Death State and is destroyed at 0 HP, as the Creature Codex table prints. An owned Eternal type still at false went on dying like a Humanoid."
+  },
 ]);
 
 /* ==================================================================== *
@@ -2371,6 +2380,21 @@ export const EFFECT_REPAIRS = Object.freeze([
     reason: "The Creature Codex prints \"Undead are immune to bleed, poison, sleep, disease, paralysis, soul drain, "
       + "subdual damage and stunning\"; the effect carried every word but disease, so a Ghoul Fever bite or a "
       + "Zombie Plague exposure reached an undead NPC. Graham, 7 Oct 2026: Undead should have disease immunity."
+  },
+  {
+    id: "co02-rd08-ooze-immunities", itemType: "creature-type", name: "Ooze", effect: "Ooze: immunities",
+    since: "3.699.0",
+    from: {
+      changes: ["mental", "poison", "sleep", "paralyzed", "polymorph", "stunned", "flatFooted"].map(UNDEAD_IMMUNITY_CHANGE),
+      description: "Immune to mental, poison, sleep, paralyzed, polymorph, stunned, flatFooted."
+    },
+    to: {
+      changes: ["disease", "mental", "poison", "sleep", "paralyzed", "polymorph", "precision", "stunned", "flatFooted"].map(UNDEAD_IMMUNITY_CHANGE),
+      description: "Immune to disease, mental, poison, sleep, paralyzed, polymorph, precision, stunned, flatFooted."
+    },
+    reason: "The Creature Codex prints \"An Ooze is immune to disease, mental effects, poison, sleep effects, paralysis, "
+      + "polymorph, precision damage, stunning and criticals\"; the effect carried every word but disease and precision. "
+      + "Graham, 18 Nov 2026: CO-02 (precision) approved and RD-08 (disease) ruled yes."
   }
 ]);
 

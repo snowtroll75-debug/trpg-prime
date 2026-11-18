@@ -105,7 +105,15 @@ const houseRuled = { name: "Undead: immunities", changes: [...stale.changes, { k
 equal("U4 a GM's own edit is left alone", repairs.effectRepairUpdate(undead, houseRuled), null);
 equal("U5 a different effect is not touched", repairs.effectRepairUpdate(undead, { ...stale, name: "Undead: ability modifiers" }), null);
 const mig = read("module", "migration.mjs");
-ok("U6 the migration runs the pass at 3.627.1 and is stamped there", /runIf\("3\.627\.1", "declared effect repairs on owned items \(Undead disease immunity\)",\s*\(\) => migrateOwnedEffectRepairs\(actors, tokenActors, Array\.from\(game\.items \?\? \[\]\)\)\)\)/.test(mig) && (/export const TRG_SCHEMA_VERSION = "([\d.]+)";/.exec(mig)?.[1] ?? "0").localeCompare("3.627.1", undefined, { numeric: true }) >= 0);
+// 3.699.0 RE-GATED the same pass for the Ooze repair (Graham, CO-02/RD-08):
+// a later gate still runs it for every world that predates it, and the
+// old-value match skips copies 3.627.1 already repaired.
+{
+  const gate = /runIf\("([\d.]+)", "declared effect repairs on owned items \(Undead disease[^"]*\)",\s*\(\) => migrateOwnedEffectRepairs\(actors, tokenActors, Array\.from\(game\.items \?\? \[\]\)\)\)\)/.exec(mig)?.[1] ?? "0";
+  const stamp = /export const TRG_SCHEMA_VERSION = "([\d.]+)";/.exec(mig)?.[1] ?? "0";
+  const atLeast = (a, b) => a.localeCompare(b, undefined, { numeric: true }) >= 0;
+  ok("U6 the migration runs the pass at 3.627.1 or later and is stamped there", atLeast(gate, "3.627.1") && atLeast(stamp, gate));
+}
 ok("U7 the pass matches by item type and name and writes only what effectRepairUpdate returns", /if \(item\?\.type !== repair\.itemType \|\| lower\(item\?\.name\) !== lower\(repair\.name\)\) continue;/.test(mig) && /const update = effectRepairUpdate\(repair, effect\._source \?\? effect\);\s*if \(!update\) continue;/.test(mig));
 const db = new ClassicLevel(path.join(SYSTEM_ROOT, "packs", "creature-types"), { valueEncoding: "json" });
 let packEffect = null;

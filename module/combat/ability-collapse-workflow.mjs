@@ -301,8 +301,15 @@ export function registerAbilityCollapseHooks() {
     // Only when an attribute or the HP that gates the recovery moved.
     // This hook fires on every sheet edit, and asking on each would be
     // cheap but pointless noise.
+    // GAINING MINDLESS SETTLES TOO (3.699.0). A trait typed onto the sheet
+    // (system.details.traits) or a Mindless ethic (system.identity.ethics)
+    // changes whether a mental score may collapse the creature. Before,
+    // neither re-ran this rule, so a creature already knocked out by its
+    // Intelligence stayed unconscious after being made mindless.
     const touched = foundry.utils.hasProperty(changes, "system.attributes")
-      || foundry.utils.hasProperty(changes, "system.resources.hp");
+      || foundry.utils.hasProperty(changes, "system.resources.hp")
+      || foundry.utils.hasProperty(changes, "system.details")
+      || foundry.utils.hasProperty(changes, "system.identity");
     if (touched) scheduleSettle(actor);
   });
 }

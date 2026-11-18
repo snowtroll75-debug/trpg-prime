@@ -114,6 +114,7 @@ import {
   SPEED_KEYS, normaliseMovement, resolveMovement, speedValue
 } from "../combat/speed-pool.mjs";
 import { grantedSpeeds, setSpeeds, speedsHalved } from "../combat/granted-speeds.mjs";
+import { movementSkillConditionals, hasKeenSense } from "../skill-sheet-rules.mjs";
 import {
   effectiveLandSpeed,
   encumbranceSpeedPenalty,
@@ -2124,21 +2125,32 @@ function prepareSkills(system, actor) {
   // and `NaN > 0` is false, so from 3.412.0 until 3.412.1 this bonus
   // stopped being granted the moment the migration SUCCEEDED — silently,
   // and only for the characters the pooling was supposed to help.
+  //
+  // ONLY WHEN ACTUALLY SWIMMING OR CLIMBING (3.699.0; Graham's ruling
+  // RD-03, 18 Nov 2026). The +4 is no longer pooled into the whole skill:
+  // it is an automatic row on a check made with the Swim action (Athletics)
+  // or the Climb action (Climbing), and the sheet totals match the printed
+  // stat blocks again. Published beside the rune conditionals, which
+  // prepareCombat has already assembled, because a movement mode is
+  // derived data rather than authored flags.
   const movement = system.combat?.movement ?? {};
-  if (speedValue(movement.climb) > 0) {
-    actor.addBonus("system.skills.climbing", {
-      label: "Climb Speed",
-      value: 4,
-      type: "circumstance",
-      source: "movement"
-    });
+  const movementRows = movementSkillConditionals(movement);
+  if (movementRows.length && system.combat) {
+    system.combat.runeConditionals = [...(system.combat.runeConditionals ?? []), ...movementRows];
   }
-  if (speedValue(movement.swim) > 0) {
-    actor.addBonus("system.skills.athletics", {
-      label: "Swim Speed",
-      value: 4,
-      type: "circumstance",
-      source: "movement"
+
+  // KEEN SENSE ON THE SHEET (3.699.0; Graham's ruling RD-04, 18 Nov 2026).
+  // "A special +2 racial bonus to Perception skill checks" applies to every
+  // Perception check, so it belongs in the Perception total the sheet shows,
+  // as the printed blocks have it. Acute Sense, "+2 to any specific action
+  // related to that sense", stays a row on the check. The item's own roll
+  // row stands down (collectConditionals) so it is never counted twice.
+  if (hasKeenSense(actor)) {
+    actor.addBonus("system.skills.perception", {
+      label: "Keen Sense",
+      value: 2,
+      type: "race",
+      source: "ability"
     });
   }
 

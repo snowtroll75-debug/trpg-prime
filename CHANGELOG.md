@@ -2,6 +2,19 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.699.0 — 18 November 2026: rulings from the joint Codex / Fiends & Fables audit
+
+Branch `release/3.699.0`, from 3.698.4. Full notes in `release-notes-3.699.0.md`.
+
+- **Mindless creatures** are never collapsed by Intelligence, Wisdom or Charisma. The Mindless ethic counts for this rule, so the Skeleton Warrior and Skeleton Champion no longer fall unconscious. Gaining the trait or the ethic re-runs the rule at once.
+- **RD-03:** the Swim/Climb speed +4 applies only to the Swim and Climb actions; sheet totals match the printed blocks.
+- **RD-04:** Keen Sense's +2 is on the Perception total; Acute Sense stays a row on the check.
+- **RD-01:** Eternals have no Death State.
+- **CO-02 / RD-08:** Oozes are immune to precision damage and disease.
+- **CO-01:** a printed-range sense ("Darkvision (60 ft.)") is no longer granted a second time.
+- **Data and migration:** three declared pack fixes; owned Eternal types and Ooze immunity effects repaired; migration re-gated to 3.699.0.
+- **Harness:** `verify-joint-audit-3699` (34 checks) / `mutate-joint-audit-3699` (16 mutations), `verify-chapter1` 302 checks.
+
 ## 3.698.4 — 18 November 2026: version bump so Foundry offers the update
 
 No code or data change from 3.698.3. Published so worlds on 3.698.1 or earlier see an update in Foundry. Graham asked for it on 18 November.

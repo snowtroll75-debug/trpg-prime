@@ -14229,6 +14229,141 @@
         }
       ],
       "reason": "Graham, 18 Nov 2026: \"Flame blade does not need martial proficiency. The caster is always proficient.\""
+    },
+    {
+      "id": "rd01-eternal-no-death-state",
+      "pack": "creature-types",
+      "name": "Eternal",
+      "path": "system.noDeathState",
+      "from": false,
+      "to": true,
+      "declaredAt": "2026-11-18",
+      "systemVersion": "3.699.0",
+      "reason": "Graham's ruling RD-01, 18 Nov 2026 (joint Codex / Fiends & Fables audit): the Creature Codex Death State table governs, and it lists Eternal at 0 beside Construct, Elemental and Undead. An Eternal has no Death State and is destroyed at 0 HP. Before this, 32 of the 47 published Fiends & Fables Eternals derived Death State 5."
+    },
+    {
+      "id": "co02-rd08-ooze-immunities-changes",
+      "op": "editEffect",
+      "pack": "creature-types",
+      "name": "Ooze",
+      "effect": "Ooze: immunities",
+      "path": "changes",
+      "from": [
+        {
+          "key": "system.combat.immunities",
+          "mode": 2,
+          "value": ", mental",
+          "priority": 20
+        },
+        {
+          "key": "system.combat.immunities",
+          "mode": 2,
+          "value": ", poison",
+          "priority": 20
+        },
+        {
+          "key": "system.combat.immunities",
+          "mode": 2,
+          "value": ", sleep",
+          "priority": 20
+        },
+        {
+          "key": "system.combat.immunities",
+          "mode": 2,
+          "value": ", paralyzed",
+          "priority": 20
+        },
+        {
+          "key": "system.combat.immunities",
+          "mode": 2,
+          "value": ", polymorph",
+          "priority": 20
+        },
+        {
+          "key": "system.combat.immunities",
+          "mode": 2,
+          "value": ", stunned",
+          "priority": 20
+        },
+        {
+          "key": "system.combat.immunities",
+          "mode": 2,
+          "value": ", flatFooted",
+          "priority": 20
+        }
+      ],
+      "to": [
+        {
+          "key": "system.combat.immunities",
+          "mode": 2,
+          "value": ", disease",
+          "priority": 20
+        },
+        {
+          "key": "system.combat.immunities",
+          "mode": 2,
+          "value": ", mental",
+          "priority": 20
+        },
+        {
+          "key": "system.combat.immunities",
+          "mode": 2,
+          "value": ", poison",
+          "priority": 20
+        },
+        {
+          "key": "system.combat.immunities",
+          "mode": 2,
+          "value": ", sleep",
+          "priority": 20
+        },
+        {
+          "key": "system.combat.immunities",
+          "mode": 2,
+          "value": ", paralyzed",
+          "priority": 20
+        },
+        {
+          "key": "system.combat.immunities",
+          "mode": 2,
+          "value": ", polymorph",
+          "priority": 20
+        },
+        {
+          "key": "system.combat.immunities",
+          "mode": 2,
+          "value": ", precision",
+          "priority": 20
+        },
+        {
+          "key": "system.combat.immunities",
+          "mode": 2,
+          "value": ", stunned",
+          "priority": 20
+        },
+        {
+          "key": "system.combat.immunities",
+          "mode": 2,
+          "value": ", flatFooted",
+          "priority": 20
+        }
+      ],
+      "declaredAt": "2026-11-18",
+      "systemVersion": "3.699.0",
+      "reason": "The Creature Codex prints \"An Ooze is immune to disease, mental effects, poison, sleep effects, paralysis, polymorph, precision damage, stunning and criticals\". The effect carried every word but disease and precision (criticals are critImmune). CO-02 (precision, also printed on the Ochre Jelly) approved and RD-08 (disease) ruled yes by Graham, 18 Nov 2026."
+    },
+    {
+      "id": "co02-rd08-ooze-immunities-description",
+      "op": "editEffect",
+      "pack": "creature-types",
+      "name": "Ooze",
+      "effect": "Ooze: immunities",
+      "path": "description",
+      "from": "Immune to mental, poison, sleep, paralyzed, polymorph, stunned, flatFooted.",
+      "to": "Immune to disease, mental, poison, sleep, paralyzed, polymorph, precision, stunned, flatFooted.",
+      "declaredAt": "2026-11-18",
+      "systemVersion": "3.699.0",
+      "reason": "The effect's own description, to match."
     }
   ]
 }

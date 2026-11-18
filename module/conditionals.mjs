@@ -43,6 +43,7 @@
 
 import { wornAndStanding } from "./item-quality.mjs";
 import { inAnyStance, stanceGatedRows } from "./stance-declarations.mjs";
+import { isKeenSenseName } from "./skill-sheet-rules.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -649,7 +650,13 @@ export function collectConditionals(items = [], effects = [], declared = [], sca
       // holds that many PP (the Orb's "stop working if … reduced to 2 PP or
       // less"). Its index is kept, so a row's id does not move with the charge.
       const itemPP = Math.trunc(Number(document?.system?.uses ?? 0) || 0);
+      // KEEN SENSE IS ON THE SHEET (3.699.0, RD-04): actor preparation pools
+      // its +2 into the Perception total, so its own Perception row stands
+      // down here rather than adding the same +2 again at the roll.
+      const keen = kind === "item" && document?.type === "ability" && isKeenSenseName(document?.name);
       declared.forEach((raw, index) => {
+        if (keen && String(raw?.kind ?? "").toLowerCase() === "modifier"
+          && JSON.stringify(raw?.when?.subjects ?? []) === JSON.stringify(["perception"])) return;
         const minPP = kind === "item" ? Math.trunc(Number(raw?.minItemPP) || 0) : 0;
         if (minPP > 0 && itemPP < minPP) return;
         const entry = normaliseConditional(raw, source, index, scaling);
