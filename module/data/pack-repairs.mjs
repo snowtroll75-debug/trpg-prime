@@ -2308,14 +2308,22 @@ export const PACK_REPAIRS = Object.freeze([
   // Scimitar, fire damage and criticals, on Spellcraft at -2.
   {
     id: "audit3698-flame-blade-effects", pack: "spells", name: "Flame Blade",
-    field: "effects", since: "3.698.1",
+    field: "effects", since: "3.698.2",
     from: [],
-    to: [{
+    // 3.698.2 RULED AGAIN: "The caster is always proficient." A copy brought
+    // up to 3.698.1's row is stale too, and gains the mark.
+    alsoFrom: [[{
       kind: "conjuredWeapon", label: "Flame Blade", target: "self",
       categories: ["Martial"], weapons: ["Scimitar"], hands: 1, melee: true,
       damageType: "fire", attackBase: "spellcraft", attackAdjust: -2
+    }]],
+    to: [{
+      kind: "conjuredWeapon", label: "Flame Blade", target: "self",
+      categories: ["Martial"], weapons: ["Scimitar"], hands: 1, melee: true,
+      damageType: "fire", attackBase: "spellcraft", attackAdjust: -2,
+      casterProficient: true
     }],
-    reason: "Graham, 18 Nov 2026: the blade is fire; it attacks with Spellcraft at -2."
+    reason: "Graham, 18 Nov 2026: the blade is fire; it attacks with Spellcraft at -2; the caster is always proficient with it."
   },
 ]);
 

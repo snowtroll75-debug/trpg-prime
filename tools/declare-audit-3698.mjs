@@ -16,11 +16,19 @@ import fs from "node:fs";
 import path from "node:path";
 import { SYSTEM_ROOT } from "./lib/sources.mjs";
 
+/** The blade as 3.698.1 shipped it, before "the caster is always proficient". */
+export const FLAME_BLADE_ROW_3698_1 = Object.freeze({
+  kind: "conjuredWeapon", label: "Flame Blade", target: "self",
+  categories: ["Martial"], weapons: ["Scimitar"], hands: 1, melee: true,
+  damageType: "fire", attackBase: "spellcraft", attackAdjust: -2
+});
+
 /** The blade: "as if it were a scimitar using your Spellcraft bonus at -2 for your AB and inflicting fire criticals." */
 export const FLAME_BLADE_ROW = Object.freeze({
   kind: "conjuredWeapon", label: "Flame Blade", target: "self",
   categories: ["Martial"], weapons: ["Scimitar"], hands: 1, melee: true,
-  damageType: "fire", attackBase: "spellcraft", attackAdjust: -2
+  damageType: "fire", attackBase: "spellcraft", attackAdjust: -2,
+  casterProficient: true
 });
 
 export const AUDIT_3698_FIXES = Object.freeze([
@@ -37,9 +45,20 @@ export const AUDIT_3698_FIXES = Object.freeze([
   {
     id: "audit3698-flame-blade-effects", pack: "spells", name: "Flame Blade", path: "system.effects",
     from: [],
-    to: [FLAME_BLADE_ROW],
+    to: [FLAME_BLADE_ROW_3698_1],
+    // The owned-copy repair is ONE entry for the field (pack-repair.mjs):
+    // its `to` is the final row, and this row is its `alsoFrom`.
+    repair: { to: [FLAME_BLADE_ROW], since: "3.698.2" },
     reason: "Graham, 18 Nov 2026 (U12): \"Flame Blade is fire.\" The spell had no rows, so the blade was played from the card. Now a conjured Scimitar, fire damage and fire criticals, attacking with Spellcraft at -2, gone when the spell ends.",
     systemVersion: "3.698.1"
+  },
+  {
+    id: "audit3698-flame-blade-proficient", pack: "spells", name: "Flame Blade", path: "system.effects",
+    from: [FLAME_BLADE_ROW_3698_1],
+    to: [FLAME_BLADE_ROW],
+    repair: { id: "audit3698-flame-blade-effects", alsoFrom: true },
+    reason: "Graham, 18 Nov 2026: \"Flame blade does not need martial proficiency. The caster is always proficient.\"",
+    systemVersion: "3.698.2"
   }
 ]);
 
@@ -49,7 +68,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   let added = 0;
   for (const fix of AUDIT_3698_FIXES) {
     if (file.fixes.some((f) => f.id === fix.id)) continue;
-    file.fixes.push({ declaredAt: "2026-11-18", systemVersion: "3.698.0", ...fix });
+    { const { repair, ...entry } = fix; file.fixes.push({ declaredAt: "2026-11-18", systemVersion: "3.698.0", ...entry }); }
     added += 1;
   }
   fs.writeFileSync(filePath, `${JSON.stringify(file, null, 2)}\n`);

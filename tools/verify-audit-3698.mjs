@@ -9,7 +9,8 @@
  *      anything the class list does not name; the divine aspect is left to R7.
  *   C  Rules audit R7: Ability Enhancement, once per four levels.
  *   D  Rules audit R3: Flame Blade has no range and no targets.
- *   E  U12 (3.698.1): Flame Blade's blade is a fire Scimitar on Spellcraft −2.
+ *   E  U12 (3.698.1): Flame Blade's blade is a fire Scimitar on Spellcraft −2;
+ *      (3.698.2) and the caster is always proficient with it.
  *   Z  The version.
  */
 import fs from "node:fs";
@@ -17,7 +18,7 @@ import os from "node:os";
 import path from "node:path";
 import { ClassicLevel } from "classic-level";
 import { SYSTEM_ROOT } from "./lib/sources.mjs";
-import { AUDIT_3698_FIXES, FLAME_BLADE_ROW } from "./declare-audit-3698.mjs";
+import { AUDIT_3698_FIXES, FLAME_BLADE_ROW, FLAME_BLADE_ROW_3698_1 } from "./declare-audit-3698.mjs";
 
 let checks = 0;
 const failures = [];
@@ -112,8 +113,16 @@ const FIGHTER = "1: Warrior's Resolve, 1: Martial Training, 2: Battle Readiness,
   const { PACK_REPAIRS } = await mod("data", "pack-repairs.mjs");
   for (const fix of AUDIT_3698_FIXES) {
     equal(`D2 ${fix.id}: data-fixes declares it`, fixes.find((x) => x.id === fix.id)?.to, fix.to);
-    const r = PACK_REPAIRS.find((x) => x.id === fix.id);
-    equal(`D3 ${fix.id}: the owned-copy repair matches`, [r?.field, r?.from, r?.to], [fix.path.replace(/^system\./, ""), fix.from, fix.to]);
+    // A FIELD RULED TWICE HAS ONE REPAIR (3.698.2): the later fix is that
+    // repair's `alsoFrom`, and its `to` is the final value.
+    const r = PACK_REPAIRS.find((x) => x.id === (fix.repair?.id ?? fix.id));
+    const field = fix.path.replace(/^system\./, "");
+    if (fix.repair?.alsoFrom) {
+      ok(`D3 ${fix.id}: the owned-copy repair lists the earlier row as alsoFrom, and ends where this does`,
+        r?.field === field && (r?.alsoFrom ?? []).some((f) => JSON.stringify(f) === JSON.stringify(fix.from)) && JSON.stringify(r?.to) === JSON.stringify(fix.to));
+    } else {
+      equal(`D3 ${fix.id}: the owned-copy repair matches`, [r?.field, r?.from, r?.to], [field, fix.from, fix.repair?.to ?? fix.to]);
+    }
   }
 }
 
@@ -170,12 +179,29 @@ const FIGHTER = "1: Warrior's Resolve, 1: Martial Training, 2: Battle Readiness,
     cwf.includes("It deals ${damageType} damage") && read("module", "magic", "spell-effects.mjs").includes("promptConjuredWeapon(spell.name, options, weaponSpec.damageType)"));
   const mig = read("module", "migration.mjs");
   ok("E14 the owned-copy pass is re-gated so existing Flame Blades get the blade",
-    mig.includes('TRG_SCHEMA_VERSION = "3.698.1"') && mig.includes('runIf("3.698.1", "stale owned copies of repaired pack items"'));
+    mig.includes('TRG_SCHEMA_VERSION = "3.698.2"') && mig.includes('runIf("3.698.2", "stale owned copies of repaired pack items"'));
+
+  // 3.698.2: "The caster is always proficient."
+  equal("E15 the blade is marked as the caster's own", made.flags?.["trg-prime"]?.casterProficient, true);
+  equal("E16 Eldritch Weapon is not (the wielder's own proficiency still counts)", ewMade.flags?.["trg-prime"]?.casterProficient, undefined);
+  const prof = await mod("proficiency-rules.mjs");
+  const noMartial = prof.proficiencyProfile({ items: [], system: {} });
+  const bladeVerdict = prof.proficiencyOf(noMartial, { type: "weapon", name: made.name, system: made.system, flags: made.flags });
+  const shopVerdict = prof.proficiencyOf(noMartial, { type: "weapon", name: "Scimitar", system: choices[0].system, flags: choices[0].flags ?? {} });
+  equal("E17 a caster with no martial proficiency is proficient with the blade, not with a bought Scimitar",
+    [bladeVerdict.proficient, shopVerdict.proficient], [true, false]);
+  const { PACK_REPAIRS } = await mod("data", "pack-repairs.mjs");
+  const { classifyRepairs } = await mod("pack-repair.mjs");
+  const rep = PACK_REPAIRS.filter((r) => r.name === "Flame Blade" && r.field === "effects");
+  const row3698_1 = FLAME_BLADE_ROW_3698_1;
+  equal("E18 an owned Flame Blade at 3.698.1's row, or with none, is stale; one already marked is current",
+    [classifyRepairs({ effects: [row3698_1] }, rep)[0]?.state, classifyRepairs({ effects: [] }, rep)[0]?.state, classifyRepairs({ effects: [FLAME_BLADE_ROW] }, rep)[0]?.state, rep.length],
+    ["stale", "stale", "current", 1]);
 }
 
 /* Z ------------------------------------------------------------------------ */
 const sys = JSON.parse(read("system.json"));
-equal("Z the version is 3.698.1, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.698.1/")], ["3.698.1", "3.698.1", true]);
+equal("Z the version is 3.698.2, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.698.2/")], ["3.698.2", "3.698.2", true]);
 
 console.log(`verify-audit-3698: ${checks} checks — ${failures.length ? `${failures.length} FAILED` : "all green."}`);
 for (const f of failures) console.log(`  ✗ ${f}`);

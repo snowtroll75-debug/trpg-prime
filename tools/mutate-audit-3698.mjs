@@ -18,6 +18,7 @@ const CWF = M("magic", "conjured-weapon-workflow.mjs");
 const AB = M("combat", "attack-base.mjs");
 const AW = M("combat", "attack-workflow.mjs");
 const MG = M("migration.mjs");
+const PF = M("proficiency-rules.mjs");
 const SJ = path.join(SYSTEM_ROOT, "system.json");
 const MUTATIONS = [
   { name: "A an entry AT the level counts as above it", file: G, from: "    if ((Number(e.level) || 1) <= lvl) due.set(k, due.get(k) + 1);", to: "    if ((Number(e.level) || 1) < lvl) due.set(k, due.get(k) + 1);" },
@@ -36,16 +37,22 @@ const MUTATIONS = [
   { name: "D Flame Blade's owned copies keep the 30 feet", file: PR, from: "    id: \"audit3698-flame-blade-range\", pack: \"spells\", name: \"Flame Blade\",\n    field: \"range\"", to: "    id: \"audit3698-flame-blade-rangeX\", pack: \"spells\", name: \"Flame Blade\",\n    field: \"range\"" },
   { name: "E the named weapon ignored (every martial one-hander offered)", file: CW, from: "  if (names.length && !names.includes(text(item?.name).toLowerCase())) return false;\n", to: "" },
   { name: "E the attack base dropped from the row", file: CW, from: "    attackBase,\n    attackAdjust:", to: "    attackBase: \"\",\n    attackAdjust:" },
-  { name: "E the copy never told it rolls on Spellcraft", file: CW, from: "  if (rule?.attackBase) {\n    data.flags = data.flags ?? {};", to: "  if (false) {\n    data.flags = data.flags ?? {};" },
+  { name: "E the copy never told it rolls on Spellcraft", file: CW, from: "      ...(rule.attackBase ? { attackBase: rule.attackBase, attackAdjust: Number(rule.attackAdjust ?? 0) || 0 } : {}),\n", to: "" },
   { name: "E the −2 ignored", file: AB, from: "    value: spellcraft + adjust - ab,", to: "    value: spellcraft - ab," },
   { name: "E Spellcraft added on top of the attack bonus", file: AB, from: "    value: spellcraft + adjust - ab,", to: "    value: spellcraft + adjust," },
   { name: "E only taken when it helps", file: AB, from: "  const signed = adjust ?", to: "  if (spellcraft + adjust <= ab) return null;\n  const signed = adjust ?" },
   { name: "E the strike never pushes the row", file: AW, from: "    if (row) modifiers.push(row);\n  }\n\n  const sweepTargets", to: "  }\n\n  const sweepTargets" },
   { name: "E Finesse still added to a Spellcraft attack", file: AW, from: "if (finesseBonus && !spellcraftBased)", to: "if (finesseBonus)" },
   { name: "E the dialog still says force", file: CWF, from: "It deals ${damageType} damage", to: "It deals force damage" },
-  { name: "E owned Flame Blades never get the blade", file: MG, from: "runIf(\"3.698.1\", \"stale owned copies of repaired pack items\"", to: "runIf(\"3.698.0\", \"stale owned copies of repaired pack items\"" },
+  { name: "E owned Flame Blades never get the blade", file: MG, from: "runIf(\"3.698.2\", \"stale owned copies of repaired pack items\"", to: "runIf(\"3.698.1\", \"stale owned copies of repaired pack items\"" },
+  { name: "E the proficiency mark never read", file: PF, from: "item?.flags?.[SYSTEM_ID]?.casterProficient === true", to: "false" },
+  { name: "E every conjured or bought Scimitar counted proficient", file: PF, from: "item?.flags?.[SYSTEM_ID]?.casterProficient === true", to: "/scimitar/i.test(item?.name ?? \"\")" },
+  { name: "E the row's mark dropped", file: CW, from: "    casterProficient: raw.casterProficient === true", to: "    casterProficient: false" },
+  { name: "E every conjured weapon marked (Eldritch Weapon too)", file: CW, from: "    casterProficient: raw.casterProficient === true", to: "    casterProficient: true" },
+  { name: "E the copy never carries the mark", file: CW, from: "      ...(rule.casterProficient ? { casterProficient: true } : {})", to: "" },
+  { name: "E a 3.698.1 owned copy not recognised", file: PR, from: "    alsoFrom: [[{\n      kind: \"conjuredWeapon\", label: \"Flame Blade\"", to: "    alsoFromX: [[{\n      kind: \"conjuredWeapon\", label: \"Flame Blade\"" },
   { name: "E the owned-copy repair forgets the blade", file: PR, from: "    id: \"audit3698-flame-blade-effects\", pack: \"spells\"", to: "    id: \"audit3698-flame-blade-effectsX\", pack: \"spells\"" },
-  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.698.1\"", to: "\"version\": \"3.698.0\"" }
+  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.698.2\"", to: "\"version\": \"3.698.1\"" }
 ];
 
 const verify = path.join(SYSTEM_ROOT, "tools", "verify-audit-3698.mjs");

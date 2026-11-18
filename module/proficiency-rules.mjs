@@ -1085,6 +1085,15 @@ export function proficiencyOf(profile, item) {
     return { proficient: true, why: "a weapon from its own stat block" };
   }
 
+  // THE CASTER IS ALWAYS PROFICIENT WITH A BLADE THEIR SPELL MADE (3.698.2;
+  // Graham, 18 November 2026: "Flame blade does not need martial
+  // proficiency. The caster is always proficient."). The conjured copy
+  // carries the mark from its spell row (`casterProficient: true`); the same
+  // Scimitar bought from a shop carries none and is judged as any other.
+  if (type === "weapon" && item?.flags?.[SYSTEM_ID]?.casterProficient === true) {
+    return { proficient: true, why: "conjured by the wielder's own spell" };
+  }
+
   if (["weapon", "armour", "shield"].includes(type) && !String(system.category ?? "").trim()) {
     return {
       proficient: true,

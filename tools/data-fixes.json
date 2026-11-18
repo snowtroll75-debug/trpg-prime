@@ -14183,6 +14183,52 @@
         }
       ],
       "reason": "Graham, 18 Nov 2026 (U12): \"Flame Blade is fire.\" The spell had no rows, so the blade was played from the card. Now a conjured Scimitar, fire damage and fire criticals, attacking with Spellcraft at -2, gone when the spell ends."
+    },
+    {
+      "declaredAt": "2026-11-18",
+      "systemVersion": "3.698.2",
+      "id": "audit3698-flame-blade-proficient",
+      "pack": "spells",
+      "name": "Flame Blade",
+      "path": "system.effects",
+      "from": [
+        {
+          "kind": "conjuredWeapon",
+          "label": "Flame Blade",
+          "target": "self",
+          "categories": [
+            "Martial"
+          ],
+          "weapons": [
+            "Scimitar"
+          ],
+          "hands": 1,
+          "melee": true,
+          "damageType": "fire",
+          "attackBase": "spellcraft",
+          "attackAdjust": -2
+        }
+      ],
+      "to": [
+        {
+          "kind": "conjuredWeapon",
+          "label": "Flame Blade",
+          "target": "self",
+          "categories": [
+            "Martial"
+          ],
+          "weapons": [
+            "Scimitar"
+          ],
+          "hands": 1,
+          "melee": true,
+          "damageType": "fire",
+          "attackBase": "spellcraft",
+          "attackAdjust": -2,
+          "casterProficient": true
+        }
+      ],
+      "reason": "Graham, 18 Nov 2026: \"Flame blade does not need martial proficiency. The caster is always proficient.\""
     }
   ]
 }

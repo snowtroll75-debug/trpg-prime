@@ -1,4 +1,4 @@
-# TRG Prime Core — Unresolved (3.697.0, updated for 3.698.1)
+# TRG Prime Core — Unresolved (3.697.0, updated for 3.698.2)
 
 17 November 2026. Everything this audit found and did **not** close, grouped by what it is waiting on: a ruling, a core change, or something only you can do.
 
@@ -13,7 +13,7 @@
 
 A conjured Scimitar in the caster's hand for the minute. It deals fire damage (so fire criticals) and attacks with Spellcraft −2 in place of the attack bonus, through a new Spellcraft attack rail.
 
-**One small question left:** the blade is a pack Scimitar, so it uses the caster's martial proficiency, as Eldritch Weapon does. A caster without martial proficiency takes the −4 for an untrained weapon. If "as if it were a scimitar" should waive proficiency, it is one line to change.
+**Proficiency, ruled 18 November and built in 3.698.2:** "The caster is always proficient." The conjured blade never takes the −4 for a weapon its caster isn't proficient with.
 
 ## The rulings as they were asked (kept for the record)
 

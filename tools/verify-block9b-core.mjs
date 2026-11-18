@@ -204,8 +204,8 @@ ok("H22 …once a swing (inside the one-fumble-a-swing branch)", aw.indexOf('Hoo
 
 /* ================================================================== Z */
 const sys = JSON.parse(read("system.json"));
-equal("Z1 the version is 3.690.0, and the download names it", [sys.version, sys.download], ["3.698.1", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.698.1/trg-prime.zip"]);
-equal("Z2 package.json agrees", JSON.parse(read("package.json")).version, "3.698.1");
+equal("Z1 the version is 3.690.0, and the download names it", [sys.version, sys.download], ["3.698.2", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.698.2/trg-prime.zip"]);
+equal("Z2 package.json agrees", JSON.parse(read("package.json")).version, "3.698.2");
 
 if (failures.length) { for (const f of failures) console.log(`  ✗ ${f}`); console.log(`verify-block9b-core: ${failures.length} failure(s) of ${checks}`); process.exit(1); }
 console.log(`verify-block9b-core: all ${checks} checks pass`);

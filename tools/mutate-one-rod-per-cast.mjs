@@ -31,9 +31,9 @@ const MUTATIONS = [
   { name: "D a module's rod-paid metamagic offered after a Rod this round", file: MMW, from: "  const rods = rodUseRefusal(actor, { fromItemCast: Boolean(base.itemCast) }) ? [] : moduleMetamagicRodsOf(", to: "  const rods = moduleMetamagicRodsOf(" },
   { name: "D the Magi's draw offered while storing", file: CW, from: "stored || (storingNow && !holdingNow) || totalPP <= 0 || ritualSubstitutes)", to: "stored || totalPP <= 0 || ritualSubstitutes)" },
   { name: "D the Spell Adder use kept by a refused cast", file: CW, from: "      // cancel: it was spent a dialog ago, on a cast that is not happening.\n      if (spellAdderUsed) {", to: "      // cancel: it was spent a dialog ago, on a cast that is not happening.\n      if (false) {" },
-  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.698.1\"", to: "\"version\": \"3.690.1\"" },
-  { name: "Z the download names the last release", file: SJ, from: "releases/download/v3.698.1/trg-prime.zip", to: "releases/download/v3.690.1/trg-prime.zip" },
-  { name: "Z package.json is left behind", file: PJ, from: "\"version\": \"3.698.1\"", to: "\"version\": \"3.690.1\"" }
+  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.698.2\"", to: "\"version\": \"3.690.1\"" },
+  { name: "Z the download names the last release", file: SJ, from: "releases/download/v3.698.2/trg-prime.zip", to: "releases/download/v3.690.1/trg-prime.zip" },
+  { name: "Z package.json is left behind", file: PJ, from: "\"version\": \"3.698.2\"", to: "\"version\": \"3.690.1\"" }
 ];
 
 const verify = path.join(SYSTEM_ROOT, "tools", "verify-one-rod-per-cast.mjs");

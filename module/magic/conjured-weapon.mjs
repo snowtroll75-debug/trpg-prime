@@ -71,7 +71,10 @@ export function normaliseConjuredWeapon(raw = {}) {
     // the attack is rolled on Spellcraft, adjusted, in place of the attack
     // bonus. Empty means the wielder's own attack bonus.
     attackBase,
-    attackAdjust: attackBase && Number.isFinite(Number(raw.attackAdjust)) ? Math.trunc(Number(raw.attackAdjust)) : 0
+    attackAdjust: attackBase && Number.isFinite(Number(raw.attackAdjust)) ? Math.trunc(Number(raw.attackAdjust)) : 0,
+    // "THE CASTER IS ALWAYS PROFICIENT" (3.698.2, Flame Blade). Off unless
+    // the row says so: Eldritch Weapon keeps the wielder's own proficiency.
+    casterProficient: raw.casterProficient === true
   };
 }
 
@@ -156,12 +159,12 @@ export function conjuredWeaponData(spec, base = {}) {
   data.system = data.system ?? {};
   data.system.damageType = rule?.damageType ?? CONJURED_WEAPON_DAMAGE;
   data.system.equipped = false;
-  if (rule?.attackBase) {
+  if (rule?.attackBase || rule?.casterProficient) {
     data.flags = data.flags ?? {};
     data.flags["trg-prime"] = {
       ...(data.flags["trg-prime"] ?? {}),
-      attackBase: rule.attackBase,
-      attackAdjust: Number(rule.attackAdjust ?? 0) || 0
+      ...(rule.attackBase ? { attackBase: rule.attackBase, attackAdjust: Number(rule.attackAdjust ?? 0) || 0 } : {}),
+      ...(rule.casterProficient ? { casterProficient: true } : {})
     };
   }
   return data;

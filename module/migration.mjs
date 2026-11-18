@@ -79,7 +79,8 @@ const WORLD_SCHEMA_SETTING = "worldSchemaVersion";
 // three spells (Changing Lungs, Long Arm, Inner Focus).
 // 3.698.0: re-gated again for Flame Blade's range and targets.
 // 3.698.1: and again for Flame Blade's blade.
-export const TRG_SCHEMA_VERSION = "3.698.1";
+// 3.698.2: and again for the blade's proficiency.
+export const TRG_SCHEMA_VERSION = "3.698.2";
 
 /**
  * Register the hidden world setting used to determine whether a migration is
@@ -786,7 +787,8 @@ export async function migrateWorldData(fromVersion = "") {
   // RE-VERSIONED TO 3.697.0: the core automation audit's three spells.
   // RE-VERSIONED TO 3.698.0: Flame Blade's range and targets (Graham).
   // RE-VERSIONED TO 3.698.1: Flame Blade's blade (Graham, U12).
-  const packCopies = (await runIf("3.698.1", "stale owned copies of repaired pack items",
+  // RE-VERSIONED TO 3.698.2: the blade's proficiency (Graham).
+  const packCopies = (await runIf("3.698.2", "stale owned copies of repaired pack items",
     () => migrateStalePackCopies([...actors, ...tokenActors], Array.from(game.items ?? []))))
     ?? { repaired: [], kept: [] };
   result.packCopies = packCopies;

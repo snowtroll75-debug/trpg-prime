@@ -127,3 +127,17 @@ Run in the Test world on 18 November; see `live-testing-report-3.697.0.md`. Ever
 2. Cast Flame Blade: no target asked, no dialog; "Flame Blade" (Scimitar) appears unequipped; equip and strike. The card shows "Spellcraft N −2 in place of attack bonus M"; damage is fire; a critical rolls on the fire table.
 3. After a minute of world time the blade is gone.
 4. The 3.698.0 plan in §6 (level drop, Ability Enhancement, Flame Blade target).
+
+## 8. 3.698.2 (the caster is always proficient, 18 November 2026)
+
+| Test | Result |
+|---|---|
+| `verify-audit-3698` / `mutate-audit-3698` | 43 checks green; 32 of 32 mutations caught |
+| **Every** core verify file (380, including `verify-checks-read-source`) | All green |
+| Module suites against 3.698.2 | Same as every run since 3.697.0: Pillars of Faith 11/11; Inner Tempest 19 pass, 2 blocked, `mutate-block8` failing on the module's side; Eldritch Arts 55 pass, 1 blocked, `mutate-block10b` failing on the module's side |
+
+### Live
+
+3.698.1 was installed on 18 November, but Chrome wasn't connected, so the live checks (§6, §7 and the one below) haven't run yet.
+
+- Flame Blade cast by a caster with no martial proficiency: the strike shows no "Non-proficient" row.
