@@ -118,7 +118,7 @@ ok("F3 and only one of them clamps",
 const workflow = read("module", "combat", "attack-workflow.mjs");
 
 ok("W1 the workflow calls the rule",
-  // A SPELLCRAFT-BASED BLADE (3.698.2, Flame Blade) takes no ability swap.
+  // A SPELLCRAFT-BASED BLADE (3.698.1, Flame Blade) takes no ability swap.
   /const rangedAbilityBonus = (?:spellcraftBased \? 0 : )?rangedAbilityAdjustment\(\s*\n\s*isRanged,/.test(workflow),
   "imported and never called is this project's most-repeated defect");
 ok("W1b against the configured ability and the actor's Dexterity",

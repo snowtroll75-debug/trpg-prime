@@ -11,6 +11,8 @@
  *   D  Rules audit R3: Flame Blade has no range and no targets.
  *   E  U12 (3.698.1): Flame Blade's blade is a fire Scimitar on Spellcraft −2;
  *      (3.698.2) and the caster is always proficient with it.
+ *   F  Found live (3.698.3): no Customise dialog for a conjured weapon, and a
+ *      fire blade's card does not say "of pure force".
  *   Z  The version.
  */
 import fs from "node:fs";
@@ -199,9 +201,27 @@ const FIGHTER = "1: Warrior's Resolve, 1: Martial Training, 2: Battle Readiness,
     ["stale", "stale", "current", 1]);
 }
 
+/* F — found live on 18 November (3.698.3) ---------------------------------- */
+{
+  const { shouldOfferCustomisation } = await mod("customise-on-add.mjs");
+  const cw = await mod("magic", "conjured-weapon.mjs");
+  const spec = cw.normaliseConjuredWeapon(FLAME_BLADE_ROW);
+  const made = cw.conjuredWeaponData(spec, { name: "Scimitar", type: "weapon", system: { category: "Martial", damage: "1d6", hands: 1 } });
+  // The workflow stamps conjured/conjuredWeapon on the copy before creating it.
+  const onActor = { ...made, parent: {}, flags: { "trg-prime": { ...(made.flags?.["trg-prime"] ?? {}), conjured: true, conjuredWeapon: true } } };
+  const bought = { type: "weapon", name: "Scimitar", parent: {}, system: { category: "Martial" }, flags: {} };
+  equal("F1 a conjured blade opens no Customise dialog; a bought Scimitar still does",
+    [shouldOfferCustomisation(onActor, "u", { currentUserId: "u" }), shouldOfferCustomisation(bought, "u", { currentUserId: "u" })], [false, true]);
+  const cwf = read("module", "magic", "conjured-weapon-workflow.mjs");
+  ok("F2 the workflow does stamp conjuredWeapon on the copy (what F1 relies on)", /conjuredWeapon: true/.test(cwf), "conjuredWeapon: true not found");
+  const se = read("module", "magic", "spell-effects.mjs");
+  ok("F3 the card says \"of pure force\" only for force, and names the spell otherwise",
+    se.includes('weaponSpec.damageType === "force"') && se.includes("(${weaponSpec.label}) — ${weaponSpec.damageType} damage${durationText}."));
+}
+
 /* Z ------------------------------------------------------------------------ */
 const sys = JSON.parse(read("system.json"));
-equal("Z the version is 3.698.2, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.698.2/")], ["3.698.2", "3.698.2", true]);
+equal("Z the version is 3.698.3, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.698.3/")], ["3.698.3", "3.698.3", true]);
 
 console.log(`verify-audit-3698: ${checks} checks — ${failures.length ? `${failures.length} FAILED` : "all green."}`);
 for (const f of failures) console.log(`  ✗ ${f}`);

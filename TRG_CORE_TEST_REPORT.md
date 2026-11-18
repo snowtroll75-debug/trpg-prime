@@ -124,7 +124,7 @@ Run in the Test world on 18 November; see `live-testing-report-3.697.0.md`. Ever
 ### Live, after install
 
 1. Migration offered 3.697.0 (or 3.698.0) → 3.698.1; an owned Flame Blade gains its blade row.
-2. Cast Flame Blade: no target asked, no dialog; "Flame Blade" (Scimitar) appears unequipped; equip and strike. The card shows "Spellcraft N −2 in place of attack bonus M"; damage is fire; a critical rolls on the fire table.
+2. Cast Flame Blade: no target asked, no dialog; a conjured Scimitar appears unequipped; equip and strike. The card shows "Spellcraft N −2 in place of attack bonus M"; damage is fire; a critical rolls on the fire table.
 3. After a minute of world time the blade is gone.
 4. The 3.698.0 plan in §6 (level drop, Ability Enhancement, Flame Blade target).
 
@@ -138,6 +138,13 @@ Run in the Test world on 18 November; see `live-testing-report-3.697.0.md`. Ever
 
 ### Live
 
-3.698.1 was installed on 18 November, but Chrome wasn't connected, so the live checks (§6, §7 and the one below) haven't run yet.
+Run in the Test world on 18 November on 3.698.2: see `live-testing-report-3.698.md`. Everything in §6, §7 and §8 passed. The cast turned up two small faults, fixed in 3.698.3 (§9).
 
-- Flame Blade cast by a caster with no martial proficiency: the strike shows no "Non-proficient" row.
+## 9. 3.698.3 (two faults found by the live cast, 18 November 2026)
+
+| Test | Result |
+|---|---|
+| `verify-audit-3698` / `mutate-audit-3698` | 46 checks green; 35 of 35 mutations caught |
+| Every core verify file (380) | All green |
+| Module suites against 3.698.3 | Same as every run since 3.697.0: Pillars of Faith 11/11; Inner Tempest 19 pass, 2 blocked, `mutate-block8` failing on the module side; Eldritch Arts 55 pass, 1 blocked, `mutate-block10b` failing on the module side |
+| Live | The two fixes need 3.698.3 installed: cast Flame Blade and confirm no Customise dialog, and that the card reads "Scimitar (Flame Blade) — fire damage". |

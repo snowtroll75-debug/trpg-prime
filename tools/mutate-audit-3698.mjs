@@ -19,6 +19,8 @@ const AB = M("combat", "attack-base.mjs");
 const AW = M("combat", "attack-workflow.mjs");
 const MG = M("migration.mjs");
 const PF = M("proficiency-rules.mjs");
+const CO = M("customise-on-add.mjs");
+const SE = M("magic", "spell-effects.mjs");
 const SJ = path.join(SYSTEM_ROOT, "system.json");
 const MUTATIONS = [
   { name: "A an entry AT the level counts as above it", file: G, from: "    if ((Number(e.level) || 1) <= lvl) due.set(k, due.get(k) + 1);", to: "    if ((Number(e.level) || 1) < lvl) due.set(k, due.get(k) + 1);" },
@@ -52,7 +54,10 @@ const MUTATIONS = [
   { name: "E the copy never carries the mark", file: CW, from: "      ...(rule.casterProficient ? { casterProficient: true } : {})", to: "" },
   { name: "E a 3.698.1 owned copy not recognised", file: PR, from: "    alsoFrom: [[{\n      kind: \"conjuredWeapon\", label: \"Flame Blade\"", to: "    alsoFromX: [[{\n      kind: \"conjuredWeapon\", label: \"Flame Blade\"" },
   { name: "E the owned-copy repair forgets the blade", file: PR, from: "    id: \"audit3698-flame-blade-effects\", pack: \"spells\"", to: "    id: \"audit3698-flame-blade-effectsX\", pack: \"spells\"" },
-  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.698.2\"", to: "\"version\": \"3.698.1\"" }
+  { name: "F a conjured blade offered for customising", file: CO, from: "  if (item?.flags?.[SYSTEM_ID]?.conjuredWeapon) return false;\n", to: "" },
+  { name: "F every weapon refused customising", file: CO, from: "  if (item?.flags?.[SYSTEM_ID]?.conjuredWeapon) return false;\n", to: "  return false;\n" },
+  { name: "F the fire blade called pure force again", file: SE, from: "lines.push(line(weaponSpec.damageType === \"force\"", to: "lines.push(line(true" },
+  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.698.3\"", to: "\"version\": \"3.698.2\"" }
 ];
 
 const verify = path.join(SYSTEM_ROOT, "tools", "verify-audit-3698.mjs");

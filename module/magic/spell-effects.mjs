@@ -2342,8 +2342,12 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           await createEffectsOn(target, [cwData]);
 
           if (castId && target.uuid) affected.add(target.uuid);
-          lines.push(line(`${target.name}: <strong>${madeWeapon.name}</strong> of pure force `
-            + `— ${weaponSpec.damageType} damage${durationText}.`));
+          // "OF PURE FORCE" ONLY WHEN IT IS (3.698.3). Found live: Flame Blade's
+          // card read "Scimitar of pure force — fire damage". Any other type
+          // names the spell instead: "Scimitar (Flame Blade) — fire damage".
+          lines.push(line(weaponSpec.damageType === "force"
+            ? `${target.name}: <strong>${madeWeapon.name}</strong> of pure force — force damage${durationText}.`
+            : `${target.name}: <strong>${madeWeapon.name}</strong> (${weaponSpec.label}) — ${weaponSpec.damageType} damage${durationText}.`));
           break;
         }
         case "conjureItem": {

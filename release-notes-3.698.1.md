@@ -6,7 +6,7 @@
 
 **Flame Blade** (Graham: "Flame Blade is fire"). "You wield this blade-like beam as if it were a scimitar using your Spellcraft bonus at -2 for your AB and inflicting fire criticals."
 
-- Casting puts a **Flame Blade** (a pack Scimitar: 1d6, Keen, Sweep) in the caster's inventory. No dialog: it is the only weapon the spell can make.
+- Casting puts a **Scimitar** (the pack's: 1d6, Keen, Sweep) in the caster's inventory, marked as conjured by the spell. The spell doesn't ask which weapon, because a Scimitar is the only one it can make. (Corrected after the live test: the item keeps the name Scimitar, as Eldritch Weapon's blade keeps its weapon's name.)
 - It deals **fire**, so a critical rolls on the fire table.
 - Its attack card shows one row, "Spellcraft N −2 in place of attack bonus M", in place of the caster's attack bonus and any Finesse or declared-ability swap. The multiple attack penalty, circumstance bonuses, conditions and the like still apply.
 - It goes when the spell's minute ends.

@@ -74,6 +74,11 @@ export function shouldOfferCustomisation(item, userId, {
   // NOR IS A CHARGED ITEM'S WEAPON FORM (3.616.0, R15): its quality and
   // runes are the staff's own, printed. See charged-weapon-forms.mjs.
   if (item?.flags?.[SYSTEM_ID]?.weaponFormOf) return false;
+  // NOR IS A WEAPON A SPELL CONJURED (3.698.3). Found live on 18 November
+  // 2026: casting Flame Blade opened "Customise Scimitar", offering quality,
+  // materials and runes for a blade that lasts a minute. Eldritch Weapon
+  // and Shadow Weapon did the same. The spell decides what it makes.
+  if (item?.flags?.[SYSTEM_ID]?.conjuredWeapon) return false;
   // A companion's natural attacks are weapons too, and nobody wants a
   // quality dialog for a wolf's bite.
   if (item?.system?.natural) return false;

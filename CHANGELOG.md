@@ -2,9 +2,17 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.698.3 — 18 November 2026: two faults found by the live Flame Blade cast
+
+Branch `audit/release-3.698.3`, from 3.698.2. Not on `main` yet.
+
+- **No Customise dialog for a conjured weapon.** Casting Flame Blade opened "Customise Scimitar", offering quality, materials and runes for a one-minute blade. Eldritch Weapon and Shadow Weapon did the same. `shouldOfferCustomisation` now skips any weapon a spell conjured.
+- **The cast card names a fire blade correctly.** It read "Scimitar of pure force — fire damage"; it now reads "Scimitar (Flame Blade) — fire damage". Force blades keep their wording.
+- **Harness:** `verify-audit-3698` / `mutate-audit-3698` now 46 checks / 35 mutations.
+
 ## 3.698.2 — 18 November 2026: the caster is always proficient with Flame Blade
 
-Branch `audit/release-3.698.2`, from 3.698.1. Not on `main` yet.
+Branch `audit/release-3.698.2`, from 3.698.1.
 
 - **Flame Blade (Graham: "Flame blade does not need martial proficiency. The caster is always proficient."):** the conjured blade carries a `casterProficient` mark, so there is no −4 for a caster without martial weapons. A Scimitar bought in a shop has no mark and is judged as before. Eldritch Weapon is unchanged.
 - **Pack and migration:** Flame Blade's row gains `casterProficient: true`. The owned-copy repair keeps one entry for the field: its `to` is the final row, and 3.698.1's row is listed as `alsoFrom`, so copies already updated in 3.698.1 are updated again. Migration re-gated to 3.698.2.
