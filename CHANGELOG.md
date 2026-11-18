@@ -2,6 +2,16 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.698.0 — 18 November 2026: Graham's rulings on the audit
+
+Branch `audit/release-3.698`, from 3.697.0. Not on `main`.
+
+- **Level drop:** levelled grants above the new level are taken back, with a notification (U1). This covers class abilities, feats and spells, an ability's spells and a school's specialist spells.
+- **Flame Blade:** no range, no targets (R3).
+- **Ability Enhancement:** once per four levels, enforced (R7).
+- **Migration:** re-gated to 3.698.0, for Flame Blade's owned copies.
+- **Harness:** `verify-audit-3698` / `mutate-audit-3698` (21 checks / 15 mutations).
+
 ## 3.697.0 — 17 November 2026: the core automation audit
 
 Branch `audit/fixes` → `audit/release-3.697`, from 3.696.3. **Not on `main`:** awaiting Graham's approval to merge and publish.

@@ -21,14 +21,14 @@ The forty-block audit (Sep–Oct 2026) recorded its own findings and rulings in 
 - **Fast Movement:** "by 15 **-feet**" (stray hyphen). The rule is clear.
 - **Amphibious, Fast Movement:** "familiars" is missing its apostrophe.
 
-### R2. Inner Focus: does the illusory focus count as a focus? — for your ruling
+### R2. Inner Focus: does the illusory focus count as a focus? — **ruled 18 Nov: as built**
 
 "You do not need to provide focus spell components and take no penalty for not using your Spell Focus item."
 
 - **Implemented:** no penalty and no bonus. The -2 and the +10 fumble are waived; the +1 Casting Focus bonus is **not** given, because no focus is held.
 - **Open:** Casting Focus also says a focus "can also be used in place of a somatic component". Whether the illusory focus does that is not stated. 3.697.0 does not let it stand in for a somatic component.
 
-### R3. Flame Blade: range and targets contradict the effect — for your ruling
+### R3. Flame Blade: range and targets contradict the effect — **ruled 18 Nov: no range, no targets** (3.698.0); damage type still open (U12)
 
 The stat block reads "Range 30 feet; Targets 1 creature", but the text describes a blade that "springs forth from your hand", wielded "as if it were a scimitar using your Spellcraft bonus at -2 for your AB and inflicting fire criticals."
 
@@ -51,7 +51,7 @@ The +5 ft reach applies to the arms. 3.697.0 raises the creature's reach. That i
 - **Not automated:** the core has no "inhaled" or "atmosphere" tag on hazards or poisons, so the toxic-atmosphere half is a card note.
 - **If wanted:** an "inhaled" trait on the relevant poisons would let the marker grant immunity to them.
 
-### R6. Losing levels is not defined
+### R6. Losing levels is not defined — **ruled 18 Nov: levelled grants above the new level are taken back** (3.698.0)
 
 Core 3.8 has no rule for a character losing a level. Nothing in it covers level drain, and nothing says what happens to class abilities when XP is reduced.
 
@@ -59,7 +59,7 @@ Core 3.8 has no rule for a character losing a level. Nothing in it covers level 
 - **What the system does:** nothing equivalent for class abilities and class feats.
 - **Decision U1:** see TRG_CORE_UNRESOLVED.md.
 
-### R7. Ability Enhancement: "never more than once every four levels"
+### R7. Ability Enhancement: "never more than once every four levels" — **ruled 18 Nov: one at 1–4, two at 5–8, and so on** (3.698.0)
 
 - **The rule** is a limit on how often the ability is *selected*, but the book does not say from which level the four-level window counts.
 - **3.697.0:** applies each copy's +1 and warns when there are several copies. It does not refuse a pick.

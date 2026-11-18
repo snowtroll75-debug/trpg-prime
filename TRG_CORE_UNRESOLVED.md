@@ -1,8 +1,25 @@
-# TRG Prime Core — Unresolved (3.697.0)
+# TRG Prime Core — Unresolved (3.697.0, updated for 3.698.0)
 
 17 November 2026. Everything this audit found and did **not** close, grouped by what it is waiting on: a ruling, a core change, or something only you can do.
 
-## Waiting on your ruling
+## Ruled by Graham on 18 November 2026, built in 3.698.0
+
+- **U1, level drop: option 1.** Levelled grants above the new level are taken back, with a notification. That covers class abilities, feats and spells, an ability's spells, and a school's specialist spells. The divine aspect keeps R7's own pass.
+- **U2, Flame Blade: no range and no targets.** Range and targets cleared. Still open: the conjured blade's damage type (U12).
+- **U3, Inner Focus: confirmed as built.** No penalty, no bonus, no somatic stand-in.
+- **U4, Ability Enhancement: once per four levels.** One pick at levels 1–4, two at 5–8, and so on. Read from the familiar's mirrored level, and a pick beyond the allowance is refused.
+
+### U12. Flame Blade's blade (follow-up to U2)
+
+**The plan:** with no range or targets, Flame Blade can become a conjured scimitar in the caster's hand, attacking with Spellcraft −2.
+
+**What it needs:**
+- your answer on the damage: **fire**, or slashing with fire criticals;
+- a core rail for "attack with Spellcraft −2", which does not exist yet.
+
+**Until then** the spell casts and lasts its minute, and the blade is played from the card.
+
+## The rulings as they were asked (kept for the record)
 
 ### U1. A level drop keeps class abilities from above the new level
 
