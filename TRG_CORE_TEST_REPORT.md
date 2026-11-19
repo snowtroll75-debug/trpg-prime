@@ -181,3 +181,31 @@ After installation in the Test world:
 - an Ooze against disease and precision;
 - Ghost on a Ghoul (one Darkvision);
 - the migration offered once, repairing owned Eternal and Ooze copies.
+
+## 11. 3.700.0 (Skirmish, 19 November 2026)
+
+| Test | Result |
+|---|---|
+| `verify-skirmish-3700` / `mutate-skirmish-3700` (new) | 33 checks green; 15 of 15 mutations caught |
+| `verify-agile-display` / `mutate-agile-display` | 60 checks green; 93 of 93 mutations caught |
+| `verify-session-faults-1014` | 27 checks green |
+| Full regression suite, core | **760 of 760 run pass**. `mutate-checks-read-source` was carried forward from 3.699.0, see below |
+| Pillars of Faith 0.12.5 | 11 / 11 pass |
+| Inner Tempest (repository) | 19 pass, 2 blocked (`verify-block5` / `mutate-block5`, book text), `mutate-block8` failing on the module side. Same as every run since 3.697.0 |
+| Eldritch Arts 0.17.2 (from the release zip) | 55 pass, 1 blocked (`mutate-book-extract`), `mutate-block10b` failing on the module side (2 of 25). Same as every run since 3.697.0 |
+
+How the suite ran:
+- **One process, not sittings.** It used a sequential copy of `tools/regression-suite.mjs`'s loop: the same script order, the same environment (`TRG_PRIME_ROOT`, `TRG_PRIME_DUMP`) and the same locked-pack retry.
+  - **Why:** in sittings, the fingerprint kept resetting. Opening a pack compacts its LevelDB, and that deletes tracked `.ldb` files, which changes `git diff HEAD`. Worth excluding `*.ldb` churn from the fingerprint, or fingerprinting `packs-source` in its place.
+- **Carried forward:** `mutate-checks-read-source`. It is about seven runs of the 20-minute checker, and neither the checker nor its mutations changed in 3.700.0. `verify-checks-read-source` itself was re-run and passes.
+- **An early attempt was discarded.** Two suite processes overlapped, and two mutate files failed on the lock. Those results were thrown away, and the run above started clean.
+- **Version anchors:** 58 harness files bumped from 3.699.0 to 3.700.0. Migration gates and `TRG_SCHEMA_VERSION` were left alone, because there is no data change.
+
+### Live (owed)
+
+After installation in the Test world:
+- Skirmish in combat, Step first: drag 5 ft (no AP, no AoO), then press Strike.
+- Skirmish in combat, Strike first: press Strike, then drag.
+- Another action before the second half removes it. A second press is refused.
+- A ranged weapon offered in the chooser.
+- Out of combat.
