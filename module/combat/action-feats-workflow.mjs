@@ -18,7 +18,8 @@ import { hasQuickLoadTrait, needsReloading } from "./reload.mjs";
 import { spendActionCost } from "./action-points-workflow.mjs";
 import { activeToken, distanceBetween } from "./geometry.mjs";
 import { hitLocationFromUnitDie } from "./hit-location.mjs";
-import { chooseMeleeAttack, usableAttacks } from "./strike.mjs";
+import { chooseAnyAttack, chooseMeleeAttack, usableAttacks } from "./strike.mjs";
+import { bindOnce } from "../dice/check-card-interactions.mjs";
 import {
   ACTION_FEATS,
   SWIPE_MAX_TARGETS,
@@ -28,6 +29,8 @@ import {
   ladderOwed,
   mapPlanFor,
   nextResultAtLocation,
+  skirmishLeg,
+  skirmishStrikeAllowed,
   stridingCharge,
   sweepAppliesToAll,
   swipeOutcome
@@ -126,7 +129,7 @@ export function featStateFor(actor, featName) {
  *
  * @returns {Array} the checks, in order
  */
-export async function strikePlan(actor, weapon, featKey, { extraModifiers = [], targetsPerStrike = [] } = {}) {
+export async function strikePlan(actor, weapon, featKey, { extraModifiers = [], targetsPerStrike = [], keepsStep = false } = {}) {
   const entry = ACTION_FEATS[featKey];
   const plan = mapPlanFor(entry?.map);
   const { rollWeaponAttack } = await import("./attack-workflow.mjs");
@@ -154,6 +157,7 @@ export async function strikePlan(actor, weapon, featKey, { extraModifiers = [], 
     if (token) token.setTarget(true, { user: game.user, releaseOthers: true });
     checks.push(await rollWeaponAttack(actor, weapon, {
       apPaid: true,               // the feat already charged its own AP
+      keepsStep,                  // Skirmish: its own Step is the same action
       mapFrozen: plan.frozen,
       skipTargetPrompt: Boolean(token),
       extraModifiers: [
@@ -255,8 +259,12 @@ function meleeWeapon(actor) {
 /** The action feats whose Strike is made with a melee weapon. */
 const MELEE_WEAPON_FEATS = new Set([
   "combat grapple", "distracting strike", "quick draw", "reverse strike",
-  "skirmish", "striding charge", "swipe", "vital strike"
+  "striding charge", "swipe", "vital strike"
 ]);
+
+/** The action feats whose Strike may be melee or ranged (3.700.0). */
+const ANY_WEAPON_FEATS = new Set(Object.entries(ACTION_FEATS)
+  .filter(([, entry]) => entry.anyWeapon).map(([key]) => key));
 
 /* ------------------------------------------------------------------ */
 /* The eleven                                                          */
@@ -276,7 +284,8 @@ export async function runActionFeat(actor, item) {
     return null;
   }
   const entry = ACTION_FEATS[state.key];
-  const chosen = MELEE_WEAPON_FEATS.has(state.key) ? await chooseMeleeAttack(actor, entry.label) : undefined;
+  const chosen = MELEE_WEAPON_FEATS.has(state.key) ? await chooseMeleeAttack(actor, entry.label)
+    : ANY_WEAPON_FEATS.has(state.key) ? await chooseAnyAttack(actor, entry.label) : undefined;
   if (chosen === null) return null;
   if (entry.apCost !== "0") {
     await spendActionCost(actor, entry.apCost, entry.label, { traits: entry.traits });
@@ -365,13 +374,41 @@ const RUN = {
   },
 
   async skirmish(actor, item, entry, chosen = null) {
+    // THE STEP AND THE STRIKE, IN EITHER ORDER (3.700.0; see action-feats.mjs
+    // `skirmishLeg`). The 1 AP is already paid. Before, this rolled the
+    // Strike here and granted no Step at all.
     const weapon = chosen ?? meleeWeapon(actor);
-    const checks = await strikePlan(actor, weapon, "skirmish");
-    await card(actor, entry.label, [
-      refusedLine(checks),
-      line(`<strong>${esc(actor.name)}</strong> strikes and steps — both for <strong>1 AP</strong>.`),
-      line("<em>Take the Step in whichever order you like; move your token to match.</em>")
-    ]);
+    if (!weapon) {
+      ui.notifications.warn(`${entry.label}: you have no weapon to strike with.`);
+    }
+    const { stepDistance } = await import("./movement-workflow.mjs");
+    const stepFeet = stepDistance(actor);
+    const combat = game.combat?.started ? game.combat : null;
+    const apAtArm = Number(actor.system?.resources?.ap?.value ?? 0);
+    if (combat) {
+      const { armCompoundLeg } = await import("./compound-action-workflow.mjs");
+      await armCompoundLeg(actor, skirmishLeg(stepFeet, apAtArm), entry.label);
+    }
+    const button = weapon
+      ? `<p style="margin:6px 0 2px"><button type="button" data-action="skirmishStrike">Strike: ${esc(weapon.name)}</button></p>`
+      : "";
+    return ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor }),
+      content: `<div class="trg-prime trg-check-card"><h3 style="margin:0 0 4px 0">${esc(entry.label)}</h3>${[
+        line(`<strong>${esc(actor.name)}</strong> strikes and steps — both for <strong>1 AP</strong>, in either order.`),
+        line(combat
+          ? `<strong>Step:</strong> drag the token up to <strong>${stepFeet} ft</strong> — no AP, no reactions provoked.`
+          : `<strong>Step:</strong> up to ${stepFeet} ft — out of combat, move the token freely.`),
+        weapon ? line("<strong>Strike:</strong> target the creature and press the button — before or after the Step.") : "",
+        combat ? line("<em>Taking any other action first removes whichever half is left.</em>") : "",
+        button
+      ].filter(Boolean).join("")}</div>`,
+      flags: { [SYSTEM_ID]: { skirmish: {
+        actorUuid: actor.uuid, weaponId: weapon?.id ?? null, used: false,
+        combatId: combat?.id ?? null, round: Number(combat?.round ?? 0), turn: Number(combat?.turn ?? 0),
+        apAtArm
+      } } }
+    });
   },
 
   async "striding charge"(actor, item, entry, chosen = null) {
@@ -494,4 +531,47 @@ export async function runKnifeFlurry(actor) {
   // means it is one of your attacks, so it advances the ladder too.
   await setAttackCount(actor, attackCountOf(actor) + 1);
   return true;
+}
+
+/* ------------------------------------------------------------------ */
+/* Skirmish's Strike button                                            */
+/* ------------------------------------------------------------------ */
+
+/** The card's Strike pressed: the feat's Strike, keeping its own Step. */
+async function pressSkirmishStrike(message) {
+  const raw = message.getFlag(SYSTEM_ID, "skirmish");
+  const combat = game.combat?.started ? game.combat : null;
+  const actorDoc = raw ? await fromUuid(raw.actorUuid).catch(() => null) : null;
+  const actor = actorDoc?.actor ?? actorDoc;
+  const allowed = skirmishStrikeAllowed(raw, {
+    combatId: combat?.id ?? null, round: Number(combat?.round ?? 0), turn: Number(combat?.turn ?? 0),
+    ap: Number(actor?.system?.resources?.ap?.value ?? 0)
+  });
+  if (!allowed.ok) { ui.notifications.warn(`Skirmish: ${allowed.reason}.`); return null; }
+  const weapon = actor?.items?.get?.(raw.weaponId);
+  if (!actor || !weapon) { ui.notifications.warn("Skirmish: that creature or weapon is no longer there."); return null; }
+  const checks = await strikePlan(actor, weapon, "skirmish", { keepsStep: true });
+  // A STRIKE THE WORKFLOW REFUSED (no reach, no target, no ammunition)
+  // was not made, so the button stays live for another go.
+  if (checks.resolved > 0) await message.setFlag(SYSTEM_ID, "skirmish", { ...raw, used: true });
+  else if (checks.refused) await card(actor, "Skirmish", [refusedLine(checks)]);
+  return checks;
+}
+
+export function registerSkirmishHooks() {
+  Hooks.on("renderChatMessageHTML", (message, html) => {
+    const raw = message.getFlag?.(SYSTEM_ID, "skirmish");
+    if (!raw) return;
+    for (const button of html.querySelectorAll?.('[data-action="skirmishStrike"]') ?? []) {
+      if (raw.used) { button.disabled = true; button.textContent = `✓ ${button.textContent.replace(/^✓ /, "")}`; continue; }
+      bindOnce(button, "click", async (event) => {
+        event.preventDefault();
+        button.disabled = true;
+        try {
+          const checks = await pressSkirmishStrike(message);
+          if (!checks?.resolved) button.disabled = false;
+        } catch (err) { button.disabled = false; throw err; }
+      });
+    }
+  });
 }

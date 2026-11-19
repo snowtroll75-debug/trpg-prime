@@ -226,6 +226,9 @@ export const ACTION_FEATS = Object.freeze({
     traits: "Flourish, Ranger, Rogue",
     map: MAP_RULES.single,
     requires: [],
+    // ANY STRIKE (3.700.0): the page says "a Strike action", not a melee
+    // one, and the feat is a Ranger's as much as a Rogue's.
+    anyWeapon: true,
     summary: "Strike and Step together for 1 AP, in either order."
   },
   "striding charge": {
@@ -408,6 +411,63 @@ export function stridingCharge(blockers = []) {
     return { passed, stoppedBy: { name: blocker?.name ?? "a creature", dc: Number(blocker?.dc ?? 0) }, reached: false };
   }
   return { passed, stoppedBy: null, reached: true };
+}
+
+/* ------------------------------------------------------------------ */
+/* Skirmish: the Strike and the Step as one action                     */
+/* ------------------------------------------------------------------ */
+
+/*
+ * SKIRMISH (3.700.0). The book: "Action 1 AP. You may take a Strike action
+ * and Step action together for 1 AP. It matters not, which order you carry
+ * the actions out in."
+ *
+ * Graham, 19 November 2026: "Skirmish is not working." It charged its 1 AP
+ * and rolled the Strike at once, and granted no Step: the card told the
+ * player to move the token, and the drag that followed was charged as a
+ * Step of its own. Nor could the Step come first, since the Strike was
+ * rolled before the player could move.
+ *
+ * NOW: the 1 AP pays for both. The Step is armed as a free compound leg (no
+ * AP, no reactions, counts as a Step), and the Strike waits on a button on
+ * the card. Step then press, or press then Step: either order. Pressing the
+ * Strike never removes the Step (`keepsStep`); any OTHER action does, as
+ * Agile Display's Step goes (`nextAction`), because the two are one action.
+ */
+
+/** The free Step, as a compound leg. `apAtArm`: the pool after the 1 AP. */
+export function skirmishLeg(stepFeet, apAtArm = null) {
+  const maxFeet = Math.max(0, Math.trunc(Number(stepFeet) || 0)) || 5;
+  return {
+    speedKey: "land", maxFeet, provokes: false, countsAs: "step",
+    note: "Skirmish's Step", nextAction: true, skirmish: true,
+    ...(apAtArm === null || apAtArm === undefined ? {} : { apAtArm: Number(apAtArm) })
+  };
+}
+
+/**
+ * WHETHER THE CARD'S STRIKE MAY STILL BE MADE.
+ *
+ * @param {object} record the card's flag: { used, combatId, round, turn, apAtArm }
+ * @param {object} now { combatId, round, turn, ap } — `combatId` null out of combat
+ * @returns {{ok: boolean, reason?: string}}
+ */
+export function skirmishStrikeAllowed(record, now = {}) {
+  if (!record) return { ok: false, reason: "this card is not a Skirmish" };
+  if (record.used) return { ok: false, reason: "its Strike has already been made" };
+  if (record.combatId) {
+    if (String(now.combatId ?? "") !== String(record.combatId)
+      || Number(now.round) !== Number(record.round) || Number(now.turn) !== Number(record.turn)) {
+      return { ok: false, reason: "the Strike had to be made on the same turn as its Step" };
+    }
+    // ANOTHER ACTION TAKEN SINCE (it spent AP): Skirmish is one action, so
+    // its Strike cannot be saved for after something else.
+    const at = Number(record.apAtArm);
+    if (Number.isFinite(at) && Number(now.ap) < at) {
+      return { ok: false, reason: "another action has been taken since — the Strike had to go with the Step" };
+    }
+  }
+  return { ok: true };
 }
 
 /* ------------------------------------------------------------------ */

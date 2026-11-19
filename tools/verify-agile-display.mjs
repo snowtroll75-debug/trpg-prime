@@ -259,7 +259,7 @@ const use = fw.FEAT_AUTOMATION["agile display"].use;
     /await clearAimIfOtherAction\(actor, action\.key\);\n\n\s*\/\/ An armed movement action survives[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*if \(!isArmableMovement\(action\.key\) && !nextActionLegArmed\(actor\)\) \{\n\s*await clearArmedMovement\(actor\);/.test(src.aw)
     && !/^\s*await lapseNextActionLeg\(actor\);$/m.test(src.aw));
   ok("N8 a Strike lapses it after Aim is cleared, a reaction's excepted", /await clearAimIfOtherAction\(actor, "strike"\);\n(?:\s*\/\/[^\n]*\n)*\s*await strikeTaken\(\);/.test(src.attack)
-    && /const strikeTaken = async \(\) => \{\n\s*const \{ lapseNextActionLeg \} = await import\("\.\/movement-workflow\.mjs"\);\n\s*const \{ strikeSpendsReaction \} = await import\("\.\/agile-display\.mjs"\);\n\s*await lapseNextActionLeg\(actor, \{ reaction: strikeSpendsReaction\(\{ isReaction, readied, asReaction \}\) \}\);/.test(src.attack));
+    && /const strikeTaken = async \(\) => \{\n\s*if \(keepsStep\) return;\n\s*const \{ lapseNextActionLeg \} = await import\("\.\/movement-workflow\.mjs"\);\n\s*const \{ strikeSpendsReaction \} = await import\("\.\/agile-display\.mjs"\);\n\s*await lapseNextActionLeg\(actor, \{ reaction: strikeSpendsReaction\(\{ isReaction, readied, asReaction \}\) \}\);/.test(src.attack));
   ok("N9 the AP write hook is registered with the movement hooks", /Hooks\.on\("preMoveToken", onPreMoveToken\);\n(?:\s*\/\/[^\n]*\n)*\s*Hooks\.on\("updateActor", onApWriteLapse\);/.test(src.mw));
   ok("N10 the Use lapses an earlier leg before its own AP write", /await lapseNextActionLeg\(actor\);\n\s*await actor\.update\(\{ "system\.resources\.ap\.value"/.test(agileSrc));
 }

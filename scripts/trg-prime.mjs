@@ -160,6 +160,7 @@ import { registerCodexInheritance } from "../module/codex-inheritance-workflow.m
 import { registerBreathHooks } from "../module/breath-memory-workflow.mjs";
 import { registerCodexActionHooks } from "../module/codex-actions-workflow.mjs";
 import { registerCompoundHooks } from "../module/combat/compound-action-workflow.mjs";
+import { registerSkirmishHooks } from "../module/combat/action-feats-workflow.mjs";
 import { registerReactiveDisarmHooks } from "../module/combat/reactive-disarm-workflow.mjs";
 import { registerCreatureReactionHooks } from "../module/creature-reactions-workflow.mjs";
 import { registerCodexHooks } from "../module/codex-hooks-workflow.mjs";
@@ -346,6 +347,8 @@ Hooks.once("init", () => {
   // the strike buttons on a compound action's card.
   registerCodexActionHooks();
   registerCompoundHooks();
+  // SKIRMISH'S STRIKE BUTTON (3.700.0).
+  registerSkirmishHooks();
   registerReactiveDisarmHooks();
   registerCreatureReactionHooks();
   registerCodexHooks();

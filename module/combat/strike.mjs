@@ -151,3 +151,44 @@ export async function chooseMeleeAttack(actor, label) {
   if (picked === null || picked === undefined || picked === "cancel") return null;
   return ordered[Number(picked)] ?? null;
 }
+
+/**
+ * WHICH ATTACK A STRIKE THAT MAY BE MELEE OR RANGED IS MADE WITH (3.700.0;
+ * Skirmish). The book: "You may take a Strike action and Step action
+ * together for 1 AP" — a Strike, not a melee Strike, so a Ranger's bow
+ * qualifies. Asked as `chooseMeleeAttack` asks: only when two or more
+ * attacks are ready, held weapons before natural ones, melee before ranged,
+ * and before any AP is spent.
+ *
+ * @returns {Promise<Item|null|undefined>} the weapon; null when cancelled;
+ *   undefined when there is nothing to choose between.
+ */
+export async function chooseAnyAttack(actor, label) {
+  const ready = usableAttacks(Array.from(actor?.items ?? []));
+  if (ready.length < 2) return undefined;
+  const isMelee = (w) => (w.system?.attackMode ?? "melee") === "melee";
+  const ordered = [
+    ...ready.filter((w) => !w.system?.natural && isMelee(w)),
+    ...ready.filter((w) => !w.system?.natural && !isMelee(w)),
+    ...ready.filter((w) => w.system?.natural)
+  ];
+  const { DialogV2 } = foundry.applications.api;
+  const rows = ordered.map((w, index) =>
+    `<label style="display:flex;align-items:center;gap:8px;padding:2px 0"><input type="radio" name="attack" value="${index}" ${index === 0 ? "checked" : ""}><span>${w.name}${w.system?.damage ? ` (${w.system.damage})` : ""}${isMelee(w) ? "" : " — ranged"}</span></label>`).join("");
+  const picked = await DialogV2.wait({
+    window: { title: `${label} — Which Weapon?`, icon: "fa-solid fa-hand-fist" },
+    classes: ["trg-prime"],
+    position: { width: 360 },
+    content: `<div class="trg-prime trg-check-dialog">${rows}</div>`,
+    buttons: [
+      { action: "confirm", label: "Use", default: true, callback: (event, button) => {
+        const FDE = foundry.applications?.ux?.FormDataExtended ?? globalThis.FormDataExtended;
+        return new FDE(button.form ?? button.closest?.("form")).object.attack;
+      } },
+      { action: "cancel", label: "Cancel" }
+    ],
+    rejectClose: false
+  });
+  if (picked === null || picked === undefined || picked === "cancel") return null;
+  return ordered[Number(picked)] ?? null;
+}

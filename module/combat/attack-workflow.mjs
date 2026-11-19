@@ -728,6 +728,13 @@ export async function rollWeaponAttack(actor, weapon, {
   // automatically misses"). See combat/double-slice-workflow.mjs.
   noCritical = false,
   beforeDamage = null,
+  // SKIRMISH'S OWN STEP (3.700.0; Graham, 19 November 2026: "Skirmish is
+  // not working"). "You may take a Strike action and Step action together
+  // for 1 AP. It matters not, which order you carry the actions out in."
+  // The Strike made from Skirmish's card is the same action as its Step, so
+  // it must not remove that Step as "another action" would. See
+  // action-feats-workflow.mjs `RUN.skirmish`.
+  keepsStep = false,
   // A READIED STRIKE (3.668.1): made through Ready, for Inner Tempest's
   // Brace trait. See combat/weapon-chapter6-traits.mjs.
   readied = false,
@@ -1357,6 +1364,7 @@ export async function rollWeaponAttack(actor, weapon, {
   // reaction's (3.684.6). After the roll below, and where a Strike made ends
   // early (the target's miss-chance flat check).
   const strikeTaken = async () => {
+    if (keepsStep) return;
     const { lapseNextActionLeg } = await import("./movement-workflow.mjs");
     const { strikeSpendsReaction } = await import("./agile-display.mjs");
     await lapseNextActionLeg(actor, { reaction: strikeSpendsReaction({ isReaction, readied, asReaction }) });

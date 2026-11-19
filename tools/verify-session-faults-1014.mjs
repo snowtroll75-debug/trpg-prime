@@ -66,8 +66,9 @@ ok("F5b the two-handed Hand & a Half grip rolls the stepped die", /const handAnd
 
 // F6
 ok("F6a the chooser asks only when two melee attacks are ready, held weapons first", /if \(melee\.length < 2\) return undefined;/.test(src.strike) && /\[\.\.\.melee\.filter\(\(w\) => !w\.system\?\.natural\), \.\.\.melee\.filter\(\(w\) => w\.system\?\.natural\)\]/.test(src.strike));
-ok("F6b a feat asks before its AP is spent, and a cancel costs nothing", /const chosen = MELEE_WEAPON_FEATS\.has\(state\.key\) \? await chooseMeleeAttack\(actor, entry\.label\) : undefined;\n  if \(chosen === null\) return null;\n  if \(entry\.apCost !== "0"\)/.test(src.af));
-ok("F6c Swipe is one of them, and every handler uses the choice", /"skirmish", "striding charge", "swipe", "vital strike"/.test(src.af) && !/const weapon = meleeWeapon\(actor\);/.test(src.af));
+ok("F6b a feat asks before its AP is spent, and a cancel costs nothing", /const chosen = MELEE_WEAPON_FEATS\.has\(state\.key\) \? await chooseMeleeAttack\(actor, entry\.label\)\n    : ANY_WEAPON_FEATS\.has\(state\.key\) \? await chooseAnyAttack\(actor, entry\.label\) : undefined;\n  if \(chosen === null\) return null;\n  if \(entry\.apCost !== "0"\)/.test(src.af));
+// 3.700.0: Skirmish left the melee-only list for the any-weapon chooser (verify-skirmish-3700 C).
+ok("F6c Swipe is one of them, and every handler uses the choice", /"striding charge", "swipe", "vital strike"/.test(src.af) && !/const weapon = meleeWeapon\(actor\);/.test(src.af));
 ok("F6d an AoO and a reaction strike ask too", /const picked = await chooseMeleeAttack\(reactor, "Attack of Opportunity"\);/.test(src.opp) && /const picked = await chooseMeleeAttack\(reactor, label\);/.test(src.rf));
 
 // F7
