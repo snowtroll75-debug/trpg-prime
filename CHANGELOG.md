@@ -2,6 +2,13 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.700.0 — 19 November 2026: Skirmish
+
+Branch `release/3.700.0`, from 3.699.0. Full notes in `release-notes-3.700.0.md`.
+
+- **Skirmish** now grants its free Step. The 1 AP arms a Step with no AP and no reactions, and posts the Strike as a button on the card, so the two can come in either order. The card's Strike keeps the Step; any other action removes whatever half is left. Any Strike, melee or ranged.
+- **Harness:** `verify-skirmish-3700` (33 checks) / `mutate-skirmish-3700` (15 mutations).
+
 ## 3.699.0 — 18 November 2026: rulings from the joint Codex / Fiends & Fables audit
 
 Branch `release/3.699.0`, from 3.698.4. Full notes in `release-notes-3.699.0.md`.
