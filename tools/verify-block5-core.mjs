@@ -137,7 +137,7 @@ const mod = (...p) => import(new URL(`../module/${p.join("/")}`, import.meta.url
 /* G — C7 */
 {
   const acw = read("module", "combat", "action-workflow.mjs");
-  ok("G1 the action takes the four options", /presetDice = null, dcOverride = null, dcLabel = "", ignoreActionImmunity = false,?\n(?:\s*\/\/[^\n]*\n)*(?:\s*presetConvictionDie = 0,?\n)?(?:\s*\/\/[^\n]*\n)*(?:\s*presetModifiers = null,?\n)?(?:\s*\/\/[^\n]*\n)*(?:\s*presetDispel = null\n)?\} = \{\}\) \{/.test(acw));
+  ok("G1 the action takes the four options", /presetDice = null, dcOverride = null, dcLabel = "", ignoreActionImmunity = false,?\n(?:\s*\/\/[^\n]*\n)*(?:\s*presetConvictionDie = 0,?\n)?(?:\s*\/\/[^\n]*\n)*(?:\s*presetModifiers = null,?\n)?(?:\s*\/\/[^\n]*\n)*(?:\s*presetDispel = null,?\n)?(?:\s*\/\/[^\n]*\n)*(?:\s*reachExempt = false\n)?\} = \{\}\) \{/.test(acw));
   ok("G2 the DC named replaces the action's", /if \(dcOverride !== null && dcOverride !== undefined && Number\.isFinite\(Number\(dcOverride\)\)\) \{\n\s*finalDC = Number\(dcOverride\);/.test(acw));
   ok("G3 the first roll's die is met again", /\.\.\.\(presetDice \? \{ presetDice(?:, presetConvictionDie)? \} : \{\}\),/.test(acw));
   ok("G4 the action's own immunity is neither asked nor stamped", /if \(targetActor && ACTION_IMMUNITIES\[action\.key\] && !ignoreActionImmunity\) \{/.test(acw) && /if \(targetActor && rawDegree && ACTION_IMMUNITIES\[action\.key\] && !ignoreActionImmunity\) \{/.test(acw)

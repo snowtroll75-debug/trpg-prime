@@ -36,7 +36,8 @@ import {
   swipeOutcome,
   lungeWeapons,
   lungingStanceActive,
-  lungeStrikeTerms
+  lungeStrikeTerms,
+  lungeActionOptions
 } from "./action-feats.mjs";
 
 const SYSTEM_ID = "trg-prime";
@@ -303,11 +304,12 @@ export async function runActionFeat(actor, item) {
     const run = RUN[state.key];
     return run ? run(actor, item, entry, drawn) : null;
   }
-  // LUNGE'S WEAPON (3.704.0): a wielded melee weapon without Reach, asked
-  // before anything is spent. See `chooseLungeWeapon`. THE STRIKE PAYS
-  // (`strikePays`, Lunge): its AP is charged by the attack workflow.
-  const chosen = entry.lunge ? await chooseLungeWeapon(actor, entry.label)
-    : MELEE_WEAPON_FEATS.has(state.key) ? await chooseMeleeAttack(actor, entry.label)
+  // LUNGE (3.704.0; 3.705.0 with any attack action): its own question —
+  // which action — then that action, run as itself. See `runLunge`.
+  if (entry.lunge) return runLunge(actor, item, entry);
+  // THE STRIKE PAYS (`strikePays`, 3.704.0): its AP is charged by the attack
+  // workflow, not here.
+  const chosen = MELEE_WEAPON_FEATS.has(state.key) ? await chooseMeleeAttack(actor, entry.label)
     : ANY_WEAPON_FEATS.has(state.key) ? await chooseAnyAttack(actor, entry.label) : undefined;
   if (chosen === null) return null;
   if (entry.apCost !== "0" && !entry.strikePays) {
@@ -315,6 +317,65 @@ export async function runActionFeat(actor, item) {
   }
   const run = RUN[state.key];
   return run ? run(actor, item, entry, chosen ?? null) : null;
+}
+
+/**
+ * LUNGE WITH AN ACTION (3.705.0). Graham, 20 November 2026: "Using your melee
+ * weapon, you may take an action with the attack trait" means any of them.
+ *
+ * Asked first, before anything is spent: which action (Strike, the basic
+ * attack actions, the action feats this character has; `lungeActionOptions`).
+ *   Strike          the 3.704.0 path: the weapon, then the Strike with Reach.
+ *   anything else   run as itself — its own AP, gates, checks and card —
+ *                   while the Lunge is in scope (lunge-scope.mjs): its reach
+ *                   is 5 ft further, its check takes Lunge's -1 (none in
+ *                   Lunging Stance), and never the Reach -2.
+ * A short Lunge card follows an action that happened.
+ */
+async function runLunge(actor, item, entry) {
+  const featNames = Array.from(actor?.items ?? []).filter((i) => i.type === "feat").map((i) => i.name);
+  const options = lungeActionOptions({ featNames });
+  const pick = await chooseFrom(`${entry.label} — Which Action?`, "Lunge with:",
+    options.map((o) => [`${o.kind}:${o.key}`, o.label]));
+  if (!pick) return null;
+  const [kind, key] = pick.split(":");
+  if (kind === "strike") {
+    const chosen = await chooseLungeWeapon(actor, entry.label);
+    if (chosen === null) return null;
+    return RUN.lunge(actor, item, entry, chosen ?? null);
+  }
+  const lungingStance = lungingStanceActive(Array.from(actor.appliedEffects ?? actor.effects ?? []).map((e) => ({
+    name: e.name, disabled: e.disabled, flags: e.flags
+  })));
+  const terms = lungeStrikeTerms({ lungingStance });
+  const { withLunge } = await import("./lunge-scope.mjs");
+  let result = null;
+  let label = key;
+  if (kind === "basic") {
+    const { BASIC_ACTIONS } = await import("../data/basic-actions.mjs");
+    const action = BASIC_ACTIONS.find((a) => a.key === key);
+    if (!action) return null;
+    label = action.name;
+    const { resolveAction } = await import("./action-workflow.mjs");
+    const { actionNeedsSkillChoice } = await import("./action.mjs");
+    // AS THE SHEET'S ACTION BUTTON STARTS IT (actor-sheet `useStaticAction`).
+    result = await withLunge(actor, terms, () => resolveAction(actor, action, {
+      invokedSkillKey: actionNeedsSkillChoice(action) ? null : (action.skills?.[0] ?? null)
+    }));
+  } else if (kind === "feat") {
+    const feat = Array.from(actor.items ?? []).find((i) => i.type === "feat" && String(i.name).trim().toLowerCase() === key);
+    if (!feat) return null;
+    label = feat.name;
+    result = await withLunge(actor, terms, () => runActionFeat(actor, feat));
+  }
+  if (result === null || result === undefined) return result;
+  await card(actor, entry.label, [
+    line(`<strong>${esc(actor.name)}</strong> lunges: <strong>${esc(label)}</strong> reaches 5 ft further.`),
+    lungingStance
+      ? line("<em>Lunging Stance: Lunge's -1 is negated — no penalty.</em>")
+      : line("<em>-1 circumstance on its attack, and no other penalty (the Reach trait's -2 does not apply to a Lunge).</em>")
+  ]);
+  return result;
 }
 
 /**

@@ -87,7 +87,8 @@ const WORLD_SCHEMA_SETTING = "worldSchemaVersion";
 // 3.704.0: the declared-effect pass re-gated for the Lunge and Lunging
 // Stance notes. The stamp equals the newest pass, as above.
 // 3.704.1: re-gated for the same notes, Lunge's -1 alone.
-export const TRG_SCHEMA_VERSION = "3.704.1";
+// 3.705.0: and again for the Lunge note, any attack action.
+export const TRG_SCHEMA_VERSION = "3.705.0";
 
 /**
  * Register the hidden world setting used to determine whether a migration is
@@ -856,7 +857,8 @@ export async function migrateWorldData(fromVersion = "") {
   // RE-VERSIONED TO 3.701.0: the Storgar heritage's rooting note, now rolled by the cast.
   // RE-VERSIONED TO 3.704.0: the Lunge and Lunging Stance notes (Lunge automated).
   // RE-VERSIONED TO 3.704.1: the same notes again, the -1 alone (Graham's ruling).
-  const effectRepairs = (await runIf("3.704.1", "declared effect repairs on owned items (Undead disease; Ooze disease and precision; the Storgar note; the Lunge and Lunging Stance notes)",
+  // RE-VERSIONED TO 3.705.0: the Lunge note again, any attack action.
+  const effectRepairs = (await runIf("3.705.0", "declared effect repairs on owned items (Undead disease; Ooze disease and precision; the Storgar note; the Lunge and Lunging Stance notes)",
     () => migrateOwnedEffectRepairs(actors, tokenActors, Array.from(game.items ?? [])))) ?? [];
   result.effectRepairs = effectRepairs;
 

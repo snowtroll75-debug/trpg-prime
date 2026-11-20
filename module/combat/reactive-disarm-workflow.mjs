@@ -53,6 +53,8 @@ async function pressReactiveDisarm(message) {
   await message.setFlag(SYSTEM_ID, "reactiveDisarm", { ...raw, used: true });
   await defender.setFlag(SYSTEM_ID, "reactiveDisarmRound", raw.round);
   const { resolveAction } = await import("./action-workflow.mjs");
+  // DISARM USES REACH (3.705.0; Graham, 20 Nov 2026: "Yes disarm does use
+  // reach"): a fumbler beyond the defender's reach is refused, as any Disarm.
   return resolveAction(defender, action, {});
 }
 

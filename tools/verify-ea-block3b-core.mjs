@@ -367,7 +367,7 @@ ok("W21 the HP write ends a one-blow grant", order(between(src.dying, "export as
 ok("W22 actorDefences reads the grants into new sets", /const granted = grantedDefencesOf\(actorSystem\?\.parent \?\? null\);/.test(src.traits)
   && /const immunities = new Set\(\[\.\.\.\(immune\.damageTypes \?\? \[\]\), \.\.\.granted\.immunities, \.\.\.\(granted\.immuneAll \? \[ALL_DAMAGE\] : \[\]\)\]\);/.test(src.traits));
 ok("W23 the pipeline knows immunity to all damage", /const allImmune = has\(immunities, ALL_DAMAGE\);\s*if \(has\(immunities, type\) \|\| allImmune \|\|/.test(src.pipeline));
-ok("W24 a Dispel aimed at a spell being cast opens the Dispel dialog on its PP and DC", /presetDispel = null\s*\} = \{\}\) \{/.test(src.action)
+ok("W24 a Dispel aimed at a spell being cast opens the Dispel dialog on its PP and DC", /presetDispel = null,?\s*(?:\/\/[^\n]*\n\s*)*(?:reachExempt = false\s*)?\} = \{\}\) \{/.test(src.action)
   && /presetDispel\s*\? \{ level: Math\.max\(0, Math\.trunc\(Number\(presetDispel\.effectValue\) \|\| 0\)\), dc: Math\.max\(0, Math\.trunc\(Number\(presetDispel\.dc\) \|\| 0\)\) \}\s*: perilDispelDefaults\(firstTargetActor\(\)\) \?\? \{\}/.test(src.action));
 ok("W25 the API: the five registries and the helpers a reaction needs",
   ["registerCheckReaction: (key, spec, moduleId)", "registerDamageReaction: (key, offer, moduleId)", "registerCastReaction: (key, offer, moduleId)", "registerCriticalReaction: (key, offer, moduleId)", "registerReactionStep: (name, run, moduleId)",

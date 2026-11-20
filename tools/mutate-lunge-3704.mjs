@@ -17,8 +17,8 @@ const MIG = M("migration.mjs");
 const MUTATIONS = [
   { name: "A the grant never adds anything", file: AT, from: "  if (!added.length) return traits;\n  return line.trim()", to: "  return traits;\n  return line.trim()" },
   { name: "A a present trait added twice", file: AT, from: "    if (pattern.test(line) || added.some(", to: "    if (added.some(" },
-  { name: "C a natural attack can lunge", file: AF, from: "i.system?.equipped && !i.system?.natural\n", to: "i.system?.equipped\n" },
-  { name: "C a sheathed weapon can lunge", file: AF, from: "(i) => i?.type === \"weapon\" && i.system?.equipped && !i.system?.natural", to: "(i) => i?.type === \"weapon\" && !i.system?.natural" },
+  { name: "C a natural attack refused again (3.704.0's reading)", file: AF, from: "    .filter((i) => i?.type === \"weapon\" && i.system?.equipped\n", to: "    .filter((i) => i?.type === \"weapon\" && i.system?.equipped && !i.system?.natural\n" },
+  { name: "C a sheathed weapon can lunge", file: AF, from: "    .filter((i) => i?.type === \"weapon\" && i.system?.equipped\n", to: "    .filter((i) => i?.type === \"weapon\"\n" },
   { name: "C a Reach weapon is eligible", file: AF, from: "    eligible: wielded.filter((i) => !hasReach(i)),", to: "    eligible: wielded," },
   { name: "C a bow can lunge", file: AF, from: "      && (i.system?.attackMode ?? \"melee\") === \"melee\");\n  const hasReach", to: ");\n  const hasReach" },
   { name: "D the feat's note effect reads as the stance", file: AF, from: "    return Boolean(own.featStance) && normalise(e.name) === \"lunging stance\";", to: "    return normalise(e.name) === \"lunging stance\";" },
@@ -37,7 +37,7 @@ const MUTATIONS = [
   { name: "G the handler ignores the stance", file: AFW, from: "    const terms = lungeStrikeTerms({ lungingStance });", to: "    const terms = lungeStrikeTerms({});" },
   { name: "G Lunging Stance stamps no declaration", file: FW, from: "        flags: { lungePenaltiesNegated: true },\n", to: "" },
   { name: "H the owned Lunge note not repaired", file: PR, from: "    id: \"lunge-note\", itemType: \"feat\", name: \"Lunge\", effect: \"Lunge\",", to: "    id: \"lunge-note\", itemType: \"feat\", name: \"Lunge\", effect: \"Lunge note\"," },
-  { name: "H the migration not re-run", file: MIG, from: "const effectRepairs = (await runIf(\"3.704.1\", ", to: "const effectRepairs = (await runIf(\"3.704.0\", " },
+  { name: "H the migration not re-run", file: MIG, from: "const effectRepairs = (await runIf(\"3.705.0\", ", to: "const effectRepairs = (await runIf(\"3.704.1\", " },
   { name: "H a 3.704.0 owned copy not repaired", file: PR, from: "    id: \"lunge-note-3704-1\", itemType: \"feat\", name: \"Lunge\", effect: \"Lunge\",", to: "    id: \"lunge-note-3704-1\", itemType: \"feat\", name: \"Lunge\", effect: \"Lunge note\"," }
 ];
 

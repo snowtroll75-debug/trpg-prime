@@ -102,10 +102,11 @@ const MEDIUM_REACH = 5;
     { type: "feat", name: "Lunge", id: "f", system: { equipped: true } }
   ];
   const r = af.lungeWeapons(items);
-  equal("C1 held melee weapons without Reach are eligible (a Thrown dagger included)", r.eligible.map((i) => i.name), ["Longsword", "Dagger"]);
+  // 3.705.0 (Graham, 20 Nov 2026, reading L2: yes): natural attacks can Lunge.
+  equal("C1 held melee weapons without Reach are eligible (a Thrown dagger and the Unarmed Strike included)", r.eligible.map((i) => i.name), ["Longsword", "Dagger", "Unarmed Strike"]);
   equal("C2 a held Reach weapon is reported, not eligible", r.reachAlready.map((i) => i.name), ["Glaive"]);
   ok("C3 a sheathed weapon is not wielded", !r.eligible.some((i) => i.name.startsWith("Rapier")));
-  ok("C4 a natural attack (the Unarmed Strike) is not a wielded weapon", !r.eligible.some((i) => i.name === "Unarmed Strike"));
+  ok("C4 a natural attack (the Unarmed Strike) can Lunge (3.705.0)", r.eligible.some((i) => i.name === "Unarmed Strike"));
   ok("C5 a missile weapon is not a melee weapon", !r.eligible.some((i) => i.name === "Longbow"));
   equal("C6 no attack mode reads as melee", af.lungeWeapons([w("Club", { equipped: true, traits: "" })]).eligible.length, 1);
   equal("C7 nothing in hand: nothing", af.lungeWeapons([]), { eligible: [], reachAlready: [] });
@@ -166,9 +167,11 @@ const FW = read("module", "feats-workflow.mjs");
   ok("G5 strikePlan passes the grant, the waiver, and lets the Strike pay",
     /apPaid: !entry\?\.strikePays,/.test(AFW) && /\n\s+grantTraits,\s+\/\/ Lunge/.test(AFW) && /\n\s+waiveReachPenalty,\s+\/\/ Lunge: never the Reach trait's -2/.test(AFW)
     && /keepsStep = false, grantTraits = \[\], waiveReachPenalty = false \} = \{\}\) \{/.test(AFW));
-  ok("G6 runActionFeat asks Lunge's weapon before anything, and spends nothing itself",
-    /const chosen = entry\.lunge \? await chooseLungeWeapon\(actor, entry\.label\)/.test(AFW)
-    && /if \(entry\.apCost !== "0" && !entry\.strikePays\) \{/.test(AFW));
+  // 3.705.0: Lunge's own branch asks which action first; a Strike then asks its weapon.
+  ok("G6 runActionFeat hands Lunge to runLunge before anything, and spends nothing itself",
+    /if \(entry\.lunge\) return runLunge\(actor, item, entry\);/.test(AFW)
+    && /if \(entry\.apCost !== "0" && !entry\.strikePays\) \{/.test(AFW)
+    && /if \(kind === "strike"\) \{\n\s+const chosen = await chooseLungeWeapon\(actor, entry\.label\);/.test(AFW));
   const chooser = block(AFW, "async function chooseLungeWeapon(actor, label) {", "\n}\n");
   ok("G7 the chooser uses lungeWeapons and refuses a Reach-only hand with the reason",
     /lungeWeapons\(Array\.from\(actor\?\.items \?\? \[\]\)\)/.test(chooser) && /already \$\{[^}]+\} the Reach trait, so Lunge adds nothing/.test(chooser));
@@ -191,6 +194,8 @@ const FW = read("module", "feats-workflow.mjs");
   const sf = fixes.find((f) => f.id === "lunging-stance-note");
   const lf1 = fixes.find((f) => f.id === "lunge-note-3704-1");
   const sf1 = fixes.find((f) => f.id === "lunging-stance-note-3704-1");
+  // 3.705.0: Lunge's note again (any attack action). Its final text.
+  const lf2 = fixes.find((f) => f.id === "lunge-note-3705");
   ok("H1 the pack fixes are declared, and 3.704.1's continue from 3.704.0's",
     [lf, sf, lf1, sf1].every((f) => f?.op === "editEffect" && f?.pack === "feats") && lf1?.from === lf?.to && sf1?.from === sf?.to);
   ok("H1c the 3.704.0 rows are retired to their heirs, and the fix tool honours that for an effect edit",
@@ -201,16 +206,16 @@ const FW = read("module", "feats-workflow.mjs");
   const sr = pr.EFFECT_REPAIRS.find((r) => r.id === "lunging-stance-note");
   const lr1 = pr.EFFECT_REPAIRS.find((r) => r.id === "lunge-note-3704-1");
   const sr1 = pr.EFFECT_REPAIRS.find((r) => r.id === "lunging-stance-note-3704-1");
-  ok("H2 a 3.703.1 owned copy goes straight to the final note", lr?.from.description === lf?.from && lr?.to.description === lf1?.to
+  ok("H2 a 3.703.1 owned copy goes straight to the final note", lr?.from.description === lf?.from && lr?.to.description === lf2?.to
     && sr?.from.description === sf?.from && sr?.to.description === sf1?.to && lr?.itemType === "feat" && sr?.itemType === "feat");
-  ok("H2b a 3.704.0 owned copy goes to the final note", lr1?.from.description === lf1?.from && lr1?.to.description === lf1?.to
+  ok("H2b a 3.704.0 owned copy goes to the final note", lr1?.from.description === lf1?.from && lr1?.to.description === lf2?.to
     && sr1?.from.description === sf1?.from && sr1?.to.description === sf1?.to && lr1?.itemType === "feat" && sr1?.itemType === "feat");
-  equal("H3 a 3.703.1 owned Lunge note is repaired", pr.effectRepairUpdate(lr, { name: "Lunge", description: lf.from }), { description: lf1.to });
-  equal("H3b a 3.704.0 owned Lunge note is repaired", pr.effectRepairUpdate(lr1, { name: "Lunge", description: lf1.from }), { description: lf1.to });
+  equal("H3 a 3.703.1 owned Lunge note is repaired", pr.effectRepairUpdate(lr, { name: "Lunge", description: lf.from }), { description: lf2.to });
+  equal("H3b a 3.704.0 owned Lunge note is repaired", pr.effectRepairUpdate(lr1, { name: "Lunge", description: lf1.from }), { description: lf2.to });
   equal("H4 a GM's own edit is left alone", pr.effectRepairUpdate(lr, { name: "Lunge", description: "House rule." }), null);
-  equal("H5 a repaired copy is left alone (idempotent)", [pr.effectRepairUpdate(lr, { name: "Lunge", description: lf1.to }), pr.effectRepairUpdate(lr1, { name: "Lunge", description: lf1.to })], [null, null]);
+  equal("H5 a repaired copy is left alone (idempotent)", [pr.effectRepairUpdate(lr, { name: "Lunge", description: lf2.to }), pr.effectRepairUpdate(lr1, { name: "Lunge", description: lf2.to })], [null, null]);
   const MIG = read("module", "migration.mjs");
-  ok("H6 the owned-effect migration runs again at 3.704.1", /const effectRepairs = \(await runIf\("3\.704\.1", /.test(MIG));
+  ok("H6 the owned-effect migration runs again at 3.705.0", /const effectRepairs = \(await runIf\("3\.705\.0", /.test(MIG));
   // The compiled pack carries the new notes (read from a copy: never the live folder).
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "lunge-pack-"));
   fs.cpSync(path.join(SYSTEM_ROOT, "packs", "feats"), tmp, { recursive: true });
@@ -222,7 +227,7 @@ const FW = read("module", "feats-workflow.mjs");
   }
   await db.close();
   fs.rmSync(tmp, { recursive: true, force: true });
-  equal("H7 the pack's Lunge note is the final one", notes.Lunge, lf1.to);
+  equal("H7 the pack's Lunge note is the final one", notes.Lunge, lf2.to);
   equal("H8 the pack's Lunging Stance note is the final one", notes["Lunging Stance"], sf1.to);
 }
 

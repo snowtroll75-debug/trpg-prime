@@ -43,7 +43,7 @@ const MUTATIONS = [
   { name: "P an owned-copy repair dropped", file: PR, from: "    id: \"movement-trait-misty-step\", pack: \"spells\"", to: "    id: \"movement-trait-misty-step\", pack: \"spellsX\"" },
   { name: "N the Storgar note repair dropped", file: PR, from: "    id: \"movement-trait-storgar-rooted-note\", itemType: \"heritage\"", to: "    id: \"movement-trait-storgar-rooted-note\", itemType: \"heritageX\"" },
   { name: "G the pack-copy pass not re-gated", file: MG, from: "runIf(\"3.701.0\", \"stale owned copies of repaired pack items\"", to: "runIf(\"3.699.0\", \"stale owned copies of repaired pack items\"" },
-  { name: "G the effect pass not re-gated", file: MG, from: "runIf(\"3.704.1\", \"declared effect repairs on owned items", to: "runIf(\"3.699.0\", \"declared effect repairs on owned items" }
+  { name: "G the effect pass not re-gated", file: MG, from: "runIf(\"3.705.0\", \"declared effect repairs on owned items", to: "runIf(\"3.699.0\", \"declared effect repairs on owned items" }
 ];
 
 const verify = path.join(SYSTEM_ROOT, "tools", "verify-movement-trait-3700.mjs");

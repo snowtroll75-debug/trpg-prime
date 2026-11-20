@@ -2,6 +2,20 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.705.0 — 20 November 2026: reach for every attack action, and Lunge with any of them
+
+Branch `fix/feat-lunge`, from 3.704.1. Full notes in `release-notes-3.705.0.md`; repair log R-0003.
+
+- **Reach check (new; Graham: "Add reach check + Lunge"):** Trip, Shove, Disarm, Grapple, Shield Bash, Aid and Coup de Grace are refused, before any AP is spent, when the target is out of reach. They used to work at any distance.
+  - Trip, Shove and Disarm use a trait weapon's reach.
+  - A creature you already hold can always be Grappled.
+  - Coup de Grace needs adjacency.
+  - A reach weapon's −2 applies at the extended distance.
+  - Disarm uses reach as a reaction too ("Yes disarm does use reach"). Guardian Defence's Aid and Offensive Parry's Shove are exempt; Escape is not measured.
+- **Lunge** now asks which action: Strike, Double Slice, Charge, the manoeuvres, Shield Bash, Aid, Improvised Attack, or the action feats you have. It reaches 5 ft further at −1. Natural attacks can Lunge (rulings L2 and L3).
+- **Data and migration:** Lunge's note reworded; the migration and schema are at 3.705.0.
+- **Harness:** new `verify-lunge-actions-3705` (65) / `mutate-lunge-actions-3705` (26); 3.704 pair updated; five source anchors widened for the new `reachExempt` option and the Lunge scope.
+
 ## 3.704.1 — 20 November 2026: Lunge is −1 only
 
 Branch `fix/feat-lunge`, from 3.704.0. Full notes in `release-notes-3.704.1.md`; repair log R-0002.

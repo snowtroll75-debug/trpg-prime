@@ -2649,7 +2649,7 @@ export const EFFECT_REPAIRS = Object.freeze([
     id: "lunge-note", itemType: "feat", name: "Lunge", effect: "Lunge",
     since: "3.704.0",
     from: { description: "Your melee attack action gains the Reach trait for one Strike at -1 circumstance — queue the penalty via the Use button." },
-    to: { description: "Use: a Strike with your melee weapon that has the Reach trait (+5 ft) at a -1 circumstance penalty and no other, applied automatically. The Strike's own 1 AP." },
+    to: { description: "Use: choose an action with the Attack trait (Strike, Trip, Disarm, Shove, Grapple, Double Slice, Charge, Vital Strike …). It reaches 5 ft further at a -1 circumstance penalty and no other, applied automatically. The action's own AP." },
     reason: "Lunge's Use is now the Strike itself, with Reach and its -1 applied (3.704.0); "
       + "an owned Lunge's note still told the player to queue the penalty by hand."
   },
@@ -2668,7 +2668,7 @@ export const EFFECT_REPAIRS = Object.freeze([
     id: "lunge-note-3704-1", itemType: "feat", name: "Lunge", effect: "Lunge",
     since: "3.704.1",
     from: { description: "Use: a Strike with your melee weapon that has the Reach trait (+5 ft; the trait's -2 at the extra distance) and a -1 circumstance penalty, all applied automatically. The Strike's own 1 AP." },
-    to: { description: "Use: a Strike with your melee weapon that has the Reach trait (+5 ft) at a -1 circumstance penalty and no other, applied automatically. The Strike's own 1 AP." },
+    to: { description: "Use: choose an action with the Attack trait (Strike, Trip, Disarm, Shove, Grapple, Double Slice, Charge, Vital Strike …). It reaches 5 ft further at a -1 circumstance penalty and no other, applied automatically. The action's own AP." },
     reason: "A Lunge's only penalty is its -1; the 3.704.0 note also named the Reach trait's -2."
   },
   {
@@ -2677,6 +2677,16 @@ export const EFFECT_REPAIRS = Object.freeze([
     from: { description: "Enter via the Use button (1 AP; melee weapon): Attacks of Opportunity reach 5 ft further, and Lunge's penalties (its -1 and the Reach -2) are negated automatically while the stance is up." },
     to: { description: "Enter via the Use button (1 AP; melee weapon): Attacks of Opportunity reach 5 ft further, and Lunge's -1 is negated automatically while the stance is up." },
     reason: "Lunge has only its -1 for the stance to negate; the 3.704.0 note also named the Reach -2."
+  },
+  /* 3.705.0 — Lunge with any attack action (Graham, 20 Nov 2026). Every
+   * earlier Lunge note goes to this one: the rows above for 3.703.1's and
+   * 3.704.0's, this one for 3.704.1's. */
+  {
+    id: "lunge-note-3705", itemType: "feat", name: "Lunge", effect: "Lunge",
+    since: "3.705.0",
+    from: { description: "Use: a Strike with your melee weapon that has the Reach trait (+5 ft) at a -1 circumstance penalty and no other, applied automatically. The Strike's own 1 AP." },
+    to: { description: "Use: choose an action with the Attack trait (Strike, Trip, Disarm, Shove, Grapple, Double Slice, Charge, Vital Strike …). It reaches 5 ft further at a -1 circumstance penalty and no other, applied automatically. The action's own AP." },
+    reason: "Lunge's Use now offers any action with the attack trait; the 3.704.1 note said a Strike."
   }
 ]);
 

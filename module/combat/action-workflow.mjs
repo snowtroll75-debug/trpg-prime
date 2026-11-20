@@ -128,6 +128,8 @@ import { applyEscapeRoute } from "./escape.mjs";
 import { armCharge, chargeState } from "./charge-workflow.mjs";
 import { runDoubleSlice } from "./double-slice-workflow.mjs";
 import { activeToken } from "./geometry.mjs";
+import { ACTION_REACH, actionReachRefusal, actionReachVerdict, actionWeaponExtension } from "./action-reach.mjs";
+import { lungeScopeFor } from "./lunge-scope.mjs";
 import { promptEscapeRoute } from "./escape-workflow.mjs";
 import {
   actorDeliberateActionBlocked,
@@ -1508,7 +1510,12 @@ export async function resolveAction(actor, action, {
   // A DISPEL AIMED AT A SPELL BEING CAST (3.681.0; Eldritch Arts' Disrupting
   // Magic, Q23 and Q33): `{ effectValue, dc, what }`, the incoming spell's PP
   // and DC, opened in the Dispel dialog for the reactor to declare their PP.
-  presetDispel = null
+  presetDispel = null,
+  // A REACTION'S AID OR SHOVE (3.705.0): Guardian Defence's Aid and Offensive
+  // Parry's Shove answer the creature whose attack triggered them, which
+  // their own triggers place. A Disarm is not exempt, reaction or not
+  // (Graham, 20 November 2026: "Yes disarm does use reach").
+  reachExempt = false
 } = {}) {
   // Same fix as promptTrackQuarry above: two dialogs in this function used
   // DialogV2 without binding it.
@@ -2415,6 +2422,46 @@ export async function resolveAction(actor, action, {
     }
   }
 
+  // HOW FAR THE ACTION REACHES (3.705.0; Graham, 20 November 2026: "Add reach
+  // check + Lunge"). Trip, Disarm, Shove, Grapple, Shield Bash, Aid and Coup
+  // de Grace could be used on a creature any distance away. Refused here,
+  // before anything is spent, as a Strike out of reach is. A Lunge (made
+  // through Lunge's Use: lunge-scope.mjs) reaches 5 ft further and its -1
+  // goes on the check; a reach weapon's own -2 at the extended distance
+  // applies as it does to a Strike, never to a Lunge. See action-reach.mjs.
+  const actionReachRows = [];
+  if (ACTION_REACH[action.key] && !reachExempt) {
+    const lunging = ACTION_REACH[action.key].kind === "adjacent" ? null : lungeScopeFor(actor);
+    const targetToken = firstTargetToken();
+    const mine = activeToken(actor);
+    let positional = true;
+    try { positional = game.settings.get(SYSTEM_ID, "positionalAutomation") !== false; } catch { positional = true; }
+    if (positional && targetToken && mine && targetActor) {
+      const { distanceBetween } = await import("./geometry.mjs");
+      const distance = distanceBetween(mine, targetToken);
+      // A RIDER REACHES AS FAR AS THE PAIR DOES (page 200), as a Strike does.
+      const { mountedReach, mountedState } = await import("./mounted.mjs");
+      const rider = mountedState(actor);
+      const { resolveActorHandle } = await import("../actor-handle.mjs");
+      const steed = rider.mounted && rider.steed ? await resolveActorHandle(rider.steed) : null;
+      const ownReach = steed
+        ? mountedReach(Number(actor.system?.combat?.reach ?? 5), Number(steed.system?.combat?.reach ?? 5))
+        : Number(actor.system?.combat?.reach ?? 5);
+      const verdict = actionReachVerdict({
+        key: action.key, distance, ownReach,
+        weaponExtension: actionWeaponExtension(action.key, Array.from(actor.items ?? [])),
+        lunge: Boolean(lunging),
+        holdsTarget: targetActor.getFlag?.(SYSTEM_ID, "grabbedBy")?.uuid === actor.uuid
+      });
+      if (verdict && !verdict.allowed) {
+        ui.notifications.warn(actionReachRefusal(action.name, targetActor.name, distance, verdict));
+        return null;
+      }
+      if (verdict?.reachPenalty) actionReachRows.push({ label: `Reach (attacking at ${distance} ft)`, value: verdict.reachPenalty, type: "untyped" });
+    }
+    if (lunging) actionReachRows.push(...(lunging.extraModifiers ?? []));
+  }
+
   // Ambush and Sniping (Chapter 8 reactions): each fires only off a
   // critical you've just inflicted with the right kind of weapon — Ambush
   // an Agile one, Sniping a ranged one inside its first range increment.
@@ -2862,7 +2909,8 @@ export async function resolveAction(actor, action, {
           ui.notifications.warn("Charge: you cannot charge yourself.");
           return null;
         }
-        chargeStart = await armCharge(actor, chargerToken.document ?? chargerToken, targetToken.document ?? targetToken);
+        chargeStart = await armCharge(actor, chargerToken.document ?? chargerToken, targetToken.document ?? targetToken,
+          { lunge: lungeScopeFor(actor) });
       }
 
       // ARMING IT IS TAKING IT (3.684.6): the Step's leg goes, with its notice.
@@ -4062,6 +4110,9 @@ export async function resolveAction(actor, action, {
       ...sneakRows,
       ...misreadRows,
       ...(actionAttackTerms?.rows ?? []),
+      // REACH AND LUNGE (3.705.0): a reach weapon's -2 at the extended
+      // distance; Lunge's -1. See the reach check above.
+      ...actionReachRows,
       // THE WORD AFTERMATH ON AN ATTACK ACTION (3.622.0; block 39's A12):
       // "all further spell and attack checks made during your turn".
       ...((action.checkType === "attack" || action.checkType === "unarmed") && wordAftermathModifier(actor)

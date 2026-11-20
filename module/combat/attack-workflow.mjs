@@ -217,6 +217,7 @@ import { aidBonusAgainst, consumeAidBonus } from "./aid-bonus.mjs";
 import { alignedTraitsOf, creatureTypesOf } from "../aligned.mjs";
 import { OPPOSED_AURA_FLAG, opposedAuraAttackBonus } from "../magic/opposed-aura.mjs";
 import { actorHandle, resolveActorHandle } from "../actor-handle.mjs";
+import { lungeScopeFor } from "./lunge-scope.mjs";
 import { healsFromDamage } from "../creature-ability-rules.mjs";
 
 const { DialogV2 } = foundry.applications.api;
@@ -752,6 +753,18 @@ export async function rollWeaponAttack(actor, weapon, {
   // second roll, so a fumble there is not offered again.
   fumbleRerolled = false
 } = {}) {
+  // A LUNGE WITH ANOTHER ATTACK ACTION (3.705.0; Graham: Lunge works with any
+  // action with the attack trait). While that action runs, its melee Strikes
+  // gain Reach (+5 ft) and Lunge's -1, and never the Reach -2 ("-1 only for
+  // lunge"). A reaction is not the Lunge's action. See lunge-scope.mjs.
+  {
+    const lunging = (isReaction || asReaction) ? null : lungeScopeFor(actor);
+    if (lunging && (weapon?.system?.attackMode ?? "melee") === "melee") {
+      grantTraits = [...grantTraits, ...(lunging.grantTraits ?? [])];
+      waiveReachPenalty = true;
+      extraModifiers = [...extraModifiers, ...(lunging.extraModifiers ?? [])];
+    }
+  }
   const viaRefused = weaponStrikeRefused(weapon, viaAbility);
   if (viaRefused) {
     ui.notifications?.warn(`${weapon.name} is used through ${viaRefused} — use that ability.`);

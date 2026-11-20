@@ -357,7 +357,7 @@ const RUN = {
       line(`<strong>${esc(reactor.name)}</strong> throws in a guard for <strong>${esc(ally?.name ?? "their ally")}</strong>.`),
       line("<em>An immediate Aid Defensive — its bonus reduces the triggering attack.</em>")
     ]);
-    if (aid) await resolveAction(reactor, { ...aid, apCost: "0" });
+    if (aid) await resolveAction(reactor, { ...aid, apCost: "0" }, { reachExempt: true });
   },
 
   async "duelling riposte"(reactor, ctx) {
@@ -378,6 +378,7 @@ const RUN = {
       line(`<strong>${esc(reactor.name)}</strong> turns the blow and grabs for the weapon.`),
       line("<em>A Disarm attempt — and this one needs no free hand.</em>")
     ]);
+    // DISARM USES REACH, EVEN AS A REACTION (3.705.0; Graham, 20 Nov 2026).
     if (disarm) await resolveAction(reactor, { ...disarm, apCost: "0" });
   },
 
@@ -391,7 +392,7 @@ const RUN = {
       line(`<strong>${esc(reactor.name)}</strong> shoves behind the block.`),
       line("<em>If the Shove would drive them into a solid object, difficult terrain or another creature's space, they are left <strong>flat-footed</strong> instead of being moved.</em>")
     ]);
-    if (shove) await resolveAction(reactor, { ...shove, apCost: "0" });
+    if (shove) await resolveAction(reactor, { ...shove, apCost: "0" }, { reachExempt: true });
   },
 
   async shadowing(reactor, ctx) {

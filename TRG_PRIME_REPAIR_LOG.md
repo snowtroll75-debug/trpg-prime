@@ -188,3 +188,87 @@ No console errors. The world migration to 3.704.0 ran.
   - The compendium feat descriptions wait for Graham's amended wording.
   - Readings L2 (natural attacks) and L3 (other Attack-trait actions) are still open.
   - Lunging Stance's Attack of Opportunity reach is still not automated.
+
+---
+
+## R-0003 — Lunge with any attack action; reach for the attack actions
+
+### Repair identification
+
+- **Date:** 20 November 2026
+- **Reference:** R-0003, following R-0002
+- **Feature:** Lunge (readings L2 and L3), and the reach of Trip, Shove, Disarm, Grapple, Shield Bash, Aid and Coup de Grace.
+- **Reported:** Graham, "Yes to the two questions": natural attacks can Lunge, and Lunge works with any action with the attack trait.
+  - Investigating L3 found that those actions had no reach check at all. Asked, Graham chose "Add reach check + Lunge".
+  - Later: "Yes disarm does use reach", so the reaction Disarms are measured too.
+
+### Source state
+
+- **Starting version:** 3.704.1, on branch `fix/feat-lunge` at `84d71c4`.
+- **Working tree:** clean.
+- **Remote:** unchanged.
+
+### Diagnosis
+
+- **Rules (Core 3.7):**
+  - reach is "how far it can make melee attacks";
+  - the Trip, Shove and Disarm traits "use the weapon's reach";
+  - Grapple may target a creature you already hold;
+  - Aid is "a melee Strike against the target";
+  - Coup de Grace needs "an adjacent helpless opponent".
+- **Actual:** `resolveAction` measured distance only for Prone's ±4, so these actions worked at any range. Lunge offered only Strike, and refused natural attacks.
+- **Root cause:** no reach check existed for the basic actions. The Strike had its own, in `rollWeaponAttack`.
+- **Relevant files:**
+  - `combat/action-workflow.mjs`
+  - `combat/attack-workflow.mjs`
+  - `combat/action-feats(-workflow).mjs`
+  - `combat/charge-workflow.mjs`
+  - the reaction workflows
+
+### Implementation
+
+**New modules:**
+
+- `combat/action-reach.mjs` (pure): which reach each action uses, the verdict, and the refusal text.
+- `combat/lunge-scope.mjs`: a Lunge in scope for one action on this client, always cleared.
+
+**Changed:**
+
+- **`resolveAction`:** the reach check before any spend, a `reachExempt` option, and the Reach −2 and Lunge −1 rows. Charge records its Lunge.
+- **`rollWeaponAttack`:** a melee, non-reaction Strike made in a Lunge's scope takes its terms.
+- **Charge:** the charge record carries the Lunge to the Strike on arrival.
+- **Lunge:** `lungeWeapons` admits natural attacks. New `lungeActionOptions` and `runLunge`.
+- **Reactions:** Guardian Defence's Aid and Offensive Parry's Shove are `reachExempt`. Disarm Block and Reactive Disarm are measured.
+
+**Data and migration:**
+
+- `lunge-note-3705`; the 3.704.1 row is superseded by it.
+- `EFFECT_REPAIRS` take every earlier Lunge note to the new text.
+- The migration and `TRG_SCHEMA_VERSION` are at 3.705.0.
+
+**Harness:**
+
+- New `verify/mutate-lunge-actions-3705`.
+- `verify/mutate-lunge-3704` updated.
+- Source anchors widened: `verify-block5-core` G1, `verify-block6-core` C10, `verify-fixes-3669-1` C4, `verify-ea-block3b-core` W24, `verify-it-fixes-3668-1` C7.
+- Pins raised to 3.705.0.
+
+### Testing
+
+- `verify-lunge-actions-3705`: 65 checks pass. R reproduces a Trip at 30 ft that used to go ahead.
+- `mutate-lunge-actions-3705`: 26 of 26 caught. `verify-lunge-3704`: 70. `mutate-lunge-3704`: 24 of 24.
+- **Core, every one of the 775 scripts run:**
+  - The first sitting reached 471 passes before it was stopped for the Disarm change. Its only failures were the five widened anchors' pairs.
+  - The second sitting re-ran the remaining scripts and everything touched since: 355 of 355 pass, including the whole-tree checks and `verify-checks-read-source`.
+  - `mutate-fixes-3685-3b` and `mutate-checks-read-source`: see the release notes.
+- **Modules:** Pillars of Faith 0.12.6, Inner Tempest 1.0.4 and Eldritch Arts 0.17.2 give identical results on 3.705.0 and on 3.703.1. 90 run, 74 pass, and the same 16 fail on both.
+- **Live Foundry:** not yet run for 3.705.0.
+
+### Delivery
+
+- **Version:** 3.705.0
+- **Branch:** `fix/feat-lunge` (local, not pushed)
+- **Package:** `trg-prime.zip`
+- **Outstanding:**
+  - Lunging Stance's Attack of Opportunity reach is still not automated.
+  - The compendium feat descriptions wait for Graham's amended Lunge wording.

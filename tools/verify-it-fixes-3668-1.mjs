@@ -80,7 +80,7 @@ equal("C6 Twin: both Twin, both hit and inflicted damage, two weapons — +1 eac
   t6.twinBonus({ first: sw(TONFA, true, 3), second: sw(TONFA, false, 0) }),
   t6.twinBonus({ first: sw(TONFA, true, 3), second: sw(SAI, true, 2) }),
   t6.twinBonus({ first: sw(TONFA, true, 3), second: sw(TONFA, true, 2), sameWeapon: true })], [1, 0, 0, 0, 0]);
-ok("C7 the Strike takes a `readied` option", /\n  readied = false,\n  \/\/ THE REROLL OF A FUMBLED STRIKE[\s\S]{0,200}?fumbleRerolled = false\n\} = \{\}\) \{\n(?:  const callOptions = arguments\[2\] \?\? \{\};\n)?  const viaRefused = weaponStrikeRefused\(weapon, viaAbility\);/.test(aw));
+ok("C7 the Strike takes a `readied` option", /\n  readied = false,\n  \/\/ THE REROLL OF A FUMBLED STRIKE[\s\S]{0,200}?fumbleRerolled = false\n\} = \{\}\) \{\n(?:  const callOptions = arguments\[2\] \?\? \{\};\n)?(?:  \/\/ A LUNGE WITH ANOTHER ATTACK ACTION \(3\.705\.0[\s\S]{0,900}?\n  \}\n)?  const viaRefused = weaponStrikeRefused\(weapon, viaAbility\);/.test(aw)); // re-anchored at 3.705.0: Lunge's scope is read first
 ok("C8 Brace adds its bonus to the attack and its die to the damage",
   /const brace = braceApplies\(\{\n    weaponSystem: weaponData, readied: Boolean\(readied\),\n    targetMounted: Boolean\(targetActor && mountedState\(targetActor\)\.mounted\)\n  \}\);\n  if \(brace\) \{\n    modifiers\.push\(\{ label: "Brace \(readied, against a mounted target\)", value: brace\.attackBonus, type: "circumstance" \}\);/.test(aw)
   && /extraBaseDiceOverride\(weaponData\.damage, extraBaseDice \+ \(brace\?\.extraDice \?\? 0\)(?: \+ runeBaseDice\.dice)?\)/.test(aw)); // RE-ANCHORED AT 3.689.0 (H21: Leybound's die joins)

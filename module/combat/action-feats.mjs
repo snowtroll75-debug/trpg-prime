@@ -544,8 +544,8 @@ const LUNGE_PENALTY = -1;
  * - wielded: a weapon item, equipped (held);
  * - a melee weapon: attack mode melee (a dagger with Thrown is a melee
  *   weapon and is struck, not hurled, within the Lunge's reach);
- * - not a natural attack: a fist or a claw is not a weapon wielded
- *   (the reading flagged with this release);
+ * - natural attacks count (3.705.0; Graham, 20 November 2026, on reading L2:
+ *   yes): the Unarmed Strike, a claw or a bite can Lunge;
  * - not already Reach: the trait is gained, and a weapon that has it gains
  *   nothing, so Lunge would be a Strike at -1 for no reach.
  *
@@ -556,7 +556,7 @@ const LUNGE_PENALTY = -1;
  */
 export function lungeWeapons(items = []) {
   const wielded = (Array.isArray(items) ? items : Array.from(items ?? []))
-    .filter((i) => i?.type === "weapon" && i.system?.equipped && !i.system?.natural
+    .filter((i) => i?.type === "weapon" && i.system?.equipped
       && (i.system?.attackMode ?? "melee") === "melee");
   const hasReach = (i) => /\breach\b/i.test(String(i.system?.traits ?? ""));
   return {
@@ -611,4 +611,58 @@ export function lungeStrikeTerms({ lungingStance = false } = {}) {
     // ALWAYS (3.704.1): a Lunge never takes the Reach trait's -2.
     waiveReachPenalty: true
   };
+}
+
+/**
+ * THE ACTIONS A LUNGE CAN BE MADE WITH (3.705.0). "Using your melee weapon,
+ * you may take an action with the attack trait." Graham, 20 November 2026:
+ * any of them, not only Strike.
+ *
+ * Offered: Strike; the basic actions with the Attack trait that make a melee
+ * attack against a creature at reach; and the action feats that do. Each is
+ * run as itself while the Lunge is in scope (lunge-scope.mjs).
+ *
+ * Not offered, with the reason:
+ *   Coup de Grace       "an adjacent helpless opponent": adjacency, not reach
+ *   Escape              its target is what holds you; there is no reach to extend
+ *   Attack of Opportunity, Riposte and the other reactions: reactions
+ *                       (Lunging Stance gives the Attack of Opportunity its own reach)
+ *   Fight Defensively   a stance; the Strike made in it can be a Lunge
+ *   Swipe, Reverse Strike  "adjacent foes" and "the enemies flanking you"
+ *   Skirmish, Striding Charge  their Strike is made afterwards, from a
+ *                       button or as the Attack action: a Lunge Strike then
+ *   Double Shot         a ranged weapon
+ *   Knife Flurry        triggered by a knife landing
+ */
+const LUNGE_BASIC_ACTIONS = Object.freeze([
+  ["doubleSlice", "Double Slice"],
+  ["charge", "Charge"],
+  ["tripAttack", "Trip Attack"],
+  ["disarmAttack", "Disarm Attack"],
+  ["shoveAttack", "Shove Attack"],
+  ["grappleAttack", "Grapple Attack"],
+  ["shieldBash", "Shield Bash"],
+  ["aidOffensive", "Aid Offensive"],
+  ["aidDefensive", "Aid Defensive"],
+  ["improvisedAttack", "Improvised Attack"]
+]);
+
+/** The action feats a Lunge can be made with, when the actor has them. */
+const LUNGE_FEAT_ACTIONS = Object.freeze(["vital strike", "combat grapple", "distracting strike", "quick draw"]);
+
+/**
+ * The choices offered to this actor, Strike first.
+ *
+ * Pure.
+ *
+ * @param {{featNames?: string[]}} state the names of the actor's feats
+ * @returns {Array<{kind: "strike"|"basic"|"feat", key: string, label: string}>}
+ */
+export function lungeActionOptions({ featNames = [] } = {}) {
+  const owned = new Set((featNames ?? []).map(normalise));
+  return [
+    { kind: "strike", key: "strike", label: "Strike" },
+    ...LUNGE_BASIC_ACTIONS.map(([key, label]) => ({ kind: "basic", key, label })),
+    ...LUNGE_FEAT_ACTIONS.filter((key) => owned.has(key)).map((key) => ({ kind: "feat", key, label: ACTION_FEATS[key]?.label ?? key }))
+  ];
 }

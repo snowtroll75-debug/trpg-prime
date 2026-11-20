@@ -14791,7 +14791,8 @@
       "to": "Use: a Strike with your melee weapon that has the Reach trait (+5 ft) at a -1 circumstance penalty and no other, applied automatically. The Strike's own 1 AP.",
       "declaredAt": "2026-11-20",
       "systemVersion": "3.704.1",
-      "reason": "Graham, 20 Nov 2026: \"-1 only for lunge\". A Lunge never takes the Reach trait's -2, so the note no longer mentions it."
+      "reason": "Graham, 20 Nov 2026: \"-1 only for lunge\". A Lunge never takes the Reach trait's -2, so the note no longer mentions it.",
+      "supersededBy": "lunge-note-3705"
     },
     {
       "id": "lunging-stance-note-3704-1",
@@ -14805,6 +14806,19 @@
       "declaredAt": "2026-11-20",
       "systemVersion": "3.704.1",
       "reason": "Graham, 20 Nov 2026: \"-1 only for lunge\". Lunge has only the -1 for the stance to negate."
+    },
+    {
+      "id": "lunge-note-3705",
+      "op": "editEffect",
+      "pack": "feats",
+      "name": "Lunge",
+      "effect": "Lunge",
+      "path": "description",
+      "from": "Use: a Strike with your melee weapon that has the Reach trait (+5 ft) at a -1 circumstance penalty and no other, applied automatically. The Strike's own 1 AP.",
+      "to": "Use: choose an action with the Attack trait (Strike, Trip, Disarm, Shove, Grapple, Double Slice, Charge, Vital Strike …). It reaches 5 ft further at a -1 circumstance penalty and no other, applied automatically. The action's own AP.",
+      "declaredAt": "2026-11-20",
+      "systemVersion": "3.705.0",
+      "reason": "Graham, 20 Nov 2026: Lunge works with any action with the attack trait, not only Strike, and with natural attacks. Its Use now asks which action."
     }
   ]
 }

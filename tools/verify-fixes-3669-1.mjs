@@ -82,7 +82,7 @@ ok("C3 the first check records its die",
   /check\.convictionBonusSpent = true;\n\s*check\.convictionDie = roll\.total;/.test(offer)
   && /this\.presetConvictionDie = Math\.max\(0, Math\.trunc\(Number\(config\.presetConvictionDie\) \|\| 0\)\);/.test(ck));
 const acw = read("module", "combat", "action-workflow.mjs");
-ok("C4 resolveAction hands the die on with the dice", /presetConvictionDie = 0,?\n(?:\s*\/\/[^\n]*\n)*(?:\s*presetModifiers = null,?\n)?(?:\s*\/\/[^\n]*\n)*(?:\s*presetDispel = null\n)?\} = \{\}\) \{/.test(acw) && /\.\.\.\(presetDice \? \{ presetDice, presetConvictionDie \} : \{\}\),/.test(acw));
+ok("C4 resolveAction hands the die on with the dice", /presetConvictionDie = 0,?\n(?:\s*\/\/[^\n]*\n)*(?:\s*presetModifiers = null,?\n)?(?:\s*\/\/[^\n]*\n)*(?:\s*presetDispel = null,?\n)?(?:\s*\/\/[^\n]*\n)*(?:\s*reachExempt = false\n)?\} = \{\}\) \{/.test(acw) && /\.\.\.\(presetDice \? \{ presetDice, presetConvictionDie \} : \{\}\),/.test(acw));
 
 /* D — an exact first */
 const df = await imp("daily-firsts.mjs");

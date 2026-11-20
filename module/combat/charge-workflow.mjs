@@ -25,13 +25,16 @@ export const CHARGE_FLAG = "chargeTarget";
  * @param {TokenDocument} chargerToken
  * @param {TokenDocument} targetToken
  */
-export async function armCharge(actor, chargerToken, targetToken) {
+export async function armCharge(actor, chargerToken, targetToken, { lunge = null } = {}) {
   const startDistance = measure(chargerToken, targetToken);
   await actor.setFlag(SYSTEM_ID, CHARGE_FLAG, {
     tokenId: targetToken?.id ?? null,
     sceneId: targetToken?.parent?.id ?? null,
     name: targetToken?.name ?? "your target",
-    startDistance
+    startDistance,
+    // A CHARGE MADE WITH LUNGE (3.705.0): its Strike, after the move, is the
+    // Lunge's — +5 ft, Lunge's -1, never the Reach -2. See lunge-scope.mjs.
+    ...(lunge ? { lunge } : {})
   });
   return startDistance;
 }
@@ -242,7 +245,9 @@ export async function resolveChargeStrike(actor, chargerToken, { endDistance = n
   // animating — measuring from it would answer "where the charge began".
   // The hook computed the destination's distance already; it is the only
   // honest number available at this moment.
-  const reach = reachOf(chargerToken?.object ?? chargerToken);
+  // A LUNGE REACHES 5 FT FURTHER (3.705.0).
+  const lunge = state?.lunge ?? null;
+  const reach = reachOf(chargerToken?.object ?? chargerToken) + (lunge ? 5 : 0);
   if (!chargeStrikeAvailable(endDistance, reach)) {
     ui.notifications.info(
       `Charge: ${state?.name ?? "your target"} is ${endDistance ?? "?"} ft away, beyond your ${reach} ft reach — no Strike.`
@@ -265,6 +270,7 @@ export async function resolveChargeStrike(actor, chargerToken, { endDistance = n
     // The target was chosen when the Charge was armed and has just been
     // moved towards — asking for it again would be asking twice.
     skipTargetPrompt: true,
-    extraModifiers: [chargeStrikeModifier()]
+    extraModifiers: [chargeStrikeModifier(), ...(lunge?.extraModifiers ?? [])],
+    ...(lunge ? { grantTraits: lunge.grantTraits ?? ["Reach"], waiveReachPenalty: true } : {})
   });
 }

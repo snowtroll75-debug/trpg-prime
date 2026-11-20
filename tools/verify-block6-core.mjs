@@ -161,7 +161,7 @@ ok("C10 …nothing waiting is spent on it: Cutting Words, Counter Perform, Inspi
 ok("C10 a Strike announces whether it missed, resolved and not a hit (found in review: Snake Stance answered a grab)",
   /resolved: Boolean\(outcome\?\.resolved\), missed: Boolean\(outcome\?\.resolved\) && !outcome\?\.hits(?:,\n(?:\s*\/\/[^\n]*\n)*\s*noReactions: Boolean\(noReactions\))?(?:,\n(?:\s*\/\/[^\n]*\n)*\s*natural: Number\(check\?\.dice\?\.unmodified \?\? 0\) \|\| 0,\n\s*fumble: Boolean\(confirmedFumble\)(?:,\n(?:\s*\/\/[^\n]*\n)*\s*total: Number\(check\?\.outcome\?\.total \?\? check\?\.total \?\? NaN\))?)?\n\s*\}\);/.test(read("module", "combat", "attack-workflow.mjs"))); // RE-ANCHORED AT 3.689.0: H22's natural die and fumble may follow
 ok("C10 resolveAction hands them on with the dice",
-  /presetModifiers = null,?\n(?:\s*\/\/[^\n]*\n)*(?:\s*presetDispel = null\n)?\} = \{\}\) \{/.test(acw) && /\.\.\.\(presetDice && Array\.isArray\(presetModifiers\) \? \{ presetModifiers \} : \{\}\),/.test(acw));
+  /presetModifiers = null,?\n(?:\s*\/\/[^\n]*\n)*(?:\s*presetDispel = null,?\n)?(?:\s*\/\/[^\n]*\n)*(?:\s*reachExempt = false\n)?\} = \{\}\) \{/.test(acw) && /\.\.\.\(presetDice && Array\.isArray\(presetModifiers\) \? \{ presetModifiers \} : \{\}\),/.test(acw));
 
 /* C11 — a class's feats opened by a feat */
 {
