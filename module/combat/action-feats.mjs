@@ -225,7 +225,7 @@ export const ACTION_FEATS = Object.freeze({
     // foe too far away costs nothing; and Fight Defensively's paid Strike
     // and the off-turn GM authorisation apply as for any Strike.
     strikePays: true,
-    summary: "Strike with your melee weapon at Reach (+5 ft), at -1."
+    summary: "Strike with your melee weapon at Reach (+5 ft), at -1 only."
   },
   "quick draw": {
     label: "Quick Draw",
@@ -588,14 +588,14 @@ export function lungingStanceActive(effects = []) {
 /**
  * WHAT A LUNGE STRIKE IS, as attack options.
  *
- * - The Strike gains the Reach trait (`grantTraits`): +5 ft of reach, and
- *   the Reach trait's own -2 when the target is in that extra band, as for
- *   any reach weapon.
- * - It takes Lunge's -1 circumstance, near or far ("This strike is subject
- *   to a -1-circumstance penalty").
+ * - The Strike gains the Reach trait (`grantTraits`): +5 ft of reach.
+ * - Its only penalty is Lunge's -1 circumstance, near or far ("This strike
+ *   is subject to a -1-circumstance penalty"). The Reach trait's own -2 at
+ *   the extra distance does NOT apply to a Lunge: Graham, 20 November 2026,
+ *   "-1 only for lunge" (3.704.1; 3.704.0 applied both). So the -2 is always
+ *   waived (`waiveReachPenalty`).
  * - In Lunging Stance, "any penalties associated with performing standard
- *   Lunge strikes are completely negated": the -1, and the Reach trait's -2
- *   that the Lunge brought (the reading flagged with this release).
+ *   Lunge strikes are completely negated": the -1 goes too.
  *
  * Pure.
  *
@@ -608,6 +608,7 @@ export function lungeStrikeTerms({ lungingStance = false } = {}) {
     extraModifiers: lungingStance
       ? []
       : [{ label: `Lunge (${LUNGE_PENALTY})`, value: LUNGE_PENALTY, type: "circumstance" }],
-    waiveReachPenalty: Boolean(lungingStance)
+    // ALWAYS (3.704.1): a Lunge never takes the Reach trait's -2.
+    waiveReachPenalty: true
   };
 }

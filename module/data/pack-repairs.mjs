@@ -2649,7 +2649,7 @@ export const EFFECT_REPAIRS = Object.freeze([
     id: "lunge-note", itemType: "feat", name: "Lunge", effect: "Lunge",
     since: "3.704.0",
     from: { description: "Your melee attack action gains the Reach trait for one Strike at -1 circumstance — queue the penalty via the Use button." },
-    to: { description: "Use: a Strike with your melee weapon that has the Reach trait (+5 ft; the trait's -2 at the extra distance) and a -1 circumstance penalty, all applied automatically. The Strike's own 1 AP." },
+    to: { description: "Use: a Strike with your melee weapon that has the Reach trait (+5 ft) at a -1 circumstance penalty and no other, applied automatically. The Strike's own 1 AP." },
     reason: "Lunge's Use is now the Strike itself, with Reach and its -1 applied (3.704.0); "
       + "an owned Lunge's note still told the player to queue the penalty by hand."
   },
@@ -2657,8 +2657,26 @@ export const EFFECT_REPAIRS = Object.freeze([
     id: "lunging-stance-note", itemType: "feat", name: "Lunging Stance", effect: "Lunging Stance",
     since: "3.704.0",
     from: { description: "Enter via the Use button (1 AP; melee weapon): Attacks of Opportunity reach 5 ft further, and Lunge's -1 penalty is negated while the stance is up." },
-    to: { description: "Enter via the Use button (1 AP; melee weapon): Attacks of Opportunity reach 5 ft further, and Lunge's penalties (its -1 and the Reach -2) are negated automatically while the stance is up." },
-    reason: "Lunge now reads Lunging Stance and drops its -1 and the Reach -2 itself (3.704.0)."
+    to: { description: "Enter via the Use button (1 AP; melee weapon): Attacks of Opportunity reach 5 ft further, and Lunge's -1 is negated automatically while the stance is up." },
+    reason: "Lunge now reads Lunging Stance and drops its -1 itself (3.704.0). "
+      + "Its target text is 3.704.1's: Lunge has only the -1 (Graham, 20 Nov 2026)."
+  },
+  /* 3.704.1 — "-1 only for lunge" (Graham, 20 Nov 2026). A copy already at
+   * 3.704.0's text, which mentioned the Reach -2, goes to the new one; a
+   * copy still at the 3.703.1 text goes straight there by the rows above. */
+  {
+    id: "lunge-note-3704-1", itemType: "feat", name: "Lunge", effect: "Lunge",
+    since: "3.704.1",
+    from: { description: "Use: a Strike with your melee weapon that has the Reach trait (+5 ft; the trait's -2 at the extra distance) and a -1 circumstance penalty, all applied automatically. The Strike's own 1 AP." },
+    to: { description: "Use: a Strike with your melee weapon that has the Reach trait (+5 ft) at a -1 circumstance penalty and no other, applied automatically. The Strike's own 1 AP." },
+    reason: "A Lunge's only penalty is its -1; the 3.704.0 note also named the Reach trait's -2."
+  },
+  {
+    id: "lunging-stance-note-3704-1", itemType: "feat", name: "Lunging Stance", effect: "Lunging Stance",
+    since: "3.704.1",
+    from: { description: "Enter via the Use button (1 AP; melee weapon): Attacks of Opportunity reach 5 ft further, and Lunge's penalties (its -1 and the Reach -2) are negated automatically while the stance is up." },
+    to: { description: "Enter via the Use button (1 AP; melee weapon): Attacks of Opportunity reach 5 ft further, and Lunge's -1 is negated automatically while the stance is up." },
+    reason: "Lunge has only its -1 for the stance to negate; the 3.704.0 note also named the Reach -2."
   }
 ]);
 

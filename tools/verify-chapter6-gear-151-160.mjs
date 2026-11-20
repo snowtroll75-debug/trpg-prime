@@ -585,7 +585,7 @@ ok("G5 Volley is a circumstance penalty",
 ok("G6 reach is measured whether or not the target can be flanked",
   /const measuresReach = positional && !isRanged;\s*if \(measuresReach\) \{[\s\S]{0,400}const normalReach/.test(attackSrc));
 ok("G6 and its -2 is pushed outside the flanking gate",
-  // Re-anchored at 3.704.0: Lunging Stance may waive it for a Lunge.
+  // Re-anchored at 3.704.0: a Lunge waives it (every Lunge since 3.704.1).
   /if \(measuresReach && reach\.penalty && !waiveReachPenalty\) \{/.test(attackSrc));
 /* D13: "1 AP ... +1, 2 AP ... +2". */
 eq("G7 Spin stops at +2", SPIN_MAX_BONUS, 2);

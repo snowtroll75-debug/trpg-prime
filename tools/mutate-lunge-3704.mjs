@@ -25,7 +25,7 @@ const MUTATIONS = [
   { name: "D a disabled stance counts", file: AF, from: "    if (!e || e.disabled) return false;\n    const own", to: "    if (!e) return false;\n    const own" },
   { name: "E the -1 dropped", file: AF, from: "      : [{ label: `Lunge (${LUNGE_PENALTY})`, value: LUNGE_PENALTY, type: \"circumstance\" }],", to: "      : []," },
   { name: "E the -1 kept in the stance", file: AF, from: "    extraModifiers: lungingStance\n      ? []", to: "    extraModifiers: false\n      ? []" },
-  { name: "E the Reach -2 waived outside the stance", file: AF, from: "    waiveReachPenalty: Boolean(lungingStance)", to: "    waiveReachPenalty: true" },
+  { name: "E the Reach -2 back on a Lunge outside the stance (3.704.0's reading)", file: AF, from: "    waiveReachPenalty: true", to: "    waiveReachPenalty: Boolean(lungingStance)" },
   { name: "E no Reach granted", file: AF, from: "    grantTraits: [\"Reach\"],\n    extraModifiers: lungingStance", to: "    grantTraits: [],\n    extraModifiers: lungingStance" },
   { name: "F the feat charges its own AP again", file: AF, from: "    strikePays: true,\n    summary: \"Strike with your melee weapon", to: "    summary: \"Strike with your melee weapon" },
   { name: "F the requirement always met", file: AF, from: "    case REQUIREMENTS.meleeWeapon:\n      return Boolean(state.meleeWeapon);", to: "    case REQUIREMENTS.meleeWeapon:\n      return true;" },
@@ -37,7 +37,8 @@ const MUTATIONS = [
   { name: "G the handler ignores the stance", file: AFW, from: "    const terms = lungeStrikeTerms({ lungingStance });", to: "    const terms = lungeStrikeTerms({});" },
   { name: "G Lunging Stance stamps no declaration", file: FW, from: "        flags: { lungePenaltiesNegated: true },\n", to: "" },
   { name: "H the owned Lunge note not repaired", file: PR, from: "    id: \"lunge-note\", itemType: \"feat\", name: \"Lunge\", effect: \"Lunge\",", to: "    id: \"lunge-note\", itemType: \"feat\", name: \"Lunge\", effect: \"Lunge note\"," },
-  { name: "H the migration not re-run", file: MIG, from: "const effectRepairs = (await runIf(\"3.704.0\", ", to: "const effectRepairs = (await runIf(\"3.701.0\", " }
+  { name: "H the migration not re-run", file: MIG, from: "const effectRepairs = (await runIf(\"3.704.1\", ", to: "const effectRepairs = (await runIf(\"3.704.0\", " },
+  { name: "H a 3.704.0 owned copy not repaired", file: PR, from: "    id: \"lunge-note-3704-1\", itemType: \"feat\", name: \"Lunge\", effect: \"Lunge\",", to: "    id: \"lunge-note-3704-1\", itemType: \"feat\", name: \"Lunge\", effect: \"Lunge note\"," }
 ];
 
 const verify = path.join(SYSTEM_ROOT, "tools", "verify-lunge-3704.mjs");

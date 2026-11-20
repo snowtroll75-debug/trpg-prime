@@ -176,6 +176,19 @@ for (const [packName, packFixes] of byPack) {
           refused.push(`${fix.id}: "${fix.name}" carries no effect named "${fix.effect}"`);
           continue;
         }
+        // RETIRED, NOT REFUSED, HERE TOO (3.704.1): an effect edit replaced by
+        // a later one on the same path (the Lunge notes) declares its heir,
+        // as a plain fix does below.
+        if (fix.supersededBy) {
+          const heir = fixes.find((other) => other.id === fix.supersededBy);
+          if (!heir) {
+            refused.push(`${fix.id}: supersededBy names "${fix.supersededBy}", which is not a fix in this file`);
+            continue;
+          }
+          alreadyDone++;
+          process.stdout.write(`  superseded       ${fix.id}  (by ${fix.supersededBy})\n`);
+          continue;
+        }
         const currentValue = readPath(doc.value, fix.path);
         if (same(currentValue, fix.to)) {
           alreadyDone++;

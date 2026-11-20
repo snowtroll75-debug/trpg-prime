@@ -167,7 +167,7 @@ export async function strikePlan(actor, weapon, featKey, { extraModifiers = [], 
       apPaid: !entry?.strikePays,
       keepsStep,                  // Skirmish: its own Step is the same action
       grantTraits,                // Lunge: the Strike gains Reach
-      waiveReachPenalty,          // Lunging Stance: Lunge's penalties negated
+      waiveReachPenalty,          // Lunge: never the Reach trait's -2
       mapFrozen: plan.frozen,
       skipTargetPrompt: Boolean(token),
       extraModifiers: [
@@ -426,8 +426,9 @@ const RUN = {
   // attack trait. This action gains the reach trait for that Strike. This
   // strike is subject to a -1-circumstance penalty." Until 3.704.0 it queued
   // a -1 tick-box and nothing else, so a foe at 10 ft was still refused as
-  // beyond reach. Now the Strike has Reach (+5 ft, the trait's -2 in that
-  // band) and Lunge's -1; Lunging Stance negates both.
+  // beyond reach. Now the Strike has Reach (+5 ft) and Lunge's -1, and no
+  // other penalty (3.704.1, Graham: "-1 only for lunge" — not the Reach
+  // trait's -2); Lunging Stance negates the -1.
   async lunge(actor, item, entry, chosen = null) {
     const weapon = chosen ?? null;
     const lungingStance = lungingStanceActive(Array.from(actor.appliedEffects ?? actor.effects ?? []).map((e) => ({
@@ -439,8 +440,8 @@ const RUN = {
     await card(actor, entry.label, [
       line(`<strong>${esc(actor.name)}</strong> lunges with <strong>${esc(weapon?.name ?? "a melee weapon")}</strong>: the Strike has the <strong>Reach</strong> trait (+5 ft).`),
       lungingStance
-        ? line("<em>Lunging Stance: Lunge's penalties are negated — no -1, and no Reach -2 at the extra distance.</em>")
-        : line("<em>-1 circumstance on this Strike; the Reach trait's -2 applies too when the target is in the extra 5 ft.</em>")
+        ? line("<em>Lunging Stance: Lunge's -1 is negated — no penalty.</em>")
+        : line("<em>-1 circumstance on this Strike, and no other penalty (the Reach trait's -2 does not apply to a Lunge).</em>")
     ]);
   },
 

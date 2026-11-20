@@ -6545,12 +6545,12 @@ export const FEAT_AUTOMATION = {
       await enterFeatStance(actor, item, {
         name: "Lunging Stance",
         apCost: 1,
-        description: "Attacks of Opportunity may target foes 5 ft beyond your reach (the AoO Strike gains 5 ft). Lunge's penalties are negated while this stance is up (applied by Lunge automatically).",
-        // READ BY LUNGE (3.704.0): its -1 and the Reach trait's -2 are not
-        // applied while this effect is up. See action-feats.mjs
-        // `lungingStanceActive`.
+        description: "Attacks of Opportunity may target foes 5 ft beyond your reach (the AoO Strike gains 5 ft). Lunge's -1 is negated while this stance is up (applied by Lunge automatically).",
+        // READ BY LUNGE (3.704.0): its -1 is not applied while this effect
+        // is up (a Lunge never takes the Reach -2; 3.704.1). See
+        // action-feats.mjs `lungingStanceActive`.
         flags: { lungePenaltiesNegated: true },
-        extraLines: [line("<em>Lunge: no -1, and no Reach -2 at the extra distance, while this stance is up — automatic.</em>")]
+        extraLines: [line("<em>Lunge: no -1 while this stance is up — automatic.</em>")]
       });
     }
   },

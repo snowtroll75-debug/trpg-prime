@@ -2,6 +2,14 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.704.1 — 20 November 2026: Lunge is −1 only
+
+Branch `fix/feat-lunge`, from 3.704.0. Full notes in `release-notes-3.704.1.md`; repair log R-0002.
+
+- **Graham's ruling ("-1 only for lunge"):** a Lunge's only penalty is its −1. The Strike gains Reach's +5 ft but never the Reach trait's −2. Lunging Stance removes the −1. Other reach weapons keep their −2.
+- **Data and migration:** the two note effects are reworded in the pack and on owned copies (from 3.703.1 or 3.704.0 wording). The 3.704.0 fix rows are retired by `supersededBy`, which `apply-data-fixes` now honours on effect edits too. The migration and schema are at 3.704.1.
+- **Harness:** `verify-lunge-3704` (70) / `mutate-lunge-3704` (24); pins raised to 3.704.1.
+
 ## 3.704.0 — 20 November 2026: Lunge strikes at reach
 
 Branch `fix/feat-lunge`, from 3.703.1. Full notes in `release-notes-3.704.0.md`; repair history in `TRG_PRIME_REPAIR_LOG.md` (R-0001).

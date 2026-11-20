@@ -686,9 +686,9 @@ export async function rollWeaponAttack(actor, weapon, {
   // anything reads it, so reach, the reach penalty and the card all see
   // them. See attack.mjs `traitsWithGranted`.
   grantTraits = [],
-  // THE REACH TRAIT'S -2 WAIVED FOR THIS STRIKE (3.704.0; Lunging Stance:
-  // "any penalties associated with performing standard Lunge strikes are
-  // completely negated").
+  // THE REACH TRAIT'S -2 WAIVED FOR THIS STRIKE (3.704.0; since 3.704.1 every
+  // Lunge, by Graham's ruling "-1 only for lunge": the Strike gains Reach's
+  // range, not its penalty).
   waiveReachPenalty = false,
   // XITHRA AND SCREECH (3.643.0, F&F 3.0 block 13 R6): a weapon marked
   // `viaAbility` is struck only through that ability's Use.

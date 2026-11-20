@@ -37,7 +37,7 @@ const MUTATIONS = [
   { name: "the GM drains whatever it is told", file: TW, from: "        const spent = Math.min(pool, Math.max(0, Math.floor(Number(entry.amount) || 0)));", to: "        const spent = Number(entry.amount);", breaks: "R14" },
   { name: "the owned-copy repair overwrites a house rule", file: PR, from: "    if (norm(current) === norm(from)) update[field] = foundry_clone(repair.to[field]);", to: "    update[field] = foundry_clone(repair.to[field]);", breaks: "U3" },
   { name: "\"racial\" stays an unknown type", file: m("conditionals.mjs"), from: "    if (entry.type === \"racial\") entry.type = \"race\";", to: "", breaks: "T1" },
-  { name: "the migration never runs the pass", file: MI, from: "  const effectRepairs = (await runIf(\"3.704.0\",", to: "  const effectRepairs = (await runIf(\"3.400.0\",", breaks: "U6" }
+  { name: "the migration never runs the pass", file: MI, from: "  const effectRepairs = (await runIf(\"3.704.1\",", to: "  const effectRepairs = (await runIf(\"3.400.0\",", breaks: "U6" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-live-fixes-3-627-1.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);
