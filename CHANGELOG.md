@@ -2,6 +2,15 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.704.0 — 20 November 2026: Lunge strikes at reach
+
+Branch `fix/feat-lunge`, from 3.703.1. Full notes in `release-notes-3.704.0.md`; repair history in `TRG_PRIME_REPAIR_LOG.md` (R-0001).
+
+- **Lunge** now makes the Strike. It uses a wielded melee weapon and has the Reach trait: +5 ft, with the trait's −2 in that band. Lunge's −1 circumstance applies automatically. It used to queue a −1 tick-box and nothing else, so a foe 10 ft away was still refused as out of reach. The Strike pays its own 1 AP and is refused before cost if the foe is still too far. A weapon that already has Reach is refused, with the reason.
+- **Lunging Stance** negates Lunge's −1 and the Reach −2 (reading L1, for Graham).
+- **Data and migration:** the Lunge and Lunging Stance note effects are corrected in the pack and on owned copies. The owned-effect migration is re-gated to 3.704.0, and the schema is stamped 3.704.0.
+- **Harness:** `verify-lunge-3704` (66) / `mutate-lunge-3704` (23); `verify-chapter6-gear-151-160` G6 and H3 re-anchored.
+
 ## 3.703.1 — 20 November 2026: the armour dialog, and the donning readings confirmed
 
 Branch `release/3.703.1`, from 3.703.0. Full notes in `release-notes-3.703.1.md`.

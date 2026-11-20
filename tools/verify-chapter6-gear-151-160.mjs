@@ -585,7 +585,8 @@ ok("G5 Volley is a circumstance penalty",
 ok("G6 reach is measured whether or not the target can be flanked",
   /const measuresReach = positional && !isRanged;\s*if \(measuresReach\) \{[\s\S]{0,400}const normalReach/.test(attackSrc));
 ok("G6 and its -2 is pushed outside the flanking gate",
-  /if \(measuresReach && reach\.penalty\) \{/.test(attackSrc));
+  // Re-anchored at 3.704.0: Lunging Stance may waive it for a Lunge.
+  /if \(measuresReach && reach\.penalty && !waiveReachPenalty\) \{/.test(attackSrc));
 /* D13: "1 AP ... +1, 2 AP ... +2". */
 eq("G7 Spin stops at +2", SPIN_MAX_BONUS, 2);
 eq("G7 however many AP are offered", spinDamageBonus(true, 5), 2);
@@ -635,7 +636,7 @@ ok("H3 an ordinary weapon is untouched", armouredFistProfile({ ...sword, type: "
 // and the bracers' profile still reaches weaponData through it.
 // Re-anchored at 3.667.0: trained fists (Powerful Fists) sit between too,
 // built on the bracers' profile.
-ok("H3 the attack reads through it", /const armouredFist = armouredFistProfile\(weapon, Array\.from\(actor\.items \?\? \[\]\)\);[\s\S]{0,1400}const trainedFist = withUnarmedProfile\(armouredFist\.data, unarmedHere\);\s*const fistData = stoneFist \? \{ \.\.\.trainedFist, \.\.\.stoneFist \} : trainedFist;\s*const ammoData = ammoSystem\s*\? \{ \.\.\.fistData, traits: traitsAfterAmmunition\(fistData\.traits, ammoSystem\) \}\s*: fistData;[\s\S]{0,1200}const weaponData = groupTraits === ammoData\.traits \? ammoData : \{ \.\.\.ammoData, traits: groupTraits \};/.test(attackSrc)); // re-anchored at 3.668.0: a weapon group's trait (Weapon Discipline) after the ammunition; 3.671.0: and the unarmed-ability view (C6) beside it
+ok("H3 the attack reads through it", /const armouredFist = armouredFistProfile\(weapon, Array\.from\(actor\.items \?\? \[\]\)\);[\s\S]{0,1400}const trainedFist = withUnarmedProfile\(armouredFist\.data, unarmedHere\);\s*const fistData = stoneFist \? \{ \.\.\.trainedFist, \.\.\.stoneFist \} : trainedFist;\s*const ammoData = ammoSystem\s*\? \{ \.\.\.fistData, traits: traitsAfterAmmunition\(fistData\.traits, ammoSystem\) \}\s*: fistData;[\s\S]{0,1200}const grouped = groupTraits === ammoData\.traits \? ammoData : \{ \.\.\.ammoData, traits: groupTraits \};[\s\S]{0,200}const weaponData = grantedTraits === grouped\.traits \? grouped : \{ \.\.\.grouped, traits: grantedTraits \};/.test(attackSrc)); // re-anchored at 3.704.0: a trait granted for one Strike (Lunge) after the group's; 3.668.0: a weapon group's trait (Weapon Discipline) after the ammunition; 3.671.0: and the unarmed-ability view (C6) beside it
 /* R11: "+2 item bonus to resist the chilling effects of wintry environments". */
 const furs = coldWeatherConditionals([equip(ARMOUR.get("Furs/Pelts"))]);
 eq("H4 worn furs offer +2 item on Fortitude", furs.map((c) => [c.value, c.type, c.auto, c.when.subjects]), [[2, "item", false, ["fortitude"]]]);

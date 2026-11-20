@@ -68,8 +68,9 @@ const AFW = read("module", "combat", "action-feats-workflow.mjs");
   ok("C2 Skirmish is declared any-weapon", af.ACTION_FEATS.skirmish.anyWeapon === true);
   const melee = block(AFW, "const MELEE_WEAPON_FEATS = new Set([", "]);");
   ok("C3 ...and is not in the melee-only list", melee.length > 0 && !/"skirmish"/.test(melee));
+  // Re-anchored at 3.704.0: a feat whose Strike pays its own AP (Lunge) skips the spend.
   ok("C4 the any-weapon chooser is asked for it, before the AP",
-    /: ANY_WEAPON_FEATS\.has\(state\.key\) \? await chooseAnyAttack\(actor, entry\.label\) : undefined;\n  if \(chosen === null\) return null;\n  if \(entry\.apCost !== "0"\)/.test(AFW));
+    /: ANY_WEAPON_FEATS\.has\(state\.key\) \? await chooseAnyAttack\(actor, entry\.label\) : undefined;\n  if \(chosen === null\) return null;\n  if \(entry\.apCost !== "0"(?: && !entry\.strikePays)?\)/.test(AFW));
   const STRIKE = read("module", "combat", "strike.mjs");
   const chooser = block(STRIKE, "export async function chooseAnyAttack(", "\n}\n");
   ok("C5 the chooser offers every ready attack, not only melee", /const ready = usableAttacks\(/.test(chooser) && !/=== "melee"\);\n/.test(chooser.split("const isMelee")[0]));
@@ -92,7 +93,8 @@ const AFW = read("module", "combat", "action-feats-workflow.mjs");
   ok("E1 the button checks the rule first", /const allowed = skirmishStrikeAllowed\(raw, \{/.test(press) && /if \(!allowed\.ok\) \{ ui\.notifications\.warn\([^\n]*\); return null; \}/.test(press));
   ok("E2 its Strike keeps the Step", /await strikePlan\(actor, weapon, "skirmish", \{ keepsStep: true \}\)/.test(press));
   ok("E3 used only once a Strike was made", /if \(checks\.resolved > 0\) await message\.setFlag\(SYSTEM_ID, "skirmish", \{ \.\.\.raw, used: true \}\);/.test(press));
-  ok("E4 strikePlan passes keepsStep to the attack", /keepsStep = false \} = \{\}\) \{/.test(AFW) && /\n\s+keepsStep,\s+\/\/ Skirmish/.test(AFW));
+  // Re-anchored at 3.704.0: strikePlan also takes Lunge's grantTraits and waiveReachPenalty.
+  ok("E4 strikePlan passes keepsStep to the attack", /keepsStep = false(?:, [^}\n]*)? \} = \{\}\) \{/.test(AFW) && /\n\s+keepsStep,\s+\/\/ Skirmish/.test(AFW));
   const AW = read("module", "combat", "attack-workflow.mjs");
   ok("E5 the attack does not remove the Step when asked to keep it", /const strikeTaken = async \(\) => \{\n    if \(keepsStep\) return;\n/.test(AW) && /\n  keepsStep = false,\n/.test(AW));
   const MAIN = read("scripts", "trg-prime.mjs");

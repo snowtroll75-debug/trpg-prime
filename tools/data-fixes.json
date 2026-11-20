@@ -14751,6 +14751,32 @@
       "declaredAt": "2026-11-18",
       "systemVersion": "3.701.0",
       "reason": "The flat check is now rolled by the cast (magic/rooted-movement.mjs), so the note no longer sends the player to the Flat Check button."
+    },
+    {
+      "id": "lunge-note",
+      "op": "editEffect",
+      "pack": "feats",
+      "name": "Lunge",
+      "effect": "Lunge",
+      "path": "description",
+      "from": "Your melee attack action gains the Reach trait for one Strike at -1 circumstance — queue the penalty via the Use button.",
+      "to": "Use: a Strike with your melee weapon that has the Reach trait (+5 ft; the trait's -2 at the extra distance) and a -1 circumstance penalty, all applied automatically. The Strike's own 1 AP.",
+      "declaredAt": "2026-11-20",
+      "systemVersion": "3.704.0",
+      "reason": "Lunge's Use is now the Strike itself, with the Reach trait and its -1 applied automatically (3.704.0, combat/action-feats.mjs); the note still told the player to queue the penalty by hand."
+    },
+    {
+      "id": "lunging-stance-note",
+      "op": "editEffect",
+      "pack": "feats",
+      "name": "Lunging Stance",
+      "effect": "Lunging Stance",
+      "path": "description",
+      "from": "Enter via the Use button (1 AP; melee weapon): Attacks of Opportunity reach 5 ft further, and Lunge's -1 penalty is negated while the stance is up.",
+      "to": "Enter via the Use button (1 AP; melee weapon): Attacks of Opportunity reach 5 ft further, and Lunge's penalties (its -1 and the Reach -2) are negated automatically while the stance is up.",
+      "declaredAt": "2026-11-20",
+      "systemVersion": "3.704.0",
+      "reason": "Lunge now reads Lunging Stance and drops its -1 and the Reach -2 itself (3.704.0); the note said only the -1."
     }
   ]
 }

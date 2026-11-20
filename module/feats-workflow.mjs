@@ -6545,8 +6545,12 @@ export const FEAT_AUTOMATION = {
       await enterFeatStance(actor, item, {
         name: "Lunging Stance",
         apCost: 1,
-        description: "Attacks of Opportunity may target foes 5 ft beyond your reach (the AoO Strike gains 5 ft). Lunge's -1 penalty is negated — don't queue it while this stance is up.",
-        extraLines: [line("<em>While in this stance, use Lunge freely with no penalty (skip its queued -1).</em>")]
+        description: "Attacks of Opportunity may target foes 5 ft beyond your reach (the AoO Strike gains 5 ft). Lunge's penalties are negated while this stance is up (applied by Lunge automatically).",
+        // READ BY LUNGE (3.704.0): its -1 and the Reach trait's -2 are not
+        // applied while this effect is up. See action-feats.mjs
+        // `lungingStanceActive`.
+        flags: { lungePenaltiesNegated: true },
+        extraLines: [line("<em>Lunge: no -1, and no Reach -2 at the extra distance, while this stance is up — automatic.</em>")]
       });
     }
   },
@@ -6719,18 +6723,9 @@ export const FEAT_AUTOMATION = {
     }
   },
 
-  "lunge": {
-    hint: "Queue a Lunge: your next melee attack action gains Reach at a -1 circumstance penalty.",
-    async use(actor) {
-      await addPendingModifier(actor, {
-        value: -1, type: "circumstance", label: "Lunge (reach)",
-        scope: "One melee attack action made with Reach via Lunge", oneShot: true
-      });
-      await postCard(actor, "Lunge", [
-        line("A <strong>-1 circumstance penalty</strong> is queued — tick it on the melee attack you make with Lunge's extra reach (the attack action gains the Reach trait for that Strike).")
-      ]);
-    }
-  },
+  // LUNGE moved to the action-feat table at 3.704.0 (combat/action-feats.mjs):
+  // its Use is now the Strike itself, with Reach. A handler here would
+  // override the table's, being later in this object.
 
   "nimble dodge": {
     hint: "Reaction when attacked (no ACP, not encumbered): +2 dodge to DB against that one attack.",

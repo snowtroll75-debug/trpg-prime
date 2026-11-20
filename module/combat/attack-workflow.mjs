@@ -34,6 +34,7 @@ import {
   reachPenalty,
   withinReachOverride,
   weaponReachExtension,
+  traitsWithGranted,
   sweepApplies,
   biggerTheyAreDamageBonus
 } from "./attack.mjs";
@@ -680,6 +681,15 @@ export async function rollWeaponAttack(actor, weapon, {
   // "If it's a melee weapon, the attack can target a creature within 30
   // feet"). Feet; a target within it is in reach.
   reachOverrideFeet = null,
+  // TRAITS THIS ONE STRIKE GAINS (3.704.0; Lunge: "This action gains the
+  // reach trait for that Strike"). Added to the weapon's trait line before
+  // anything reads it, so reach, the reach penalty and the card all see
+  // them. See attack.mjs `traitsWithGranted`.
+  grantTraits = [],
+  // THE REACH TRAIT'S -2 WAIVED FOR THIS STRIKE (3.704.0; Lunging Stance:
+  // "any penalties associated with performing standard Lunge strikes are
+  // completely negated").
+  waiveReachPenalty = false,
   // XITHRA AND SCREECH (3.643.0, F&F 3.0 block 13 R6): a weapon marked
   // `viaAbility` is struck only through that ability's Use.
   viaAbility = false,
@@ -884,7 +894,10 @@ export async function rollWeaponAttack(actor, weapon, {
     // AN UNARMED-SCOPED GRANT (3.670.0; Mantis and Dragon Stance).
     unarmed: attackFormOf(ammoData) === "unarmed" || abilityUnarmed
   });
-  const weaponData = groupTraits === ammoData.traits ? ammoData : { ...ammoData, traits: groupTraits };
+  const grouped = groupTraits === ammoData.traits ? ammoData : { ...ammoData, traits: groupTraits };
+  // A TRAIT GRANTED FOR THIS STRIKE ONLY (3.704.0; Lunge's Reach).
+  const grantedTraits = traitsWithGranted(grouped.traits, grantTraits);
+  const weaponData = grantedTraits === grouped.traits ? grouped : { ...grouped, traits: grantedTraits };
   const abilityData = abilityStrikeView(weaponData, abilityUnarmed);
 
   /*
@@ -2192,7 +2205,7 @@ export async function rollWeaponAttack(actor, weapon, {
 
   // The reach penalty, OUTSIDE the flanking gate for the reason given
   // where `reach` is measured.
-  if (measuresReach && reach.penalty) {
+  if (measuresReach && reach.penalty && !waiveReachPenalty) {
     modifiers.push({
       label: `Reach (attacking at ${distanceToTarget} ft)`,
       value: reach.penalty,

@@ -33,7 +33,10 @@ import {
   skirmishStrikeAllowed,
   stridingCharge,
   sweepAppliesToAll,
-  swipeOutcome
+  swipeOutcome,
+  lungeWeapons,
+  lungingStanceActive,
+  lungeStrikeTerms
 } from "./action-feats.mjs";
 
 const SYSTEM_ID = "trg-prime";
@@ -94,7 +97,10 @@ export function actorActionState(actor) {
       !needsReloading(ranged.system?.traits) || hasQuickLoadTrait(ranged.system?.traits)
     ),
     knife: equipped.some((w) => String(w.system?.group ?? "").trim().toLowerCase() === "knife"),
-    flankers: countFlankers(actor)
+    flankers: countFlankers(actor),
+    // LUNGE (3.704.0): "You are wielding a melee weapon." A reach weapon
+    // meets the requirement; whether it can lunge is asked by the chooser.
+    meleeWeapon: (() => { const w = lungeWeapons(items); return w.eligible.length + w.reachAlready.length > 0; })()
   };
 }
 
@@ -129,7 +135,7 @@ export function featStateFor(actor, featName) {
  *
  * @returns {Array} the checks, in order
  */
-export async function strikePlan(actor, weapon, featKey, { extraModifiers = [], targetsPerStrike = [], keepsStep = false } = {}) {
+export async function strikePlan(actor, weapon, featKey, { extraModifiers = [], targetsPerStrike = [], keepsStep = false, grantTraits = [], waiveReachPenalty = false } = {}) {
   const entry = ACTION_FEATS[featKey];
   const plan = mapPlanFor(entry?.map);
   const { rollWeaponAttack } = await import("./attack-workflow.mjs");
@@ -156,8 +162,12 @@ export async function strikePlan(actor, weapon, featKey, { extraModifiers = [], 
     const token = targetsPerStrike[i] ?? null;
     if (token) token.setTarget(true, { user: game.user, releaseOthers: true });
     checks.push(await rollWeaponAttack(actor, weapon, {
-      apPaid: true,               // the feat already charged its own AP
+      // The feat already charged its own AP — unless the Strike pays for
+      // itself (Lunge, 3.704.0: "an action with the attack trait").
+      apPaid: !entry?.strikePays,
       keepsStep,                  // Skirmish: its own Step is the same action
+      grantTraits,                // Lunge: the Strike gains Reach
+      waiveReachPenalty,          // Lunging Stance: Lunge's penalties negated
       mapFrozen: plan.frozen,
       skipTargetPrompt: Boolean(token),
       extraModifiers: [
@@ -293,14 +303,40 @@ export async function runActionFeat(actor, item) {
     const run = RUN[state.key];
     return run ? run(actor, item, entry, drawn) : null;
   }
-  const chosen = MELEE_WEAPON_FEATS.has(state.key) ? await chooseMeleeAttack(actor, entry.label)
+  // LUNGE'S WEAPON (3.704.0): a wielded melee weapon without Reach, asked
+  // before anything is spent. See `chooseLungeWeapon`. THE STRIKE PAYS
+  // (`strikePays`, Lunge): its AP is charged by the attack workflow.
+  const chosen = entry.lunge ? await chooseLungeWeapon(actor, entry.label)
+    : MELEE_WEAPON_FEATS.has(state.key) ? await chooseMeleeAttack(actor, entry.label)
     : ANY_WEAPON_FEATS.has(state.key) ? await chooseAnyAttack(actor, entry.label) : undefined;
   if (chosen === null) return null;
-  if (entry.apCost !== "0") {
+  if (entry.apCost !== "0" && !entry.strikePays) {
     await spendActionCost(actor, entry.apCost, entry.label, { traits: entry.traits });
   }
   const run = RUN[state.key];
   return run ? run(actor, item, entry, chosen ?? null) : null;
+}
+
+/**
+ * LUNGE'S WEAPON (3.704.0). One wielded melee weapon that does not already
+ * have Reach (`lungeWeapons`). Asked only when there are two or more; one is
+ * used without a question. None, because every melee weapon in hand already
+ * has Reach, is refused with the reason: Lunge would add only its -1.
+ *
+ * @returns {Promise<Item|null>} the weapon; null when cancelled or refused
+ */
+async function chooseLungeWeapon(actor, label) {
+  const { eligible, reachAlready } = lungeWeapons(Array.from(actor?.items ?? []));
+  if (!eligible.length) {
+    ui.notifications.warn(reachAlready.length
+      ? `${label}: ${reachAlready.map((w) => w.name).join(", ")} already ${reachAlready.length === 1 ? "has" : "have"} the Reach trait, so Lunge adds nothing. Use Strike.`
+      : `${label}: you must be wielding a melee weapon.`);
+    return null;
+  }
+  if (eligible.length === 1) return eligible[0];
+  const pick = await chooseFrom(`${label} — Which Weapon?`, "Lunge with:",
+    eligible.map((w) => [w.id, `${w.name}${w.system?.damage ? ` (${w.system.damage})` : ""}`]));
+  return eligible.find((w) => w.id === pick) ?? null;
 }
 
 /**
@@ -382,6 +418,29 @@ const RUN = {
       refusedLine(checks),
       line(`Two shots, at <strong>${esc(picks[0].actor?.name)}</strong> and <strong>${esc(picks[1].actor?.name)}</strong>, each at <strong>-2</strong>.`),
       line("<em>Both count toward your multiple attack penalty, but it did not climb between them.</em>")
+    ]);
+  },
+
+  // LUNGE (3.704.0; Graham, 20 November 2026: "the Lunge feat does not work
+  // correctly"). "Using your melee weapon, you may take an action with the
+  // attack trait. This action gains the reach trait for that Strike. This
+  // strike is subject to a -1-circumstance penalty." Until 3.704.0 it queued
+  // a -1 tick-box and nothing else, so a foe at 10 ft was still refused as
+  // beyond reach. Now the Strike has Reach (+5 ft, the trait's -2 in that
+  // band) and Lunge's -1; Lunging Stance negates both.
+  async lunge(actor, item, entry, chosen = null) {
+    const weapon = chosen ?? null;
+    const lungingStance = lungingStanceActive(Array.from(actor.appliedEffects ?? actor.effects ?? []).map((e) => ({
+      name: e.name, disabled: e.disabled, flags: e.flags
+    })));
+    const terms = lungeStrikeTerms({ lungingStance });
+    const checks = await strikePlan(actor, weapon, "lunge", terms);
+    if (!checks.resolved) return;
+    await card(actor, entry.label, [
+      line(`<strong>${esc(actor.name)}</strong> lunges with <strong>${esc(weapon?.name ?? "a melee weapon")}</strong>: the Strike has the <strong>Reach</strong> trait (+5 ft).`),
+      lungingStance
+        ? line("<em>Lunging Stance: Lunge's penalties are negated — no -1, and no Reach -2 at the extra distance.</em>")
+        : line("<em>-1 circumstance on this Strike; the Reach trait's -2 applies too when the target is in the extra 5 ft.</em>")
     ]);
   },
 

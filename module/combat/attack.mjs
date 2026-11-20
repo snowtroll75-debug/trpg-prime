@@ -302,6 +302,36 @@ export function weaponReachExtension(weaponSystem) {
 }
 
 /**
+ * A WEAPON'S TRAIT LINE WITH TRAITS GRANTED FOR ONE STRIKE (3.704.0; Lunge).
+ *
+ * Lunge (Chapter 5): "Using your melee weapon, you may take an action with
+ * the attack trait. This action gains the reach trait for that Strike."
+ * The Strike reads its traits from this line, so a trait added here is a
+ * trait the Strike has: `weaponReachExtension` sees Reach, the reach gate
+ * lets the target 5 ft further in, and the Reach trait's own -2 applies at
+ * that distance, exactly as for a glaive.
+ *
+ * A trait the weapon already has is not added twice. Pure.
+ *
+ * @param {string} traits the weapon's trait line ("Agile, Finesse")
+ * @param {string[]} grants trait names to add for this Strike
+ * @returns {string} the same string when nothing was added
+ */
+export function traitsWithGranted(traits, grants = []) {
+  const line = String(traits ?? "");
+  const added = [];
+  for (const raw of Array.isArray(grants) ? grants : []) {
+    const name = String(raw ?? "").trim();
+    if (!name) continue;
+    const pattern = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+    if (pattern.test(line) || added.some((a) => a.toLowerCase() === name.toLowerCase())) continue;
+    added.push(name);
+  }
+  if (!added.length) return traits;
+  return line.trim() ? `${line.trim()}, ${added.join(", ")}` : added.join(", ");
+}
+
+/**
  * Shove and Trip (Chapter 6, weapon traits): "uses your attack bonus
  * with the weapon instead of your unarmed attack bonus" — unlike
  * Disarm's own trait text, which doesn't make this same claim, so

@@ -119,14 +119,17 @@ export const REQUIREMENTS = Object.freeze({
   freeHand: "freeHand",
   rangedWithFreeReload: "rangedWithFreeReload",
   knifeWeapon: "knifeWeapon",
-  flankedByTwo: "flankedByTwo"
+  flankedByTwo: "flankedByTwo",
+  // LUNGE (3.704.0): "Requirements You are wielding a melee weapon."
+  meleeWeapon: "meleeWeapon"
 });
 
 export const REQUIREMENT_TEXT = Object.freeze({
   freeHand: "you need a free hand that can reach the target",
   rangedWithFreeReload: "you need a ranged weapon you can reload for 0 actions",
   knifeWeapon: "you need to be wielding a knife",
-  flankedByTwo: "you must be flanked by at least two enemies"
+  flankedByTwo: "you must be flanked by at least two enemies",
+  meleeWeapon: "you must be wielding a melee weapon"
 });
 
 /**
@@ -153,6 +156,8 @@ export function meetsRequirement(key, state = {}) {
       return Boolean(state.knife);
     case REQUIREMENTS.flankedByTwo:
       return Number(state.flankers) >= 2;
+    case REQUIREMENTS.meleeWeapon:
+      return Boolean(state.meleeWeapon);
     default:
       // An unknown requirement is NOT met — a typo must remove power,
       // never hand it out.
@@ -202,6 +207,25 @@ export const ACTION_FEATS = Object.freeze({
     requires: [REQUIREMENTS.knifeWeapon],
     triggered: true,
     summary: "Feint as a free action after a knife hits."
+  },
+  "lunge": {
+    label: "Lunge",
+    // "you may take an action with the attack trait": the Strike's own
+    // 1 AP. Lunge is the way the Strike is made, not an extra action.
+    apCost: "1",
+    traits: "Attack, Martial, Rogue",
+    map: MAP_RULES.single,
+    requires: [REQUIREMENTS.meleeWeapon],
+    // "This strike is subject to a -1-circumstance penalty." Not declared as
+    // `strikePenalty`, because Lunging Stance negates it: see
+    // `lungeStrikeTerms`.
+    lunge: true,
+    // PAID BY THE STRIKE ITSELF: the attack workflow charges its 1 AP after
+    // every refusal it can make (out of reach, no target), so a Lunge at a
+    // foe too far away costs nothing; and Fight Defensively's paid Strike
+    // and the off-turn GM authorisation apply as for any Strike.
+    strikePays: true,
+    summary: "Strike with your melee weapon at Reach (+5 ft), at -1."
   },
   "quick draw": {
     label: "Quick Draw",
@@ -500,5 +524,90 @@ export function actionFeatState(featName, state = {}) {
     map: entry.map,
     usable: unmet.length === 0,
     reason: unmet.length ? (REQUIREMENT_TEXT[unmet[0]] ?? "its requirements are not met") : null
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Lunge (3.704.0)                                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * LUNGE'S PENALTY. "This strike is subject to a -1-circumstance penalty."
+ */
+const LUNGE_PENALTY = -1;
+
+/**
+ * THE WEAPONS LUNGE CAN BE MADE WITH. The book: "Requirements You are
+ * wielding a melee weapon. Using your melee weapon, you may take an action
+ * with the attack trait. This action gains the reach trait for that Strike."
+ *
+ * - wielded: a weapon item, equipped (held);
+ * - a melee weapon: attack mode melee (a dagger with Thrown is a melee
+ *   weapon and is struck, not hurled, within the Lunge's reach);
+ * - not a natural attack: a fist or a claw is not a weapon wielded
+ *   (the reading flagged with this release);
+ * - not already Reach: the trait is gained, and a weapon that has it gains
+ *   nothing, so Lunge would be a Strike at -1 for no reach.
+ *
+ * Pure.
+ *
+ * @param {Array<object>} items the actor's items
+ * @returns {{eligible: object[], reachAlready: object[]}}
+ */
+export function lungeWeapons(items = []) {
+  const wielded = (Array.isArray(items) ? items : Array.from(items ?? []))
+    .filter((i) => i?.type === "weapon" && i.system?.equipped && !i.system?.natural
+      && (i.system?.attackMode ?? "melee") === "melee");
+  const hasReach = (i) => /\breach\b/i.test(String(i.system?.traits ?? ""));
+  return {
+    eligible: wielded.filter((i) => !hasReach(i)),
+    reachAlready: wielded.filter(hasReach)
+  };
+}
+
+/**
+ * IS LUNGING STANCE UP? Read from the stance's own effect (entered from its
+ * Use, `enterFeatStance`): a feat-stance effect named Lunging Stance, or one
+ * carrying the `lungePenaltiesNegated` declaration this release stamps on it.
+ * A disabled effect is a stance that is not up.
+ *
+ * Pure.
+ *
+ * @param {Array<{name: string, disabled?: boolean, flags?: object}>} effects
+ * @returns {boolean}
+ */
+export function lungingStanceActive(effects = []) {
+  return (Array.isArray(effects) ? effects : Array.from(effects ?? [])).some((e) => {
+    if (!e || e.disabled) return false;
+    const own = e.flags?.["trg-prime"] ?? {};
+    if (own.lungePenaltiesNegated) return true;
+    return Boolean(own.featStance) && normalise(e.name) === "lunging stance";
+  });
+}
+
+/**
+ * WHAT A LUNGE STRIKE IS, as attack options.
+ *
+ * - The Strike gains the Reach trait (`grantTraits`): +5 ft of reach, and
+ *   the Reach trait's own -2 when the target is in that extra band, as for
+ *   any reach weapon.
+ * - It takes Lunge's -1 circumstance, near or far ("This strike is subject
+ *   to a -1-circumstance penalty").
+ * - In Lunging Stance, "any penalties associated with performing standard
+ *   Lunge strikes are completely negated": the -1, and the Reach trait's -2
+ *   that the Lunge brought (the reading flagged with this release).
+ *
+ * Pure.
+ *
+ * @param {{lungingStance?: boolean}} state
+ * @returns {{grantTraits: string[], extraModifiers: object[], waiveReachPenalty: boolean}}
+ */
+export function lungeStrikeTerms({ lungingStance = false } = {}) {
+  return {
+    grantTraits: ["Reach"],
+    extraModifiers: lungingStance
+      ? []
+      : [{ label: `Lunge (${LUNGE_PENALTY})`, value: LUNGE_PENALTY, type: "circumstance" }],
+    waiveReachPenalty: Boolean(lungingStance)
   };
 }

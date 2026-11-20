@@ -83,7 +83,10 @@ const WORLD_SCHEMA_SETTING = "worldSchemaVersion";
 // 3.699.0: the pack-copy and declared-effect passes re-gated for the joint
 // Codex / Fiends & Fables audit (Eternal's Death State; Ooze's disease and
 // precision immunities).
-export const TRG_SCHEMA_VERSION = "3.701.0";
+// 3.701.0: both re-gated for the Movement trait and the Storgar note.
+// 3.704.0: the declared-effect pass re-gated for the Lunge and Lunging
+// Stance notes. The stamp equals the newest pass, as above.
+export const TRG_SCHEMA_VERSION = "3.704.0";
 
 /**
  * Register the hidden world setting used to determine whether a migration is
@@ -850,7 +853,8 @@ export async function migrateWorldData(fromVersion = "") {
   // immunities (Graham, CO-02 and RD-08). Old-value matched, so a copy the
   // 3.627.1 pass already repaired reads as current and is skipped.
   // RE-VERSIONED TO 3.701.0: the Storgar heritage's rooting note, now rolled by the cast.
-  const effectRepairs = (await runIf("3.701.0", "declared effect repairs on owned items (Undead disease; Ooze disease and precision; the Storgar note)",
+  // RE-VERSIONED TO 3.704.0: the Lunge and Lunging Stance notes (Lunge automated).
+  const effectRepairs = (await runIf("3.704.0", "declared effect repairs on owned items (Undead disease; Ooze disease and precision; the Storgar note; the Lunge and Lunging Stance notes)",
     () => migrateOwnedEffectRepairs(actors, tokenActors, Array.from(game.items ?? [])))) ?? [];
   result.effectRepairs = effectRepairs;
 

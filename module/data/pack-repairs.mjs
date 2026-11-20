@@ -2644,6 +2644,21 @@ export const EFFECT_REPAIRS = Object.freeze([
     to: { description: "A DC 5 flat check when any FRIENDLY spell with the movement trait is cast upon you — on a failure the spell does not work. Rolled for you when the spell is cast: your own Movement spells, and an ally's that targets you." },
     reason: "The DC 5 flat check is now rolled by the cast itself (3.701.0, magic/rooted-movement.mjs); "
       + "an owned Storgar's note still sent the player to the Flat Check button to roll it by hand."
+  },
+  {
+    id: "lunge-note", itemType: "feat", name: "Lunge", effect: "Lunge",
+    since: "3.704.0",
+    from: { description: "Your melee attack action gains the Reach trait for one Strike at -1 circumstance — queue the penalty via the Use button." },
+    to: { description: "Use: a Strike with your melee weapon that has the Reach trait (+5 ft; the trait's -2 at the extra distance) and a -1 circumstance penalty, all applied automatically. The Strike's own 1 AP." },
+    reason: "Lunge's Use is now the Strike itself, with Reach and its -1 applied (3.704.0); "
+      + "an owned Lunge's note still told the player to queue the penalty by hand."
+  },
+  {
+    id: "lunging-stance-note", itemType: "feat", name: "Lunging Stance", effect: "Lunging Stance",
+    since: "3.704.0",
+    from: { description: "Enter via the Use button (1 AP; melee weapon): Attacks of Opportunity reach 5 ft further, and Lunge's -1 penalty is negated while the stance is up." },
+    to: { description: "Enter via the Use button (1 AP; melee weapon): Attacks of Opportunity reach 5 ft further, and Lunge's penalties (its -1 and the Reach -2) are negated automatically while the stance is up." },
+    reason: "Lunge now reads Lunging Stance and drops its -1 and the Reach -2 itself (3.704.0)."
   }
 ]);
 
