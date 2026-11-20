@@ -103,7 +103,15 @@ A repair is recorded as verified only when its stated tests actually ran and pas
 
 **Pack:** a record diff against 3.703.1 shows only the two note descriptions changed.
 
-**Live Foundry:** NOT run. The live installation is 3.703.1, and installing a build needs Graham's approval. The full Strike (`rollWeaponAttack` with tokens on a canvas) was not driven end to end. Only its pure parts and its wiring were.
+**Live Foundry:** passed, 20 November 2026, in the "Test" world after Graham installed 3.704.0 (`live-testing-report-3.704.0.md`):
+
+- the control Strike at 10 ft was refused;
+- Lunge at 10 ft hit with −1 and −2 for 1 AP;
+- Lunge at 15 ft was refused with no AP spent;
+- in Lunging Stance there were no penalties, and the MAP was applied normally;
+- a Glaive alone, or no weapon, was refused with the reason.
+
+No console errors. The world migration to 3.704.0 ran.
 
 ### Delivery
 
