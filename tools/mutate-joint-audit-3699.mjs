@@ -31,7 +31,7 @@ const MUTATIONS = [
   { name: "D a printed range is not the base ability", file: GW, from: "    if (i.type === \"ability\") held.add(abilityBaseName(name));", to: "" },
   { name: "E owned Eternal types never repaired", file: PR, from: "    id: \"rd01-eternal-no-death-state\", pack: \"creature-types\"", to: "    id: \"rd01-eternal-no-death-stateX\", pack: \"creature-types\"" },
   { name: "F owned Ooze effects never repaired", file: PR, from: "    id: \"co02-rd08-ooze-immunities\", itemType: \"creature-type\"", to: "    id: \"co02-rd08-ooze-immunitiesX\", itemType: \"creature-type\"" },
-  { name: "F the effect pass not re-gated", file: MG, from: "runIf(\"3.699.0\", \"declared effect repairs on owned items", to: "runIf(\"3.627.1\", \"declared effect repairs on owned items" }
+  { name: "F the effect pass not re-gated", file: MG, from: "runIf(\"3.701.0\", \"declared effect repairs on owned items", to: "runIf(\"3.627.1\", \"declared effect repairs on owned items" }
 ];
 
 const verify = path.join(SYSTEM_ROOT, "tools", "verify-joint-audit-3699.mjs");

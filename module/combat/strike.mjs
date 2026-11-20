@@ -153,6 +153,70 @@ export async function chooseMeleeAttack(actor, label) {
 }
 
 /**
+ * THE WEAPONS QUICK DRAW CAN DRAW (3.702.0; Graham, 19 November 2026: "Quick
+ * Draw is not working"). The book: "You draw your melee or thrown weapon and
+ * attack with the same motion … You use a 1 AP to Interact and Strike with
+ * your weapon."
+ *
+ * Until 3.702.0 the feat offered the weapons already in hand (`usableAttacks`
+ * reads `equipped`), so it was a plain 1 AP Strike that drew nothing. A
+ * weapon to draw is one NOT in hand: not equipped, not a natural attack, and
+ * melee or thrown (attack mode "thrown", or the Thrown trait). A bow or
+ * crossbow is neither. Stowed weapons count: the sheet's own equip toggle
+ * takes a weapon out of a Stash Sack the same way.
+ *
+ * Pure.
+ *
+ * @param {object[]} items
+ * @returns {object[]}
+ */
+export function drawableWeapons(items) {
+  return (items ?? []).filter((item) => {
+    if (item?.type !== "weapon" || item.system?.natural || item.system?.equipped) return false;
+    const mode = String(item.system?.attackMode ?? "melee").trim().toLowerCase();
+    const thrown = mode === "thrown" || /\bthrown\b/i.test(String(item.system?.traits ?? ""));
+    return mode === "melee" || thrown;
+  });
+}
+
+/**
+ * WHICH WEAPON QUICK DRAW DRAWS (3.702.0). Asked before any AP is spent, so
+ * cancelling costs nothing: no dialog when there is exactly one, a warning
+ * when there is none.
+ *
+ * @returns {Promise<Item|null>} the weapon; null when there is none or the
+ *   player cancelled.
+ */
+export async function chooseWeaponToDraw(actor, label) {
+  const drawable = drawableWeapons(Array.from(actor?.items ?? []));
+  if (!drawable.length) {
+    ui.notifications.warn(`${label}: you have no melee or thrown weapon to draw — every one is already in hand. Use Strike instead.`);
+    return null;
+  }
+  if (drawable.length === 1) return drawable[0];
+  const isThrownOnly = (w) => String(w.system?.attackMode ?? "").trim().toLowerCase() === "thrown";
+  const { DialogV2 } = foundry.applications.api;
+  const rows = drawable.map((w, index) =>
+    `<label style="display:flex;align-items:center;gap:8px;padding:2px 0"><input type="radio" name="attack" value="${index}" ${index === 0 ? "checked" : ""}><span>${w.name}${w.system?.damage ? ` (${w.system.damage})` : ""}${isThrownOnly(w) ? " — thrown" : ""}${w.system?.stowed ? " — stowed" : ""}</span></label>`).join("");
+  const picked = await DialogV2.wait({
+    window: { title: `${label} — Draw Which Weapon?`, icon: "fa-solid fa-hand-fist" },
+    classes: ["trg-prime"],
+    position: { width: 360 },
+    content: `<div class="trg-prime trg-check-dialog">${rows}</div>`,
+    buttons: [
+      { action: "confirm", label: "Draw and Strike", default: true, callback: (event, button) => {
+        const FDE = foundry.applications?.ux?.FormDataExtended ?? globalThis.FormDataExtended;
+        return new FDE(button.form ?? button.closest?.("form")).object.attack;
+      } },
+      { action: "cancel", label: "Cancel" }
+    ],
+    rejectClose: false
+  });
+  if (picked === null || picked === undefined || picked === "cancel") return null;
+  return drawable[Number(picked)] ?? null;
+}
+
+/**
  * WHICH ATTACK A STRIKE THAT MAY BE MELEE OR RANGED IS MADE WITH (3.700.0;
  * Skirmish). The book: "You may take a Strike action and Step action
  * together for 1 AP" — a Strike, not a melee Strike, so a Ranger's bow

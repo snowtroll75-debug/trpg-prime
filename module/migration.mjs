@@ -83,7 +83,7 @@ const WORLD_SCHEMA_SETTING = "worldSchemaVersion";
 // 3.699.0: the pack-copy and declared-effect passes re-gated for the joint
 // Codex / Fiends & Fables audit (Eternal's Death State; Ooze's disease and
 // precision immunities).
-export const TRG_SCHEMA_VERSION = "3.699.0";
+export const TRG_SCHEMA_VERSION = "3.701.0";
 
 /**
  * Register the hidden world setting used to determine whether a migration is
@@ -792,7 +792,8 @@ export async function migrateWorldData(fromVersion = "") {
   // RE-VERSIONED TO 3.698.1: Flame Blade's blade (Graham, U12).
   // RE-VERSIONED TO 3.698.2: the blade's proficiency (Graham).
   // RE-VERSIONED TO 3.699.0: Eternal's Death State (Graham, RD-01).
-  const packCopies = (await runIf("3.699.0", "stale owned copies of repaired pack items",
+  // RE-VERSIONED TO 3.701.0: the Movement trait on 34 spells (Graham, 18 Nov 2026).
+  const packCopies = (await runIf("3.701.0", "stale owned copies of repaired pack items",
     () => migrateStalePackCopies([...actors, ...tokenActors], Array.from(game.items ?? []))))
     ?? { repaired: [], kept: [] };
   result.packCopies = packCopies;
@@ -848,7 +849,8 @@ export async function migrateWorldData(fromVersion = "") {
   // RE-VERSIONED TO 3.699.0: the Ooze type's disease and precision
   // immunities (Graham, CO-02 and RD-08). Old-value matched, so a copy the
   // 3.627.1 pass already repaired reads as current and is skipped.
-  const effectRepairs = (await runIf("3.699.0", "declared effect repairs on owned items (Undead disease; Ooze disease and precision)",
+  // RE-VERSIONED TO 3.701.0: the Storgar heritage's rooting note, now rolled by the cast.
+  const effectRepairs = (await runIf("3.701.0", "declared effect repairs on owned items (Undead disease; Ooze disease and precision; the Storgar note)",
     () => migrateOwnedEffectRepairs(actors, tokenActors, Array.from(game.items ?? [])))) ?? [];
   result.effectRepairs = effectRepairs;
 

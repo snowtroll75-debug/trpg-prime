@@ -18,7 +18,7 @@ import { hasQuickLoadTrait, needsReloading } from "./reload.mjs";
 import { spendActionCost } from "./action-points-workflow.mjs";
 import { activeToken, distanceBetween } from "./geometry.mjs";
 import { hitLocationFromUnitDie } from "./hit-location.mjs";
-import { chooseAnyAttack, chooseMeleeAttack, usableAttacks } from "./strike.mjs";
+import { chooseAnyAttack, chooseMeleeAttack, chooseWeaponToDraw, usableAttacks } from "./strike.mjs";
 import { bindOnce } from "../dice/check-card-interactions.mjs";
 import {
   ACTION_FEATS,
@@ -258,7 +258,7 @@ function meleeWeapon(actor) {
 
 /** The action feats whose Strike is made with a melee weapon. */
 const MELEE_WEAPON_FEATS = new Set([
-  "combat grapple", "distracting strike", "quick draw", "reverse strike",
+  "combat grapple", "distracting strike", "reverse strike",
   "striding charge", "swipe", "vital strike"
 ]);
 
@@ -284,6 +284,15 @@ export async function runActionFeat(actor, item) {
     return null;
   }
   const entry = ACTION_FEATS[state.key];
+  // A WEAPON TO DRAW (3.702.0; Quick Draw): one not yet in hand, its grip,
+  // and a hand to hold it, all settled before any AP is spent.
+  if (entry.draws) {
+    const drawn = await readyToDraw(actor, entry.label);
+    if (!drawn) return null;
+    await spendActionCost(actor, entry.apCost, entry.label, { traits: entry.traits });
+    const run = RUN[state.key];
+    return run ? run(actor, item, entry, drawn) : null;
+  }
   const chosen = MELEE_WEAPON_FEATS.has(state.key) ? await chooseMeleeAttack(actor, entry.label)
     : ANY_WEAPON_FEATS.has(state.key) ? await chooseAnyAttack(actor, entry.label) : undefined;
   if (chosen === null) return null;
@@ -292,6 +301,35 @@ export async function runActionFeat(actor, item) {
   }
   const run = RUN[state.key];
   return run ? run(actor, item, entry, chosen ?? null) : null;
+}
+
+/**
+ * QUICK DRAW'S DRAW, SETTLED BEFORE THE AP (3.702.0). Which weapon
+ * (`chooseWeaponToDraw`), the Hand & a Half grip when it has one (asked as
+ * the sheet's equip toggle asks), and whether a hand is free for it
+ * (`canEquip`, the sheet's own test). Refused with the reason, at no cost,
+ * when the hands are full.
+ *
+ * @returns {Promise<{weapon: Item, grip: boolean|null}|null>}
+ */
+async function readyToDraw(actor, label) {
+  const weapon = await chooseWeaponToDraw(actor, label);
+  if (!weapon) return null;
+  const { canEquip, isHandAndAHalf, promptTwoHandedGrip } = await import("../held-items-workflow.mjs");
+  let grip = null;
+  if (isHandAndAHalf(weapon.system?.traits)) {
+    grip = await promptTwoHandedGrip(weapon.name, Boolean(weapon.system?.twoHandedGrip));
+    if (grip === null) return null;
+  }
+  const asHeld = grip === null
+    ? weapon
+    : { id: weapon.id, name: weapon.name, type: weapon.type, system: { ...weapon.system, twoHandedGrip: grip } };
+  const hands = canEquip(actor, asHeld);
+  if (!hands.allowed) {
+    ui.notifications.warn(`${label}: ${hands.reason} Release something first.`);
+    return null;
+  }
+  return { weapon, grip };
 }
 
 const RUN = {
@@ -347,12 +385,23 @@ const RUN = {
     ]);
   },
 
-  async "quick draw"(actor, item, entry, chosen = null) {
-    const weapon = chosen ?? meleeWeapon(actor);
+  // THE DRAW, THEN THE STRIKE (3.702.0). The weapon goes into the hand
+  // first, as the sheet's equip toggle puts it there (out of any sack, with
+  // its grip), so the Strike is made with a held weapon. It stays drawn if
+  // the Strike is refused (out of reach, no target): the Interact happened.
+  async "quick draw"(actor, item, entry, drawn = null) {
+    const weapon = drawn?.weapon ?? null;
+    if (weapon) {
+      const changes = { "system.equipped": true };
+      if (weapon.system?.stowed) changes["system.stowed"] = false;
+      if (drawn.grip !== null && drawn.grip !== undefined) changes["system.twoHandedGrip"] = drawn.grip;
+      await weapon.update(changes);
+    }
     const checks = await strikePlan(actor, weapon, "quick draw");
     await card(actor, entry.label, [
       refusedLine(checks),
-      line(`<strong>${esc(actor.name)}</strong> draws and strikes in one motion — the Interact and the Strike together for <strong>1 AP</strong>.`)
+      line(`<strong>${esc(actor.name)}</strong> draws <strong>${esc(weapon?.name ?? "a weapon")}</strong> and strikes in one motion — the Interact and the Strike together for <strong>1 AP</strong>.`),
+      checks.refused ? line(`<em>${esc(weapon?.name ?? "The weapon")} stays in hand: the draw happened even though the Strike did not.</em>`) : ""
     ]);
   },
 

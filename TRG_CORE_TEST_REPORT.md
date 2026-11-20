@@ -200,6 +200,27 @@ How the suite ran:
 - **Carried forward:** `mutate-checks-read-source`. It is about seven runs of the 20-minute checker, and neither the checker nor its mutations changed in 3.700.0. `verify-checks-read-source` itself was re-run and passes.
 - **An early attempt was discarded.** Two suite processes overlapped, and two mutate files failed on the lock. Those results were thrown away, and the run above started clean.
 - **Version anchors:** 58 harness files bumped from 3.699.0 to 3.700.0. Migration gates and `TRG_SCHEMA_VERSION` were left alone, because there is no data change.
+## 12. 3.701.0 (the Movement trait on spells, and the Storgar, 19 November 2026)
+
+| Test | Result |
+|---|---|
+| `verify-movement-trait-3700` / `mutate-movement-trait-3700` (new) | 59 checks green; 29 of 29 mutations caught |
+| `verify-joint-audit-3699` (E9 now a gate floor) | 34 checks green |
+| `verify-ea-block7-core` H2e, `verify-fixes-3685-1` T7 | Green. The cast workflow's pinned lines are unchanged: the Storgar logic sits around them, not inside them |
+| Full regression suite, core (`tools/regression-suite.mjs`), on the merged tree (Skirmish + this) | **763 of 763 pass** |
+| Pillars of Faith | 11 / 11 pass |
+| Inner Tempest | 19 pass, 2 blocked (`verify-block5` / `mutate-block5`, book text), `mutate-block8` failing on the module side. Same as every run since 3.697.0 |
+| Eldritch Arts | 55 pass, 1 blocked (`mutate-book-extract`), `mutate-block10b` failing on the module side (2 of 25). Same as every run since 3.697.0 |
+
+How the suite ran (merged 3.701.0 tree): two sittings. The first was stopped mid-mutation at the background time limit. `pending-cast-workflow.mjs` was restored and the packs were reset to the committed state, so the fingerprint matched and its 417 results stood.
+
+Earlier, on the 3.700.0 branch before the merge:
+- **Sittings.** The suite ran in three sittings, because this environment stops long processes. One sitting was killed mid-mutation, and `pending-cast-workflow.mjs` was restored from the harness snapshot before the run resumed. The fingerprint was unchanged, so the earlier results stood.
+- **One restart, after a fix found by the first sitting.** `verify-ea-block7-core` H2e and `verify-fixes-3685-1` T7 pin the exact lines that card a teleport and filter self rows.
+  - **First version:** the Storgar gate was written inside those lines.
+  - **Now:** it prunes rooted targets before them, as the trait-immunity gate does, and blocks self rows through the existing `selfShapeBlocked` flag.
+  - **Result:** the pinned lines are byte-for-byte unchanged, and the suite was re-run from the start.
+- **Meta checks.** `verify-rules-have-callers` flagged two new exported constants. They are now module-internal.
 
 ### Live (owed)
 
@@ -209,3 +230,83 @@ After installation in the Test world:
 - Another action before the second half removes it. A second press is refused.
 - A ranged weapon offered in the chooser.
 - Out of combat.
+- the 34 spells show Movement, and Dimension Door's "Move" is gone;
+- a Storgar's own Misty Step rolls the DC 5 flat check, and a failure leaves the token and gives no Spatial Awareness card;
+- an ally's Slide on a Storgar rolls it, while an enemy's does not;
+- Teleport by a Storgar rolls for the caster beside the targets;
+- a Storgar's save against Gust carries the automatic +2 racial row;
+- a Quickened point "for Move" pays for Swim;
+- the migration offered once, repairing owned spell copies and the Storgar note.
+
+## 13. 3.702.0 (Quick Draw, and drawing in combat is an Interact, 19 November 2026)
+
+| Test | Result |
+|---|---|
+| `verify-quick-draw-3702` / `mutate-quick-draw-3702` (new) | 28 checks green; 18 of 18 mutations caught |
+| `verify-held-change-3702` / `mutate-held-change-3702` (new) | 37 checks green; 18 of 18 mutations caught |
+| `verify-stash-stow` / `mutate-stash-stow` (S5 re-anchored on the whole handler) | 10 checks green; 14 of 14 caught |
+| `verify-block5-core` G1, `verify-block6-core` C10, `verify-fixes-3669-1` C4, `verify-ea-block3b-core` W24 | Green. The new `heldChange` option is declared early in `resolveAction`'s options, so the anchors on the last option still read |
+| Full regression suite, core | **767 of 767 pass** |
+| Pillars of Faith | 11 / 11 pass |
+| Inner Tempest | 19 pass, 2 blocked (`verify-block5` / `mutate-block5`, book text), `mutate-block8` failing on the module side. Same as every run since 3.697.0 |
+| Eldritch Arts | 55 pass, 1 blocked (`mutate-book-extract`), `mutate-block10b` failing on the module side (2 of 25). Same as every run since 3.697.0 |
+
+How the suite ran:
+- **Sittings.** Two sittings. The first was stopped at the background limit during `mutate-fixes-3685-3b`.
+- **Before resuming.** `pending-cast-workflow.mjs` was restored and the packs were reset to the committed state. The fingerprint matched, so 417 results stood.
+- **An earlier run was abandoned.** It covered Quick Draw alone, and was stopped when Graham's ruling on drawing in combat widened the release.
+
+### Live (owed)
+
+After installation, in the Test world:
+- Quick Draw from a sheathed weapon;
+- Quick Draw with full hands, and with nothing to draw;
+- a player-side draw from the sheet in combat (AP, the Interact card, an Attack of Opportunity offered by an adjacent enemy);
+- put away: Drop and Sheathe;
+- a GM's "just set it";
+- the item sheet's Equipped box;
+- out of combat, still free.
+
+## 14. 3.703.0 (the Manipulate Attack of Opportunity, and donning armour, 19 November 2026)
+
+| Test | Result |
+|---|---|
+| `verify-manipulate-aoo-3703` / `mutate-manipulate-aoo-3703` (new) | 15 checks green; 6 of 6 mutations caught |
+| `verify-armour-change-3703` / `mutate-armour-change-3703` (new) | 85 checks green; 26 of 26 mutations caught |
+| `mutate-agile-display` (re-anchored) | 93 of 93 caught. Its "main commit point pays bare" anchor read the old one-line prepared-reaction payment, which is now a block |
+| `verify-rules-have-callers` | OK, backlog unchanged. Helpers used only inside the armour workflow are not exported |
+| Full regression suite, core | **771 of 771 pass** |
+| Pillars of Faith | 11 / 11 pass |
+| Inner Tempest | 19 pass, 2 blocked (`verify-block5` / `mutate-block5`, book text), `mutate-block8` failing on the module side. Same as every run since 3.697.0 |
+| Eldritch Arts | 55 pass, 1 blocked (`mutate-book-extract`), `mutate-block10b` failing on the module side (2 of 25). Same as every run since 3.697.0 |
+
+How the suite ran:
+- **Sittings.** Two sittings on the final fingerprint; the first stopped at its time budget after 420 scripts, and the second resumed from there.
+- **An earlier run was abandoned** when it found the stale `mutate-agile-display` anchor; it was stopped, the anchor fixed and committed, and the run started over.
+- **Before the final run,** the 164 core mutation files that touch the changed sources were run against an archive of the commit, all green.
+
+### Live (owed)
+
+After installation, in the Test world:
+- an Interact at 0 AP beside a foe, cancelled at the prompt: no Attack of Opportunity offer; with AP: the offer;
+- out of combat: a medium suit on and off (4 minutes each), a full suit (doubled);
+- in combat: a light suit as a task (the first payment, Continue next turn, worn when paid), the box mid-task (Continue / Abandon), a GM's "just set it";
+- a helmet in combat (1 AP Interact), and out of combat (free);
+- Quick Donning on yourself, then a donning at its time; on a targeted ally.
+
+## 15. 3.703.1 (the armour dialog, and the donning readings confirmed, 20 November 2026)
+
+| Test | Result |
+|---|---|
+| `verify-armour-change-3703` / `mutate-armour-change-3703` (H1 to H3 and two mutations added) | 88 checks green; 28 of 28 mutations caught |
+| `verify-rules-have-callers` | OK, backlog unchanged |
+| Full regression suite, core | **771 of 771 pass** |
+| Pillars of Faith | 11 / 11 pass |
+| Inner Tempest | 19 pass, 2 blocked (`verify-block5` / `mutate-block5`, book text), `mutate-block8` failing on the module side. Same as every run since 3.697.0 |
+| Eldritch Arts | 55 pass, 1 blocked (`mutate-book-extract`), `mutate-block10b` failing on the module side (2 of 25). Same as every run since 3.697.0 |
+
+How the suite ran: two sittings on one fingerprint, the first stopped at its time budget after 420 scripts.
+
+### Live (owed)
+
+After installation: the GM's "In Combat" dialog for a light suit (one "(15 AP)") and for a medium suit ("2 minutes (60 AP)" with Quick Donning, or "4 minutes (120 AP)").

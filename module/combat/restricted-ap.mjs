@@ -87,7 +87,12 @@ export function useKindsOf(actionName, { use = null, traits = "" } = {}) {
   if (/^Stride$/i.test(name)) add("stride");
   if (/^Step$/i.test(name)) add("step");
   const traitText = Array.isArray(traits) ? traits.join(",") : String(traits ?? "");
-  if (/\bmove\b/i.test(traitText)) add("move");
+  // THE BOOK'S WORD IS "MOVEMENT" (3.701.0). Swim, Crawl, Stand, Tumble and
+  // the jumps carry "Movement" (data/basic-actions.mjs, data/skill-actions.mjs),
+  // and `\bmove\b` does not match it, so a Quickened point "for Move or Strike
+  // only" could pay for none of them. "Move" is still read, as movement.mjs's
+  // `countsAsMovementAp` reads both.
+  if (/\bmove(?:ment)?\b/i.test(traitText)) add("move");
   return USE_KINDS.filter((k) => kinds.has(k));
 }
 

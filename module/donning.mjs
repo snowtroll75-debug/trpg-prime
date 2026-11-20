@@ -28,6 +28,11 @@
  * that null and its reason to a card until 3.369.0, when it was deleted
  * for want of a caller — see the note where it stood.
  *
+ * GRAHAM'S RULING SUPPLIES IT (3.703.0, 19 November 2026): removing takes
+ * the same time as donning, doubled for a full suit. So the one figure,
+ * `donningTimeFor`, serves both, and combat/armour-change.mjs uses it for
+ * either direction. The refusal above was right until a ruling existed.
+ *
  * Pure arithmetic, no Foundry API.
  */
 
@@ -140,4 +145,8 @@ export function donningTime(category, { fullSuit = false } = {}) {
  * donning time or borrowing Quick Donning's success line is inventing
  * one, and an invented figure is indistinguishable from a printed one
  * once it is on a card.
+ *
+ * 3.703.0: Graham's ruling now supplies the figure (the same time as
+ * donning, doubled for a full suit). It is a ruling, not the printed text,
+ * and combat/armour-change.mjs says so where it applies it.
  */

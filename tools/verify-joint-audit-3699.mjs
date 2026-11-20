@@ -147,10 +147,14 @@ const mod = (...p) => import(new URL(`../module/${p.join("/")}`, import.meta.url
   equal("E7 the repaired value is what the pack ships", update?.changes?.map((c) => c.value), (ooze?.changes ?? []).map((c) => c.value));
   equal("E8 a house-ruled copy is left alone", repairs.effectRepairUpdate(oozeRepair, { ...stale, changes: [], description: "Mine." }), null);
   const mig = read("module", "migration.mjs");
-  ok("E9 both passes are re-gated at 3.699.0 and the schema is stamped there",
-    /runIf\("3\.699\.0", "stale owned copies of repaired pack items"/.test(mig)
-    && /runIf\("3\.699\.0", "declared effect repairs on owned items/.test(mig)
-    && /export const TRG_SCHEMA_VERSION = "3\.699\.0";/.test(mig));
+  // A GATE FLOOR, NOT A PIN (3.700.0 re-gated both passes again for the
+  // Movement trait): any later gate still runs them for a 3.698.x world.
+  const atLeast = (a, b) => String(a).localeCompare(b, undefined, { numeric: true }) >= 0;
+  const packGate = /runIf\("([\d.]+)", "stale owned copies of repaired pack items"/.exec(mig)?.[1] ?? "0";
+  const effectGate = /runIf\("([\d.]+)", "declared effect repairs on owned items/.exec(mig)?.[1] ?? "0";
+  const stamp = /export const TRG_SCHEMA_VERSION = "([\d.]+)";/.exec(mig)?.[1] ?? "0";
+  ok("E9 both passes are gated at 3.699.0 or later and the schema is stamped at or past them",
+    atLeast(packGate, "3.699.0") && atLeast(effectGate, "3.699.0") && atLeast(stamp, packGate) && atLeast(stamp, effectGate));
 }
 
 console.log(`verify-joint-audit-3699: ${checks} checks${failures.length ? ` — ${failures.length} FAILED` : " — all green."}`);

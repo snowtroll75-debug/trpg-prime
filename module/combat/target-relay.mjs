@@ -40,6 +40,9 @@
 
 const SYSTEM_ID = "trg-prime";
 
+/** Quick Donning's degrees (armour-change.mjs `QUICK_DONNING_DEGREES`; kept here so this file stays import-free). */
+const QUICK_DONNING_RELAY_DEGREES = Object.freeze(["heroic", "critical", "success", "partial", "failure", "fumble", "blunder"]);
+
 /** The socket channel. Shared with the party relay; actions namespace it. */
 export const RELAY_SOCKET = `system.${SYSTEM_ID}`;
 
@@ -70,6 +73,11 @@ export const RELAY_ACTIONS = Object.freeze({
   // player's critical on the GM's NPC threw a permission error and the whole
   // strike — damage and card — was lost. Found live on 7 October 2026.
   INJURY_RECORD: "target.injuryRecord",
+  // A QUICK DONNING RESULT FOR AN ALLY (3.703.0): the feat "reduce[s] the time
+  // required for you or an ally to don or remove their armour", and the
+  // result waits on that creature until its next donning or removal. A named
+  // field and a degree from the check's own list; nothing else is written.
+  QUICK_DONNING: "target.quickDonning",
   // A DEFENCE THAT LASTED ONE ATTACK (3.666.0): the attacker's client asks
   // the GM's to remove the defender's one-attack effects that attack spent.
   // The payload names the ATTACK, not effect ids, so the GM's client decides
@@ -335,6 +343,13 @@ export async function performRelay(request, deps) {
       const item = deps.itemOf(target, String(payload.itemId ?? ""));
       if (!item) return { ok: false, reason: "item not found on that target" };
       await deps.updateItem(item, payload.update ?? {});
+      return { ok: true, result: null };
+    }
+    case RELAY_ACTIONS.QUICK_DONNING: {
+      // Only a degree the check can report, and the helper's name as text.
+      const degree = String(payload.degree ?? "").toLowerCase();
+      if (!QUICK_DONNING_RELAY_DEGREES.includes(degree)) return { ok: false, reason: "not a Quick Donning result" };
+      await deps.setQuickDonning(target, { degree, by: String(payload.by ?? "").slice(0, 80) });
       return { ok: true, result: null };
     }
     case RELAY_ACTIONS.ITEM_HP: {

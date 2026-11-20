@@ -2333,6 +2333,247 @@ export const PACK_REPAIRS = Object.freeze([
     from: false,
     to: true,
     reason: "Graham, 18 Nov 2026 (RD-01): an Eternal has no Death State and is destroyed at 0 HP, as the Creature Codex table prints. An owned Eternal type still at false went on dying like a Humanoid."
+  },  /* THE MOVEMENT TRAIT (3.701.0). Graham, 18 Nov 2026: any spell that moves
+   * the caster or a target as part of the casting carries Movement; groups A
+   * and B of claude/movement-trait-spell-audit.md, and rulings C1 and C2
+   * ("your recommendation"). Dimension Door's printed MOVE becomes Movement. */
+  {
+    id: "movement-trait-misty-step", pack: "spells", name: "Misty Step",
+    field: "traits", since: "3.701.0",
+    from: "Teleportation, Translocation",
+    to: "Movement, Teleportation, Translocation",
+    reason: "Movement trait (A). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-dimension-door", pack: "spells", name: "Dimension Door",
+    field: "traits", since: "3.701.0",
+    from: "Move, Teleportation, Translocation",
+    to: "Movement, Teleportation, Translocation",
+    reason: "Movement trait (A). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-dimension-shift", pack: "spells", name: "Dimension Shift",
+    field: "traits", since: "3.701.0",
+    from: "Teleportation, Translocation",
+    to: "Movement, Teleportation, Translocation",
+    reason: "Movement trait (A). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-shadow-step", pack: "spells", name: "Shadow Step",
+    field: "traits", since: "3.701.0",
+    from: "Translocation",
+    to: "Movement, Translocation",
+    reason: "Movement trait (A). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-teleport", pack: "spells", name: "Teleport",
+    field: "traits", since: "3.701.0",
+    from: "Teleportation, Translocation",
+    to: "Movement, Teleportation, Translocation",
+    reason: "Movement trait (A). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-word-of-recall", pack: "spells", name: "Word Of Recall",
+    field: "traits", since: "3.701.0",
+    from: "Teleportation, Translocation",
+    to: "Movement, Teleportation, Translocation",
+    reason: "Movement trait (A). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-plane-shift", pack: "spells", name: "Plane Shift",
+    field: "traits", since: "3.701.0",
+    from: "Teleportation, Translocation, Uncommon",
+    to: "Movement, Teleportation, Translocation, Uncommon",
+    reason: "Movement trait (A). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-shadow-walk", pack: "spells", name: "Shadow Walk",
+    field: "traits", since: "3.701.0",
+    from: "Translocation",
+    to: "Movement, Translocation",
+    reason: "Movement trait (A). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-shifting-step", pack: "spells", name: "Shifting Step",
+    field: "traits", since: "3.701.0",
+    from: "Shadow",
+    to: "Movement, Shadow",
+    reason: "Movement trait (A). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-fluidity", pack: "spells", name: "Fluidity",
+    field: "traits", since: "3.701.0",
+    from: "Alteration",
+    to: "Alteration, Movement",
+    reason: "Movement trait (A). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-physical-surge", pack: "spells", name: "Physical Surge",
+    field: "traits", since: "3.701.0",
+    from: "Alteration",
+    to: "Alteration, Movement",
+    reason: "Movement trait (A). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-slide", pack: "spells", name: "Slide",
+    field: "traits", since: "3.701.0",
+    from: "Teleportation, Translocation",
+    to: "Movement, Teleportation, Translocation",
+    reason: "Movement trait (B). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-startle", pack: "spells", name: "Startle",
+    field: "traits", since: "3.701.0",
+    from: "Enchantment, Fear, Mental",
+    to: "Enchantment, Fear, Mental, Movement",
+    reason: "Movement trait (B). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-gust", pack: "spells", name: "Gust",
+    field: "traits", since: "3.701.0",
+    from: "Air, Invocation",
+    to: "Air, Invocation, Movement",
+    reason: "Movement trait (B). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-hydraulic-torrent", pack: "spells", name: "Hydraulic Torrent",
+    field: "traits", since: "3.701.0",
+    from: "Invocation, Water",
+    to: "Invocation, Movement, Water",
+    reason: "Movement trait (B). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-telekinetic-manoeuvre", pack: "spells", name: "Telekinetic Manoeuvre",
+    field: "traits", since: "3.701.0",
+    from: "Force, Invocation",
+    to: "Force, Invocation, Movement",
+    reason: "Movement trait (B). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-spectral-grasp", pack: "spells", name: "Spectral Grasp",
+    field: "traits", since: "3.701.0",
+    from: "Evil, Soul",
+    to: "Evil, Movement, Soul",
+    reason: "Movement trait (B). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-forceful-strike", pack: "spells", name: "Forceful Strike",
+    field: "traits", since: "3.701.0",
+    from: "Force, Invocation",
+    to: "Force, Invocation, Movement",
+    reason: "Movement trait (B). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-wall-of-blades", pack: "spells", name: "Wall Of Blades",
+    field: "traits", since: "3.701.0",
+    from: "Invocation",
+    to: "Invocation, Movement",
+    reason: "Movement trait (B). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-earth-prison", pack: "spells", name: "Earth Prison",
+    field: "traits", since: "3.701.0",
+    from: "Alteration, Earth",
+    to: "Alteration, Earth, Movement",
+    reason: "Movement trait (B). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-portal-maelstrom", pack: "spells", name: "Portal Maelstrom",
+    field: "traits", since: "3.701.0",
+    from: "Teleportation, Translocation",
+    to: "Movement, Teleportation, Translocation",
+    reason: "Movement trait (B). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-punishing-winds", pack: "spells", name: "Punishing Winds",
+    field: "traits", since: "3.701.0",
+    from: "Air, Invocation",
+    to: "Air, Invocation, Movement",
+    reason: "Movement trait (B). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-reverse-gravity", pack: "spells", name: "Reverse Gravity",
+    field: "traits", since: "3.701.0",
+    from: "Alteration",
+    to: "Alteration, Movement",
+    reason: "Movement trait (B). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-volcanic-inferno", pack: "spells", name: "Volcanic Inferno",
+    field: "traits", since: "3.701.0",
+    from: "Fire, Invocation",
+    to: "Fire, Invocation, Movement",
+    reason: "Movement trait (B). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-wall-of-wind", pack: "spells", name: "Wall Of Wind",
+    field: "traits", since: "3.701.0",
+    from: "Air, Invocation",
+    to: "Air, Invocation, Movement",
+    reason: "Movement trait (B). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-levitate", pack: "spells", name: "Levitate",
+    field: "traits", since: "3.701.0",
+    from: "Alteration",
+    to: "Alteration, Movement",
+    reason: "Movement trait (B). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-blink", pack: "spells", name: "Blink",
+    field: "traits", since: "3.701.0",
+    from: "Air, Teleportation, Translocation",
+    to: "Air, Movement, Teleportation, Translocation",
+    reason: "Movement trait (C1). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-wind-walk", pack: "spells", name: "Wind Walk",
+    field: "traits", since: "3.701.0",
+    from: "Air, Alteration, Polymorph",
+    to: "Air, Alteration, Movement, Polymorph",
+    reason: "Movement trait (C1). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-map-of-the-root-knit", pack: "spells", name: "Map Of The Root-knit",
+    field: "traits", since: "3.701.0",
+    from: "Teleportation, Translocation",
+    to: "Movement, Teleportation, Translocation",
+    reason: "Movement trait (C1). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-tree-walk", pack: "spells", name: "Tree Walk",
+    field: "traits", since: "3.701.0",
+    from: "Teleportation, Translocation",
+    to: "Movement, Teleportation, Translocation",
+    reason: "Movement trait (C1). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-banishment", pack: "spells", name: "Banishment",
+    field: "traits", since: "3.701.0",
+    from: "Warding",
+    to: "Movement, Warding",
+    reason: "Movement trait (C2). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-maze", pack: "spells", name: "Maze",
+    field: "traits", since: "3.701.0",
+    from: "Dimensional, Teleportation, Translocation",
+    to: "Dimensional, Movement, Teleportation, Translocation",
+    reason: "Movement trait (C2). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-divine-decree", pack: "spells", name: "Divine Decree",
+    field: "traits", since: "3.701.0",
+    from: "Invocation",
+    to: "Invocation, Movement",
+    reason: "Movement trait (C2). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
+  },
+  {
+    id: "movement-trait-magnificent-dawn", pack: "spells", name: "Magnificent Dawn",
+    field: "traits", since: "3.701.0",
+    from: "Invocation, Light, Essence",
+    to: "Invocation, Light, Essence, Movement",
+    reason: "Movement trait (C2). An owned copy without it shows no Movement trait and gives a Storgar target no flat check."
   },
 ]);
 
@@ -2395,6 +2636,14 @@ export const EFFECT_REPAIRS = Object.freeze([
     reason: "The Creature Codex prints \"An Ooze is immune to disease, mental effects, poison, sleep effects, paralysis, "
       + "polymorph, precision damage, stunning and criticals\"; the effect carried every word but disease and precision. "
       + "Graham, 18 Nov 2026: CO-02 (precision) approved and RD-08 (disease) ruled yes."
+  },
+  {
+    id: "movement-trait-storgar-rooted-note", itemType: "heritage", name: "Storgar", effect: "Storgar: rooted",
+    since: "3.701.0",
+    from: { description: "A DC 5 flat check when any FRIENDLY spell with the movement trait is cast upon you — on a failure the spell does not work. Roll it from the Flat Check button." },
+    to: { description: "A DC 5 flat check when any FRIENDLY spell with the movement trait is cast upon you — on a failure the spell does not work. Rolled for you when the spell is cast: your own Movement spells, and an ally's that targets you." },
+    reason: "The DC 5 flat check is now rolled by the cast itself (3.701.0, magic/rooted-movement.mjs); "
+      + "an owned Storgar's note still sent the player to the Flat Check button to roll it by hand."
   }
 ]);
 

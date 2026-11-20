@@ -5775,7 +5775,39 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
   // the attack resolved, and when the bearer dropped and never teleported. A
   // spell registered with `registerDeferredTeleport` is carded by its module,
   // through `helpers.teleportationArrives`, when it moves.
-  if (outcome.cast) {
+  // THE STORGAR'S ROOTING (3.701.0; Chapter 2, with the Movement trait
+  // audit). "A DC 5 flat check when any friendly spell with the movement
+  // trait is cast upon you. If you fail this check, the spell does not
+  // work." Asked here, after the cast has succeeded and before the
+  // Teleportation trait's arrival below, so a Storgar the spell does not work
+  // on is neither told to roll Spatial Awareness nor handed its effects.
+  // See magic/rooted-movement.mjs.
+  let rooted = { failed: new Set(), casterFailed: false, lines: [] };
+  if (outcome.cast && !storingNow) {
+    const { rootedMovementChecks } = await import("./rooted-movement-workflow.mjs");
+    rooted = await rootedMovementChecks(actor, spell, {
+      targeted: Array.from(game.user?.targets ?? []).map((t) => t?.actor).filter(Boolean),
+      isArea: isAreaSpell(spellData)
+    });
+    for (const said of rooted.lines) lines.push(line(said));
+  }
+  const notRooted = (a) => !(a?.uuid && rooted.failed.has(a.uuid));
+  // NOBODY MOVED (3.701.0): the rooted caster of a spell with no targets, or
+  // every target rooted. Asked before the targets are pruned below, because
+  // an empty target list reads as "the caster moved" to the arrival card.
+  const rootedTargeted = Array.from(game.user?.targets ?? []).filter((t) => t?.actor);
+  const rootedNobodyMoved = rooted.failed.size > 0 && (rootedTargeted.length
+    ? rootedTargeted.every((t) => !notRooted(t.actor))
+    : rooted.casterFailed);
+  // A ROOTED TARGET IS PRUNED, as the trait-immunity gate prunes: untargeted,
+  // so neither the arrival card nor the effects reach them.
+  if (rooted.failed.size && !rootedNobodyMoved) {
+    for (const token of rootedTargeted) {
+      if (!notRooted(token.actor)) token.setTarget(false, { releaseOthers: false, groupSelection: true });
+    }
+  }
+
+  if (outcome.cast && !rootedNobodyMoved) {
     const { teleportationArrives, teleportDeferred } = await import("../trait-rules-workflow.mjs");
     const { hasTrait: spellHasTrait } = await import("../traits.mjs");
     const deferred = spellHasTrait(spell?.system?.traits ?? "", "teleportation") && await teleportDeferred({ actor, spell, spellData });
@@ -5796,6 +5828,9 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
   if (outcome.cast && Array.isArray(effEffects) && (effEffects.length || lightTraitDefaultRow(spellData, spell.name))) {
     let effectTargets;
     let selfShapeBlocked = false;
+    // A ROOTED STORGAR CASTER (3.701.0): the spell does not work on them, so
+    // its rows on the caster are dropped exactly as a blocked shape's are.
+    if (rooted.casterFailed) selfShapeBlocked = true;
     /*
      * EVERY RAY'S TARGET, not just the first (3.600.0, Graham's R13). A volley
      * hits up to three creatures, and a rider row on the spell applies to each
@@ -5810,6 +5845,8 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
     else if (spellSave) effectTargets = spellSave.failed ?? [];
     else if (areaTargets) effectTargets = areaTargets;
     else effectTargets = Array.from(game.user?.targets ?? []).map((t) => t.actor).filter(Boolean);
+    // A STORGAR THE SPELL DOES NOT WORK ON (3.701.0) is handed nothing.
+    effectTargets = effectTargets.filter(notRooted);
     // AND A SPELL WITH NO SAVE IS KEPT OFF THE SAME WAY (3.612.0, F1) — Tame.
     if (!isAttack) effectTargets = await dropTemporarilyImmune(spell.name, effEffects, effectTargets, lines);
 

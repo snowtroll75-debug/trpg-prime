@@ -115,6 +115,7 @@ import {
 } from "../combat/speed-pool.mjs";
 import { grantedSpeeds, setSpeeds, speedsHalved } from "../combat/granted-speeds.mjs";
 import { movementSkillConditionals, hasKeenSense } from "../skill-sheet-rules.mjs";
+import { storgarSaveConditionals } from "../magic/rooted-movement.mjs";
 import {
   effectiveLandSpeed,
   encumbranceSpeedPenalty,
@@ -2137,6 +2138,17 @@ function prepareSkills(system, actor) {
   const movementRows = movementSkillConditionals(movement);
   if (movementRows.length && system.combat) {
     system.combat.runeConditionals = [...(system.combat.runeConditionals ?? []), ...movementRows];
+  }
+
+  // STORGAR'S +2 AGAINST BEING MOVED, ON A SAVE (3.701.0; with the Movement
+  // trait audit). "+2 racial bonus to all checks to resist being shoved or
+  // moved involuntarily": a save against a spell with the Movement trait is
+  // such a check. Published here rather than as a flag on the heritage,
+  // because every Storgar on a character is an owned copy a pack flag would
+  // not reach. See magic/rooted-movement.mjs.
+  const storgarRows = storgarSaveConditionals(Array.from(actor.items ?? []));
+  if (storgarRows.length && system.combat) {
+    system.combat.runeConditionals = [...(system.combat.runeConditionals ?? []), ...storgarRows];
   }
 
   // KEEN SENSE ON THE SHEET (3.699.0; Graham's ruling RD-04, 18 Nov 2026).

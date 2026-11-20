@@ -1441,7 +1441,35 @@ function placeNotes(actor, action) {
  * `lapseNextActionLeg`.
  */
 async function basicActionTaken(actor, action, { readied = false } = {}) {
+  provokeIfManipulate(actor, action);
   return lapseNextActionLeg(actor, { reaction: Boolean(readied) || isReactionCost(action) });
+}
+
+/**
+ * Attack of Opportunity (Chapter 4): a Manipulate-trait action used within
+ * an enemy's reach provokes, unless the action is exempt (Release, change of
+ * grip). Detection only: detached and defensive, so it never blocks or
+ * delays the action itself. Strike, AoO and ranged provokes are handled in
+ * the attack workflow, not here.
+ *
+ * OFFERED WHEN THE ACTION IS TAKEN (3.703.0; found in the 3.702.0 live test
+ * and Graham's "Yes do the fix"). It was offered at the top of
+ * `resolveAction`, before the AP gate, so a foe was offered its attack for an
+ * Interact that the "Not Enough AP" prompt then cancelled. Every commit point
+ * passes through `basicActionTaken` (or a prepared reaction, which calls this
+ * itself), so the offer now follows the action rather than the attempt.
+ */
+function provokeIfManipulate(actor, action) {
+  if (
+    hasTrait(action, "manipulate") &&
+    !action.provokeExempt &&
+    action.key !== "attackOfOpportunity" &&
+    game.combat?.started
+  ) {
+    import("./opportunity.mjs")
+      .then((m) => m.detectStationaryAoO(actor, "manipulate"))
+      .catch(() => {});
+  }
 }
 
 /** `spendActionCost`, at a commit point: the action is taken, then paid. */
@@ -1452,6 +1480,15 @@ async function commitActionCost(actor, action, readied, apCost, actionName, opts
 
 export async function resolveAction(actor, action, {
   invokedSkillKey: requestedSkillKey = null, event = null, readied = false,
+  // AN ITEM ALREADY CHOSEN TO DRAW, PUT AWAY OR DROP (3.702.0; the sheet's
+  // equip tickbox in combat, combat/held-change-workflow.mjs): `{ item, equip,
+  // changes }`. Release drops it without asking which; Interact applies
+  // `changes` once the action has been taken and paid for.
+  heldChange = null,
+  // ARMOUR PUT ON OR TAKEN OFF (3.703.0; combat/armour-change-workflow.mjs):
+  // `{ item, piece, equip }` for a piece's Interact, `{ item, pay }` for a
+  // turn's payment on a suit. Applied once the action is taken and paid for.
+  armourChange = null,
   // ONE ROLL AGAINST SEVERAL CREATURES (3.669.0; Inner Tempest's Spirit Roar:
   // "Make a single Demoralise check and compare the result against the Level
   // DC of each enemy within the area … as though you had used Demoralise
@@ -1751,21 +1788,9 @@ export async function resolveAction(actor, action, {
     }
   }
 
-  // Attack of Opportunity (Chapter 4): a Manipulate-trait action used within
-  // an enemy's reach provokes, unless the action is exempt (e.g. Release /
-  // change grip). Detection only — detached and defensive so it never blocks
-  // or delays the action itself. Strike/AoO/ranged provokes are handled in
-  // the attack workflow, not here.
-  if (
-    hasTrait(action, "manipulate") &&
-    !action.provokeExempt &&
-    action.key !== "attackOfOpportunity" &&
-    game.combat?.started
-  ) {
-    import("./opportunity.mjs")
-      .then((m) => m.detectStationaryAoO(actor, "manipulate"))
-      .catch(() => {});
-  }
+  // THE MANIPULATE ATTACK OF OPPORTUNITY IS OFFERED WHEN THE ACTION IS TAKEN
+  // (3.703.0), not here. See `provokeIfManipulate`, called from
+  // `basicActionTaken`.
 
   // Invoke and Revoke Rage carry requirements this system can genuinely
   // test, unlike the GM-adjudicated requirements text most actions have.
@@ -2555,7 +2580,9 @@ export async function resolveAction(actor, action, {
     // any — hooked into the same held-items logic the hand-budget
     // system already uses.
     let releaseChoice = null;
-    if (action.key === "release" && !skipDialog(event)) {
+    if (action.key === "release" && heldChange?.item) {
+      releaseChoice = { item: heldChange.item };
+    } else if (action.key === "release" && !skipDialog(event)) {
       releaseChoice = await promptReleaseItem(actor);
       if (releaseChoice === null) return null;
     }
@@ -2865,8 +2892,10 @@ export async function resolveAction(actor, action, {
     }
 
     if (!(await ensureActionPoints(actor, action.apCost, action.name, { traits: action.traits }))) return null;
-    if (preparedPaysFor) await consumePreparedReaction(actor, action.key);
-    else await commitActionCost(actor, action, readied, action.apCost, action.name, { traits: action.traits });
+    if (preparedPaysFor) {
+      await consumePreparedReaction(actor, action.key);
+      provokeIfManipulate(actor, action);
+    } else await commitActionCost(actor, action, readied, action.apCost, action.name, { traits: action.traits });
     await recordTraitUsage(actor, action);
     {
       // A REAL BINDING — see the doubleSlice commit point above. This
@@ -2904,6 +2933,19 @@ export async function resolveAction(actor, action, {
     const hovered = action.key === "fly" ? await recordFlyAction(actor) : false;
     const lines = headerLines(action);
     if (action.description) lines.push(line(action.description));
+    // THE DRAW OR THE PUT-AWAY (3.702.0): taken and paid for above, so it
+    // happens now. See combat/held-change-workflow.mjs.
+    if (action.key === "interact" && heldChange?.item && heldChange.changes) {
+      await heldChange.item.update(heldChange.changes);
+      const { heldChangeLine } = await import("./held-change.mjs");
+      lines.push(line(heldChangeLine(heldChange.item.name, Boolean(heldChange.equip))));
+    }
+    // THE ARMOUR (3.703.0): taken and paid for above, so it happens now. See
+    // combat/armour-change-workflow.mjs.
+    if (armourChange?.item) {
+      const { applyArmourChange } = await import("./armour-change-workflow.mjs");
+      for (const said of await applyArmourChange(actor, armourChange)) lines.push(line(said));
+    }
 
     // WHERE THIS IS BEING DONE (page 201, R1 and R2) — see `placeNotes`.
     lines.push(...placeNotes(actor, action));
@@ -4062,8 +4104,10 @@ export async function resolveAction(actor, action, {
   // modifiers, and because a rage action defers its cost entirely.
   if (!defersApCost) {
     if (!(await ensureActionPoints(actor, effectiveApCost, action.name, { traits: action.traits }))) return null;
-    if (preparedPaysFor) await consumePreparedReaction(actor, action.key);
-    else await commitActionCost(actor, action, readied, effectiveApCost, action.name, { traits: action.traits });
+    if (preparedPaysFor) {
+      await consumePreparedReaction(actor, action.key);
+      provokeIfManipulate(actor, action);
+    } else await commitActionCost(actor, action, readied, effectiveApCost, action.name, { traits: action.traits });
   } else {
     // A RAGE ACTION PAYS ON ITS RESULT, but is taken here, at the roll.
     await basicActionTaken(actor, action, { readied });

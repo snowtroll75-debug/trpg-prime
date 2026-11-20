@@ -209,7 +209,10 @@ export const ACTION_FEATS = Object.freeze({
     traits: "Expert, Martial",
     map: MAP_RULES.single,
     requires: [],
-    summary: "Interact to draw and Strike, together, for 1 AP."
+    // DRAWS (3.702.0): the Strike is made with a weapon NOT yet in hand,
+    // drawn as part of the same 1 AP. See `drawableWeapons` (strike.mjs).
+    draws: true,
+    summary: "Draw a melee or thrown weapon and Strike with it, together, for 1 AP."
   },
   "reverse strike": {
     label: "Reverse Strike",

@@ -22,6 +22,72 @@ const { ItemSheetV2 } = foundry.applications.sheets;
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 
 export class TRGItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
+  /**
+   * THE EQUIPPED TICKBOX, IN COMBAT (3.702.0; Graham, 19 November 2026:
+   * "Drawing a weapon is an Interact action"). The item sheet's own
+   * "Equipped" box is a second way to change what a character holds. In
+   * combat, for an item that takes a hand, the change goes through the same
+   * route as the character sheet's (combat/held-change-workflow.mjs): drawing
+   * is an Interact; putting away asks Drop or Sheathe/Stow; a GM may just set
+   * it. Every other field on the form saves as before.
+   */
+  async _processSubmitData(event, form, submitData, options) {
+    const item = this.document;
+    const actor = item?.parent ?? null;
+    const flat = Object.hasOwn(submitData ?? {}, "system.equipped");
+    const wanted = flat ? submitData["system.equipped"] : submitData?.system?.equipped;
+    if (actor && typeof wanted === "boolean" && wanted !== Boolean(item.system?.equipped)) {
+      // ARMOUR (3.703.0): the same route as the character sheet's Worn box,
+      // in combat and out of it, because out of combat it still posts the
+      // time it took. See combat/armour-change-workflow.mjs.
+      if (item.type === "armour") {
+        const { armourChangeKind, armourChangeInCombat } = await import("../combat/armour-change.mjs");
+        const { actorInCombat } = await import("../combat/action-points-workflow.mjs");
+        const routes = armourChangeKind(item) === "suit" || armourChangeInCombat({
+          combatStarted: Boolean(game.combat?.started), actorInCombat: actorInCombat(actor), item
+        });
+        if (routes) {
+          if (flat) delete submitData["system.equipped"];
+          else delete submitData.system.equipped;
+          await super._processSubmitData(event, form, submitData, options);
+          const { armourChangeOnSheet } = await import("../combat/armour-change-workflow.mjs");
+          const worn = await armourChangeOnSheet(actor, item, { equip: wanted });
+          if (!worn.handled) await item.update({ "system.equipped": wanted });
+          this.render();
+          return;
+        }
+      }
+      const { heldChangeIsAction } = await import("../combat/held-change.mjs");
+      const { actorInCombat } = await import("../combat/action-points-workflow.mjs");
+      const isAction = heldChangeIsAction({
+        combatStarted: Boolean(game.combat?.started),
+        actorInCombat: actorInCombat(actor),
+        item,
+        actorSize: actor.system?.identity?.size ?? "medium"
+      });
+      if (isAction) {
+        if (flat) delete submitData["system.equipped"];
+        else delete submitData.system.equipped;
+        await super._processSubmitData(event, form, submitData, options);
+        if (wanted) {
+          const { canEquip } = await import("../held-items-workflow.mjs");
+          const hands = canEquip(actor, item);
+          if (!hands.allowed) {
+            ui.notifications.warn(hands.reason);
+            this.render();
+            return;
+          }
+        }
+        const { heldChangeInCombat } = await import("../combat/held-change-workflow.mjs");
+        const routed = await heldChangeInCombat(actor, item, { equip: wanted });
+        if (!routed.handled) await item.update({ "system.equipped": wanted });
+        this.render();
+        return;
+      }
+    }
+    return super._processSubmitData(event, form, submitData, options);
+  }
+
   static DEFAULT_OPTIONS = {
     classes: ["trg-prime", "sheet", "item"],
     position: {

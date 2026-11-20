@@ -3214,6 +3214,34 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         return;
       }
     }
+    // IN COMBAT, AN ACTION (3.702.0; Graham, 19 November 2026: "Drawing a
+    // weapon is an Interact action. This has the manipulate trait which
+    // provokes"). Drawing a held item is the Interact action; putting one away
+    // asks Drop (Release) or Sheathe/Stow (Interact); a GM may just set it.
+    // Out of combat, and for anything that takes no hand, nothing changes.
+    // See combat/held-change-workflow.mjs.
+    // ARMOUR TAKES ITS TIME (3.703.0; Graham: "As for armour, please implement
+    // the rules correctly"). A suit is donned or removed over the chapter's
+    // time: at once out of combat with a card saying how long, and in combat
+    // a task paid over the turns. A piece (helmet, bracers, greaves) is an
+    // Interact in combat. See combat/armour-change-workflow.mjs.
+    if (item.type === "armour") {
+      const { armourChangeOnSheet } = await import("../combat/armour-change-workflow.mjs");
+      const worn = await armourChangeOnSheet(this.actor, item, { equip: willBeEquipped });
+      if (worn.handled) return;
+    }
+    const { heldChangeInCombat } = await import("../combat/held-change-workflow.mjs");
+    const routed = await heldChangeInCombat(this.actor, item, {
+      equip: willBeEquipped,
+      grip: changes["system.twoHandedGrip"] ?? null
+    });
+    if (routed.handled) {
+      if (routed.changed && lightSourceKeyForItem(item)) {
+        const { refreshAttachedLight } = await import("../light-attach-workflow.mjs");
+        await refreshAttachedLight(this.actor);
+      }
+      return;
+    }
     await item.update(changes);
 
     // A LIT TORCH THAT CHANGES HANDS CHANGES THE LIGHT. Equipping a lit

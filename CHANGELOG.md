@@ -2,6 +2,41 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.703.1 — 20 November 2026: the armour dialog, and the donning readings confirmed
+
+Branch `release/3.703.1`, from 3.703.0. Full notes in `release-notes-3.703.1.md`.
+
+- **The GM's armour dialog** no longer prints the AP twice for times in rounds ("5 rounds (15 AP) (15 AP)"). Found in the 3.703.0 live test.
+- **Q1 to Q3 confirmed** by Graham ("Go with your recommendations"): donning provokes; Quick Donning's printed times are not doubled for a full suit; the shorter of Quick Donning and a rune stands. Comments only.
+- **Harness:** `verify-armour-change-3703` 88 checks; `mutate-armour-change-3703` 28 mutations.
+
+## 3.703.0 — 19 November 2026: the Manipulate Attack of Opportunity, and donning armour
+
+Branch `release/3.703.0`, from 3.702.0. Full notes in `release-notes-3.703.0.md`.
+
+- **Attack of Opportunity for a Manipulate action** is now offered when the action is taken, not before the AP gate. A cancelled or unaffordable Interact no longer offers foes an attack (found in the 3.702.0 live test).
+- **Armour** takes the chapter's time, in both directions (Graham's R1 to R5). In combat a suit is a Donning or Removing task paid over the turns, with a Continue button; out of combat it's done at once with a time card, and the clock is not advanced. A helmet, bracers or greaves is a 1 AP Interact in combat. Quick Donning's result times the next donning or removal of you or an ally. Readings Q1 to Q3 are flagged for Graham.
+- **Harness:** `verify-manipulate-aoo-3703` (15) / `mutate-manipulate-aoo-3703` (6); `verify-armour-change-3703` (85) / `mutate-armour-change-3703` (26). No data or migration change.
+
+## 3.702.0 — 19 November 2026: Quick Draw, and drawing in combat is an Interact
+
+Branch `release/3.702.0`, from 3.701.0. Full notes in `release-notes-3.702.0.md`.
+
+- **Quick Draw** now draws a melee or thrown weapon you aren't holding and Strikes with it, for 1 AP, without provoking (ruled). The weapon is chosen, its grip asked and a free hand checked before any AP is spent. A refused Strike leaves the weapon drawn.
+- **Drawing in combat** from the sheet (or the item sheet's Equipped box) is now the Interact action: 1 AP, the Manipulate gates, and an Attack of Opportunity offer. Putting away asks Drop (Release, free) or Sheathe/Stow (Interact). A GM may just set it. Out of combat nothing changes.
+- **Harness:** `verify-quick-draw-3702` (28) / `mutate-quick-draw-3702` (18); `verify-held-change-3702` (37) / `mutate-held-change-3702` (18). No data or migration change.
+
+## 3.701.0 — 19 November 2026: the Movement trait on spells, and the Storgar
+
+Branch `release/3.701.0`, from 3.700.0 (Skirmish). Full notes in `release-notes-3.701.0.md`.
+
+- **Movement trait** on 34 spells: those that move the caster or a target as part of the casting (Graham's rule), plus rulings C1 and C2 of `claude/movement-trait-spell-audit.md`. Dimension Door's misprinted "Move" now reads Movement.
+- **Storgar:** a friendly Movement spell cast upon a Storgar rolls the DC 5 flat check, and on a failure it does not work on them. A save against a Movement spell gets the +2 racial bonus automatically.
+- **Quickened "for Move"** can now pay for Swim, Crawl, Stand, Tumble, the jumps and the other Movement-trait actions.
+- **Astral Drift (ruled):** casting a Movement spell is not a movement action. No code change; a test pins it.
+- **Data and migration:** 35 declared pack fixes; 34 owned-copy trait repairs and the Storgar note repair; migration re-gated to 3.701.0.
+- **Harness:** `verify-movement-trait-3700` (59 checks) / `mutate-movement-trait-3700` (29 mutations); full suite core 763/763 on the merged tree, modules at baseline; `verify-joint-audit-3699` E9 is now a gate floor.
+
 ## 3.700.0 — 19 November 2026: Skirmish
 
 Branch `release/3.700.0`, from 3.699.0. Full notes in `release-notes-3.700.0.md`.

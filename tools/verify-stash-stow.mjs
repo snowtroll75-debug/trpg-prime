@@ -70,7 +70,9 @@ equal("S3d a sack's own capacity is what the refusal reads", [st.itemStashCapaci
 
 /* S5 — drawing a stowed item takes it out of the sack; the equip tooltips
    no longer say "stow" for "put away" (3.684.9, review) */
-const equip = sheet.slice(sheet.indexOf("static async toggleItemEquipped("), sheet.indexOf("static async toggleItemEquipped(") + 2400);
+// THE WHOLE HANDLER (re-anchored at 3.702.0): the in-combat route added
+// before the update pushed it past a fixed 2,400 characters.
+const equip = sheet.slice(sheet.indexOf("static async toggleItemEquipped("), sheet.indexOf("static async itemDelete("));
 ok("S5 equipping a stowed item clears its stowed mark in the same update",
   /if \(willBeEquipped && item\.system\.stowed\) changes\["system\.stowed"\] = false;/.test(equip)
   && equip.indexOf('changes["system.stowed"] = false') < equip.indexOf("await item.update(changes);"));

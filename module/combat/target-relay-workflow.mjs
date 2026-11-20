@@ -450,6 +450,13 @@ export async function relayActionAtTotal(actor, target, payload, applyDirect) {
   return reply.ok ? reply.result : { ok: false, reason: reply.reason ?? "no answer", lines: [] };
 }
 
+/** A Quick Donning result, set on a creature this client may not write to (3.703.0). */
+export async function relayQuickDonning(target, record, applyDirect) {
+  if (!needsRelay(target)) return applyDirect();
+  const reply = await ask(RELAY_ACTIONS.QUICK_DONNING, target, { degree: record?.degree ?? "", by: record?.by ?? "" });
+  return reply.ok;
+}
+
 export async function relayItemHp(target, itemId, value, applyDirect) {
   if (!needsRelay(target)) return applyDirect();
   const reply = await ask(RELAY_ACTIONS.ITEM_HP, target, { itemId, value });
@@ -575,6 +582,7 @@ async function liveDeps() {
     },
     createCompanion: (data) => Actor.create(data),
     updateItem: (item, data) => item.update(data),
+    setQuickDonning: (target, record) => target.setFlag("trg-prime", "quickDonning", record),
     reply: (message) => game.socket.emit(RELAY_SOCKET, message),
     acknowledge: (message) => game.socket.emit(RELAY_SOCKET, message)
   };

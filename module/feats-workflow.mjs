@@ -7900,8 +7900,26 @@ export const FEAT_AUTOMATION = {
         fumble: "All hands and no fingers: it takes TWICE the usual time to don or remove the armour.",
         blunder: "All hands and no fingers: it takes TWICE the usual time to don or remove the armour."
       };
+      // THE RESULT TIMES THAT CREATURE'S NEXT DONNING OR REMOVAL (3.703.0;
+      // Graham's ruling, 19 November 2026). "You or an ally": a targeted
+      // creature other than you is offered; the result waits on it until the
+      // Worn box next puts armour on or takes it off (combat/armour-change).
+      const allies = Array.from(game.user?.targets ?? [])
+        .map((t) => t.actor).filter((a) => a && a.uuid !== actor.uuid);
+      let creature = actor;
+      if (allies.length) {
+        const pick = await chooseFromList("Quick Donning", "Whose armour?", [
+          [actor.uuid, `${actor.name} (yourself)`], ...allies.map((a) => [a.uuid, a.name])
+        ]);
+        creature = [actor, ...allies].find((a) => a.uuid === pick) ?? actor;
+      }
+      const { setQuickDonning } = await import("./combat/armour-change-workflow.mjs");
+      const set = await setQuickDonning(creature, { degree, by: actor.name });
       await postCard(actor, "Quick Donning", [
-        line(`<strong>${degree.charAt(0).toUpperCase() + degree.slice(1)}:</strong> ${outcomes[degree]}`)
+        line(`<strong>${degree.charAt(0).toUpperCase() + degree.slice(1)}:</strong> ${outcomes[degree]}`),
+        line(set
+          ? `<em>This times ${creature === actor ? "your" : `${creature.name}'s`} next donning or removal, made with the Worn box.</em>`
+          : `<em>${creature.name}'s next donning could not be set (no GM answered); apply the time by hand.</em>`)
       ]);
     }
   },
