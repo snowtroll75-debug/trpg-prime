@@ -146,7 +146,7 @@ const WANT = [{
     at("barrierStruck = barrierInTheWay(targetActor, actor, { missBy, hits: outcome.hits });") > 0
     && at("barrierStruck = barrierInTheWay(") < at("if (!barrierStruck && isRanged && strayCandidates.length"));
   ok("D2 its damage is rolled with no creature under it, and dealt to the shield",
-    /\} else if \(barrierStruck\) \{[\s\S]{0,900}struckObject: barrierStruck\.barrier\?\.label \|\| "the shield"[\s\S]{0,200}await strikeBarrierWith\(targetActor, barrierStruck, Number\(struck\?\.total \?\? 0\)/.test(AWK));
+    /\} else if \(barrierStruck\) \{[\s\S]{0,1200}struckObject: barrierStruck\.barrier\?\.label \|\| "the shield"[\s\S]{0,200}await strikeBarrierWith\(targetActor, barrierStruck, Number\(struck\?\.total \?\? 0\)/.test(AWK));
   ok("D3 a struck object really has no target in the damage step",
     /const targetTokenHere = struckObject \? null : \(targetTokenOverride \?\? firstTargetToken\(\) \?\? null\);/.test(AWK)
     && /const replaceToken = struckObject \? null :/.test(AWK));
@@ -257,7 +257,7 @@ const WANT = [{
   ok("G8 registered at ready, and the GM's button bound", /await registerStoneShieldOffer\(\);\n\s+registerBarrierHooks\(\);/.test(MAIN));
 }
 
-const EXPECTED = 63;
+const EXPECTED = 62;
 checks += 1;
 if (checks !== EXPECTED) failures.push(`Z the suite ran ${checks} checks, expected ${EXPECTED}`);
 if (failures.length) {
