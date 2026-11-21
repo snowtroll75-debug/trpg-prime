@@ -41,4 +41,12 @@ No data change and no migration. The schema stays at 3.707.1.
 
 ## Testing
 
-RESULTS_PLACEHOLDER
+- **Core verify:** all 395 verify scripts at the final commit, in a clean worktree. **395 of 395 pass.**
+- **Core mutation:** every mutation script that reads a changed file or carries a pin, run in their own worktree: 183 scripts. **183 of 183 pass.** Five needed a re-anchor and were re-run:
+  - `mutate-block35b` (its verify's A9 now counts four stasis-aware sweeps);
+  - `mutate-block9-core` and `mutate-wild-morph`: the new sweep had a line, and an ending, in common with the world-clock sweep. The sweep's line is now worded differently, and the wild-morph anchor names the world-clock sweep;
+  - `mutate-chapter7-critical-211-220` and `mutate-session-fixes-0829` (the condition writer's guarded block).
+- **Not run:** the two long whole-tree mutation scripts, as in 3.707.1.
+- **Modules:** Pillars of Faith, Inner Tempest and Eldritch Arts give **identical results** on 3.707.2 and 3.706.1.
+- **Pack:** unchanged from 3.707.1.
+- **Live Foundry:** not yet run. The Test world is on 3.706.1.

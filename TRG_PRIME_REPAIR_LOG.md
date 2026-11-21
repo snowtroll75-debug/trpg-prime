@@ -709,3 +709,43 @@ These six repairs went into one release, 3.706.0, so they share a source state, 
 - **Version:** 3.707.1
 - **Branch:** `fix/next-turn-start-clock` (local, not pushed)
 - **Package:** `trg-prime.zip`
+
+---
+
+## R-0017 — "Until the end of your next turn" (3.707.2)
+
+### Source state
+
+- **Starting version:** 3.707.1, on branch `fix/next-turn-start-clock` at `1010c65`, not yet installed.
+- **Branch:** new, `fix/next-turn-end-clock`.
+- **Working tree:** clean.
+- **Remote:** unchanged; nothing pushed.
+- **Ruling:** Graham, 21 November 2026: "Yes is the answer to your one question, please implement that before testing."
+
+### Diagnosis and change
+
+- **Expected:** the effect ends as the caster's next turn ends.
+- **Actual:** two rounds on the round clock and the world clock. It ended at the bearer's turn start two rounds on, or 12 s on.
+- **Change:**
+  - `parseSpellDuration` marks the phrase (`untilTurnEnd`, "your" only).
+  - The cast stamps its caster. `turnEndClock` (pure) gives the caster, the turn of the cast (`turnKey`: the round and the combatant acting), and a three-round backstop.
+  - All 60 writers copy `endsAtTurnEndOf` beside `endsAtTurnStartOf`, as do the condition writer and its relay (two strings only).
+  - `expireAtTurnEnd` ends the effect when `dueAtTurnEnd` (pure) says so, which is never on the cast's own turn. It is called from `_onEndTurn` for every combatant, with `context.round`, after the stasis check.
+
+### Testing
+
+- **Core verify:** all 395 verify scripts at the final commit, in a clean worktree. **395 of 395 pass.**
+- **Core mutation:** every mutation script that reads a changed file or carries a pin, run in their own worktree: 183 scripts. **183 of 183 pass.** Five needed a re-anchor and were re-run:
+  - `mutate-block35b` (its verify's A9 now counts four stasis-aware sweeps);
+  - `mutate-block9-core` and `mutate-wild-morph`: the new sweep had a line, and an ending, in common with the world-clock sweep. The sweep's line is now worded differently, and the wild-morph anchor names the world-clock sweep;
+  - `mutate-chapter7-critical-211-220` and `mutate-session-fixes-0829` (the condition writer's guarded block).
+- **Not run:** the two long whole-tree mutation scripts, as in 3.707.1.
+- **Modules:** Pillars of Faith, Inner Tempest and Eldritch Arts give **identical results** on 3.707.2 and 3.706.1.
+- **Pack:** unchanged from 3.707.1.
+- **Live Foundry:** not yet run. The Test world is on 3.706.1.
+
+### Delivery
+
+- **Version:** 3.707.2
+- **Branch:** `fix/next-turn-end-clock` (local, not pushed)
+- **Package:** `trg-prime.zip`

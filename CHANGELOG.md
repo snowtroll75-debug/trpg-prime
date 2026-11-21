@@ -2,6 +2,13 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.707.2 — 21 November 2026: "until the end of your next turn" ends at the caster's turn end
+
+Branch `fix/next-turn-end-clock`, from 3.707.1. Full notes in `release-notes-3.707.2.md`; repair log R-0017.
+
+- **"Until the end of your next turn"** ends as the caster's next turn ends, on every creature carrying it (Graham: "Yes"). A cast in the caster's own turn outlasts that turn. Enchanting Utterance, Seer's Vision and Shifting Step, and any module spell with that duration. Out of combat: 12 s, as before.
+- **Harness:** new `verify-turn-end-clock` (21) / mutate (15); a few anchors re-anchored; version pins raised. No data change.
+
 ## 3.707.1 — 21 November 2026: "until the start of your next turn", and Stone Shield's one foe
 
 Branch `fix/next-turn-start-clock`, from 3.707.0. Full notes in `release-notes-3.707.1.md`; repair log R-0015, R-0016.
