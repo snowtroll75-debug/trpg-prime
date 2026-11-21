@@ -153,8 +153,9 @@ const MUTATIONS = [
   {
     file: EAW,
     name: "C2 the world clock stops removing the form",
-    from: "      await removeSpellItemsByCastId(actor, castId);\n    } finally {\n      expiring.delete(claim);\n    }\n  }\n  return expired;",
-    to: "    } finally {\n      expiring.delete(claim);\n    }\n  }\n  return expired;",
+    // RE-ANCHORED 3.707.2: the turn-end sweep ends the same way; this is the world clock's.
+    from: "      if (actor.effects.get(effect.id)) await endEffect(effect, actor);\n      await removeSpellItemsByCastId(actor, castId);\n    } finally {\n      expiring.delete(claim);\n    }\n  }\n  return expired;",
+    to: "      if (actor.effects.get(effect.id)) await endEffect(effect, actor);\n    } finally {\n      expiring.delete(claim);\n    }\n  }\n  return expired;",
     breaks: "C3 — a claw surviving the ordinary end of a one-minute spell"
   },
   {
