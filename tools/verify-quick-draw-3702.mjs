@@ -109,8 +109,8 @@ const wf = read("module", "combat", "action-feats-workflow.mjs");
 /* G — the version ----------------------------------------------------------- */
 {
   const sys = JSON.parse(read("system.json"));
-  equal("G1 the version and the download name 3.707.2", [sys.version, sys.download, JSON.parse(read("package.json")).version],
-    ["3.707.2", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.707.2/trg-prime.zip", "3.707.2"]);
+  equal("G1 the version and the download name 3.707.3", [sys.version, sys.download, JSON.parse(read("package.json")).version],
+    ["3.707.3", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.707.3/trg-prime.zip", "3.707.3"]);
 }
 
 console.log(`verify-quick-draw-3702: ${checks} checks${failures.length ? ` — ${failures.length} FAILED` : " — all green."}`);

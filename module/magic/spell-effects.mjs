@@ -3653,7 +3653,10 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             // AND IT IDENTIFIES ITSELF, so recasting one spell cannot
             // cancel the other's recorded number.
             source: spell?.name ?? "",
-            types: Array.isArray(effect.types) ? effect.types : null
+            types: Array.isArray(effect.types) ? effect.types : null,
+            // "UNTIL THE END OF YOUR NEXT TURN" (3.707.3; found live): the
+            // glimpse lapses unused when the caster's next turn ends.
+            endsAtTurnEndOf: spellExpiryTiming(parsedDuration).turnEndOf ?? null
           });
           if (!recorded) {
             lines.push(line(`<em>${spell.name} foresaw nothing usable — nothing applied.</em>`));

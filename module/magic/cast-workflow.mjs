@@ -2502,7 +2502,13 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
    */
   // NOT FOR AN OBJECT'S SPELL (3.685.1): the creature targeted is not what it
   // aims at, so its distance is no reason to refuse (see `spellTargetsObject`).
-  if (!storingNow && !spellTargetsObject(spell) && (game.user?.targets?.size ?? 0)) {
+  // NOR FOR A WARD'S FOE (3.707.3; found live): Stone Shield's targeted foe
+  // only names who the ward is against, and the spell prints no range to
+  // measure it by. See magic/ward.mjs's `targetOnlyNamesWardFoe`.
+  const wardFoeOnly = (await import("./ward.mjs")).targetOnlyNamesWardFoe(spellData, {
+    range: warpedRange(effRange, warpMods), area: warpedAreaText(effArea, warpMods)
+  });
+  if (!storingNow && !spellTargetsObject(spell) && !wardFoeOnly && (game.user?.targets?.size ?? 0)) {
     // FROM ANOTHER TOKEN, WHEN THE CAST SAYS SO (3.684.0, G24): Symbiotic
     // Witch's "cast … through your familiar", measured from the familiar.
     const casterToken = rangeOrigin?.token ?? actor.getActiveTokens?.()?.[0] ?? null;

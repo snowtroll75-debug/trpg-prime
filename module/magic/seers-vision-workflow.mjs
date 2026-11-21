@@ -26,10 +26,10 @@ const SYSTEM_ID = "trg-prime";
  * @returns {Promise<object|null>} what is now waiting, or null
  */
 export async function recordSeersVision(
-  target, { value, casterName = "", label = "", round = null, types = null, source = "" } = {}
+  target, { value, casterName = "", label = "", round = null, types = null, source = "", endsAtTurnEndOf = null } = {}
 ) {
   if (!target) return null;
-  const record = seersVisionRecord({ value, casterName, label, round, types, source });
+  const record = seersVisionRecord({ value, casterName, label, round, types, source, endsAtTurnEndOf });
   if (!record) return null;
   /*
    * REPLACES ITS OWN SOURCE AND KEEPS THE REST (3.589.0).

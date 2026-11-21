@@ -283,8 +283,8 @@ const ritualFn = cw.slice(cw.indexOf("export async function rollMagicRitual("), 
 /* ================================================================== Z */
 {
   equal("Z1 the version is 3.690.0, and the download names it", [sys.version, sys.download],
-    ["3.707.2", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.707.2/trg-prime.zip"]);
-  equal("Z2 package.json agrees", JSON.parse(read("package.json")).version, "3.707.2");
+    ["3.707.3", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.707.3/trg-prime.zip"]);
+  equal("Z2 package.json agrees", JSON.parse(read("package.json")).version, "3.707.3");
 }
 
 const EXPECTED = 60;

@@ -18,6 +18,7 @@ import { expiryToWrite } from "./condition-timing.mjs";
 import { frozenByStasis, stasisEffectOf } from "../magic/stasis.mjs";
 import { speaksAtItsOwnEnd } from "./effect-expiry.mjs";
 import { dueAtTurnEnd, turnKey } from "../magic/effect-duration.mjs";
+import { SEERS_VISION_FLAG, recordedRolls } from "../magic/seers-vision.mjs";
 import {
   RESPITE_FLAG, normaliseDelayedRespite, respiteReleasedLine
 } from "../magic/delayed-respite.mjs";
@@ -790,6 +791,17 @@ export async function expireAtTurnEnd(actor, { turnOf = null, round = 0, combata
     } finally {
       expiring.delete(claim);
     }
+  }
+  // A RECORDED D20 WITH THE SAME CLOCK (3.707.3; found live): Seer's Vision
+  // keeps its glimpse on a flag, not an effect, and it lapses unused here.
+  const held = actor?.getFlag?.(SYSTEM_ID, SEERS_VISION_FLAG) ?? null;
+  const records = recordedRolls(held);
+  const lapsed = records.filter((r) => dueAtTurnEnd(r?.endsAtTurnEndOf, { turnOfUuid, endingTurn }));
+  if (lapsed.length && !stasis) {
+    const kept = records.filter((r) => !lapsed.includes(r));
+    if (kept.length) await actor.setFlag(SYSTEM_ID, SEERS_VISION_FLAG, kept);
+    else await actor.unsetFlag(SYSTEM_ID, SEERS_VISION_FLAG);
+    for (const r of lapsed) expired.push(String(r.label || r.source || "Seer’s Vision"));
   }
   return expired;
 }

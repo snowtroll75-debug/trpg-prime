@@ -217,3 +217,27 @@ export function wardFoeRefusal(spellData, hostileCount, spellName = "This spell"
   if (n === 0) return `${spellName}: target the ${one ? "foe" : `${limit} foes`} to raise it against.`;
   return `${spellName} is raised against ${one ? "one foe" : `${limit} foes`} — you have ${n} enemies targeted. Target ${one ? "only the one" : `only ${limit}`}.`;
 }
+
+/**
+ * DOES THE CAST'S TARGET ONLY NAME WHO A WARD IS AGAINST? (3.707.3) Pure.
+ *
+ * FOUND LIVE, 21 November 2026, testing 3.707.2: Stone Shield taken as a
+ * reaction was refused — "ZZ Orc is 5 ft away — beyond Stone Shield's range
+ * of self." A spell printing neither a range nor an area affects its caster
+ * (Graham, 8 September 2026), so the range gate measured the targeted foe
+ * against "self" and refused every cast that named one, from the sheet as
+ * well. Stone Shield's foe is not affected by it: the slab is the caster's,
+ * and "an opponent of your choice" carries no printed distance.
+ *
+ * So: no printed range, no printed area, and every row that is not a note
+ * is a ward on the caster. Anticipations ("Range 30 feet", a self ward
+ * against one creature) prints its range and is still measured.
+ *
+ * @param {object} spellData the spell's system data (warped range/area text)
+ * @param {{range?: string, area?: string}} [printed] the range and area as cast
+ */
+export function targetOnlyNamesWardFoe(spellData, { range = spellData?.range, area = spellData?.area } = {}) {
+  if (String(range ?? "").trim() || String(area ?? "").trim()) return false;
+  const rows = (Array.isArray(spellData?.effects) ? spellData.effects : []).filter((r) => r?.kind !== "note");
+  return rows.length > 0 && rows.every((r) => r?.kind === "ward" && String(r?.target ?? "") === "self");
+}

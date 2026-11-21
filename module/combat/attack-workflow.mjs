@@ -7082,7 +7082,12 @@ async function resolveWeaponDamageInScope(
   });
 
   await postCard(actor, struckObject ? `${weapon.name} — Damage to ${struckObject}` : `${weapon.name} — Damage`, lines, [roll], {
-    compactSummary: damageCompactSummary()
+    // A BLOW ON A SHIELD SAYS SO (3.707.3; found live): the summary read
+    // "5 Bludgeoning — no target", true of the damage step and wrong to a
+    // reader. The shield's own card gives what its Hardness stopped.
+    compactSummary: struckObject
+      ? `${total} ${typeLabel} to ${String(struckObject).replace(/[<>&"]/g, "")} (before its Hardness)`
+      : damageCompactSummary()
   });
   return { total, taken: finalTaken, damageCase: finalCase, newHP: finalHP, targetActor, damageType: effectiveDamageType, drStoppedCritical };
 }

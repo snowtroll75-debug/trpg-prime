@@ -100,7 +100,7 @@ export function visionName(pending) {
  * somebody a silent 20.
  */
 export function seersVisionRecord({
-  value, casterName = "", label = "", round = null, types = null, source = ""
+  value, casterName = "", label = "", round = null, types = null, source = "", endsAtTurnEndOf = null
 } = {}) {
   const face = Math.trunc(Number(value));
   if (!Number.isFinite(face) || face < 1 || face > VISION_DIE_FACES) return null;
@@ -123,7 +123,16 @@ export function seersVisionRecord({
     // throw, or skill check". A record that declares nothing gets
     // Seer's Vision's list, which is what every record written before
     // this release is.
-    types: normaliseRecordTypes(types)
+    types: normaliseRecordTypes(types),
+    // WHEN IT LAPSES UNUSED (3.707.3; found live). Seer's Vision lasts
+    // "until the end of your next turn", and the record carried no clock at
+    // all: a glimpse waited until it was spent, however long that took. In an
+    // encounter it now carries the cast's turn-end stamp — the caster, and
+    // the turn of the cast — and the turn-end sweep drops it. Two strings or
+    // nothing.
+    ...(endsAtTurnEndOf && typeof endsAtTurnEndOf.of === "string" && endsAtTurnEndOf.of
+      ? { endsAtTurnEndOf: { of: endsAtTurnEndOf.of, castTurn: String(endsAtTurnEndOf.castTurn ?? "") } }
+      : {})
   };
 }
 
