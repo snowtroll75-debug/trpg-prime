@@ -81,6 +81,7 @@ import {
 } from "./shield-bash.mjs";
 import {
   coupDeGraceAttackOutcome,
+  coupDeGraceHitLine,
   coupDeGraceSaveDC,
   coupDeGraceSaveResult
 } from "./coup-de-grace.mjs";
@@ -3079,11 +3080,8 @@ export async function resolveAction(actor, action, {
       const result = coupDeGraceAttackOutcome(attackTotal, targetDB, {
         criticalImmune: Boolean(coupImmune)
       });
-      lines.push(
-        line(
-          `<strong>Automatic hit</strong> (treated as an unmodified 20): AV ${result.av}${result.critical ? ` — <strong>${result.critical} critical</strong>` : coupImmune ? " — no critical (target is immune)" : ""}.`
-        )
-      );
+      // THE SEVERITY, NOT THE OBJECT (3.705.2) — see `coupDeGraceHitLine`.
+      lines.push(line(coupDeGraceHitLine(result, Boolean(coupImmune))));
       lines.push(
         line(
           "<em>Roll and apply the weapon's damage via its own Damage button / Apply Damage as normal.</em>"

@@ -46,16 +46,39 @@ async function pressReactiveDisarm(message) {
   const base = BASIC_ACTIONS.find((x) => x.key === "disarmAttack");
   if (!base) return null;
   // The attacker is the target, whoever the user had targeted.
+  // TARGETED AS EVERY OTHER REACTION TARGETS (3.705.2): `Token#setTarget`.
+  // This called `game.user.updateTokenTargets`, which Foundry V14 does not
+  // have, so the button threw before anything happened and Reactive Disarm
+  // could never be taken. Found in the player-perspective live test of
+  // 3.705.1.
   const token = attacker.getActiveTokens?.(true, true)?.[0]?.object ?? null;
-  if (token && game.user) await game.user.updateTokenTargets([token.id]);
+  if (token && game.user) token.setTarget(true, { user: game.user, releaseOthers: true });
   const action = { ...base, name: "Reactive Disarm", apCost: "Reaction",
     traits: String(base.traits ?? "").split(",").map((t) => t.trim()).filter((t) => t && t.toLowerCase() !== "attack").join(", ") };
-  await message.setFlag(SYSTEM_ID, "reactiveDisarm", { ...raw, used: true });
-  await defender.setFlag(SYSTEM_ID, "reactiveDisarmRound", raw.round);
   const { resolveAction } = await import("./action-workflow.mjs");
   // DISARM USES REACH (3.705.0; Graham, 20 Nov 2026: "Yes disarm does use
   // reach"): a fumbler beyond the defender's reach is refused, as any Disarm.
-  return resolveAction(defender, action, {});
+  const result = await resolveAction(defender, action, {});
+  // SPENT ONLY WHEN TAKEN (3.705.2). The card and the 1/round frequency were
+  // marked before the Disarm was attempted, so a fumbler out of reach (a
+  // Lunge, a reach weapon) or a cancelled dialog used up the round's Reactive
+  // Disarm for nothing. See `reactiveDisarmTaken`.
+  if (!reactiveDisarmTaken(result)) return null;
+  await message.setFlag(SYSTEM_ID, "reactiveDisarm", { ...raw, used: true });
+  await defender.setFlag(SYSTEM_ID, "reactiveDisarmRound", raw.round);
+  return result;
+}
+
+/**
+ * Whether the Disarm was taken: `resolveAction` returns nothing when it
+ * refused the action (out of reach, no reaction left) or the dialog was
+ * cancelled, and the reaction is then still the creature's to use. Pure.
+ *
+ * @param {*} result what `resolveAction` returned
+ * @returns {boolean}
+ */
+export function reactiveDisarmTaken(result) {
+  return result !== null && result !== undefined;
 }
 
 export function registerReactiveDisarmHooks() {
@@ -67,7 +90,9 @@ export function registerReactiveDisarmHooks() {
     if (raw.used) { button.disabled = true; button.textContent = "✓ Disarm attempted"; return; }
     bindOnce(button, "click", async (event) => {
       event.preventDefault(); button.disabled = true;
-      try { await pressReactiveDisarm(message); } catch (err) { button.disabled = false; throw err; }
+      // NOT TAKEN, STILL OFFERED (3.705.2): refused or cancelled leaves the
+      // button usable, as the reaction is.
+      try { if (!(await pressReactiveDisarm(message))) button.disabled = false; } catch (err) { button.disabled = false; throw err; }
     });
   });
 }

@@ -161,8 +161,8 @@ const AW = read("module", "combat", "action-workflow.mjs");
   // Graham, 20 Nov 2026: "Yes disarm does use reach" — the reaction Disarms are measured.
   ok("E8 the reactions' Aid and Shove are exempt; their Disarms are not",
     (RF.match(/\{ reachExempt: true \}/g) ?? []).length === 2
-    && /if \(disarm\) await resolveAction\(reactor, \{ \.\.\.disarm, apCost: "0" \}\);/.test(RF)
-    && /return resolveAction\(defender, action, \{\}\);/.test(RD) && !/reachExempt/.test(RD));
+    && /const result = disarm \? await resolveAction\(reactor, \{ \.\.\.disarm, apCost: "0" \}\) : null;/.test(RF)
+    && /const result = await resolveAction\(defender, action, \{\}\);/.test(RD) && !/reachExempt/.test(RD));
   const AWK = read("module", "combat", "attack-workflow.mjs");
   const merge = block(AWK, "  // A LUNGE WITH ANOTHER ATTACK ACTION (3.705.0", "  const viaRefused");
   ok("E9 a Strike in a Lunge's action gains Reach, its -2 waived only in the stance; not a reaction; melee only",

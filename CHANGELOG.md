@@ -2,6 +2,16 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.705.2 — 21 November 2026: the player-perspective live test's findings
+
+Branch `fix/live-test-3705-2`, from 3.705.1. Full notes in `release-notes-3.705.2.md`; repair log R-0005; live report `live-testing-report-3.705.1-player.md`.
+
+- **Lunge with an action feat** (Vital Strike, Distracting Strike, Combat Grapple, Quick Draw) now posts its Lunge card. It doesn't when the feat's Strike was refused.
+- **Coup de Grace** prints the critical's severity, not "[object Object]". Against a critical-immune target it says "no critical".
+- **Reactive Disarm** works in V14: the button threw on `game.user.updateTokenTargets`. The reaction is now used up only when the Disarm was actually taken, not when it was refused for reach or cancelled.
+- **Disarm Block's** card follows its Disarm, so a refusal for reach no longer leaves "grabs for the weapon" in the log.
+- **Harness:** new `verify-live-findings-3705-2` (32) / mutate (12); one check and two mutation anchors re-anchored; pins raised. No data or migration change.
+
 ## 3.705.1 — 20 November 2026: Lunge, revised
 
 Branch `fix/feat-lunge`, from 3.705.0. Full notes in `release-notes-3.705.1.md`; repair log R-0004.

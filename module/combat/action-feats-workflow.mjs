@@ -63,6 +63,25 @@ export function refusedLine(checks) {
     : `<strong>${refused} of the Strikes could not be made</strong> — see the warning above for why.`);
 }
 
+/**
+ * WHAT A STRIKE FEAT'S RUN RETURNS (3.705.2): its Strikes when at least one
+ * was made, null when none was (refused, or no weapon).
+ *
+ * Found in the player-perspective live test of 3.705.1: a Lunge made with
+ * Vital Strike, Distracting Strike, Combat Grapple or Quick Draw never
+ * posted its Lunge card, because these handlers returned nothing and
+ * `runLunge` reads nothing as "cancelled". The Reach -2 was applied; only
+ * the card saying the action was a Lunge was missing. A feat whose Strike
+ * was refused (out of reach even with the Lunge) is not a Lunge that
+ * happened either, so it gets no card.
+ *
+ * @param {Array & {resolved?: number}} checks from `strikePlan`
+ * @returns {Array|null}
+ */
+export function struckOrNull(checks) {
+  return Number(checks?.resolved ?? 0) > 0 ? checks : null;
+}
+
 async function card(actor, title, lines) {
   return ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
@@ -368,6 +387,8 @@ async function runLunge(actor, item, entry) {
     label = feat.name;
     result = await withLunge(actor, terms, () => runActionFeat(actor, feat));
   }
+  // NOTHING BACK IS "NOTHING HAPPENED": cancelled, refused before the roll,
+  // or (a feat, `struckOrNull`, 3.705.2) no Strike made. No Lunge card then.
   if (result === null || result === undefined) return result;
   await card(actor, entry.label, [
     line(`<strong>${esc(actor.name)}</strong> lunges: <strong>${esc(label)}</strong> reaches 5 ft further.`),
@@ -442,6 +463,7 @@ const RUN = {
         : `<strong>${esc(actor.name)}</strong> misses, and there is nothing to take hold of.`),
       hit ? line("<em>Grabbed until the end of your next turn, or until they Escape.</em>") : ""
     ]);
+    return struckOrNull(checks);
   },
 
   async "distracting strike"(actor, item, entry, chosen = null) {
@@ -463,6 +485,7 @@ const RUN = {
           : "<em>It deals <strong>no damage</strong> — that is the trade.</em>")
         : ""
     ]);
+    return struckOrNull(checks);
   },
 
   async "double shot"(actor, item, entry, chosen = null) {
@@ -524,6 +547,7 @@ const RUN = {
       line(`<strong>${esc(actor.name)}</strong> draws <strong>${esc(weapon?.name ?? "a weapon")}</strong> and strikes in one motion — the Interact and the Strike together for <strong>1 AP</strong>.`),
       checks.refused ? line(`<em>${esc(weapon?.name ?? "The weapon")} stays in hand: the draw happened even though the Strike did not.</em>`) : ""
     ]);
+    return struckOrNull(checks);
   },
 
   async "reverse strike"(actor, item, entry, chosen = null) {
@@ -654,6 +678,7 @@ const RUN = {
         : line("<em>No critical, so the aim buys nothing this time.</em>")
     ]);
     if (critical) await actor.setFlag(SYSTEM_ID, "vitalStrikeLocation", location);
+    return struckOrNull(checks);
   },
 
   async "void step"(actor, item, entry, chosen = null) {

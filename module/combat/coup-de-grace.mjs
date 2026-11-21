@@ -67,6 +67,31 @@ export function coupDeGraceSaveDC(attackerLevel) {
 }
 
 /**
+ * The card's "Automatic hit" line (3.705.2).
+ *
+ * Found in the player-perspective live test of 3.705.1: the card read "AV 11
+ * — [object Object] critical". `attackOutcome`'s critical has been an object
+ * (`{severity, bonusDice, diceBias, injuryImmune}`) since 3.548.0, and the
+ * card still printed it as the severity string it used to be. The same
+ * change had kept the critical for a critical-immune target (for a Strike,
+ * Graham's 10 September 2026 ruling), so an immune target's line said
+ * "[object Object] critical" instead of "no critical". Coup de Grace has its
+ * own sentence for that case: "the coup de grace does not deal critical
+ * damage or effects".
+ *
+ * @param {{av: number, critical: ({severity: string}|null)}} result from `coupDeGraceAttackOutcome`
+ * @param {boolean} immune the GM's answer: the target is immune to critical hits
+ * @returns {string} HTML
+ */
+export function coupDeGraceHitLine(result, immune) {
+  const severity = immune ? null : (result?.critical?.severity ?? null);
+  const tail = severity
+    ? ` — <strong>${severity} critical</strong>`
+    : immune ? " — no critical (target is immune)" : "";
+  return `<strong>Automatic hit</strong> (treated as an unmodified 20): AV ${result?.av ?? 0}${tail}.`;
+}
+
+/**
  * Whether the save-or-die failed and the target dies outright —
  * a Fortitude save against coupDeGraceSaveDC, instant death on
  * failure rather than a gradual Dying worsening (there's no

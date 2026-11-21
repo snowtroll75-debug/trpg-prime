@@ -348,3 +348,78 @@ No console errors. The world migration to 3.704.0 ran.
 - **Branch:** `fix/feat-lunge` (local, not pushed)
 - **Package:** `trg-prime.zip`
 - **Outstanding:** Lunging Stance's Attack of Opportunity reach is still not automated.
+
+---
+
+## R-0005 — Four defects found by the player-perspective live test
+
+### Repair identification
+
+- **Date:** 21 November 2026
+- **Reference:** R-0005, following R-0004
+- **Feature:** Lunge's card after an action feat; Coup de Grace's card; Reactive Disarm; Disarm Block's card
+- **Reported:** found, not reported. Graham asked: "Okay can you now test everything that you have not. Including tests from a player perspective. Please use PC Tester profile for this." The pass is `live-testing-report-3.705.1-player.md`.
+
+### Source state
+
+- **Starting version:** 3.705.1, on branch `fix/feat-lunge` at `0463a95`.
+- **Working tree:** clean. Work is on the new branch `fix/live-test-3705-2`.
+- **Remote:** unchanged; nothing pushed.
+
+### Diagnosis
+
+- **A, Lunge card:**
+  - *Expected:* a Lunge made with an action feat posts the Lunge card, as a Lunge Strike or Trip does.
+  - *Actual:* no card. The Combat Grapple, Distracting Strike, Quick Draw and Vital Strike handlers return nothing, which `runLunge` reads as "cancelled". The Reach trait and its −2 were applied correctly.
+- **B, Coup de Grace:**
+  - *Expected:* the card names the severity, or "no critical" against a critical-immune target.
+  - *Actual:* "[object Object] critical". The template predates 3.548.0, which made the critical an object and kept it against immune targets.
+- **C, Reactive Disarm:**
+  - *Expected:* the button attempts the Disarm.
+  - *Actual:* `TypeError: game.user.updateTokenTargets is not a function` (V14), so the reaction could never be taken.
+  - *Also:* the card and the once-a-round frequency were marked before the Disarm was tried, so a refusal (3.705.0's reach check) would have used them up.
+- **D, Disarm Block:**
+  - *Expected:* nothing claims a grab that didn't happen.
+  - *Actual:* the "turns the blow and grabs for the weapon" card was posted before the Disarm was refused for reach.
+- **Relevant files:**
+  - `combat/action-feats-workflow.mjs`
+  - `combat/coup-de-grace.mjs` and `combat/action-workflow.mjs`
+  - `combat/reactive-disarm-workflow.mjs`
+  - `combat/reaction-feats-workflow.mjs`
+
+### Implementation
+
+**Code:**
+
+- `struckOrNull(checks)` is returned by the four feat handlers.
+- `coupDeGraceHitLine(result, immune)` builds the card's line.
+- Reactive Disarm targets with `Token#setTarget`. It marks the card and the round only when `reactiveDisarmTaken(result)`, and re-enables its button otherwise.
+- Disarm Block tries its Disarm first, and posts its card only after one that happened.
+
+**Data:** none. **Migration:** none. The schema and gates stay at 3.705.1.
+
+**Harness:**
+
+- new `verify-live-findings-3705-2` (32) and `mutate-live-findings-3705-2` (12);
+- `verify-lunge-actions-3705` E8 and two `mutate-lunge-actions-3705` anchors re-anchored, intent unchanged;
+- version pins raised to 3.705.2.
+
+### Testing
+
+- `verify-live-findings-3705-2`: 32 pass. `mutate-live-findings-3705-2`: 12 of 12 caught.
+- **Core:** 158 verify scripts and 111 mutation scripts (every script reading a changed file or carrying a pin, plus the whole-tree checks, including `verify-checks-read-source`). **All pass**, including the two long mutation files, `mutate-fixes-3685-3b` (56 min) and `mutate-checks-read-source` (50 min).
+- **Modules:** the four module scripts that read the action workflow give the same results as on 3.703.1.
+- **Live Foundry:** not yet run for 3.705.2.
+
+### Delivery
+
+- **Version:** 3.705.2
+- **Branch:** `fix/live-test-3705-2` (local, not pushed)
+- **Package:** `trg-prime.zip`
+- **Outstanding** (observations, need a ruling or a separate repair):
+  - the Whip's adjacent Trip;
+  - Combat Grapple doesn't apply Grabbed;
+  - Lunge's "1 AP" tooltip;
+  - reaction offer cards are readable by the attacking player;
+  - a weapon feat spends its AP before its Strike is checked;
+  - Lunging Stance's Attack of Opportunity reach.

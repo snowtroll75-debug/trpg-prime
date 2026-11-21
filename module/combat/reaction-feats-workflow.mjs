@@ -374,12 +374,18 @@ const RUN = {
     const { resolveAction } = await import("./action-workflow.mjs");
     const { BASIC_ACTIONS } = await import("../data/basic-actions.mjs");
     const disarm = BASIC_ACTIONS.find((a) => a.key === "disarmAttack");
-    await report(reactor, "Disarm Block", [
-      line(`<strong>${esc(reactor.name)}</strong> turns the blow and grabs for the weapon.`),
-      line("<em>A Disarm attempt — and this one needs no free hand.</em>")
-    ]);
     // DISARM USES REACH, EVEN AS A REACTION (3.705.0; Graham, 20 Nov 2026).
-    if (disarm) await resolveAction(reactor, { ...disarm, apCost: "0" });
+    // THE CARD FOLLOWS A DISARM THAT HAPPENED (3.705.2). It was posted first,
+    // so an attacker out of reach (a Lunge, a reach weapon) got "turns the
+    // blow and grabs for the weapon" in the log above the refusal, for a
+    // Disarm that was never attempted. Found in the player-perspective live
+    // test of 3.705.1.
+    const result = disarm ? await resolveAction(reactor, { ...disarm, apCost: "0" }) : null;
+    if (result === null || result === undefined) return;
+    await report(reactor, "Disarm Block", [
+      line(`<strong>${esc(reactor.name)}</strong> turned the blow and grabbed for the weapon: the Disarm above.`),
+      line("<em>Disarm Block's Disarm needs no free hand.</em>")
+    ]);
   },
 
   async "offensive parry"(reactor, ctx) {
