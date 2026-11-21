@@ -134,10 +134,10 @@ export function turnStartClock(parsed, { inCombat = false, worldTime = 0 } = {})
 }
 
 /** Two rounds of world time — see `turnStartClock`. */
-export const TURN_START_BACKSTOP_SECONDS = 12;
+const TURN_START_BACKSTOP_SECONDS = 12;
 
 /** "Until the start (or beginning) of YOUR next turn" — the caster's (3.707.1). */
-export const UNTIL_YOUR_TURN_START = /until the (?:start|beginning) of your next turn/i;
+const UNTIL_YOUR_TURN_START = /until the (?:start|beginning) of your next turn/i;
 
 export function parseSpellDuration(text) {
   const t = String(text || "").toLowerCase();

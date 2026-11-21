@@ -53,7 +53,9 @@ const OTHER = "Scene.s.Token.orc.Actor.o";
   ok("C2 out of an encounter: no turn to wait for, the six seconds stand", D.turnStartClock(parsed, { inCombat: false, worldTime: 600 }) === null);
   ok("C3 no caster named, or a phrase that is not marked: nothing", D.turnStartClock({ ...parsed, turnStartOf: "" }, { inCombat: true }) === null
     && D.turnStartClock({ ...D.parseSpellDuration("1 round"), turnStartOf: CASTER }, { inCombat: true }) === null);
-  ok("C4 the backstop lies past the next round boundary, so it cannot end it first", D.TURN_START_BACKSTOP_SECONDS === 12 && D.TURN_START_BACKSTOP_SECONDS > 6);
+  const ED = read("module", "magic", "effect-duration.mjs");
+  ok("C4 the backstop lies past the next round boundary, so it cannot end it first", /const TURN_START_BACKSTOP_SECONDS = 12;/.test(ED)
+    && D.turnStartClock(parsed, { inCombat: true, worldTime: 0 }).backstopEnd > 6);
   const SE = read("module", "magic", "spell-effects.mjs");
   const timing = SE.slice(SE.indexOf("function spellExpiryTiming(parsed) {"), SE.indexOf("if (out.spellEffect) out.foundryDuration = undefined;"));
   ok("C5 the cast's timing drops the round clock for it and keeps the backstop",
@@ -70,13 +72,6 @@ const OTHER = "Scene.s.Token.orc.Actor.o";
 /* S — the sweep, driven ------------------------------------------------------ */
 {
   const E = await mod("combat", "effect-application-workflow.mjs");
-  equal("S1 due at the caster's turn start; not at another's; a round clock still ends as before",
-    [E.dueAtTurnStart({ endsAtTurnStartOf: CASTER }, { round: 1, turnOfUuid: CASTER }),
-      E.dueAtTurnStart({ endsAtTurnStartOf: CASTER }, { round: 9, turnOfUuid: OTHER }),
-      E.dueAtTurnStart({ expiresRound: 3 }, { round: 3, turnOfUuid: OTHER }),
-      E.dueAtTurnStart({ expiresRound: 3 }, { round: 2, turnOfUuid: OTHER }),
-      E.dueAtTurnStart({}, { round: 9, turnOfUuid: CASTER })],
-    [true, false, true, false, false]);
   const bearer = (name, stamp) => {
     const gone = [];
     const effects = [{
@@ -92,6 +87,17 @@ const OTHER = "Scene.s.Token.orc.Actor.o";
     const atOrc = await E.expireTimedConditions(ally.actor, 2, { turnOf: { uuid: OTHER } });
     const atWiz = await E.expireTimedConditions(ally.actor, 2, { turnOf: { uuid: CASTER } });
     ok("S2 an ally's effect outlasts the orc's turn and ends at the caster's", atOrc.length === 0 && ally.gone.length === 1 && atWiz.length === 1, JSON.stringify({ atOrc, atWiz, gone: ally.gone }));
+  }
+  {
+    const timed = bearer("orc", { conditionExpiresRound: 3 });
+    const early = await E.expireTimedConditions(timed.actor, 2, { turnOf: { uuid: OTHER } });
+    const due = await E.expireTimedConditions(timed.actor, 3, { turnOf: { uuid: OTHER } });
+    ok("S1 a round clock still ends as before, at its round and not sooner", early.length === 0 && due.length === 1 && timed.gone.length === 1);
+  }
+  {
+    const other = bearer("ally2", { endsAtTurnStartOf: OTHER });
+    const atWiz = await E.expireTimedConditions(other.actor, 9, { turnOf: { uuid: CASTER } });
+    ok("S1b a stamp naming another caster is not ended by this one's turn", atWiz.length === 0 && other.gone.length === 0);
   }
   {
     const self = bearer("wiz", { endsAtTurnStartOf: CASTER });
@@ -171,7 +177,7 @@ const OTHER = "Scene.s.Token.orc.Actor.o";
     && /if \(refusedFoes\) \{\n\s+ui\.notifications\.warn\(refusedFoes\);\n\s+return null;/.test(CW));
 }
 
-const EXPECTED = 28;
+const EXPECTED = 29;
 checks += 1;
 if (checks !== EXPECTED) failures.push(`Z the suite ran ${checks} checks, expected ${EXPECTED}`);
 if (failures.length) {
