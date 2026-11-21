@@ -26,7 +26,7 @@ const MUTATIONS = [
   { name: "next-roll entries are merged too", file: DR, from: "    if (entry?.oneShot || Number.isFinite(Number(entry?.turnsRemaining))) continue;", to: "    if (Number.isFinite(Number(entry?.turnsRemaining))) continue;", breaks: "C2" },
   { name: "the same lasting modifier is queued again", file: PM, from: "  if (same) return same;\n", to: "", breaks: "C4" },
   { name: "the migration pass is never run", file: MG, from: "    () => migrateStalePendingCopies(actors, tokenActors))) ?? [];", to: "    () => [])) ?? [];", breaks: "C5" },
-  { name: "the stamp stays where it was", file: MG, from: "export const TRG_SCHEMA_VERSION = \"3.705.1\";", to: "export const TRG_SCHEMA_VERSION = \"3.666.1\";", breaks: "C6" },
+  { name: "the stamp stays where it was", file: MG, from: "export const TRG_SCHEMA_VERSION = \"3.707.0\";", to: "export const TRG_SCHEMA_VERSION = \"3.666.1\";", breaks: "C6" },
   { name: "THE ORB COMPLAINT: no tokens is skipped in silence again", file: TG, from: "    return goOn === \"continue\";\n  }\n", to: "    return true;\n  }\n", breaks: "D3" },
   { name: "the active scene is not named", file: TP, from: "    ? ` The GM's active scene is ${activeName}.` : \"\";", to: "    ? \"\" : \"\";", breaks: "D1" },
   { name: "the canvas being off is not named", file: TP, from: "  if (canvasOff) {", to: "  if (false) {", breaks: "D2" },
