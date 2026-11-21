@@ -129,7 +129,7 @@ const MUTATIONS = [
   { name: "the Dispel dialog ignores the incoming spell", file: ACT, from: "        ...(presetDispel\n          ? { level:", to: "        ...(false\n          ? { level:", breaks: "W24" },
   { name: "the API offers no askReactor", file: APW, from: "      askReactor: async (...args) =>", to: "      askReactorX: async (...args) =>", breaks: "W25" },
   { name: "Conviction is spent past the round's limit", file: APW, from: "        if (!getConvictionState(actor).ok) return false;\n        await markConvictionSpent(actor);", to: "        await markConvictionSpent(actor);", breaks: "W26" },
-  { name: "castAsReaction is not exported", file: SRS, from: "export async function castAsReaction(caster, spell, targetTokenIds = []) {", to: "async function castAsReaction(caster, spell, targetTokenIds = []) {", breaks: "W27" },
+  { name: "castAsReaction is not exported", file: SRS, from: "export async function castAsReaction(caster, spell, targetTokenIds = [], { castQuestionsAnswered = false } = {}) {", to: "async function castAsReaction(caster, spell, targetTokenIds = [], { castQuestionsAnswered = false } = {}) {", breaks: "W27" },
   // Z
   { name: "the version is not raised", file: SJ, from: "\"version\": \"3.707.0\"", to: "\"version\": \"3.680.1\"", breaks: "Z" }
 ];
