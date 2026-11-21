@@ -41,4 +41,9 @@ No data change and no migration.
 - **Core mutation:** 261 scripts reading a changed file or carrying a pin, in their own worktree. **261 of 261 pass.** Two anchors (in `mutate-fixes-3685-1` and `mutate-fixes-3681-2`) were re-anchored and re-run.
 - **Not run:** the two long whole-tree mutation scripts, as in 3.707.1.
 - **Modules:** Pillars of Faith, Inner Tempest and Eldritch Arts give **identical results** on 3.707.3 and 3.706.1.
-- **Live Foundry:** 3.707.2's results are in `live-testing-report-3.707.2.md`. The retest of A and B waits for 3.707.3 to be installed.
+- **Live Foundry:** 3.707.2's results are in `live-testing-report-3.707.2.md`. 3.707.3 was installed by Graham and retested the same day (`live-testing-report-3.707.3.md`):
+  - the reaction cast and a one-foe sheet cast of Stone Shield work, with a real near miss striking the shield;
+  - Seer's Vision's glimpse lapses at the end of the caster's next turn;
+  - the shield's card names the shield.
+
+  All pass. The Test world was cleaned up afterwards.

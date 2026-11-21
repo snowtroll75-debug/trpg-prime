@@ -789,7 +789,7 @@ These six repairs went into one release, 3.706.0, so they share a source state, 
 - **Core mutation:** 261 scripts reading a changed file or carrying a pin, in their own worktree. **261 of 261 pass.** Two anchors (in `mutate-fixes-3685-1` and `mutate-fixes-3681-2`) were re-anchored and re-run.
 - **Not run:** the two long whole-tree mutation scripts, as in 3.707.1.
 - **Modules:** Pillars of Faith, Inner Tempest and Eldritch Arts give **identical results** on 3.707.3 and 3.706.1.
-- **Live Foundry:** 3.707.2's results are in `live-testing-report-3.707.2.md`. The retest of A and B waits for 3.707.3 to be installed.
+- **Live Foundry:** 3.707.2's results are in `live-testing-report-3.707.2.md`. 3.707.3 was installed by Graham and retested the same day: all of R-0018 to R-0020 pass (`live-testing-report-3.707.3.md`). The Test world was cleaned up afterwards.
 - **New:** `verify-live-findings-3707-2` (11), `mutate-live-findings-3707-2` (8 of 8).
 
 ### Delivery
