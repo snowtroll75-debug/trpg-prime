@@ -11,7 +11,7 @@ Branch `fix/spell-stone-shield`, from 3.706.1. Full notes in `release-notes-3.70
 - **The GM's "Damage the shield" button** takes area damage, or anything else, by hand (Graham's ruling). The +4 stays DB only, as printed.
 - **Spiritual Weapon** now reads the defender's DB bonuses (it ignored every ward and `defenceDC` row).
 - **Data:** one pack record changed; owned copies repaired (including pre-3.406.0 copies, which gave +4 against everyone); migration re-gated to 3.707.0.
-- **Harness:** new `verify-stone-shield` (64) / mutate (23); 9 checks and 1 mutation anchor re-anchored; pins raised.
+- **Harness:** new `verify-stone-shield` (64) / mutate (23); 9 checks and 2 mutation anchors re-anchored; pins raised.
 
 ## 3.706.1 — 21 November 2026: what the 3.706.0 live test found
 

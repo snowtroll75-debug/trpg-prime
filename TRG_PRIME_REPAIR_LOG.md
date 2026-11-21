@@ -632,7 +632,13 @@ These six repairs went into one release, 3.706.0, so they share a source state, 
 
 ### Testing
 
-TESTING_PLACEHOLDER
+- **Core verify:** all 393 verify scripts at the final commit, run one at a time in a clean worktree, with the packs restored after each. **393 of 393 pass.**
+- **Core mutation:** every mutation script that reads a changed file or carries a pin: 291 scripts. **291 of 291 pass**, after the `castAsReaction` anchor in `mutate-ea-block3b-core` was re-anchored and re-run (103 of 103 caught).
+- **Long whole-tree mutations:** `mutate-fixes-3685-3b` and `mutate-checks-read-source` (about 55 min each) were started at the final commit and had **not finished** when this was written. They are not counted as run.
+- **Modules:** every verify script of Pillars of Faith (0.12.6), Inner Tempest (1.0.4) and Eldritch Arts (0.17.2), run against 3.706.1 and against 3.707.0 (`TRG_PRIME_ROOT`), gives **identical results**. The only failures, on both, are the modules' own version pins.
+- **Pack:** a record diff against 3.706.1 shows exactly one change: Stone Shield. The other packs are byte-identical. The zip's pack reads back with 692 spells.
+- **Live Foundry:** not yet run. The Test world is on 3.706.1, waiting for Graham to install 3.707.0.
+- **New:** `verify-stone-shield` (64 checks), `mutate-stone-shield` (23 of 23 caught).
 
 ### Delivery
 
