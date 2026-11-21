@@ -42,10 +42,10 @@ ok("W1 the attack workflow imports the line", /import \{ damageCardSummary \} fr
 ok("W2 the weapon damage card's line is built from it, naming the creature the damage was resolved against",
   /const damageCompactSummary = \(\) => damageCardSummary\(\{\s*targetName: finalTaken !== null \? targetActor\?\.name \?\? null : null,\s*taken: finalTaken,\s*total,\s*typeLabel\s*\}\);/.test(aw));
 ok("W3 …and it is that line the card is posted with",
-  /await postCard\(actor, `\$\{weapon\.name\} — Damage`, lines, \[roll\], \{\s*compactSummary: damageCompactSummary\(\)\s*\}\);/.test(aw));
+  /await postCard\(actor, struckObject \? `\$\{weapon\.name\} — Damage to \$\{struckObject\}` : `\$\{weapon\.name\} — Damage`, lines, \[roll\], \{\s*compactSummary: damageCompactSummary\(\)\s*\}\);/.test(aw)); // re-anchored at 3.707.0 (Stone Shield's title)
 ok("W4 the old, nameless line is gone", !aw.includes("`${finalTaken} ${typeLabel} taken`"));
 ok("W5 `targetActor` there is the damage step's own (the user's target, or a stray shot's bystander)",
-  /const targetTokenHere = targetTokenOverride \?\? firstTargetToken\(\) \?\? null;\s*const targetActor = targetTokenHere\?\.actor \?\? null;/.test(aw));
+  /const targetTokenHere = struckObject \? null : \(targetTokenOverride \?\? firstTargetToken\(\) \?\? null\);\s*const targetActor = targetTokenHere\?\.actor \?\? null;/.test(aw));
 
 /* Z — the version */
 const sys = JSON.parse(read("system.json"));

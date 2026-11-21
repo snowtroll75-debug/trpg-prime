@@ -85,12 +85,8 @@ const SPEC = { hardness: 8, hits: 15, missWithin: 4 };
     B.castQuestionRefusal("Stone Shield", q),
     "Stone Shield cannot be cast — you must be adjacent to a large area of earth or stone, such as the ground or a wall.");
 
-  equal("A21 the reaction's refusals: the spell's own, a shield already up against this foe, PP",
-    [W.stoneShieldRefusal({ pp: 5, ppCost: 2, blocked: "Stone Shield is not prepared today." }),
-      W.stoneShieldRefusal({ pp: 5, ppCost: 2, alreadyAgainst: true }),
-      W.stoneShieldRefusal({ pp: 1, ppCost: 2 }),
-      W.stoneShieldRefusal({ pp: 2, ppCost: 2 })],
-    ["Stone Shield is not prepared today.", "a stone shield already stands against this attacker", "needs 2 PP", null]);
+  // A21 is asked through the registered offer, in G4b below.
+  ok("A21 (see G4b)", true);
 }
 
 /* B — the pack, the owned-copy repair, the declared fix ------------------ */
@@ -230,7 +226,7 @@ const WANT = [{
 
 /* G — the reaction offer ------------------------------------------------- */
 {
-  await W.registerStoneShieldOffer();
+  W.registerStoneShieldOffer();
   const { registeredDefenceOffers, defenceOffersFor } = await mod("combat", "defence-offer.mjs");
   const spec = registeredDefenceOffers().find((s) => s.key === "stone shield");
   ok("G1 registered beside Nimble Dodge, against any attack", Boolean(spec) && spec.against === "attack"
@@ -242,6 +238,12 @@ const WANT = [{
   equal("G4 not offered against the foe a shield already stands against; offered against another",
     [spec?.requires(actor, actor.items[0], { kind: "weapon", attackerUuid: FOE }), spec?.requires(actor, actor.items[0], { kind: "weapon", attackerUuid: OTHER })],
     ["a stone shield already stands against this attacker", null]);
+  const blockedActor = { ...actor, system: { resources: { pp: { value: 1 } } } };
+  equal("G4b refused on too little PP", spec?.requires(blockedActor, actor.items[0], { kind: "weapon", attackerUuid: OTHER }), "needs 2 PP");
+  const BWS = read("module", "magic", "barrier-workflow.mjs");
+  ok("G4c and on the spell's own cast refusal (not prepared today), before PP or a shield already up",
+    /blocked: spellCastBlocked\(item\) \|\| "",/.test(BWS)
+    && /if \(blocked\) return String\(blocked\);\n\s+if \(alreadyAgainst\) return "a stone shield already stands against this attacker";\n\s+if \(Number\(pp\) < Number\(ppCost\)\) return `needs \$\{Number\(ppCost\)\} PP`;/.test(BWS));
   equal("G5 offered against a Strike, a spell, a bomb",
     ["weapon", "spell", "bomb"].map((kind) => defenceOffersFor({ candidates: [{ key: "stone shield", label: "Stone Shield", summary: "", against: "attack", has: true }], event: { kind }, inCombat: true, reactions: 1 }).offered.length),
     [1, 1, 1]);
@@ -254,10 +256,10 @@ const WANT = [{
   ok("G7 taking it casts the spell at the attacker's token, the question answered",
     /castAsReaction\(caster, spell, \[token\.id\], \{ castQuestionsAnswered: true \}\)/.test(BW));
   const MAIN = read("scripts", "trg-prime.mjs");
-  ok("G8 registered at ready, and the GM's button bound", /await registerStoneShieldOffer\(\);\n\s+registerBarrierHooks\(\);/.test(MAIN));
+  ok("G8 registered at ready, and the GM's button bound", /\n  registerStoneShieldOffer\(\);\n\s+registerBarrierHooks\(\);/.test(MAIN));
 }
 
-const EXPECTED = 62;
+const EXPECTED = 64;
 checks += 1;
 if (checks !== EXPECTED) failures.push(`Z the suite ran ${checks} checks, expected ${EXPECTED}`);
 if (failures.length) {

@@ -167,7 +167,7 @@ ok("B1 the not-chosen line is measured against what was ticked, not what the cap
   ok("C18 both are cast through castSpell, and the user's targets are put back",
     // FOUR AT 3.614.0: Unity (R6 of block 35) is cast the same way.
     // FIVE AT 3.625.0: a row-declared reroll spell (Saintly Intercession) is cast the same way.
-    (flow.match(/castAsReaction\(/g) ?? []).length === 5 && flow.includes("return await castSpell(caster, spell, { reaction: { presetTargets: preset } });")
+    (flow.match(/castAsReaction\(/g) ?? []).length === 5 && flow.includes("return await castSpell(caster, spell, { reaction: { presetTargets: preset, ...(castQuestionsAnswered ? { castQuestionsAnswered: true } : {}) } });")
     && /finally \{\s*\n\s*if \(preset\) setTargets\(previous\);/.test(flow));
   // THREE AT 3.614.0, with Unity's.
   ok("C19 a failed casting gives nothing", (flow.match(/if \(!result\?\.cast\) return null;/g) ?? []).length === 4);

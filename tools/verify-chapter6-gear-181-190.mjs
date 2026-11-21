@@ -465,7 +465,8 @@ eq("E11 a second flask adds to the recurring damage of its type; another type st
     // Re-anchored at 3.667.0: trained fists' materials join the struck one;
     // at 3.671.0 a bonded weapon's (Soul-Bound Weapon) after them.
     /material: \[materialDefenceWord\(struck\.material\), \.\.\.\(unarmed\?\.materials \?\? \[\]\)(?:, \.\.\.\(bonded\?\.materials \?\? \[\]\))?\]\.filter\(Boolean\)\.join\(", "\),/.test(atk) && /weaponCoat: oilCoatOf\(weapon\),\s*ammoCoat,/.test(atk)
-    && (atk.match(/ammoCoat: oilCoatOf\(ammo\),/g) ?? []).length === 2
+    // THREE AT 3.707.0: the blow that strikes Stone Shield hands the coat over too.
+    && (atk.match(/ammoCoat: oilCoatOf\(ammo\),/g) ?? []).length === 3
     && /if \(struck\.coated\) \{\s*lines\.push/.test(atk));
   const act = code("module", "documents", "actor.mjs");
   ok("F12 R9: an Armourguarded shield's +1 item DB joins the item pool while its bonus is in force",

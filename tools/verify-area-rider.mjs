@@ -193,7 +193,9 @@ ok("F1 the strike loop asks for area packets",
 // strikes a different combatant, so the damage step takes an override —
 // but it is still a TOKEN, which is the whole of what this check is for.
 ok("F2 AND IT IS HANDED A TOKEN",
-  attack.includes("const targetTokenHere = targetTokenOverride ?? firstTargetToken() ?? null;"),
+  // RE-ANCHORED AT 3.707.0: a blow that struck Stone Shield is rolled with no
+  // creature under it (`struckObject`); everything else is still a token.
+  attack.includes("const targetTokenHere = struckObject ? null : (targetTokenOverride ?? firstTargetToken() ?? null);"),
   "an Actor cannot answer where it is standing");
 ok("F3 the packets join the existing secondary-damage loop",
   attack.includes("...strikeRiderPackets(actor, weapon, riderCtx), ...areaPackets"),

@@ -29,6 +29,8 @@ import {
   castQuestionRefusal,
   castQuestionsOf
 } from "./barrier.mjs";
+import { registerDefenceOffer } from "../combat/defence-offer.mjs";
+import { spellCastBlocked } from "./spell-availability.mjs";
 
 const SYSTEM_ID = "trg-prime";
 const esc = (v) => globalThis.foundry?.utils?.escapeHTML?.(String(v ?? "")) ?? String(v ?? "");
@@ -83,7 +85,7 @@ export async function damageBarrierDirect(defender, effectId, damage) {
  * @param {string} effectId
  * @param {number} damage
  */
-export async function damageBarrier(defender, effectId, damage) {
+async function damageBarrier(defender, effectId, damage) {
   const { needsRelay } = await import("../combat/target-relay.mjs");
   if (!needsRelay(defender)) return damageBarrierDirect(defender, effectId, damage);
   const { relayBarrierDamage } = await import("../combat/target-relay-workflow.mjs");
@@ -106,7 +108,7 @@ export function barrierButton(defender, effectId) {
     + `<i class="fa-solid fa-hammer"></i> Damage the shield (GM)</button>`;
 }
 
-export async function postBarrierCard(defender, title, lines, { effectId = "", standing = true } = {}) {
+async function postBarrierCard(defender, title, lines, { effectId = "", standing = true } = {}) {
   const button = standing ? barrierButton(defender, effectId) : "";
   return ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor: defender }),
@@ -233,11 +235,6 @@ export function barrierWrittenBy(actor, castId = null) {
   return mine.at(-1) ?? null;
 }
 
-/** Every standing barrier on a creature (for a module or a macro). */
-export function standingBarriers(actor) {
-  return barriersOn(Array.from(actor?.effects ?? []), SYSTEM_ID);
-}
-
 /* ------------------------------------------------------------------ *
  * STONE SHIELD AS A REACTION TO BEING ATTACKED (Graham, 21 November 2026:
  * "this spell is a reaction cast so a GM prompt (similar to what is used
@@ -248,10 +245,10 @@ export function standingBarriers(actor) {
  * (a second dialog would run against the attack's 30-second wait).
  * ------------------------------------------------------------------ */
 
-export const STONE_SHIELD = "Stone Shield";
+const STONE_SHIELD = "Stone Shield";
 
 /** The caster's Stone Shield, by name. */
-export function stoneShieldSpellOf(actor) {
+function stoneShieldSpellOf(actor) {
   return Array.from(actor?.items ?? []).find((i) => i.type === "spell"
     && String(i.name ?? "").trim().toLowerCase() === STONE_SHIELD.toLowerCase()) ?? null;
 }
@@ -266,7 +263,7 @@ export function stoneShieldSpellOf(actor) {
  * @param {string} facts.blocked the spell's own cast refusal ("not prepared today"), or ""
  * @param {boolean} facts.alreadyAgainst a shield already stands against this attacker
  */
-export function stoneShieldRefusal({ pp = 0, ppCost = 0, blocked = "", alreadyAgainst = false } = {}) {
+function stoneShieldRefusal({ pp = 0, ppCost = 0, blocked = "", alreadyAgainst = false } = {}) {
   if (blocked) return String(blocked);
   if (alreadyAgainst) return "a stone shield already stands against this attacker";
   if (Number(pp) < Number(ppCost)) return `needs ${Number(ppCost)} PP`;
@@ -286,10 +283,12 @@ async function castStoneShieldAgainst(caster, spell, attack) {
   return castAsReaction(caster, spell, [token.id], { castQuestionsAnswered: true });
 }
 
-/** Registered once, beside Nimble Dodge. */
-export async function registerStoneShieldOffer() {
-  const { registerDefenceOffer } = await import("../combat/defence-offer.mjs");
-  const { spellCastBlocked } = await import("./spell-availability.mjs");
+/**
+ * Registered once, beside Nimble Dodge. SYNCHRONOUS ON PURPOSE: it is called
+ * in the ready hook among the socket listeners, which must all be in place
+ * before that hook's first await (verify-gm-connection S7).
+ */
+export function registerStoneShieldOffer() {
   registerDefenceOffer(STONE_SHIELD, {
     summary: "+4 circumstance to your DB against this attacker until the start of your next turn; "
       + "its misses by 4 or less strike the shield (Hardness 8, 15 Hits). "

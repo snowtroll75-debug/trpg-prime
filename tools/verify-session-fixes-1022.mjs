@@ -216,10 +216,10 @@ ok("D12 a bomb and a spiritual weapon ask before their DB is read",
   alSrc.indexOf("await offerDefences(actor, targetActor, { kind: \"bomb\", what: item.name });") > 0
   && alSrc.indexOf("await offerDefences(actor, targetActor, { kind: \"bomb\"") < alSrc.indexOf("const base = Number(targetActor.system?.combat?.defence?.total ?? NaN);")
   && swSrc.indexOf("kind: \"spiritualWeapon\", what: record.label") > 0
-  && swSrc.indexOf("kind: \"spiritualWeapon\", what: record.label") < swSrc.indexOf("const db = Number(targetActor.system?.combat?.defence?.total ?? NaN);"));
+  && swSrc.indexOf("kind: \"spiritualWeapon\", what: record.label") < swSrc.indexOf("const sheetDB = Number(targetActor.system?.combat?.defence?.total ?? NaN);")); // re-anchored at 3.707.0: the DB now adds the defender's rows
 const dowSrc = read("module", "combat", "defence-offer-workflow.mjs");
 ok("D13 the answering client re-asks what is still open before it acts, and runs the feat's own Use",
-  /const \{ offered \} = defender\s*\? defenceOffersAgainst\(defender, \{ kind: String\(data\.kind \?\? "weapon"\) \}, \{ forAlly: Boolean\(data\.forAlly\) \}\)/.test(dowSrc)
+  /const \{ offered \} = defender\s*\? defenceOffersAgainst\(defender, \{ kind: String\(data\.kind \?\? "weapon"\), attackerUuid: String\(data\.attackerUuid \?\? ""\) \}, \{ forAlly: Boolean\(data\.forAlly\) \}\)/.test(dowSrc)
   && /const stillOpen = offered\.filter\(\(o\) => asked\.includes\(o\.key\)\);[\s\S]{0,200}offered: stillOpen \}\);/.test(dowSrc)
   && /if \(spec\.use\) await spec\.use\(defender, item, attack\);\s*else \{\s*const \{ useFeat \} = await import\("\.\.\/feats-workflow\.mjs"\);\s*await useFeat\(defender, item\);/.test(dowSrc));
 ok("D14 a defender's player who never answers cannot hold the attack: it times out as a no",

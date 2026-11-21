@@ -159,7 +159,7 @@ eq("A7 the spell attack total carries a MAP term", [
   ok("B4 no Sneak Attack or Precision dice ride along",
     !/\} else if \(strayStruckToken\) \{[\s\S]{0,1400}(sneakDice|precisionDice):/.test(w));
   ok("B5 the damage step reads the override before the user's target",
-    /const targetTokenHere = targetTokenOverride \?\? firstTargetToken\(\) \?\? null;/.test(w));
+    /const targetTokenHere = struckObject \? null : \(targetTokenOverride \?\? firstTargetToken\(\) \?\? null\);/.test(w)); // re-anchored at 3.707.0 (Stone Shield)
   ok("B6 the card says damage is rolled", /damage is rolled against them/.test(read("module", "combat", "attack-workflow.mjs")));
 }
 

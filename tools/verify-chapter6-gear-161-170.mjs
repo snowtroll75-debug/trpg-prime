@@ -328,7 +328,8 @@ ok("B3b asked before the roll, as circumstance, when the round allows it",
 // whether the phrase appeared anywhere stopped noticing its loss from the
 // hit path. Both calls must carry the choice.
 ok("B3c and the damage becomes subdual",
-  (attackSrc.match(/damageTypeOverride: subdualShot \|\| shiftedSubdual \? "subdual"/g) ?? []).length === 2);
+  // THREE AT 3.707.0: a blow that strikes Stone Shield takes the same type.
+  (attackSrc.match(/damageTypeOverride: subdualShot \|\| shiftedSubdual \? "subdual"/g) ?? []).length === 3);
 
 eq("B4 a sling can throw found rocks at -2", foundAmmunitionPenalty(W("Sling").system), -2);
 eq("B4b a bow cannot", foundAmmunitionPenalty(LONGBOW), null);

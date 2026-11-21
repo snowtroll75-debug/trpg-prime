@@ -401,7 +401,7 @@ ok("W37 (found in review) every other spell-damage site asks before its packet",
   Object.entries(src.sites).filter(([, text]) => !/spellDamageReactionsFor\(/.test(text)).map(([f]) => f).join(", "));
 ok("W38 (found in review) a Dispel aimed at a spell being cast is not aimed at the reactor's own target", /const targetActor = presetDispel \? null : firstTargetActor\(\);/.test(src.action));
 ok("W39 the before-window's lines are kept apart for a card that writes its own", /check\.reactionBeforeLines = said;/.test(src.check));
-ok("W27 castAsReaction is the core's own, exported", /export async function castAsReaction\(caster, spell, targetTokenIds = \[\]\) \{/.test(src.saveSpells));
+ok("W27 castAsReaction is the core's own, exported", /export async function castAsReaction\(caster, spell, targetTokenIds = \[\], \{ castQuestionsAnswered = false \} = \{\}\) \{/.test(src.saveSpells));
 
 {
   api.resetModuleRegistry();

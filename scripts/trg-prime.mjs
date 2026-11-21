@@ -949,7 +949,7 @@ Hooks.once("ready", async () => {
   registerDefenceOffers();
   // STONE SHIELD (3.707.0): offered beside Nimble Dodge when its caster is
   // attacked, and the GM's Damage the shield button. See magic/barrier.mjs.
-  await registerStoneShieldOffer();
+  registerStoneShieldOffer();
   registerBarrierHooks();
   // A REACTION ASKED ACROSS THE TABLE (3.681.0; Eldritch Arts Block 3b).
   registerReactionAsk();
