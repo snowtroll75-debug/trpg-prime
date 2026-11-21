@@ -89,7 +89,8 @@ const WORLD_SCHEMA_SETTING = "worldSchemaVersion";
 // 3.704.1: re-gated for the same notes, Lunge's -1 alone.
 // 3.705.0: and again for the Lunge note, any attack action.
 // 3.705.1: both passes re-gated for Graham's revised Lunge (its text, notes).
-export const TRG_SCHEMA_VERSION = "3.705.1";
+// 3.707.0: the pack-copy pass re-gated for Stone Shield's shield.
+export const TRG_SCHEMA_VERSION = "3.707.0";
 
 /**
  * Register the hidden world setting used to determine whether a migration is
@@ -800,7 +801,8 @@ export async function migrateWorldData(fromVersion = "") {
   // RE-VERSIONED TO 3.699.0: Eternal's Death State (Graham, RD-01).
   // RE-VERSIONED TO 3.701.0: the Movement trait on 34 spells (Graham, 18 Nov 2026).
   // RE-VERSIONED TO 3.705.1: Lunge's text, Graham's revised feat.
-  const packCopies = (await runIf("3.705.1", "stale owned copies of repaired pack items",
+  // RE-VERSIONED TO 3.707.0: Stone Shield's shield (Graham, 21 Nov 2026).
+  const packCopies = (await runIf("3.707.0", "stale owned copies of repaired pack items",
     () => migrateStalePackCopies([...actors, ...tokenActors], Array.from(game.items ?? []))))
     ?? { repaired: [], kept: [] };
   result.packCopies = packCopies;

@@ -32,6 +32,7 @@ import { registerPartySocket } from "../module/party-socket.mjs";
 import { registerTargetRelay } from "../module/combat/target-relay-workflow.mjs";
 import { registerGMAuthorisation } from "../module/combat/gm-authorisation.mjs";
 import { registerDefenceOffers } from "../module/combat/defence-offer-workflow.mjs";
+import { registerBarrierHooks, registerStoneShieldOffer } from "../module/magic/barrier-workflow.mjs";
 import { registerReactionAsk } from "../module/reactions/reaction-ask-workflow.mjs";
 import { registerOwnLevelView } from "../module/combat/level-view-workflow.mjs";
 import { registerAttackRerollOffers } from "../module/combat/attack-reroll-workflow.mjs";
@@ -946,6 +947,10 @@ Hooks.once("ready", async () => {
   // A REACTION TO BEING ATTACKED, ASKED BEFORE THE ROLL (3.666.1) — see
   // combat/defence-offer.mjs: Nimble Dodge, and whatever a module registers.
   registerDefenceOffers();
+  // STONE SHIELD (3.707.0): offered beside Nimble Dodge when its caster is
+  // attacked, and the GM's Damage the shield button. See magic/barrier.mjs.
+  await registerStoneShieldOffer();
+  registerBarrierHooks();
   // A REACTION ASKED ACROSS THE TABLE (3.681.0; Eldritch Arts Block 3b).
   registerReactionAsk();
   // A CASTING HELD IN ANOTHER BROWSER (3.685.3): its turn's payment, its

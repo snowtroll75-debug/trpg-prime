@@ -2584,6 +2584,31 @@ export const PACK_REPAIRS = Object.freeze([
     to: "You can strike foes that would normally be out of reach.\n\nRequirements You are wielding a melee weapon.\n\nUsing your melee weapon, you may take an action with the attack trait. This action gains the reach trait for that Strike.",
     reason: "Graham's revised Lunge drops \"This strike is subject to a -1-circumstance penalty\"; an owned copy still printed it."
   },
+  /* STONE SHIELD'S SHIELD (3.707.0). Graham, 21 Nov 2026: "fully implement
+   * this". The ward now carries the slab (Hardness 8, 15 Hits, a miss by 4 or
+   * less strikes it) and the earth-or-stone question; see magic/barrier.mjs.
+   * `alsoFrom` is the pre-3.406.0 row — an unconditional +4 to DB against
+   * every attacker — which no owned-copy repair ever reached. */
+  {
+    id: "stone-shield-barrier-3707", pack: "spells", name: "Stone Shield",
+    field: "effects", since: "3.707.0",
+    from: [
+      { kind: "ward", target: "self", slots: ["defence"], bonusType: "circumstance", value: 4, label: "Stone Shield" },
+      { kind: "note", text: "If the opponent's attack misses you by 4 or less it strikes the shield instead. Hardness 8, Hits 15." }
+    ],
+    alsoFrom: [
+      [{ kind: "bonus", target: "self", slot: "defence", bonusType: "circumstance", value: 4, note: "(cover from one chosen enemy until the start of your next turn)" }]
+    ],
+    to: [
+      {
+        kind: "ward", target: "self", slots: ["defence"], bonusType: "circumstance", value: 4, label: "Stone Shield",
+        barrier: { hardness: 8, hits: 15, missWithin: 4 },
+        castQuestion: "Are you adjacent to a large area of earth or stone, such as the ground or a wall?"
+      }
+    ],
+    reason: "An owned Stone Shield had the +4 and a note: a miss by 4 struck nothing, the shield had no Hits, "
+      + "and nothing ended the spell. A pre-3.406.0 copy still gave +4 against every attacker."
+  },
 ]);
 
 /* ==================================================================== *

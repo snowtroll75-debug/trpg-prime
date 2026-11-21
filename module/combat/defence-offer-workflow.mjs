@@ -57,7 +57,9 @@ function defenceOffersAgainst(defender, event, { forAlly = false } = {}) {
     const item = grantingItem(defender, spec);
     let requiresReason = null;
     if (item && spec.requires) {
-      try { requiresReason = spec.requires(defender, item) ?? null; } catch (error) {
+      // WITH THE ATTACK (3.707.0): Stone Shield is not offered against a foe
+      // its standing shield already wards against.
+      try { requiresReason = spec.requires(defender, item, event) ?? null; } catch (error) {
         console.error("TRG Prime | defence offer requirement", error);
         requiresReason = "its requirement could not be read";
       }
@@ -157,7 +159,7 @@ async function takeHere(defender, keys, attack) {
  */
 export async function offerDefences(attacker, defender, attack = {}) {
   if (!defender || defender === attacker) return [];
-  const event = { kind: String(attack.kind ?? "weapon") };
+  const event = { kind: String(attack.kind ?? "weapon"), attackerUuid: attacker?.uuid ?? "" };
   const { offered } = defenceOffersAgainst(defender, event, { forAlly: Boolean(attack.forAlly) });
   if (!offered.length) return [];
   const answerer = answererFor(defender);
@@ -249,7 +251,7 @@ export function registerDefenceOffers() {
       // client saw may be a moment stale, and only an offer still open now
       // is taken.
       const { offered } = defender
-        ? defenceOffersAgainst(defender, { kind: String(data.kind ?? "weapon") }, { forAlly: Boolean(data.forAlly) })
+        ? defenceOffersAgainst(defender, { kind: String(data.kind ?? "weapon"), attackerUuid: String(data.attackerUuid ?? "") }, { forAlly: Boolean(data.forAlly) })
         : { offered: [] };
       const asked = defenceAnswerKeys((data.offered ?? []).map((o) => o?.key), offered);
       const stillOpen = offered.filter((o) => asked.includes(o.key));

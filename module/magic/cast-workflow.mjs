@@ -1146,6 +1146,18 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
     if (!(await elementalCastGate(actor, spellData, spell.name))) return null;
   }
 
+  // A REQUIREMENT ONLY THE CASTER CAN ANSWER (3.707.0; Stone Shield: "You
+  // cannot use this spell if you are not adjacent to a large area of earth or
+  // stone"). Nothing on the canvas says what a token stands beside, so the
+  // caster is asked, and a No refuses the cast before anything is chosen or
+  // spent (Graham, 21 November 2026: "Ask, and refuse on No"). A reaction
+  // offer that already stated the requirement is not asked twice. See
+  // magic/barrier.mjs's `castQuestionsOf`.
+  {
+    const { castQuestionGate } = await import("./barrier-workflow.mjs");
+    if (!(await castQuestionGate(actor, spellData, spell.name, { answered: reaction?.castQuestionsAnswered === true }))) return null;
+  }
+
   // Variable-AP spells (e.g. Cure) change their range/area/effect with the number
   // of actions spent. Offer the choice up front; the picked mode then governs the
   // AP spent, the placement, and the effects applied for the rest of this cast.
@@ -7463,6 +7475,26 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
         `<strong>Miss</strong> vs ${targetActor.name} — attack ${total} vs DB ${defendedDB}${outcome.autoMiss ? " (natural 1)" : ""}.`
       )
     );
+    // A SPELL'S SHIELD IN THE WAY (3.707.0; Stone Shield: "If the opponent's
+    // attack misses you by 4 or less, the attack strikes the shield
+    // instead"). The spell's own damage, rolled as a hit's is before any
+    // critical, goes to the shield through its Hardness. See magic/barrier.mjs.
+    {
+      const { missMargin } = await import("./barrier.mjs");
+      const { barrierInTheWay, barrierCatchLine, strikeBarrierWith } = await import("./barrier-workflow.mjs");
+      const missBy = missMargin(total, defendedDB);
+      const inTheWay = barrierInTheWay(targetActor, actor, { missBy, hits: false });
+      if (inTheWay) {
+        lines.push(line(barrierCatchLine(inTheWay, missBy, targetActor.name)));
+        if (damageFormula) {
+          const shieldRoll = await new Roll(damageFormula).evaluate();
+          lines.push(line(`<em>${spell.name}'s damage to the shield: ${damageFormula} = ${shieldRoll.total}.</em>`));
+          await strikeBarrierWith(targetActor, inTheWay, shieldRoll.total, `${spell.name} misses ${targetActor.name} by ${missBy}`);
+        } else {
+          lines.push(line(`<em>${spell.name} deals no damage — the shield is untouched.</em>`));
+        }
+      }
+    }
     return null;
   }
 

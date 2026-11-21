@@ -1154,7 +1154,8 @@
       ],
       "declaredAt": "2026-08-25",
       "systemVersion": "3.406.0",
-      "reason": "A CORRECTION, NOT A WIRING. The row read {kind:\"bonus\", slot:\"defence\", value:4} with the scope that makes it correct sitting in a NOTE beside it: \"(cover from one chosen enemy until the start of your next turn)\". So the spell granted an unconditional +4 to DB against every attacker in the scene, where the book grants cover from ONE opponent. That is the difference between a modest 1-PP spell and the best defensive spell in the game, and it was live. Re-authored as a ward scoped to the chosen enemy by uuid; the parts of the note that really are GM-facing (the miss-by-4 rule, the shield's Hardness and Hits) are kept as a note, because those genuinely have no engine."
+      "reason": "A CORRECTION, NOT A WIRING. The row read {kind:\"bonus\", slot:\"defence\", value:4} with the scope that makes it correct sitting in a NOTE beside it: \"(cover from one chosen enemy until the start of your next turn)\". So the spell granted an unconditional +4 to DB against every attacker in the scene, where the book grants cover from ONE opponent. That is the difference between a modest 1-PP spell and the best defensive spell in the game, and it was live. Re-authored as a ward scoped to the chosen enemy by uuid; the parts of the note that really are GM-facing (the miss-by-4 rule, the shield's Hardness and Hits) are kept as a note, because those genuinely have no engine.",
+      "supersededBy": "stone-shield-barrier-3707"
     },
     {
       "id": "anticipations-ward",
@@ -14858,6 +14859,49 @@
       "declaredAt": "2026-11-20",
       "systemVersion": "3.705.1",
       "reason": "Graham, 20 Nov 2026, revised Lunge: \"This action gains the reach trait for that Strike\", with no -1 circumstance penalty; asked, the Reach trait's -2 at the extended distance applies, and Lunging Stance negates it."
+    },
+    {
+      "id": "stone-shield-barrier-3707",
+      "pack": "spells",
+      "name": "Stone Shield",
+      "path": "system.effects",
+      "from": [
+        {
+          "kind": "ward",
+          "target": "self",
+          "slots": [
+            "defence"
+          ],
+          "bonusType": "circumstance",
+          "value": 4,
+          "label": "Stone Shield"
+        },
+        {
+          "kind": "note",
+          "text": "If the opponent's attack misses you by 4 or less it strikes the shield instead. Hardness 8, Hits 15."
+        }
+      ],
+      "to": [
+        {
+          "kind": "ward",
+          "target": "self",
+          "slots": [
+            "defence"
+          ],
+          "bonusType": "circumstance",
+          "value": 4,
+          "label": "Stone Shield",
+          "barrier": {
+            "hardness": 8,
+            "hits": 15,
+            "missWithin": 4
+          },
+          "castQuestion": "Are you adjacent to a large area of earth or stone, such as the ground or a wall?"
+        }
+      ],
+      "declaredAt": "2026-11-21",
+      "systemVersion": "3.707.0",
+      "reason": "Graham, 21 Nov 2026: \"Can you please fully implement this\". The ward (3.406.0) gave the +4 against the chosen foe; the rest was the note \"If the opponent's attack misses you by 4 or less it strikes the shield instead. Hardness 8, Hits 15.\", which nothing read. Now a `barrier` on the ward's own effect: a miss by 1-4 from that foe (Strike, spell attack, bomb, Spiritual Weapon) deals its damage to the shield through Hardness 8, off 15 Hits, and the spell ends at 0 (magic/barrier.mjs). Rulings the same day: +4 DB only, as printed; area damage by a GM \"Damage the shield\" button, not automated; \"You cannot use this spell if you are not adjacent to a large area of earth or stone\" asked at the cast and refused on No (`castQuestion`); offered as a reaction when attacked, as Nimble Dodge is. The note is dropped: everything it said is now done."
     }
   ]
 }

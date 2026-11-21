@@ -33,7 +33,7 @@ async function inCombat(actor) {
  * for the length of the cast, then put the user's own targets back — the
  * cast that forced the save is still running and has its own.
  */
-export async function castAsReaction(caster, spell, targetTokenIds = []) {
+export async function castAsReaction(caster, spell, targetTokenIds = [], { castQuestionsAnswered = false } = {}) {
   const tokens = canvas?.tokens?.placeables ?? [];
   const previous = Array.from(game.user?.targets ?? []).map((t) => t.id);
   const setTargets = (ids) => {
@@ -46,7 +46,9 @@ export async function castAsReaction(caster, spell, targetTokenIds = []) {
   try {
     if (preset) setTargets(targetTokenIds);
     const { castSpell } = await import("./cast-workflow.mjs");
-    return await castSpell(caster, spell, { reaction: { presetTargets: preset } });
+    // A QUESTION THE OFFER ALREADY ASKED (3.707.0; Stone Shield's earth or
+    // stone) is not asked again inside the cast.
+    return await castSpell(caster, spell, { reaction: { presetTargets: preset, ...(castQuestionsAnswered ? { castQuestionsAnswered: true } : {}) } });
   } finally {
     if (preset) setTargets(previous);
   }

@@ -95,6 +95,12 @@ export const RELAY_ACTIONS = Object.freeze({
   // END_CAST is: the GM's client ends the caster's registered cast by its id
   // and nothing else.
   END_SPELL: "target.endSpell",
+  // A SPELL'S SHIELD STRUCK (3.707.0; Stone Shield: "If the opponent's attack
+  // misses you by 4 or less, the attack strikes the shield instead"). The
+  // attacker's client rolled the damage; the shield is an effect on the
+  // CASTER, whom it rarely owns. The payload names the effect and the damage;
+  // the GM's client reads the shield's own Hardness and Hits off the effect.
+  BARRIER_DAMAGE: "target.barrierDamage",
   // A COMPANION FOR A PLAYER WHO MAY NOT CREATE ACTORS (3.674.1; found live
   // on 28 October 2026: "User Test PC 1 lacks permission to create Actor" on
   // Dragon Tamer's hatching, and the Animal Companion feat the same). The
@@ -402,6 +408,14 @@ export async function performRelay(request, deps) {
       const removed = await deps.endCast(target, String(payload.castId ?? ""),
         Boolean(payload.dismissed));
       return { ok: true, result: removed };
+    }
+    case RELAY_ACTIONS.BARRIER_DAMAGE: {
+      // THE EFFECT IS RESOLVED ON THE TARGET the GM just fetched, and its own
+      // flag is read there, so a request cannot name a Hardness or reach into
+      // somebody else's effect.
+      const answer = await deps.damageBarrier(target, String(payload.effectId ?? ""),
+        Math.max(0, Math.floor(Number(payload.damage) || 0)));
+      return answer?.ok ? { ok: true, result: answer } : { ok: false, reason: answer?.reason ?? "the shield could not be damaged" };
     }
     case RELAY_ACTIONS.END_SPELL: {
       // The CASTER is the target here: its registered spell, by the cast's id.

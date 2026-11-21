@@ -78,7 +78,26 @@ export async function spiritualStrike(caster, record, targetActor) {
   const { attackOutcome, mapPenalty } = await import("../combat/attack.mjs");
   const mapBefore = attackCountOf(caster);
   const map = mapPenalty(mapBefore);
-  const db = Number(targetActor.system?.combat?.defence?.total ?? NaN);
+  // THE DEFENDER'S DB ROWS (3.707.0; found wiring Stone Shield): a ward's
+  // "+4 to DB against that enemy" and every other `defenceDC` row reached the
+  // Strike, the bomb and the spell attack, and not this strike, which read
+  // the sheet's DB alone. Asked as the spell attack asks them: the weapon is
+  // the spell's, so a row "against spells" counts.
+  const sheetDB = Number(targetActor.system?.combat?.defence?.total ?? NaN);
+  let dbRows = { total: 0, entries: [] };
+  {
+    const { defenceDCBonus } = await import("../combat/defence-dc.mjs");
+    const { alignedTraitsOf, creatureTypesOf } = await import("../aligned.mjs");
+    const { creatureTraits } = await import("../creature-traits.mjs");
+    dbRows = defenceDCBonus(targetActor, "defence", "", creatureTypesOf(caster.system ?? {}), caster?.uuid ?? "",
+      alignedTraitsOf(caster.system ?? {}), creatureTraits(caster.system ?? {}), { attackKind: "spell" });
+    const esc = (t) => globalThis.foundry?.utils?.escapeHTML?.(String(t)) ?? String(t);
+    for (const entry of dbRows.entries ?? []) {
+      const lost = dbRows.notCounted?.find((n) => n.entry === entry);
+      lines.push(line(`<em>${targetActor.name}'s ${esc(entry.label)}: ${entry.value > 0 ? "+" : ""}${entry.value} DB${entry.scope ? ` (${esc(entry.scope)})` : ""}${lost ? ` — not counted: ${esc(lost.reason.toLowerCase())}` : ""}.</em>`));
+    }
+  }
+  const db = Number.isFinite(sheetDB) ? sheetDB + Number(dbRows.total ?? 0) : NaN;
   const { TRGCheck } = await import("../dice/check.mjs");
   // AN ATTACK LIKE ANY OTHER (3.622.0; block 39's A12 and R7): the Word
   // aftermath, and the target's conditions.
@@ -122,13 +141,25 @@ export async function spiritualStrike(caster, record, targetActor) {
     lines.push(line(`<em>vs ${targetActor.name}: no Defence Bonus found — resolve the strike by hand.</em>`));
     return { lines, rolls };
   }
+  const ability = Number(caster.system?.attributes?.[caster.system?.magic?.castingAbility]?.total ?? 0);
+  const formula = spiritualDamageFormula(record, ability);
   if (!outcome.hits) {
     lines.push(line(`<strong>Miss</strong> vs ${targetActor.name} — ${check?.outcome?.total ?? "?"} vs DB ${db}.`));
+    // A SPELL'S SHIELD IN THE WAY (3.707.0; Stone Shield) — see magic/barrier.mjs.
+    const { missMargin } = await import("./barrier.mjs");
+    const { barrierInTheWay, barrierCatchLine, strikeBarrierWith } = await import("./barrier-workflow.mjs");
+    const missBy = missMargin(check?.outcome?.total, db);
+    const inTheWay = barrierInTheWay(targetActor, caster, { missBy, hits: false });
+    if (inTheWay) {
+      lines.push(line(barrierCatchLine(inTheWay, missBy, targetActor.name)));
+      const shieldRoll = await new Roll(formula).evaluate();
+      rolls.push(shieldRoll);
+      lines.push(line(`<em>${record.label}'s damage to the shield: ${formula} = ${shieldRoll.total}.</em>`));
+      await strikeBarrierWith(targetActor, inTheWay, shieldRoll.total, `${record.label} misses ${targetActor.name} by ${missBy}`);
+    }
     return { lines, rolls };
   }
 
-  const ability = Number(caster.system?.attributes?.[caster.system?.magic?.castingAbility]?.total ?? 0);
-  const formula = spiritualDamageFormula(record, ability);
   const roll = await new Roll(formula).evaluate();
   rolls.push(roll);
   let dealt = roll.total;

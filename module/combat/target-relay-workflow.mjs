@@ -327,6 +327,17 @@ export async function relayEndCast(target, castId, dismissed) {
 }
 
 /**
+ * Damage a spell's shield on a creature this client does not own (3.707.0;
+ * Stone Shield). `{ ok, result, barrier }` as `damageBarrierDirect` answers,
+ * or `{ ok: false, reason }`; a failure is the caller's to say on its card.
+ */
+export async function relayBarrierDamage(target, effectId, damage) {
+  const reply = await ask(RELAY_ACTIONS.BARRIER_DAMAGE, target, { effectId: String(effectId ?? ""), damage: Math.max(0, Math.floor(Number(damage) || 0)) });
+  if (reply.ok) return reply.result ?? { ok: false, reason: "no answer" };
+  return { ok: false, reason: reply.reason };
+}
+
+/**
  * End a caster's registered spell from wherever the ending happened
  * (3.672.0). Directly when this client owns the caster, through the GM
  * otherwise. `{ ok, result }`: result is whether a spell of that id was there.
@@ -556,6 +567,11 @@ async function liveDeps() {
     endCast: async (target, castId, dismissed) => {
       const { removeEffectsByCastId } = await import("./effect-application-workflow.mjs");
       return removeEffectsByCastId(target, castId, { dismissed, direct: true });
+    },
+    // A SPELL'S SHIELD STRUCK, ON THE GM'S CLIENT (3.707.0) — see BARRIER_DAMAGE.
+    damageBarrier: async (target, effectId, damage) => {
+      const { damageBarrierDirect } = await import("../magic/barrier-workflow.mjs");
+      return damageBarrierDirect(target, effectId, damage);
     },
     // A CASTER'S SPELL, ENDED ON THE GM'S CLIENT (3.672.0) — see END_SPELL.
     endSpell: async (caster, castId) => {

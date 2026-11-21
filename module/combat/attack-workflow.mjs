@@ -3397,7 +3397,17 @@ export async function rollWeaponAttack(actor, weapon, {
   // exactly as an aimed one would.
   let strayStruckToken = null;
   const missBy = outcome.resolved && !outcome.hits ? -Number(check.outcome.margin) : null;
-  if (isRanged && strayCandidates.length && missBy !== null && missBy >= 1 && missBy <= 4) {
+  // A SPELL'S SHIELD IN THE WAY (3.707.0; Stone Shield: "If the opponent's
+  // attack misses you by 4 or less, the attack strikes the shield instead").
+  // Asked before the stray shot: the slab stands between the target and this
+  // attacker, so a near miss meets it before it can fly on into the melee.
+  let barrierStruck = null;
+  if (targetActor && missBy !== null) {
+    const { barrierInTheWay, barrierCatchLine } = await import("../magic/barrier-workflow.mjs");
+    barrierStruck = barrierInTheWay(targetActor, actor, { missBy, hits: outcome.hits });
+    if (barrierStruck) lines.push(line(barrierCatchLine(barrierStruck, missBy, targetActor.name)));
+  }
+  if (!barrierStruck && isRanged && strayCandidates.length && missBy !== null && missBy >= 1 && missBy <= 4) {
     const rolls = [];
     // One roll per candidate; the candidate itself is not needed here
     // (resolveStrayShot takes the ids and the rolls, in order).
@@ -3764,6 +3774,33 @@ export async function rollWeaponAttack(actor, weapon, {
     if (ambushDice > 0 && targetActor) {
       Hooks.callAll("trgPrimeAmbushDealt", { actor, target: targetActor, weapon, dice: ambushDice, label: ambush.declared.label });
     }
+  } else if (barrierStruck) {
+    // THE BLOW STRIKES THE SHIELD (3.707.0). The same damage step a stray
+    // shot takes, for the same reasons — no critical (it missed), no Sneak
+    // Attack or Precision dice (bought with a condition on the creature, not
+    // a slab of stone) — rolled with NO creature under it (`struckObject`),
+    // then dealt to the shield through its Hardness. See magic/barrier.mjs.
+    const struck = await resolveWeaponDamage(actor, weapon, {
+      critical: null,
+      glancing: false,
+      locationArmoured: true,
+      armourAmended: false,
+      hitLocation: null,
+      distance: rangedDistance,
+      damageTypeOverride: subdualShot || shiftedSubdual ? "subdual" : versatileDamageType ?? null,
+      usedTwoHanded,
+      spinBonus: spinCarried,
+      ammo: ammoSystem,
+      ammoName: ammo?.name ?? "",
+      ammoCoat: oilCoatOf(ammo),
+      powerAttack: false,
+      targetSize: null,
+      meleeDistance: null,
+      struckObject: barrierStruck.barrier?.label || "the shield"
+    });
+    const { strikeBarrierWith } = await import("../magic/barrier-workflow.mjs");
+    await strikeBarrierWith(targetActor, barrierStruck, Number(struck?.total ?? 0),
+      `${weapon.name} misses ${targetActor.name} by ${missBy}`);
   } else if (strayStruckToken) {
     // THE STRAY SHOT LANDS (3.579.0; page 192, Graham's R2). The same
     // damage step a hit takes, aimed at the bystander instead:
@@ -5660,7 +5697,7 @@ async function resolveWeaponDamage(actor, weapon, options = {}) {
 async function resolveWeaponDamageInScope(
   actor,
   weapon,
-  { critical = null, glancing = false, locationArmoured = true, armourAmended = false, distance = null, damageTypeOverride = null, damageOverride = null, usedTwoHanded = false, hitLocation = null, ammo = null, ammoName = "", ammoCoat = null, powerAttack = false, sneakDice = 0, precisionDice = 0, precisionParts = null, damageRiders = [], targetSize = null, meleeDistance = null, spinBonus = null, targetTokenOverride = null, deathMarkBonus = 0, declaredBonus = 0, declaredBonusLines = [], compoundFlat = 0, compoundFlatLines = [], extraTypedDamage = [], sharedDamage = null, drWaived = false, seriesLabel = "", declaredRending = 0, declaredRendingLines = [] } = {}
+  { critical = null, glancing = false, locationArmoured = true, armourAmended = false, distance = null, damageTypeOverride = null, damageOverride = null, usedTwoHanded = false, hitLocation = null, ammo = null, ammoName = "", ammoCoat = null, powerAttack = false, sneakDice = 0, precisionDice = 0, precisionParts = null, damageRiders = [], targetSize = null, meleeDistance = null, spinBonus = null, targetTokenOverride = null, deathMarkBonus = 0, declaredBonus = 0, declaredBonusLines = [], compoundFlat = 0, compoundFlatLines = [], extraTypedDamage = [], sharedDamage = null, drWaived = false, seriesLabel = "", declaredRending = 0, declaredRendingLines = [], struckObject = "" } = {}
 ) {
   /*
    * WHETHER THIS BLOW TREATS ITS TARGET AS UNARMOURED (3.585.0).
@@ -5696,7 +5733,7 @@ async function resolveWeaponDamageInScope(
   let replacingFlat = false;
   {
     const { strikeDamageReplacement } = await import("../magic/strike-riders-workflow.mjs");
-    const replaceToken = targetTokenOverride ?? firstTargetToken() ?? null;
+    const replaceToken = struckObject ? null : (targetTokenOverride ?? firstTargetToken() ?? null);
     const replaceTarget = replaceToken?.actor ?? null;
     const replacing = strikeDamageReplacement(actor, weapon, {
       targetTypes: creatureTypesOf(replaceTarget?.system ?? {}),
@@ -5763,7 +5800,10 @@ async function resolveWeaponDamageInScope(
   // strikes a different combatant in the melee entirely, and everything
   // below — precision immunity, DR, weaknesses, the dying pipeline —
   // must read THAT creature's defences and not the one aimed at.
-  const targetTokenHere = targetTokenOverride ?? firstTargetToken() ?? null;
+  // …OR NOBODY (3.707.0): a blow that struck a spell's shield (Stone Shield)
+  // is rolled with no creature under it, and the caller deals it to the
+  // shield. The user's target is the creature the shield protects.
+  const targetTokenHere = struckObject ? null : (targetTokenOverride ?? firstTargetToken() ?? null);
   const targetActor = targetTokenHere?.actor ?? null;
   // A DAMAGE REACTION, BEFORE THE DICE (3.681.0; Eldritch Arts Block 3b):
   // Phase Familiar, "your familiar would take damage … immune to precision
@@ -6234,7 +6274,11 @@ async function resolveWeaponDamageInScope(
   // WITH NOBODY TARGETED, the typed extras are said rather than lost.
   if (!targetActor && !replacingFlat) {
     for (const extra of typedExtras) {
-      lines.push(line(`<strong>${extra.label}</strong> — also ${extra.dice} ${extra.type} damage; no target selected, apply by hand.`));
+      lines.push(line(struckObject
+        // TO THE SHIELD, BY THE GM'S BUTTON (3.707.0): only the blow's own
+        // damage is dealt to it automatically.
+        ? `<strong>${extra.label}</strong> — also ${extra.dice} ${extra.type} damage to ${struckObject}; add it with the shield's Damage button.`
+        : `<strong>${extra.label}</strong> — also ${extra.dice} ${extra.type} damage; no target selected, apply by hand.`));
     }
   }
 
@@ -7037,7 +7081,7 @@ async function resolveWeaponDamageInScope(
     typeLabel
   });
 
-  await postCard(actor, `${weapon.name} — Damage`, lines, [roll], {
+  await postCard(actor, struckObject ? `${weapon.name} — Damage to ${struckObject}` : `${weapon.name} — Damage`, lines, [roll], {
     compactSummary: damageCompactSummary()
   });
   return { total, taken: finalTaken, damageCase: finalCase, newHP: finalHP, targetActor, damageType: effectiveDamageType, drStoppedCritical };

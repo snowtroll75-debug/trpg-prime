@@ -46,8 +46,9 @@ const REGISTRY = new Map();
  *   "+2 racial bonus to your … DB against that spell")
  * @param {Function} [spec.find] (actor) => the item that grants it, or null;
  *   a feat of this name by default
- * @param {Function} [spec.requires] (actor) => a reason it cannot be taken
- *   now, or null
+ * @param {Function} [spec.requires] (actor, item, event) => a reason it
+ *   cannot be taken now, or null. `event` is `{ kind, attackerUuid }`
+ *   (the attacker since 3.707.0, for Stone Shield)
  * @param {Function} [spec.use] (actor, item, attack) => Promise; the feat's
  *   own Use by default
  * @param {boolean} [spec.forAlly] offered not to the attacked creature but to

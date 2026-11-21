@@ -298,6 +298,12 @@ export async function throwBomb(actor, item) {
   // No target, or no DB to read: the GM decides, and nothing lands.
   const hit = result.hits === true;
   const critical = hit && result.critical ? result.critical : null;
+  // A SPELL'S SHIELD IN THE WAY (3.707.0) — see magic/barrier.mjs.
+  let shieldInTheWay = null;
+  if (targetActor && result.hits === false && result.av !== null && result.av !== undefined) {
+    const { barrierInTheWay } = await import("./magic/barrier-workflow.mjs");
+    shieldInTheWay = barrierInTheWay(targetActor, actor, { missBy: -Number(result.av), hits: false });
+  }
   const reaches = targetActor ? bombReaches(extras, targetActor.system) : true;
 
   const lines = [
@@ -406,6 +412,20 @@ export async function throwBomb(actor, item) {
     await applyBombRiders(actor, item, targetActor, targetToken, extras, { critical: Boolean(critical), lines });
   } else if (hit) {
     lines.push(line(`<em>Hit for ${profile.damage} ${damageType} — no target selected, apply by hand.</em>`));
+  } else if (shieldInTheWay) {
+    // THE FLASK BREAKS ON THE SHIELD (3.707.0; Stone Shield: "If the
+    // opponent's attack misses you by 4 or less, the attack strikes the
+    // shield instead"). It does not scatter: it struck something. Its damage
+    // goes to the shield through its Hardness; its splash lands there, beside
+    // the target, and is placed by hand as every splash is.
+    const { barrierCatchLine, strikeBarrierWith } = await import("./magic/barrier-workflow.mjs");
+    lines.push(line(barrierCatchLine(shieldInTheWay, -result.av, targetActor.name)));
+    if (String(profile.damage ?? "0").trim() !== "0") {
+      const shieldRoll = await new Roll(String(profile.damage)).evaluate();
+      lines.push(line(`<em>${item.name}'s damage to the shield: ${profile.damage} = ${shieldRoll.total} ${damageType}.</em>`));
+      await strikeBarrierWith(targetActor, shieldInTheWay, shieldRoll.total, `${item.name} misses ${targetActor.name} by ${-result.av}`);
+    }
+    if (hasSplash(splash)) lines.push(line(`<em>The flask breaks on the shield, beside ${targetActor.name}, and the splash lands there.</em>`));
   } else if (hasSplash(splash) && distance !== null) {
     // A MISS SCATTERS (3.622.0; block 39's A20): "The bomb lands off target
     // and scatters half the distance of the original throw in a random

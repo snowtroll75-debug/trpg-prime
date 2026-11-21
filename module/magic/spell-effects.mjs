@@ -3848,6 +3848,21 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           });
           const timing = spellExpiryTiming(parsedDuration);
           const effectFlags = { [SYSTEM_ID]: { ...flags } };
+          // A SHIELD THAT CAN BE STRUCK (3.707.0; Stone Shield's "misses you
+          // by 4 or less … strikes the shield instead … Hardness 8 and Hits
+          // 15"). Written on the ward's own effect with the ward's own scope,
+          // so the foe the +4 is against is the foe whose misses it catches.
+          // See magic/barrier.mjs.
+          const { BARRIER_FLAG, normaliseBarrier, barrierAtCast } = await import("./barrier.mjs");
+          const barrier = effect.barrier
+            ? barrierAtCast(normaliseBarrier(effect.barrier), {
+              label: effect.label || spell.name, sourceUuids: hostileUuids, spellName: spell.name, castId: castId ?? null
+            })
+            : null;
+          if (effect.barrier && !barrier) {
+            lines.push(line(`<em>${spell.name} declares a malformed barrier — only the bonus is applied.</em>`));
+          }
+          if (barrier) effectFlags[SYSTEM_ID][BARRIER_FLAG] = barrier;
           if (castId) effectFlags[SYSTEM_ID].castId = castId;
           if (timing.spellEffect) effectFlags[SYSTEM_ID].spellEffect = true;
           if (timing.spellEffectEnd != null) effectFlags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
@@ -3877,6 +3892,13 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             `${target.name}: <strong>${shown} ${effect.bonusType ?? "status"}</strong> to `
             + `${wardSlots(effect).join(", ")} against <strong>${wardedNames}</strong>`
             + ` only${durationText}.`));
+          if (barrier) {
+            const { barrierRaisedLine } = await import("./barrier.mjs");
+            const { barrierButton, barrierWrittenBy } = await import("./barrier-workflow.mjs");
+            const written = barrierWrittenBy(target, castId ?? null);
+            lines.push(line(barrierRaisedLine(barrier, wardedNames)));
+            if (written) lines.push(barrierButton(target, written.effectId));
+          }
           break;
         }
         case "defenceDC": {
