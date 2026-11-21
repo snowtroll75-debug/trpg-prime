@@ -374,6 +374,8 @@ export async function performRelay(request, deps) {
         spellEffectEnd: carried.spellEffectEnd ?? null,
         castId: carried.castId ?? null,
         sourceTraits: carried.sourceTraits ?? null,
+        // A UUID, NOTHING ELSE (3.707.1): who ends it, at their turn start.
+        endsAtTurnStartOf: typeof carried.endsAtTurnStartOf === "string" ? carried.endsAtTurnStartOf : null,
         expiresRound: payload.expiresRound ?? null
       });
       return { ok: true, result: applied };

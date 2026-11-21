@@ -99,9 +99,9 @@ const MUTATIONS = [
   { name: "R settleRitual skips the lines", file: RR, from: "      for (const t of Array.isArray(got?.lines) ? got.lines : []) if (String(t ?? \"\").trim()) lines.push(String(t));\n", to: "", breaks: "RITUAL lines" },
   { name: "R the ritual is not settled", file: CW, from: "  if (ritualSettledLines.length) await postCard(", to: "  if (false) await postCard(", breaks: "RITUAL card" },
   { name: "R the ritual's PP are the base", file: CW, from: "    pp: basePP + ppOver, basePP, ppOver, variant: ritualPlan.variant", to: "    pp: basePP, basePP, ppOver, variant: ritualPlan.variant", breaks: "RITUAL pp" },
-  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.707.0\"", to: "\"version\": \"3.687.1\"", breaks: "Z1" },
-  { name: "Z the download names the last release", file: SJ, from: "releases/download/v3.707.0/trg-prime.zip", to: "releases/download/v3.687.1/trg-prime.zip", breaks: "Z1" },
-  { name: "Z package.json is left behind", file: PJ, from: "\"version\": \"3.707.0\"", to: "\"version\": \"3.687.1\"", breaks: "Z2" }
+  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.707.1\"", to: "\"version\": \"3.687.1\"", breaks: "Z1" },
+  { name: "Z the download names the last release", file: SJ, from: "releases/download/v3.707.1/trg-prime.zip", to: "releases/download/v3.687.1/trg-prime.zip", breaks: "Z1" },
+  { name: "Z package.json is left behind", file: PJ, from: "\"version\": \"3.707.1\"", to: "\"version\": \"3.687.1\"", breaks: "Z2" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-block9a-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

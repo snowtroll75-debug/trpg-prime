@@ -143,7 +143,7 @@ ok("L5 the lock is read off the duration's own words, after unlimited and perman
 /* Z — the version */
 const manifest = JSON.parse(read("system.json"));
 // RE-PINNED 3.686.2 (was 3.686.0).
-equal("Z1 the version is 3.690.0, and the download names it", [manifest.version, manifest.download], ["3.707.0", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.707.0/trg-prime.zip"]);
+equal("Z1 the version is 3.690.0, and the download names it", [manifest.version, manifest.download], ["3.707.1", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.707.1/trg-prime.zip"]);
 
 if (failures.length) { console.log(`verify-control-register-api: ${checks} checks — ${failures.length} FAILED`); for (const f of failures) console.log(`  ✗ ${f}`); process.exitCode = 1; }
 else console.log(`verify-control-register-api: ${checks} checks — all green.`);

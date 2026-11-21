@@ -2591,19 +2591,26 @@ export const PACK_REPAIRS = Object.freeze([
    * every attacker — which no owned-copy repair ever reached. */
   {
     id: "stone-shield-barrier-3707", pack: "spells", name: "Stone Shield",
-    field: "effects", since: "3.707.0",
+    field: "effects", since: "3.707.1",
     from: [
       { kind: "ward", target: "self", slots: ["defence"], bonusType: "circumstance", value: 4, label: "Stone Shield" },
       { kind: "note", text: "If the opponent's attack misses you by 4 or less it strikes the shield instead. Hardness 8, Hits 15." }
     ],
     alsoFrom: [
-      [{ kind: "bonus", target: "self", slot: "defence", bonusType: "circumstance", value: 4, note: "(cover from one chosen enemy until the start of your next turn)" }]
+      [{ kind: "bonus", target: "self", slot: "defence", bonusType: "circumstance", value: 4, note: "(cover from one chosen enemy until the start of your next turn)" }],
+      // 3.707.0's row, before `foes: 1` (3.707.1, Graham: one foe, "Yes it should").
+      [{
+        kind: "ward", target: "self", slots: ["defence"], bonusType: "circumstance", value: 4, label: "Stone Shield",
+        barrier: { hardness: 8, hits: 15, missWithin: 4 },
+        castQuestion: "Are you adjacent to a large area of earth or stone, such as the ground or a wall?"
+      }]
     ],
     to: [
       {
         kind: "ward", target: "self", slots: ["defence"], bonusType: "circumstance", value: 4, label: "Stone Shield",
         barrier: { hardness: 8, hits: 15, missWithin: 4 },
-        castQuestion: "Are you adjacent to a large area of earth or stone, such as the ground or a wall?"
+        castQuestion: "Are you adjacent to a large area of earth or stone, such as the ground or a wall?",
+        foes: 1
       }
     ],
     reason: "An owned Stone Shield had the +4 and a note: a miss by 4 struck nothing, the shield had no Hits, "

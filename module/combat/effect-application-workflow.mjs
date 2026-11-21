@@ -23,6 +23,8 @@ import {
 
 const SYSTEM_ID = "trg-prime";
 const EXPIRY_FLAG = "conditionExpiresRound";
+/** The creature whose next turn start ends this effect (3.707.1). */
+export const TURN_START_FLAG = "endsAtTurnStartOf";
 // Marks an ActiveEffect as a spell-applied ongoing effect the system manages:
 // it shows on the actor's Effects table and is removed automatically when the
 // spell ends (its round-based expiry in combat, or its world-time end otherwise).
@@ -61,9 +63,12 @@ export const SOURCE_TRAITS_FLAG = "sourceTraits";
  */
 function buildTimingUpdates({
   expiresRound = null, duration = null, spellEffect = false, spellEffectEnd = null, castId = null,
-  endsWith = null, expiresTime = null, followOn = null
+  endsWith = null, expiresTime = null, followOn = null, endsAtTurnStartOf = null
 } = {}) {
   const updates = {};
+  // "UNTIL THE START OF YOUR NEXT TURN" (3.707.1): the caster whose turn
+  // start ends it — see `expireTimedConditions`' `turnOf`.
+  if (endsAtTurnStartOf) updates[`flags.${SYSTEM_ID}.${TURN_START_FLAG}`] = String(endsAtTurnStartOf);
   if (expiresRound !== null) updates[`flags.${SYSTEM_ID}.${EXPIRY_FLAG}`] = expiresRound;
   // THE OTHER TWO CLOCKS AND THE QUEUE (3.581.0; the pages 211-220
   // audit's D1, D2 and D10). See combat/linked-conditions-workflow.mjs
@@ -341,7 +346,7 @@ export async function applyConditionTags(
   actor,
   tags,
   { expiresRound = null, duration = null, spellEffect = false, spellEffectEnd = null, castId = null,
-    sourceTraits = null, direct = false } = {}
+    sourceTraits = null, endsAtTurnStartOf = null, direct = false } = {}
 ) {
   /*
    * A CREATURE THIS CLIENT DOES NOT OWN IS THE GM'S TO WRITE (3.646.0).
@@ -361,8 +366,8 @@ export async function applyConditionTags(
   if (!direct && actor && actor.isOwner === false) {
     const { relayConditionTags } = await import("./target-relay-workflow.mjs");
     return relayConditionTags(actor, tags,
-      { expiresRound, duration, spellEffect, spellEffectEnd, castId, sourceTraits },
-      () => applyConditionTags(actor, tags, { expiresRound, duration, spellEffect, spellEffectEnd, castId, sourceTraits, direct: true }));
+      { expiresRound, duration, spellEffect, spellEffectEnd, castId, sourceTraits, endsAtTurnStartOf },
+      () => applyConditionTags(actor, tags, { expiresRound, duration, spellEffect, spellEffectEnd, castId, sourceTraits, endsAtTurnStartOf, direct: true }));
   }
   const applied = [];
 
@@ -552,7 +557,8 @@ export async function applyConditionTags(
         // a link, a world-time deadline and a successor are deadlines too, and
         // a rule that did not create the condition does not get to set them.
         ...(wasAlreadyPresent ? {} : {
-          endsWith: timing.endsWith, expiresTime: timing.expiresTime, followOn: timing.followOn
+          endsWith: timing.endsWith, expiresTime: timing.expiresTime, followOn: timing.followOn,
+          endsAtTurnStartOf
         })
       });
       // WHAT PUT IT THERE (3.613.0, R14): the traits of the spell that
@@ -586,7 +592,8 @@ export async function applyConditionTags(
       const updates = buildTimingUpdates({
         expiresRound: allowed, duration, spellEffect, spellEffectEnd, castId,
         ...(wasAlreadyPresent ? {} : {
-          endsWith: timing.endsWith, expiresTime: timing.expiresTime, followOn: timing.followOn
+          endsWith: timing.endsWith, expiresTime: timing.expiresTime, followOn: timing.followOn,
+          endsAtTurnStartOf
         })
       });
       if (!wasAlreadyPresent && Array.isArray(sourceTraits) && sourceTraits.length) {
@@ -691,8 +698,26 @@ function claimExpiry(effect, owner = effect?.parent) {
   return key;
 }
 
-export async function expireTimedConditions(actor, currentRound) {
+/**
+ * Is this effect due at this turn start? Pure (3.707.1): its round clock has
+ * come, or it ends "at the start of your next turn" and this is that
+ * creature's turn starting.
+ *
+ * @param {{expiresRound?: number|null, endsAtTurnStartOf?: string|null}} stamp
+ * @param {{round: number, turnOfUuid?: string}} now
+ */
+export function dueAtTurnStart(stamp, { round, turnOfUuid = "" } = {}) {
+  const ends = stamp?.expiresRound;
+  if (ends !== undefined && ends !== null && Number(round) >= Number(ends)) return true;
+  const of = String(stamp?.endsAtTurnStartOf ?? "");
+  return Boolean(of) && Boolean(turnOfUuid) && of === String(turnOfUuid);
+}
+
+export async function expireTimedConditions(actor, currentRound, { turnOf = null } = {}) {
   const expired = [];
+  // WHOSE TURN IS STARTING (3.707.1): an effect "until the start of your next
+  // turn" carries its caster's uuid and ends now if this is that turn.
+  const turnOfUuid = String(turnOf?.uuid ?? "");
   const effects = Array.from(actor.effects ?? []);
   // NO ROUNDS PASS FOR A CREATURE IN STASIS (3.614.0, R2) — but the stasis's
   // own clock does. See magic/stasis.mjs.
@@ -700,9 +725,11 @@ export async function expireTimedConditions(actor, currentRound) {
 
   for (const effect of effects) {
     if (frozenByStasis(effect, stasis)) continue;
-    const expiresRound = effect.getFlag?.(SYSTEM_ID, EXPIRY_FLAG);
-    if (expiresRound === undefined || expiresRound === null) continue;
-    if (Number(currentRound) < Number(expiresRound)) continue;
+    const stamp = {
+      expiresRound: effect.getFlag?.(SYSTEM_ID, EXPIRY_FLAG),
+      endsAtTurnStartOf: effect.getFlag?.(SYSTEM_ID, TURN_START_FLAG)
+    };
+    if (!dueAtTurnStart(stamp, { round: currentRound, turnOfUuid })) continue;
     const claim = claimExpiry(effect, actor);
     if (!claim) continue;
     try {

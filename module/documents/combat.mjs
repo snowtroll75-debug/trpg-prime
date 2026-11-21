@@ -702,7 +702,7 @@ export class TRGCombat extends Combat {
         for (const other of this.combatants ?? []) {
           const subject = other?.actor;
           if (!subject || subject === actor) continue;
-          for (const label of await expireTimedConditions(subject, this.round)) {
+          for (const label of await expireTimedConditions(subject, this.round, { turnOf: actor })) {
             const gone = effectExpiredLine(label, subject.name);
             if (gone) stasisLines.push(TRGCombat.#chatLine(gone));
           }
@@ -939,7 +939,9 @@ export class TRGCombat extends Combat {
       const subject = other?.actor;
       if (!subject || swept.has(subject.id)) continue;
       swept.add(subject.id);
-      for (const label of await expireTimedConditions(subject, this.round)) {
+      // AND WHOSE TURN IT IS (3.707.1): "until the start of your next turn"
+      // ends for every creature carrying it when its caster's turn starts.
+      for (const label of await expireTimedConditions(subject, this.round, { turnOf: actor })) {
         // THE SENTENCE MOVED OUT AT 3.514.0, unchanged, so that the world
         // clock can print the same one. It had none at all until then —
         // see combat/effect-expiry.mjs for what the two clocks disagreed

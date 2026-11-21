@@ -185,3 +185,35 @@ export function wardHalvesDisagree(flags) {
   if (db.label !== save.label) problems.push(`label: "${db.label}" vs "${save.label}"`);
   return problems;
 }
+
+/**
+ * HOW MANY FOES A WARD MAY NAME, and the refusal when the cast names some
+ * other number (3.707.1). Pure.
+ *
+ * Stone Shield is raised against "an opponent of your choice" — Graham,
+ * 21 November 2026, asked whether a cast from the sheet with several enemies
+ * targeted should be limited to one: "Yes it should". A ward row declares
+ * `foes: 1`; a row that declares nothing is not limited (Forbidding Ward,
+ * Anticipations), as before.
+ *
+ * NONE IS REFUSED TOO. The applier already prints "found no enemy to ward
+ * against — nothing applied", but by then the PP and the action are spent.
+ * Asked before the cast, both cost nothing.
+ *
+ * @param {object} spellData the spell's system data
+ * @param {number} hostileCount the enemies the caster has targeted
+ * @param {string} spellName
+ * @returns {string} the refusal, or ""
+ */
+export function wardFoeRefusal(spellData, hostileCount, spellName = "This spell") {
+  const rows = Array.isArray(spellData?.effects) ? spellData.effects : [];
+  const limit = rows
+    .filter((row) => row?.kind === "ward" && Number.isInteger(Number(row?.foes)) && Number(row.foes) > 0)
+    .map((row) => Number(row.foes))[0];
+  if (!limit) return "";
+  const n = Math.max(0, Math.trunc(Number(hostileCount) || 0));
+  if (n === limit) return "";
+  const one = limit === 1;
+  if (n === 0) return `${spellName}: target the ${one ? "foe" : `${limit} foes`} to raise it against.`;
+  return `${spellName} is raised against ${one ? "one foe" : `${limit} foes`} — you have ${n} enemies targeted. Target ${one ? "only the one" : `only ${limit}`}.`;
+}

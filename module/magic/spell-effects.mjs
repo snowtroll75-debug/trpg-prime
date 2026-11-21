@@ -59,7 +59,7 @@ import { HEALING_RIDERS_USED_FLAG, applyHealingRiders, declaredHealingRiders, he
 import { offerItemMaximise, offerOnHealedRelief, offerRodExtraHeal } from "./item-healing-workflow.mjs";
 import { ownedCreatureTypeSystem } from "../creature-type-rules.mjs";
 import { CHANGE_TYPE } from "../effect-change-types.mjs";
-import { effectDurationText, parseSpellDuration } from "./effect-duration.mjs";
+import { effectDurationText, parseSpellDuration, turnStartClock } from "./effect-duration.mjs";
 import {
   marginDurationText, parseRolledDuration, rolledDurationText, roundsFromMargin, valueFromMargin
 } from "./condition-timing-rules.mjs";
@@ -388,6 +388,17 @@ function spellExpiryTiming(parsed) {
    * AN EFFECT WITH NO CLOCK OF OURS still gets Foundry's, unchanged: a
    * duration nobody sweeps is display-only and cannot race anything.
    */
+  // "UNTIL THE START OF YOUR NEXT TURN", IN AN ENCOUNTER (3.707.1): ended by
+  // the caster's next turn start, not by a round. See `turnStartClock`.
+  const atTurnStart = turnStartClock(parsed, {
+    inCombat: Boolean(game.combat?.started), worldTime: Number(game.time?.worldTime ?? 0)
+  });
+  if (atTurnStart) {
+    out.spellEffect = true;
+    out.expiresRound = null;
+    out.spellEffectEnd = atTurnStart.backstopEnd;
+    out.turnStartOf = atTurnStart.turnStartOf;
+  }
   if (out.spellEffect) out.foundryDuration = undefined;
   return out;
 }
@@ -415,6 +426,9 @@ function spellEffectRemaining(effect, worldTime = null) {
  * to print for them.
  */
 export function spellEffectDurationLabel(effect, worldTime = null) {
+  // ENDED BY A TURN, NOT A NUMBER (3.707.1): the backstop's seconds are not
+  // how long it lasts. Said as the spell prints it.
+  if (effect?.flags?.[SYSTEM_ID]?.endsAtTurnStartOf) return "Until the start of the caster's next turn";
   const left = spellEffectRemaining(effect, worldTime);
   if (left === null) return effect?.duration?.label ?? "Ongoing";
   if (left <= 0) return "Expired";
@@ -531,6 +545,7 @@ export async function grantSiphonedTempHP(caster, amount, { spellName = "", img 
   if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
   if (timing.spellEffectEnd != null) flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
   if (timing.expiresRound != null) flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+  if (timing.turnStartOf) flags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
   const data = {
     name: `${spellName || "Siphon"} (temporary HP)`,
     img: img || DEFAULT_SPELL_IMG,
@@ -715,6 +730,7 @@ async function applyBonusGroupEffect(target, spell, effect, group, parsedDuratio
   if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
   if (timing.spellEffectEnd != null) flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
   if (timing.expiresRound != null) flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+  if (timing.turnStartOf) flags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
   if (castId) flags[SYSTEM_ID].castId = castId;
   if (castId && registersCast) flags[SYSTEM_ID].endsWithCast = true;
   // SCOPED TO THIS SPELL AND CASTER (3.685.1, review): see magic/bonus-group.mjs.
@@ -756,6 +772,7 @@ async function applyBonusEffect(target, spell, effect, parsedDuration, castId = 
     if (timingS.spellEffect) flagsS[SYSTEM_ID].spellEffect = true;
     if (timingS.spellEffectEnd != null) flagsS[SYSTEM_ID].spellEffectEnd = timingS.spellEffectEnd;
     if (timingS.expiresRound != null) flagsS[SYSTEM_ID].conditionExpiresRound = timingS.expiresRound;
+    if (timingS.turnStartOf) flagsS[SYSTEM_ID].endsAtTurnStartOf = timingS.turnStartOf;
     if (castId) flagsS[SYSTEM_ID].castId = castId;
     if (castId && registersCast) flagsS[SYSTEM_ID].endsWithCast = true;
     const dataS = {
@@ -789,6 +806,7 @@ async function applyBonusEffect(target, spell, effect, parsedDuration, castId = 
     if (timing0.spellEffect) flags0[SYSTEM_ID].spellEffect = true;
     if (timing0.spellEffectEnd != null) flags0[SYSTEM_ID].spellEffectEnd = timing0.spellEffectEnd;
     if (timing0.expiresRound != null) flags0[SYSTEM_ID].conditionExpiresRound = timing0.expiresRound;
+    if (timing0.turnStartOf) flags0[SYSTEM_ID].endsAtTurnStartOf = timing0.turnStartOf;
     if (castId) flags0[SYSTEM_ID].castId = castId;
     if (castId && registersCast) flags0[SYSTEM_ID].endsWithCast = true;
     const data0 = {
@@ -828,6 +846,7 @@ async function applyBonusEffect(target, spell, effect, parsedDuration, castId = 
     if (timingC.spellEffect) conditional[SYSTEM_ID].spellEffect = true;
     if (timingC.spellEffectEnd != null) conditional[SYSTEM_ID].spellEffectEnd = timingC.spellEffectEnd;
     if (timingC.expiresRound != null) conditional[SYSTEM_ID].conditionExpiresRound = timingC.expiresRound;
+    if (timingC.turnStartOf) conditional[SYSTEM_ID].endsAtTurnStartOf = timingC.turnStartOf;
     if (castId) conditional[SYSTEM_ID].castId = castId;
     if (castId && registersCast) conditional[SYSTEM_ID].endsWithCast = true;
     if (records.defenceDC.length) conditional[SYSTEM_ID].defenceDC = records.defenceDC;
@@ -865,6 +884,7 @@ async function applyBonusEffect(target, spell, effect, parsedDuration, castId = 
   if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
   if (timing.spellEffectEnd != null) flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
   if (timing.expiresRound != null) flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+  if (timing.turnStartOf) flags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
   if (castId) flags[SYSTEM_ID].castId = castId;
   if (castId && registersCast) flags[SYSTEM_ID].endsWithCast = true;
   const data = {
@@ -929,6 +949,7 @@ async function applyDefenceEffect(target, spell, effect, parsedDuration, castId 
   if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
   if (timing.spellEffectEnd != null) flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
   if (timing.expiresRound != null) flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+  if (timing.turnStartOf) flags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
   if (castId) flags[SYSTEM_ID].castId = castId;
   if (castId && registersCast) flags[SYSTEM_ID].endsWithCast = true;
 
@@ -1000,6 +1021,7 @@ function overrideEffectData({
   if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
   if (timing.spellEffectEnd != null) flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
   if (timing.expiresRound != null) flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+  if (timing.turnStartOf) flags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
   if (castId) flags[SYSTEM_ID].castId = castId;
   if (castId && registersCast) flags[SYSTEM_ID].endsWithCast = true;
   const data = {
@@ -1075,6 +1097,7 @@ async function applyAttackEffect(target, spell, effect, parsedDuration, castId =
   if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
   if (timing.spellEffectEnd != null) flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
   if (timing.expiresRound != null) flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+  if (timing.turnStartOf) flags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
   if (castId) flags[SYSTEM_ID].castId = castId;
   if (castId && registersCast) flags[SYSTEM_ID].endsWithCast = true;
 
@@ -1172,6 +1195,7 @@ async function applyGrantedSpellEffect(target, spell, effect, parsedDuration, ca
   if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
   if (timing.spellEffectEnd != null) flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
   if (timing.expiresRound != null) flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+  if (timing.turnStartOf) flags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
   if (castId) flags[SYSTEM_ID].castId = castId;
   if (castId && registersCast) flags[SYSTEM_ID].endsWithCast = true;
 
@@ -1248,6 +1272,7 @@ async function applySenseEffect(target, spell, effect, parsedDuration, castId = 
   if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
   if (timing.spellEffectEnd != null) flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
   if (timing.expiresRound != null) flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+  if (timing.turnStartOf) flags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
   if (castId) flags[SYSTEM_ID].castId = castId;
   if (castId && registersCast) flags[SYSTEM_ID].endsWithCast = true;
 
@@ -1299,6 +1324,7 @@ async function applyTraitEffect(target, spell, effect, parsedDuration, castId = 
   if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
   if (timing.spellEffectEnd != null) flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
   if (timing.expiresRound != null) flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+  if (timing.turnStartOf) flags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
   if (castId) flags[SYSTEM_ID].castId = castId;
   if (castId && registersCast) flags[SYSTEM_ID].endsWithCast = true;
 
@@ -1636,6 +1662,9 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
     // See magic/effect-duration.mjs.
     const durationSource = effectDurationText(effect, spellDurationSource);
     const parsedDuration = parseSpellDuration(durationSource);
+    // WHOSE TURN "YOUR NEXT TURN" IS (3.707.1): the caster's, stamped so the
+    // effect ends when that turn starts, wherever it landed.
+    if (parsedDuration?.untilTurnStart && caster?.uuid) parsedDuration.turnStartOf = caster.uuid;
     const durationText = durationSource ? ` (${durationSource})` : "";
 
     // A NOTE IS A LINE FOR THE CARD, not a modifier — a display-only
@@ -2105,6 +2134,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (timing.spellEffect) heldFlags[SYSTEM_ID].spellEffect = true;
           if (timing.spellEffectEnd != null) heldFlags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
           if (timing.expiresRound != null) heldFlags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+          if (timing.turnStartOf) heldFlags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
           const heldData = {
             name: spec.label,
             img: spell.img || DEFAULT_SPELL_IMG,
@@ -2329,6 +2359,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (cwTiming.spellEffect) cwFlags[SYSTEM_ID].spellEffect = true;
           if (cwTiming.spellEffectEnd != null) cwFlags[SYSTEM_ID].spellEffectEnd = cwTiming.spellEffectEnd;
           if (cwTiming.expiresRound != null) cwFlags[SYSTEM_ID].conditionExpiresRound = cwTiming.expiresRound;
+          if (cwTiming.turnStartOf) cwFlags[SYSTEM_ID].endsAtTurnStartOf = cwTiming.turnStartOf;
           const cwData = {
             name: effect.label || "Conjured Weapon",
             img: spell.img || DEFAULT_SPELL_IMG,
@@ -2460,6 +2491,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             if (ciTiming.spellEffect) ciFlags[SYSTEM_ID].spellEffect = true;
             if (ciTiming.spellEffectEnd != null) ciFlags[SYSTEM_ID].spellEffectEnd = ciTiming.spellEffectEnd;
             if (ciTiming.expiresRound != null) ciFlags[SYSTEM_ID].conditionExpiresRound = ciTiming.expiresRound;
+            if (ciTiming.turnStartOf) ciFlags[SYSTEM_ID].endsAtTurnStartOf = ciTiming.turnStartOf;
             const ciData = {
               name: effect.label || made.name,
               img: spell.img || DEFAULT_SPELL_IMG,
@@ -2502,6 +2534,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (runeTiming.spellEffect) runeDurationFlags.spellEffect = true;
           if (runeTiming.spellEffectEnd != null) runeDurationFlags.spellEffectEnd = runeTiming.spellEffectEnd;
           if (runeTiming.expiresRound != null) runeDurationFlags.conditionExpiresRound = runeTiming.expiresRound;
+          if (runeTiming.turnStartOf) runeDurationFlags.endsAtTurnStartOf = runeTiming.turnStartOf;
           const lent = await applyRuneGrant(target, effect, {
             spellName: spell.name, castId, warpMods, durationFlags: runeDurationFlags
           });
@@ -2696,6 +2729,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (sTiming.spellEffect) sFlags[SYSTEM_ID].spellEffect = true;
           if (sTiming.spellEffectEnd != null) sFlags[SYSTEM_ID].spellEffectEnd = sTiming.spellEffectEnd;
           if (sTiming.expiresRound != null) sFlags[SYSTEM_ID].conditionExpiresRound = sTiming.expiresRound;
+          if (sTiming.turnStartOf) sFlags[SYSTEM_ID].endsAtTurnStartOf = sTiming.turnStartOf;
           const sData = {
             name: effect.label || "Magic Stone",
             img: spell.img || DEFAULT_SPELL_IMG,
@@ -3039,6 +3073,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (timing.spellEffect) data.flags[SYSTEM_ID].spellEffect = true;
           if (timing.spellEffectEnd != null) data.flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
           if (timing.expiresRound != null) data.flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+          if (timing.turnStartOf) data.flags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
           // A ROW THAT LASTS ROUNDS, NOT THE SPELL (3.630.0).
           if (spec.rounds && game.combat?.started) data.flags[SYSTEM_ID].conditionExpiresRound = Number(game.combat.round ?? 0) + spec.rounds;
           data.img = spell.img || DEFAULT_SPELL_IMG;
@@ -3117,6 +3152,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (timing.spellEffect) riderFlags[SYSTEM_ID].spellEffect = true;
           if (timing.spellEffectEnd != null) riderFlags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
           if (timing.expiresRound != null) riderFlags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+          if (timing.turnStartOf) riderFlags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
           const riderData = {
             name: spec.label,
             img: spell.img || DEFAULT_SPELL_IMG,
@@ -3198,6 +3234,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
           if (timing.spellEffectEnd != null) flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
           if (timing.expiresRound != null) flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+          if (timing.turnStartOf) flags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
           const data = {
             name: spec.label,
             img: spell.img || DEFAULT_SPELL_IMG,
@@ -3330,6 +3367,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
           if (timing.spellEffectEnd != null) flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
           if (timing.expiresRound != null) flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+          if (timing.turnStartOf) flags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
           if (castId) flags[SYSTEM_ID].castId = castId;
           if (castId && registersCast) flags[SYSTEM_ID].endsWithCast = true;
           const data = {
@@ -3381,6 +3419,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
           if (timing.spellEffectEnd != null) flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
           if (timing.expiresRound != null) flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+          if (timing.turnStartOf) flags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
           if (castId) flags[SYSTEM_ID].castId = castId;
           if (castId && registersCast) flags[SYSTEM_ID].endsWithCast = true;
           const data = {
@@ -3471,6 +3510,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (shieldTiming.spellEffect) shieldFlags[SYSTEM_ID].spellEffect = true;
           if (shieldTiming.spellEffectEnd != null) shieldFlags[SYSTEM_ID].spellEffectEnd = shieldTiming.spellEffectEnd;
           if (shieldTiming.expiresRound != null) shieldFlags[SYSTEM_ID].conditionExpiresRound = shieldTiming.expiresRound;
+          if (shieldTiming.turnStartOf) shieldFlags[SYSTEM_ID].endsAtTurnStartOf = shieldTiming.turnStartOf;
           const shieldData = {
             name: `${spec.label} (${element})`,
             img: spell.img || DEFAULT_SPELL_IMG,
@@ -3522,6 +3562,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (timing.spellEffect) thornFlags[SYSTEM_ID].spellEffect = true;
           if (timing.spellEffectEnd != null) thornFlags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
           if (timing.expiresRound != null) thornFlags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+          if (timing.turnStartOf) thornFlags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
           const thornData = {
             name: spec.label,
             img: spell.img || DEFAULT_SPELL_IMG,
@@ -3799,6 +3840,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
           if (timing.spellEffectEnd != null) flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
           if (timing.expiresRound != null) flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+          if (timing.turnStartOf) flags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
           if (castId) flags[SYSTEM_ID].castId = castId;
           if (castId && registersCast) flags[SYSTEM_ID].endsWithCast = true;
           const data = {
@@ -3867,6 +3909,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (timing.spellEffect) effectFlags[SYSTEM_ID].spellEffect = true;
           if (timing.spellEffectEnd != null) effectFlags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
           if (timing.expiresRound != null) effectFlags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+          if (timing.turnStartOf) effectFlags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
           const data = {
             name: effect.label || spell.name,
             img: spell.img || DEFAULT_SPELL_IMG,
@@ -3937,6 +3980,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (dcTiming.spellEffect) dcFlags[SYSTEM_ID].spellEffect = true;
           if (dcTiming.spellEffectEnd != null) dcFlags[SYSTEM_ID].spellEffectEnd = dcTiming.spellEffectEnd;
           if (dcTiming.expiresRound != null) dcFlags[SYSTEM_ID].conditionExpiresRound = dcTiming.expiresRound;
+          if (dcTiming.turnStartOf) dcFlags[SYSTEM_ID].endsAtTurnStartOf = dcTiming.turnStartOf;
           const dcData = {
             name: effect.label || spell.name,
             img: spell.img || DEFAULT_SPELL_IMG,
@@ -4013,6 +4057,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (hinderTiming.spellEffect) hinderFlags[SYSTEM_ID].spellEffect = true;
           if (hinderTiming.spellEffectEnd != null) hinderFlags[SYSTEM_ID].spellEffectEnd = hinderTiming.spellEffectEnd;
           if (hinderTiming.expiresRound != null) hinderFlags[SYSTEM_ID].conditionExpiresRound = hinderTiming.expiresRound;
+          if (hinderTiming.turnStartOf) hinderFlags[SYSTEM_ID].endsAtTurnStartOf = hinderTiming.turnStartOf;
           const hinderData = {
             name: effect.label || spell.name,
             img: spell.img || DEFAULT_SPELL_IMG,
@@ -4136,6 +4181,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (tTiming.spellEffect) tFlags[SYSTEM_ID].spellEffect = true;
           if (tTiming.spellEffectEnd != null) tFlags[SYSTEM_ID].spellEffectEnd = tTiming.spellEffectEnd;
           if (tTiming.expiresRound != null) tFlags[SYSTEM_ID].conditionExpiresRound = tTiming.expiresRound;
+          if (tTiming.turnStartOf) tFlags[SYSTEM_ID].endsAtTurnStartOf = tTiming.turnStartOf;
           const tData = { name: tSpec.label, img: spell.img || DEFAULT_SPELL_IMG, origin: spell.uuid, changes: [], flags: tFlags };
           if (tTiming.foundryDuration) {
             tData.duration = { ...tTiming.foundryDuration, startTime: Number(game.time?.worldTime ?? 0) };
@@ -4186,6 +4232,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (vTiming.spellEffect) vFlags[SYSTEM_ID].spellEffect = true;
           if (vTiming.spellEffectEnd != null) vFlags[SYSTEM_ID].spellEffectEnd = vTiming.spellEffectEnd;
           if (vTiming.expiresRound != null) vFlags[SYSTEM_ID].conditionExpiresRound = vTiming.expiresRound;
+          if (vTiming.turnStartOf) vFlags[SYSTEM_ID].endsAtTurnStartOf = vTiming.turnStartOf;
           const vData = {
             name: vSpec.label, img: spell.img || DEFAULT_SPELL_IMG, origin: spell.uuid, changes: [], flags: vFlags
           };
@@ -4240,6 +4287,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (sTiming.spellEffect) sFlags[SYSTEM_ID].spellEffect = true;
           if (sTiming.spellEffectEnd != null) sFlags[SYSTEM_ID].spellEffectEnd = sTiming.spellEffectEnd;
           if (sTiming.expiresRound != null) sFlags[SYSTEM_ID].conditionExpiresRound = sTiming.expiresRound;
+          if (sTiming.turnStartOf) sFlags[SYSTEM_ID].endsAtTurnStartOf = sTiming.turnStartOf;
           const sData = {
             name: `${record.label} (${record.weaponName})`,
             img: spell.img || DEFAULT_SPELL_IMG,
@@ -4429,6 +4477,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
           if (timing.spellEffectEnd != null) flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
           if (timing.expiresRound != null) flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+          if (timing.turnStartOf) flags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
           if (castId) flags[SYSTEM_ID].castId = castId;
           if (castId && registersCast) flags[SYSTEM_ID].endsWithCast = true;
           const data = {
@@ -4476,6 +4525,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
           if (timing.spellEffectEnd != null) flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
           if (timing.expiresRound != null) flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+          if (timing.turnStartOf) flags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
           if (castId) flags[SYSTEM_ID].castId = castId;
           // ENDS WITH THE SPELL: a sustained curse stops when it is dropped.
           if (castId && registersCast) flags[SYSTEM_ID].endsWithCast = true;
@@ -4541,6 +4591,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
           if (timing.spellEffectEnd != null) flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
           if (timing.expiresRound != null) flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+          if (timing.turnStartOf) flags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
           if (castId) flags[SYSTEM_ID].castId = castId;
           if (castId && registersCast) flags[SYSTEM_ID].endsWithCast = true;
 
@@ -4587,6 +4638,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
           if (timing.spellEffectEnd != null) flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
           if (timing.expiresRound != null) flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+          if (timing.turnStartOf) flags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
           if (castId) flags[SYSTEM_ID].castId = castId;
           if (castId && registersCast) flags[SYSTEM_ID].endsWithCast = true;
 
@@ -4729,6 +4781,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (cTiming.spellEffect) cFlags[SYSTEM_ID].spellEffect = true;
           if (cTiming.spellEffectEnd != null) cFlags[SYSTEM_ID].spellEffectEnd = cTiming.spellEffectEnd;
           if (cTiming.expiresRound != null) cFlags[SYSTEM_ID].conditionExpiresRound = cTiming.expiresRound;
+          if (cTiming.turnStartOf) cFlags[SYSTEM_ID].endsAtTurnStartOf = cTiming.turnStartOf;
           const cData = {
             name: spec.label,
             img: spell.img || DEFAULT_SPELL_IMG,
@@ -4820,6 +4873,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (rTiming.spellEffect) rFlags[SYSTEM_ID].spellEffect = true;
           if (rTiming.spellEffectEnd != null) rFlags[SYSTEM_ID].spellEffectEnd = rTiming.spellEffectEnd;
           if (rTiming.expiresRound != null) rFlags[SYSTEM_ID].conditionExpiresRound = rTiming.expiresRound;
+          if (rTiming.turnStartOf) rFlags[SYSTEM_ID].endsAtTurnStartOf = rTiming.turnStartOf;
           const rData = {
             name: spec.label,
             img: spell.img || DEFAULT_SPELL_IMG,
@@ -4855,6 +4909,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (hTiming.spellEffect) hFlags[SYSTEM_ID].spellEffect = true;
           if (hTiming.spellEffectEnd != null) hFlags[SYSTEM_ID].spellEffectEnd = hTiming.spellEffectEnd;
           if (hTiming.expiresRound != null) hFlags[SYSTEM_ID].conditionExpiresRound = hTiming.expiresRound;
+          if (hTiming.turnStartOf) hFlags[SYSTEM_ID].endsAtTurnStartOf = hTiming.turnStartOf;
           const hData = {
             // THE UNAUTOMATED HALF IS IN THE NAME, the shape
             // difficult-terrain.mjs settled — this is where a GM looking
@@ -4906,6 +4961,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
           if (timing.spellEffectEnd != null) flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
           if (timing.expiresRound != null) flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+          if (timing.turnStartOf) flags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
           if (castId) flags[SYSTEM_ID].castId = castId;
           if (castId && registersCast) flags[SYSTEM_ID].endsWithCast = true;
           const data = {
@@ -5004,6 +5060,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (sTiming.spellEffect) sFlags[SYSTEM_ID].spellEffect = true;
           if (sTiming.spellEffectEnd != null) sFlags[SYSTEM_ID].spellEffectEnd = sTiming.spellEffectEnd;
           if (sTiming.expiresRound != null) sFlags[SYSTEM_ID].conditionExpiresRound = sTiming.expiresRound;
+          if (sTiming.turnStartOf) sFlags[SYSTEM_ID].endsAtTurnStartOf = sTiming.turnStartOf;
           const sData = {
             name: spec.label,
             img: spell.img || DEFAULT_SPELL_IMG,
@@ -5074,6 +5131,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             if (mvTiming.spellEffect) mvFlags[SYSTEM_ID].spellEffect = true;
             if (mvTiming.spellEffectEnd != null) mvFlags[SYSTEM_ID].spellEffectEnd = mvTiming.spellEffectEnd;
             if (mvTiming.expiresRound != null) mvFlags[SYSTEM_ID].conditionExpiresRound = mvTiming.expiresRound;
+            if (mvTiming.turnStartOf) mvFlags[SYSTEM_ID].endsAtTurnStartOf = mvTiming.turnStartOf;
             await createEffectsOn(target, [{ name: spec.label, img: spell.img || DEFAULT_SPELL_IMG, origin: spell.uuid, changes: [], flags: mvFlags }]);
             if (castId && target.uuid) affected.add(target.uuid);
             lines.push(line(`<strong>${target.name}</strong> gains a <strong>${move.key} Speed of ${move.feet} feet</strong> from ${source.name}${durationText}.`));
@@ -5120,6 +5178,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (mTiming.spellEffect) mFlags[SYSTEM_ID].spellEffect = true;
           if (mTiming.spellEffectEnd != null) mFlags[SYSTEM_ID].spellEffectEnd = mTiming.spellEffectEnd;
           if (mTiming.expiresRound != null) mFlags[SYSTEM_ID].conditionExpiresRound = mTiming.expiresRound;
+          if (mTiming.turnStartOf) mFlags[SYSTEM_ID].endsAtTurnStartOf = mTiming.turnStartOf;
           const mData = {
             name: spec.label,
             img: spell.img || DEFAULT_SPELL_IMG,
@@ -5185,6 +5244,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (wTiming.spellEffect) wFlags[SYSTEM_ID].spellEffect = true;
           if (wTiming.spellEffectEnd != null) wFlags[SYSTEM_ID].spellEffectEnd = wTiming.spellEffectEnd;
           if (wTiming.expiresRound != null) wFlags[SYSTEM_ID].conditionExpiresRound = wTiming.expiresRound;
+          if (wTiming.turnStartOf) wFlags[SYSTEM_ID].endsAtTurnStartOf = wTiming.turnStartOf;
           const wData = {
             name: spec.label,
             img: spell.img || DEFAULT_SPELL_IMG,
@@ -5256,6 +5316,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (qTiming.spellEffect) qFlags[SYSTEM_ID].spellEffect = true;
           if (qTiming.spellEffectEnd != null) qFlags[SYSTEM_ID].spellEffectEnd = qTiming.spellEffectEnd;
           if (qTiming.expiresRound != null) qFlags[SYSTEM_ID].conditionExpiresRound = qTiming.expiresRound;
+          if (qTiming.turnStartOf) qFlags[SYSTEM_ID].endsAtTurnStartOf = qTiming.turnStartOf;
           const qData = {
             name: effectName(spell.name, effect.note, ` \u2014 ${qItem.name}`),
             img: spell.img || DEFAULT_SPELL_IMG,
@@ -5326,6 +5387,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (hrTiming.spellEffect) hrFlags[SYSTEM_ID].spellEffect = true;
           if (hrTiming.spellEffectEnd != null) hrFlags[SYSTEM_ID].spellEffectEnd = hrTiming.spellEffectEnd;
           if (hrTiming.expiresRound != null) hrFlags[SYSTEM_ID].conditionExpiresRound = hrTiming.expiresRound;
+          if (hrTiming.turnStartOf) hrFlags[SYSTEM_ID].endsAtTurnStartOf = hrTiming.turnStartOf;
           const hrData = {
             name: effectName(spell.name, effect.note,
               ` \u2014 ${healingRateName(rateSpec.rate)} ${rateSpec.value}`),
@@ -5389,6 +5451,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (wtTiming.spellEffect) wtFlags[SYSTEM_ID].spellEffect = true;
           if (wtTiming.spellEffectEnd != null) wtFlags[SYSTEM_ID].spellEffectEnd = wtTiming.spellEffectEnd;
           if (wtTiming.expiresRound != null) wtFlags[SYSTEM_ID].conditionExpiresRound = wtTiming.expiresRound;
+          if (wtTiming.turnStartOf) wtFlags[SYSTEM_ID].endsAtTurnStartOf = wtTiming.turnStartOf;
           const wtData = {
             name: traitSpec.label || spell.name,
             img: spell.img || DEFAULT_SPELL_IMG,
@@ -5437,6 +5500,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (pTiming.spellEffect) pFlags[SYSTEM_ID].spellEffect = true;
           if (pTiming.spellEffectEnd != null) pFlags[SYSTEM_ID].spellEffectEnd = pTiming.spellEffectEnd;
           if (pTiming.expiresRound != null) pFlags[SYSTEM_ID].conditionExpiresRound = pTiming.expiresRound;
+          if (pTiming.turnStartOf) pFlags[SYSTEM_ID].endsAtTurnStartOf = pTiming.turnStartOf;
           const pData = {
             name: pierceSpec.label,
             img: spell.img || DEFAULT_SPELL_IMG,
@@ -5487,6 +5551,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (timing.spellEffect) flags[SYSTEM_ID].spellEffect = true;
           if (timing.spellEffectEnd != null) flags[SYSTEM_ID].spellEffectEnd = timing.spellEffectEnd;
           if (timing.expiresRound != null) flags[SYSTEM_ID].conditionExpiresRound = timing.expiresRound;
+          if (timing.turnStartOf) flags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;
           if (castId) flags[SYSTEM_ID].castId = castId;
           if (castId && registersCast) flags[SYSTEM_ID].endsWithCast = true;
 
@@ -5668,6 +5733,8 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             duration: timing.foundryDuration,
             spellEffect: timing.spellEffect,
             spellEffectEnd: timing.spellEffectEnd,
+            // "UNTIL THE START OF YOUR NEXT TURN" (3.707.1).
+            endsAtTurnStartOf: timing.turnStartOf ?? null,
             castId,
             // THE SPELL'S TRAITS RIDE THE CONDITION (3.613.0, R14), so a
             // counteract scoped to "emotion effects" can find it later.
@@ -6210,6 +6277,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (gsTiming.spellEffect) gsFlags[SYSTEM_ID].spellEffect = true;
           if (gsTiming.spellEffectEnd != null) gsFlags[SYSTEM_ID].spellEffectEnd = gsTiming.spellEffectEnd;
           if (gsTiming.expiresRound != null) gsFlags[SYSTEM_ID].conditionExpiresRound = gsTiming.expiresRound;
+          if (gsTiming.turnStartOf) gsFlags[SYSTEM_ID].endsAtTurnStartOf = gsTiming.turnStartOf;
           if (castId) gsFlags[SYSTEM_ID].castId = castId;
           if (castId && registersCast) gsFlags[SYSTEM_ID].endsWithCast = true;
           const gsData = {
@@ -6508,6 +6576,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
               spellEffect: tetherTiming.spellEffect,
               spellEffectEnd: tetherTiming.spellEffectEnd ?? null,
               expiresRound: tetherTiming.expiresRound ?? null,
+              endsAtTurnStartOf: tetherTiming.turnStartOf ?? null,
               castId: castId ?? null
             });
             lines.push(line(distanceTriggerImmediateLine(target.name, tetherSpec, feetNow)));
@@ -6541,6 +6610,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (tetherTiming.spellEffect) tetherFlags[SYSTEM_ID].spellEffect = true;
           if (tetherTiming.spellEffectEnd != null) tetherFlags[SYSTEM_ID].spellEffectEnd = tetherTiming.spellEffectEnd;
           if (tetherTiming.expiresRound != null) tetherFlags[SYSTEM_ID].conditionExpiresRound = tetherTiming.expiresRound;
+          if (tetherTiming.turnStartOf) tetherFlags[SYSTEM_ID].endsAtTurnStartOf = tetherTiming.turnStartOf;
           if (castId) tetherFlags[SYSTEM_ID].castId = castId;
           if (castId && registersCast) tetherFlags[SYSTEM_ID].endsWithCast = true;
           const tetherData = {
@@ -6599,6 +6669,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (wardTiming.spellEffect) wardFlags[SYSTEM_ID].spellEffect = true;
           if (wardTiming.spellEffectEnd != null) wardFlags[SYSTEM_ID].spellEffectEnd = wardTiming.spellEffectEnd;
           if (wardTiming.expiresRound != null) wardFlags[SYSTEM_ID].conditionExpiresRound = wardTiming.expiresRound;
+          if (wardTiming.turnStartOf) wardFlags[SYSTEM_ID].endsAtTurnStartOf = wardTiming.turnStartOf;
           if (castId) wardFlags[SYSTEM_ID].castId = castId;
           if (castId && registersCast) wardFlags[SYSTEM_ID].endsWithCast = true;
           const wardData = {
@@ -6630,6 +6701,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (freeTiming.spellEffect) freeFlags[SYSTEM_ID].spellEffect = true;
           if (freeTiming.spellEffectEnd != null) freeFlags[SYSTEM_ID].spellEffectEnd = freeTiming.spellEffectEnd;
           if (freeTiming.expiresRound != null) freeFlags[SYSTEM_ID].conditionExpiresRound = freeTiming.expiresRound;
+          if (freeTiming.turnStartOf) freeFlags[SYSTEM_ID].endsAtTurnStartOf = freeTiming.turnStartOf;
           if (castId) freeFlags[SYSTEM_ID].castId = castId;
           if (castId && registersCast) freeFlags[SYSTEM_ID].endsWithCast = true;
           const freeData = { name: effectName(spell.name, effect.note), img: spell.img || DEFAULT_SPELL_IMG, origin: spell.uuid, changes: [], flags: freeFlags };
@@ -6691,6 +6763,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (dhTiming.spellEffect) dhFlags[SYSTEM_ID].spellEffect = true;
           if (dhTiming.spellEffectEnd != null) dhFlags[SYSTEM_ID].spellEffectEnd = dhTiming.spellEffectEnd;
           if (dhTiming.expiresRound != null) dhFlags[SYSTEM_ID].conditionExpiresRound = dhTiming.expiresRound;
+          if (dhTiming.turnStartOf) dhFlags[SYSTEM_ID].endsAtTurnStartOf = dhTiming.turnStartOf;
           if (castId) dhFlags[SYSTEM_ID].castId = castId;
           if (castId && registersCast) dhFlags[SYSTEM_ID].endsWithCast = true;
           await createEffectsOn(target, [{
@@ -6718,6 +6791,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (toTiming.spellEffect) toFlags[SYSTEM_ID].spellEffect = true;
           if (toTiming.spellEffectEnd != null) toFlags[SYSTEM_ID].spellEffectEnd = toTiming.spellEffectEnd;
           if (toTiming.expiresRound != null) toFlags[SYSTEM_ID].conditionExpiresRound = toTiming.expiresRound;
+          if (toTiming.turnStartOf) toFlags[SYSTEM_ID].endsAtTurnStartOf = toTiming.turnStartOf;
           if (castId) toFlags[SYSTEM_ID].castId = castId;
           if (castId && registersCast) toFlags[SYSTEM_ID].endsWithCast = true;
           await createEffectsOn(target, [{
@@ -6792,6 +6866,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (healTiming.spellEffect) healFlags[SYSTEM_ID].spellEffect = true;
           if (healTiming.spellEffectEnd != null) healFlags[SYSTEM_ID].spellEffectEnd = healTiming.spellEffectEnd;
           if (healTiming.expiresRound != null) healFlags[SYSTEM_ID].conditionExpiresRound = healTiming.expiresRound;
+          if (healTiming.turnStartOf) healFlags[SYSTEM_ID].endsAtTurnStartOf = healTiming.turnStartOf;
           if (castId) healFlags[SYSTEM_ID].castId = castId;
           if (castId && registersCast) healFlags[SYSTEM_ID].endsWithCast = true;
           const healData = {
@@ -6834,6 +6909,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (horrorTiming.spellEffect) horrorFlags[SYSTEM_ID].spellEffect = true;
           if (horrorTiming.spellEffectEnd != null) horrorFlags[SYSTEM_ID].spellEffectEnd = horrorTiming.spellEffectEnd;
           if (horrorTiming.expiresRound != null) horrorFlags[SYSTEM_ID].conditionExpiresRound = horrorTiming.expiresRound;
+          if (horrorTiming.turnStartOf) horrorFlags[SYSTEM_ID].endsAtTurnStartOf = horrorTiming.turnStartOf;
           if (castId) horrorFlags[SYSTEM_ID].castId = castId;
           if (castId && registersCast) horrorFlags[SYSTEM_ID].endsWithCast = true;
           const horrorData = {
@@ -6874,6 +6950,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (rebukeTiming.spellEffect) rebukeFlags[SYSTEM_ID].spellEffect = true;
           if (rebukeTiming.spellEffectEnd != null) rebukeFlags[SYSTEM_ID].spellEffectEnd = rebukeTiming.spellEffectEnd;
           if (rebukeTiming.expiresRound != null) rebukeFlags[SYSTEM_ID].conditionExpiresRound = rebukeTiming.expiresRound;
+          if (rebukeTiming.turnStartOf) rebukeFlags[SYSTEM_ID].endsAtTurnStartOf = rebukeTiming.turnStartOf;
           if (castId) rebukeFlags[SYSTEM_ID].castId = castId;
           const rebukeData = {
             name: `${spell.name} (${caster?.name ?? "caster"})`,
@@ -6913,6 +6990,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (senseTiming.spellEffect) senseFlags[SYSTEM_ID].spellEffect = true;
           if (senseTiming.spellEffectEnd != null) senseFlags[SYSTEM_ID].spellEffectEnd = senseTiming.spellEffectEnd;
           if (senseTiming.expiresRound != null) senseFlags[SYSTEM_ID].conditionExpiresRound = senseTiming.expiresRound;
+          if (senseTiming.turnStartOf) senseFlags[SYSTEM_ID].endsAtTurnStartOf = senseTiming.turnStartOf;
           if (castId) senseFlags[SYSTEM_ID].castId = castId;
           if (castId && registersCast) senseFlags[SYSTEM_ID].endsWithCast = true;
           const senseData = {
@@ -7199,6 +7277,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (dsTiming.spellEffect) dsFlags[SYSTEM_ID].spellEffect = true;
           if (dsTiming.spellEffectEnd != null) dsFlags[SYSTEM_ID].spellEffectEnd = dsTiming.spellEffectEnd;
           if (dsTiming.expiresRound != null) dsFlags[SYSTEM_ID].conditionExpiresRound = dsTiming.expiresRound;
+          if (dsTiming.turnStartOf) dsFlags[SYSTEM_ID].endsAtTurnStartOf = dsTiming.turnStartOf;
           const dsData = {
             img: spell.img || DEFAULT_SPELL_IMG,
             origin: spell.uuid,
@@ -7302,6 +7381,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (gaTiming.spellEffect) gaFlags[SYSTEM_ID].spellEffect = true;
           if (gaTiming.spellEffectEnd != null) gaFlags[SYSTEM_ID].spellEffectEnd = gaTiming.spellEffectEnd;
           if (gaTiming.expiresRound != null) gaFlags[SYSTEM_ID].conditionExpiresRound = gaTiming.expiresRound;
+          if (gaTiming.turnStartOf) gaFlags[SYSTEM_ID].endsAtTurnStartOf = gaTiming.turnStartOf;
           if (castId) gaFlags[SYSTEM_ID].castId = castId;
           if (castId && registersCast) gaFlags[SYSTEM_ID].endsWithCast = true;
           const gaData = {

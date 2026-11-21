@@ -1378,6 +1378,23 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
     }
   }
 
+  // A WARD AGAINST ONE FOE NAMES ONE (3.707.1; Stone Shield, Graham: "Yes it
+  // should"). Counted with the applier's own reading of an enemy — the
+  // disposition against the caster's — after the target set is final and
+  // before anything is spent. See magic/ward.mjs's `wardFoeRefusal`.
+  if (!storingNow) {
+    const { wardFoeRefusal } = await import("./ward.mjs");
+    const { keepByDisposition } = await import("./spell-template.mjs");
+    const casterDisposition = Number(actor?.getActiveTokens?.()?.[0]?.document?.disposition ?? actor?.prototypeToken?.disposition ?? 0);
+    const hostile = Array.from(game.user?.targets ?? [])
+      .filter((t) => t?.actor && keepByDisposition(Number(t.document?.disposition ?? 0), casterDisposition, "enemies")).length;
+    const refusedFoes = wardFoeRefusal(spellData, hostile, spell.name);
+    if (refusedFoes) {
+      ui.notifications.warn(refusedFoes);
+      return null;
+    }
+  }
+
   // KIND (Chapter 5). "Spells such as charm kind and hold kind will only affect
   // creatures of your type", and Charm Animal reaches "a creature of the animal
   // type" — which, per Graham's definition of a creature trait, includes anyone

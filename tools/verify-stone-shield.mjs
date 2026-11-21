@@ -93,7 +93,8 @@ const SPEC = { hardness: 8, hits: 15, missWithin: 4 };
 const WANT = [{
   kind: "ward", target: "self", slots: ["defence"], bonusType: "circumstance", value: 4, label: "Stone Shield",
   barrier: { hardness: 8, hits: 15, missWithin: 4 },
-  castQuestion: "Are you adjacent to a large area of earth or stone, such as the ground or a wall?"
+  castQuestion: "Are you adjacent to a large area of earth or stone, such as the ground or a wall?",
+  foes: 1
 }];
 {
   const { ClassicLevel } = await import("classic-level");
@@ -107,20 +108,22 @@ const WANT = [{
   const repair = PACK_REPAIRS.find((r) => r.id === "stone-shield-barrier-3707");
   equal("B3 an owned copy is brought to the same row", repair?.to, WANT);
   const fixes = JSON.parse(read("tools", "data-fixes.json")).fixes;
-  const fix = fixes.find((f) => f.id === "stone-shield-barrier-3707");
+  const fix = fixes.find((f) => f.id === "stone-shield-one-foe-3707-1");
+  const mid = fixes.find((f) => f.id === "stone-shield-barrier-3707");
   const older = fixes.find((f) => f.id === "stone-shield-ward-scope");
-  ok("B4 the declared fix agrees with both, and retires the 3.406.0 one",
-    JSON.stringify(fix?.to) === JSON.stringify(WANT) && JSON.stringify(fix?.from) === JSON.stringify(repair?.from)
-    && older?.supersededBy === "stone-shield-barrier-3707");
-  ok("B5 a pre-3.406.0 owned copy (+4 against everyone) is recognised as stale too",
-    JSON.stringify(repair?.alsoFrom?.[0]) === JSON.stringify(older?.from));
+  ok("B4 the declared fixes agree with the repair, each retiring the one before",
+    JSON.stringify(fix?.to) === JSON.stringify(WANT) && JSON.stringify(mid?.from) === JSON.stringify(repair?.from)
+    && JSON.stringify(fix?.from) === JSON.stringify(mid?.to)
+    && older?.supersededBy === "stone-shield-barrier-3707" && mid?.supersededBy === "stone-shield-one-foe-3707-1");
+  ok("B5 a pre-3.406.0 owned copy (+4 against everyone) and a 3.707.0 one are recognised as stale too",
+    JSON.stringify(repair?.alsoFrom?.[0]) === JSON.stringify(older?.from) && JSON.stringify(repair?.alsoFrom?.[1]) === JSON.stringify(mid?.to));
   const { classifyRepairs } = await import(new URL("../module/pack-repair.mjs", import.meta.url));
-  equal("B6 the migration's own rule: both old rows stale, the new row current",
-    [classifyRepairs({ effects: repair.from }, [repair])[0].state, classifyRepairs({ effects: older.from }, [repair])[0].state, classifyRepairs({ effects: WANT }, [repair])[0].state],
-    ["stale", "stale", "current"]);
+  equal("B6 the migration's own rule: the three old rows stale, the new row current",
+    [classifyRepairs({ effects: repair.from }, [repair])[0].state, classifyRepairs({ effects: older.from }, [repair])[0].state, classifyRepairs({ effects: mid.to }, [repair])[0].state, classifyRepairs({ effects: WANT }, [repair])[0].state],
+    ["stale", "stale", "stale", "current"]);
   const MIG = read("module", "migration.mjs");
-  ok("B7 the pack-copy pass is re-gated so a world is offered it", /const packCopies = \(await runIf\("3\.707\.0", "stale owned copies/.test(MIG)
-    && /export const TRG_SCHEMA_VERSION = "3\.707\.0";/.test(MIG));
+  ok("B7 the pack-copy pass is re-gated so a world is offered it", /const packCopies = \(await runIf\("3\.707\.1", "stale owned copies/.test(MIG)
+    && /export const TRG_SCHEMA_VERSION = "3\.707\.1";/.test(MIG));
 }
 
 /* C — the applier -------------------------------------------------------- */

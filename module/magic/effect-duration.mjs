@@ -106,6 +106,39 @@ export function extractDurationRounds(text) {
   return null;
 }
 
+/**
+ * THE CLOCK FOR "UNTIL THE START OF YOUR NEXT TURN" (3.707.1).
+ *
+ * In an encounter the effect ends when its CASTER's next turn starts — the
+ * turn-start sweep reads `endsAtTurnStartOf` — and on no round clock, which
+ * would end it at somebody else's turn. Out of an encounter there are no
+ * turns, and the six seconds stand.
+ *
+ * THE BACKSTOP is two rounds of world time. A round's change moves the world
+ * clock, so it cannot fall before the caster's next turn starts (that is at
+ * most one round boundary away), and it still ends an effect whose caster
+ * never takes that turn — removed from the combat, or the combat ended.
+ *
+ * Pure. `parsed.turnStartOf` is the caster's uuid, set by the cast on its own
+ * duration only.
+ *
+ * @param {object|null} parsed parseSpellDuration's answer, with `turnStartOf`
+ * @param {{inCombat: boolean, worldTime: number}} now
+ * @returns {{turnStartOf: string, backstopEnd: number}|null}
+ */
+export function turnStartClock(parsed, { inCombat = false, worldTime = 0 } = {}) {
+  if (!parsed?.untilTurnStart || !inCombat) return null;
+  const who = String(parsed.turnStartOf ?? "").trim();
+  if (!who) return null;
+  return { turnStartOf: who, backstopEnd: Number(worldTime || 0) + TURN_START_BACKSTOP_SECONDS };
+}
+
+/** Two rounds of world time — see `turnStartClock`. */
+export const TURN_START_BACKSTOP_SECONDS = 12;
+
+/** "Until the start (or beginning) of YOUR next turn" — the caster's (3.707.1). */
+export const UNTIL_YOUR_TURN_START = /until the (?:start|beginning) of your next turn/i;
+
 export function parseSpellDuration(text) {
   const t = String(text || "").toLowerCase();
   if (!t || /instant/.test(t)) return null;
@@ -167,6 +200,17 @@ export function parseSpellDuration(text) {
     // question the old one already answered. Reached only where the old
     // code returned null, this can ADD readings and cannot change one.
     const turns = extractDurationRounds(text);
+    // "UNTIL THE START OF YOUR NEXT TURN" ENDS AT THE CASTER'S TURN (3.707.1).
+    // Graham, 21 November 2026: "Any spell that has a duration of 'until the
+    // start of your next turn' should end at the beginning of the characters
+    // turn". One round on the clock ended it at the next round's top (the
+    // world clock) or at the bearer's own turn, whoever's that was; the
+    // marker lets the cast stamp the caster instead. See spell-effects.mjs's
+    // `spellExpiryTiming` and the turn-start sweep in effect-application.
+    // "YOUR" only: "their/its next turn" names a turn that is not the caster's.
+    if (turns !== null && UNTIL_YOUR_TURN_START.test(String(text ?? ""))) {
+      return { rounds: turns, seconds: turns * 6, sustained, untilTurnStart: true };
+    }
     if (turns !== null) return { rounds: turns, seconds: turns * 6, sustained };
     return sustained ? { rounds: null, seconds: null, sustained: true } : null;
   }

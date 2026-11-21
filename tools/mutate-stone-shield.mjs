@@ -40,7 +40,7 @@ const MUTATIONS = [
   { name: "F a No is not refused", file: BW, from: "    if (!yes) {\n      ui.notifications?.warn?.(castQuestionRefusal(spellName, question));\n      return false;", to: "    if (!yes) {\n      ui.notifications?.warn?.(castQuestionRefusal(spellName, question));\n      continue;" },
   { name: "G offered again against the warded foe", file: BW, from: "      alreadyAgainst: Boolean(event?.attackerUuid", to: "      alreadyAgainst: false && Boolean(event?.attackerUuid" },
   { name: "G the attacker never reaches the requirement", file: DOW, from: "  const event = { kind: String(attack.kind ?? \"weapon\"), attackerUuid: attacker?.uuid ?? \"\" };", to: "  const event = { kind: String(attack.kind ?? \"weapon\") };" },
-  { name: "B an owned copy keeps the old row", file: PR, from: "    field: \"effects\", since: \"3.707.0\",", to: "    field: \"effectz\", since: \"3.707.0\"," }
+  { name: "B an owned copy keeps the old row", file: PR, from: "    field: \"effects\", since: \"3.707.1\",", to: "    field: \"effectz\", since: \"3.707.1\"," }
 ];
 
 const verify = path.join(SYSTEM_ROOT, "tools", "verify-stone-shield.mjs");

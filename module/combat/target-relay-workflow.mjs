@@ -131,7 +131,8 @@ export async function relayConditionTags(target, tags, options, applyDirect) {
   // EVERY OPTION TRAVELS (3.646.0): a spell's condition carries its clock,
   // its cast id and its traits, and the GM's client must lay it the same way.
   const carried = {};
-  for (const key of ["duration", "spellEffect", "spellEffectEnd", "castId", "sourceTraits"]) {
+  // …AND WHOSE TURN START ENDS IT (3.707.1).
+  for (const key of ["duration", "spellEffect", "spellEffectEnd", "castId", "sourceTraits", "endsAtTurnStartOf"]) {
     if (options?.[key] !== undefined && options?.[key] !== null) carried[key] = options[key];
   }
   const reply = await ask(RELAY_ACTIONS.CONDITIONS, target, {

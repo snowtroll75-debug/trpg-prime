@@ -14901,7 +14901,54 @@
       ],
       "declaredAt": "2026-11-21",
       "systemVersion": "3.707.0",
-      "reason": "Graham, 21 Nov 2026: \"Can you please fully implement this\". The ward (3.406.0) gave the +4 against the chosen foe; the rest was the note \"If the opponent's attack misses you by 4 or less it strikes the shield instead. Hardness 8, Hits 15.\", which nothing read. Now a `barrier` on the ward's own effect: a miss by 1-4 from that foe (Strike, spell attack, bomb, Spiritual Weapon) deals its damage to the shield through Hardness 8, off 15 Hits, and the spell ends at 0 (magic/barrier.mjs). Rulings the same day: +4 DB only, as printed; area damage by a GM \"Damage the shield\" button, not automated; \"You cannot use this spell if you are not adjacent to a large area of earth or stone\" asked at the cast and refused on No (`castQuestion`); offered as a reaction when attacked, as Nimble Dodge is. The note is dropped: everything it said is now done."
+      "reason": "Graham, 21 Nov 2026: \"Can you please fully implement this\". The ward (3.406.0) gave the +4 against the chosen foe; the rest was the note \"If the opponent's attack misses you by 4 or less it strikes the shield instead. Hardness 8, Hits 15.\", which nothing read. Now a `barrier` on the ward's own effect: a miss by 1-4 from that foe (Strike, spell attack, bomb, Spiritual Weapon) deals its damage to the shield through Hardness 8, off 15 Hits, and the spell ends at 0 (magic/barrier.mjs). Rulings the same day: +4 DB only, as printed; area damage by a GM \"Damage the shield\" button, not automated; \"You cannot use this spell if you are not adjacent to a large area of earth or stone\" asked at the cast and refused on No (`castQuestion`); offered as a reaction when attacked, as Nimble Dodge is. The note is dropped: everything it said is now done.",
+      "supersededBy": "stone-shield-one-foe-3707-1"
+    },
+    {
+      "id": "stone-shield-one-foe-3707-1",
+      "pack": "spells",
+      "name": "Stone Shield",
+      "path": "system.effects",
+      "from": [
+        {
+          "kind": "ward",
+          "target": "self",
+          "slots": [
+            "defence"
+          ],
+          "bonusType": "circumstance",
+          "value": 4,
+          "label": "Stone Shield",
+          "barrier": {
+            "hardness": 8,
+            "hits": 15,
+            "missWithin": 4
+          },
+          "castQuestion": "Are you adjacent to a large area of earth or stone, such as the ground or a wall?"
+        }
+      ],
+      "to": [
+        {
+          "kind": "ward",
+          "target": "self",
+          "slots": [
+            "defence"
+          ],
+          "bonusType": "circumstance",
+          "value": 4,
+          "label": "Stone Shield",
+          "barrier": {
+            "hardness": 8,
+            "hits": 15,
+            "missWithin": 4
+          },
+          "castQuestion": "Are you adjacent to a large area of earth or stone, such as the ground or a wall?",
+          "foes": 1
+        }
+      ],
+      "declaredAt": "2026-11-21",
+      "systemVersion": "3.707.1",
+      "reason": "Graham, 21 Nov 2026, asked whether a cast from the sheet with several enemies targeted should ward against all of them or one: \"Yes it should\" (be limited to one). The ward row declares `foes: 1`; the cast refuses any other number of targeted enemies before anything is spent (magic/ward.mjs's `wardFoeRefusal`)."
     }
   ]
 }
