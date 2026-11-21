@@ -17,9 +17,9 @@ const WD = M("magic", "ward.mjs");
 const CW = M("magic", "cast-workflow.mjs");
 const MUTATIONS = [
   { name: "P the phrase never marked", file: ED, from: "    if (turns !== null && UNTIL_YOUR_TURN_START.test(String(text ?? \"\"))) {", to: "    if (false) {" },
-  { name: "P 'its next turn' marked too", file: ED, from: "export const UNTIL_YOUR_TURN_START = /until the (?:start|beginning) of your next turn/i;", to: "export const UNTIL_YOUR_TURN_START = /until the (?:start|beginning) of (?:your|its|their) next turn/i;" },
+  { name: "P 'its next turn' marked too", file: ED, from: "const UNTIL_YOUR_TURN_START = /until the (?:start|beginning) of your next turn/i;", to: "const UNTIL_YOUR_TURN_START = /until the (?:start|beginning) of (?:your|its|their) next turn/i;" },
   { name: "C out of an encounter too", file: ED, from: "  if (!parsed?.untilTurnStart || !inCombat) return null;", to: "  if (!parsed?.untilTurnStart) return null;" },
-  { name: "C the backstop a single round", file: ED, from: "export const TURN_START_BACKSTOP_SECONDS = 12;", to: "export const TURN_START_BACKSTOP_SECONDS = 6;" },
+  { name: "C the backstop a single round", file: ED, from: "const TURN_START_BACKSTOP_SECONDS = 12;", to: "const TURN_START_BACKSTOP_SECONDS = 6;" },
   { name: "C the round clock kept", file: SE, from: "    out.expiresRound = null;\n    out.spellEffectEnd = atTurnStart.backstopEnd;", to: "    out.spellEffectEnd = atTurnStart.backstopEnd;" },
   { name: "C the caster never stamped", file: SE, from: "    if (parsedDuration?.untilTurnStart && caster?.uuid) parsedDuration.turnStartOf = caster.uuid;", to: "" },
   { name: "W the ward's writer drops the stamp", file: SE, from: "          if (timing.turnStartOf) effectFlags[SYSTEM_ID].endsAtTurnStartOf = timing.turnStartOf;", to: "" },

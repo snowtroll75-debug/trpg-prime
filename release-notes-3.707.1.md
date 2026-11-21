@@ -54,4 +54,18 @@ So it could end before the caster's next turn (an ally who acts first, or a cast
 
 ## Testing
 
-RESULTS_PLACEHOLDER
+- **Core verify:** all 394 verify scripts at the final commit, in a clean worktree, with the packs restored after each. **All pass.** Four checks in older scripts were re-anchored first (below).
+- **Core mutation:** every mutation script that reads a changed file or carries a pin, run in their own worktree: 262 scripts. **262 of 262 pass.** Four had anchors on lines this release reshaped and were re-anchored, then re-run.
+- **Re-anchored** (the same rule, on its new line):
+  - `verify-session-decisions-1015` D4b (the relay's carried options);
+  - `verify-session-fixes-0829` D4 (the sweep refuses what is not due);
+  - `mutate-effect-expiry` R3;
+  - `mutate-chapter7-critical-211-220` I;
+  - `mutate-session-fixes-0829` (three anchors).
+- **Not run this release:** the two long whole-tree mutation scripts (`mutate-fixes-3685-3b`, `mutate-checks-read-source`, about 55 min each). They passed on 3.706.1; a run started at 3.707.0 was stopped when the session paused. Not counted.
+- **Modules:** every verify script of Pillars of Faith 0.12.6, Inner Tempest 1.0.4 and Eldritch Arts 0.17.2 gives **identical results** on 3.707.1 and 3.706.1. The failures, on both, are:
+  - the modules' own version pins;
+  - Inner Tempest's missing book file;
+  - one Eldritch Arts script that errors on both.
+- **Pack:** a record diff against 3.707.0 shows exactly one change: Stone Shield's row gains `foes: 1`. The other packs are byte-identical.
+- **Live Foundry:** not yet run. The Test world is on 3.706.1.

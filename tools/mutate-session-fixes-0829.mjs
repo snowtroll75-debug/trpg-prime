@@ -60,16 +60,16 @@ const MUTATIONS = [
     // RE-ANCHORED 3.613.0: R14's source-traits stamp sits before the update.
     // RE-ANCHORED 3.648.0: the non-valued branch is now told apart by the
     // Quickened limit that follows its source-traits stamp.
-    from: "      const updates = buildTimingUpdates({\n        expiresRound: allowed, duration, spellEffect, spellEffectEnd, castId,\n        ...(wasAlreadyPresent ? {} : {\n          endsWith: timing.endsWith, expiresTime: timing.expiresTime, followOn: timing.followOn\n        })\n      });\n      if (!wasAlreadyPresent && Array.isArray(sourceTraits) && sourceTraits.length) {\n        updates[`flags.${SYSTEM_ID}.${SOURCE_TRAITS_FLAG}`] = sourceTraits;\n      }\n      /*\n       * WHAT QUICKENED'S POINT MAY BUY",
-    to: "      const updates = buildTimingUpdates({\n        expiresRound: timing.expiresRound, duration, spellEffect, spellEffectEnd, castId,\n        ...(wasAlreadyPresent ? {} : {\n          endsWith: timing.endsWith, expiresTime: timing.expiresTime, followOn: timing.followOn\n        })\n      });\n      if (!wasAlreadyPresent && Array.isArray(sourceTraits) && sourceTraits.length) {\n        updates[`flags.${SYSTEM_ID}.${SOURCE_TRAITS_FLAG}`] = sourceTraits;\n      }\n      /*\n       * WHAT QUICKENED'S POINT MAY BUY",
+    from: "      const updates = buildTimingUpdates({\n        expiresRound: allowed, duration, spellEffect, spellEffectEnd, castId,\n        ...(wasAlreadyPresent ? {} : {\n          endsWith: timing.endsWith, expiresTime: timing.expiresTime, followOn: timing.followOn,\n          endsAtTurnStartOf\n        })\n      });\n      if (!wasAlreadyPresent && Array.isArray(sourceTraits) && sourceTraits.length) {\n        updates[`flags.${SYSTEM_ID}.${SOURCE_TRAITS_FLAG}`] = sourceTraits;\n      }\n      /*\n       * WHAT QUICKENED'S POINT MAY BUY",
+    to: "      const updates = buildTimingUpdates({\n        expiresRound: timing.expiresRound, duration, spellEffect, spellEffectEnd, castId,\n        ...(wasAlreadyPresent ? {} : {\n          endsWith: timing.endsWith, expiresTime: timing.expiresTime, followOn: timing.followOn,\n          endsAtTurnStartOf\n        })\n      });\n      if (!wasAlreadyPresent && Array.isArray(sourceTraits) && sourceTraits.length) {\n        updates[`flags.${SYSTEM_ID}.${SOURCE_TRAITS_FLAG}`] = sourceTraits;\n      }\n      /*\n       * WHAT QUICKENED'S POINT MAY BUY",
     to_note: "non-valued branch only",
     breaks: "A7/A9 — one of the two branches goes back to the defect"
   },
   {
     file: EFFECTS,
     name: "the rule is told we always placed the effect",
-    from: "        weApplied: !wasAlreadyPresent,\n        existing: effect?.getFlag?.(SYSTEM_ID, EXPIRY_FLAG) ?? null,\n        incoming: timing.expiresRound\n      });\n      const updates = buildTimingUpdates({\n        expiresRound: allowed, duration, spellEffect, spellEffectEnd, castId,\n        ...(wasAlreadyPresent ? {} : {\n          endsWith: timing.endsWith, expiresTime: timing.expiresTime, followOn: timing.followOn\n        })\n      });\n      if (!wasAlreadyPresent && Array.isArray(sourceTraits) && sourceTraits.length) {\n        updates[`flags.${SYSTEM_ID}.${SOURCE_TRAITS_FLAG}`] = sourceTraits;\n      }\n      /*\n       * WHAT QUICKENED'S POINT MAY BUY",
-    to: "        weApplied: true,\n        existing: effect?.getFlag?.(SYSTEM_ID, EXPIRY_FLAG) ?? null,\n        incoming: timing.expiresRound\n      });\n      const updates = buildTimingUpdates({\n        expiresRound: allowed, duration, spellEffect, spellEffectEnd, castId,\n        ...(wasAlreadyPresent ? {} : {\n          endsWith: timing.endsWith, expiresTime: timing.expiresTime, followOn: timing.followOn\n        })\n      });\n      if (!wasAlreadyPresent && Array.isArray(sourceTraits) && sourceTraits.length) {\n        updates[`flags.${SYSTEM_ID}.${SOURCE_TRAITS_FLAG}`] = sourceTraits;\n      }\n      /*\n       * WHAT QUICKENED'S POINT MAY BUY",
+    from: "        weApplied: !wasAlreadyPresent,\n        existing: effect?.getFlag?.(SYSTEM_ID, EXPIRY_FLAG) ?? null,\n        incoming: timing.expiresRound\n      });\n      const updates = buildTimingUpdates({\n        expiresRound: allowed, duration, spellEffect, spellEffectEnd, castId,\n        ...(wasAlreadyPresent ? {} : {\n          endsWith: timing.endsWith, expiresTime: timing.expiresTime, followOn: timing.followOn,\n          endsAtTurnStartOf\n        })\n      });\n      if (!wasAlreadyPresent && Array.isArray(sourceTraits) && sourceTraits.length) {\n        updates[`flags.${SYSTEM_ID}.${SOURCE_TRAITS_FLAG}`] = sourceTraits;\n      }\n      /*\n       * WHAT QUICKENED'S POINT MAY BUY",
+    to: "        weApplied: true,\n        existing: effect?.getFlag?.(SYSTEM_ID, EXPIRY_FLAG) ?? null,\n        incoming: timing.expiresRound\n      });\n      const updates = buildTimingUpdates({\n        expiresRound: allowed, duration, spellEffect, spellEffectEnd, castId,\n        ...(wasAlreadyPresent ? {} : {\n          endsWith: timing.endsWith, expiresTime: timing.expiresTime, followOn: timing.followOn,\n          endsAtTurnStartOf\n        })\n      });\n      if (!wasAlreadyPresent && Array.isArray(sourceTraits) && sourceTraits.length) {\n        updates[`flags.${SYSTEM_ID}.${SOURCE_TRAITS_FLAG}`] = sourceTraits;\n      }\n      /*\n       * WHAT QUICKENED'S POINT MAY BUY",
     breaks: "A8 — every application claims ownership and the guard is bypassed"
   },
 
@@ -166,8 +166,10 @@ const MUTATIONS = [
   {
     file: EFFECTS,
     name: "the sweep stops refusing what is not yet due",
-    from: "    if (Number(currentRound) < Number(expiresRound)) continue;",
-    to: "    if (false) continue;",
+    // RE-ANCHORED 3.707.1: the round test moved into `dueAtTurnStart`, and
+    // the turn-start stamp joined the guarded block above.
+    from: "  if (ends !== undefined && ends !== null && Number(round) >= Number(ends)) return true;",
+    to: "  if (ends !== undefined && ends !== null) return true;",
     breaks: "D4 — sweeping everybody now deletes every timed condition immediately"
   }
 ];
