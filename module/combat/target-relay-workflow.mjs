@@ -132,7 +132,7 @@ export async function relayConditionTags(target, tags, options, applyDirect) {
   // its cast id and its traits, and the GM's client must lay it the same way.
   const carried = {};
   // …AND WHOSE TURN START ENDS IT (3.707.1).
-  for (const key of ["duration", "spellEffect", "spellEffectEnd", "castId", "sourceTraits", "endsAtTurnStartOf"]) {
+  for (const key of ["duration", "spellEffect", "spellEffectEnd", "castId", "sourceTraits", "endsAtTurnStartOf", "endsAtTurnEndOf"]) {
     if (options?.[key] !== undefined && options?.[key] !== null) carried[key] = options[key];
   }
   const reply = await ask(RELAY_ACTIONS.CONDITIONS, target, {

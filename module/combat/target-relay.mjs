@@ -376,6 +376,10 @@ export async function performRelay(request, deps) {
         sourceTraits: carried.sourceTraits ?? null,
         // A UUID, NOTHING ELSE (3.707.1): who ends it, at their turn start.
         endsAtTurnStartOf: typeof carried.endsAtTurnStartOf === "string" ? carried.endsAtTurnStartOf : null,
+        // TWO STRINGS, NOTHING ELSE (3.707.2): who, and the turn of the cast.
+        endsAtTurnEndOf: carried.endsAtTurnEndOf && typeof carried.endsAtTurnEndOf.of === "string"
+          ? { of: carried.endsAtTurnEndOf.of, castTurn: String(carried.endsAtTurnEndOf.castTurn ?? "") }
+          : null,
         expiresRound: payload.expiresRound ?? null
       });
       return { ok: true, result: applied };

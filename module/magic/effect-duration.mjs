@@ -136,6 +136,60 @@ export function turnStartClock(parsed, { inCombat = false, worldTime = 0 } = {})
 /** Two rounds of world time — see `turnStartClock`. */
 const TURN_START_BACKSTOP_SECONDS = 12;
 
+/**
+ * THE CLOCK FOR "UNTIL THE END OF YOUR NEXT TURN" (3.707.2).
+ *
+ * Ends when the caster's NEXT turn ends. "Next" is the turn after the one in
+ * progress at the cast: a cast in the caster's own turn outlasts that turn's
+ * end, and a reaction cast on somebody else's turn ends with the caster's
+ * coming one. So the stamp carries the turn it was cast in — the round and
+ * the combatant then acting, the same pair the turn-end sweep is handed —
+ * and that one turn's end is passed over.
+ *
+ * THE BACKSTOP is three rounds of world time: the end of the caster's next
+ * turn is at most two round boundaries away, so it cannot come first.
+ *
+ * Pure. `parsed.turnEndOf` is the caster's uuid.
+ *
+ * @param {object|null} parsed
+ * @param {{inCombat: boolean, worldTime: number, round: number, combatantId: string}} now
+ * @returns {{turnEndOf: {of: string, castTurn: string}, backstopEnd: number}|null}
+ */
+export function turnEndClock(parsed, { inCombat = false, worldTime = 0, round = 0, combatantId = "" } = {}) {
+  if (!parsed?.untilTurnEnd || !inCombat) return null;
+  const who = String(parsed.turnEndOf ?? "").trim();
+  if (!who) return null;
+  return {
+    turnEndOf: { of: who, castTurn: turnKey(round, combatantId) },
+    backstopEnd: Number(worldTime || 0) + TURN_END_BACKSTOP_SECONDS
+  };
+}
+
+/** Three rounds of world time — see `turnEndClock`. */
+const TURN_END_BACKSTOP_SECONDS = 18;
+
+/** A turn, named the same way at the cast and at its end (3.707.2). */
+export function turnKey(round, combatantId) {
+  return `${Math.trunc(Number(round) || 0)}:${String(combatantId ?? "")}`;
+}
+
+/**
+ * Is this effect due as this turn ends? Pure (3.707.2): it ends "at the end of
+ * your next turn", this is that caster's turn ending, and it is not the turn
+ * the spell was cast in.
+ *
+ * @param {{of?: string, castTurn?: string}|null} stamp
+ * @param {{turnOfUuid: string, endingTurn: string}} now
+ */
+export function dueAtTurnEnd(stamp, { turnOfUuid = "", endingTurn = "" } = {}) {
+  const of = String(stamp?.of ?? "");
+  if (!of || !turnOfUuid || of !== String(turnOfUuid)) return false;
+  return String(stamp?.castTurn ?? "") !== String(endingTurn);
+}
+
+/** "Until the end of YOUR next turn" — the caster's (3.707.2). */
+const UNTIL_YOUR_TURN_END = /until the end of your next turn/i;
+
 /** "Until the start (or beginning) of YOUR next turn" — the caster's (3.707.1). */
 const UNTIL_YOUR_TURN_START = /until the (?:start|beginning) of your next turn/i;
 
@@ -210,6 +264,12 @@ export function parseSpellDuration(text) {
     // "YOUR" only: "their/its next turn" names a turn that is not the caster's.
     if (turns !== null && UNTIL_YOUR_TURN_START.test(String(text ?? ""))) {
       return { rounds: turns, seconds: turns * 6, sustained, untilTurnStart: true };
+    }
+    // "UNTIL THE END OF YOUR NEXT TURN" ENDS AT THE END OF THE CASTER'S NEXT
+    // TURN (3.707.2; Graham, 21 November 2026, asked whether it should be
+    // tied to the caster's own turn as the start was: "Yes").
+    if (turns !== null && UNTIL_YOUR_TURN_END.test(String(text ?? ""))) {
+      return { rounds: turns, seconds: turns * 6, sustained, untilTurnEnd: true };
     }
     if (turns !== null) return { rounds: turns, seconds: turns * 6, sustained };
     return sustained ? { rounds: null, seconds: null, sustained: true } : null;

@@ -134,9 +134,9 @@ const OTHER = "Scene.s.Token.orc.Actor.o";
   const EA = read("module", "combat", "effect-application-workflow.mjs");
   ok("R2 the condition writer stamps it, only on a condition it laid",
     /if \(endsAtTurnStartOf\) updates\[`flags\.\$\{SYSTEM_ID\}\.\$\{TURN_START_FLAG\}`\] = String\(endsAtTurnStartOf\);/.test(EA)
-    && (EA.match(/endsWith: timing\.endsWith, expiresTime: timing\.expiresTime, followOn: timing\.followOn,\n\s+endsAtTurnStartOf\n/g) ?? []).length === 2);
-  ok("R3 and hands it to the GM's client", /\{ expiresRound, duration, spellEffect, spellEffectEnd, castId, sourceTraits, endsAtTurnStartOf \},/.test(EA)
-    && /"sourceTraits", "endsAtTurnStartOf"\]\)/.test(read("module", "combat", "target-relay-workflow.mjs")));
+    && (EA.match(/endsWith: timing\.endsWith, expiresTime: timing\.expiresTime, followOn: timing\.followOn,\n\s+endsAtTurnStartOf, endsAtTurnEndOf\n/g) ?? []).length === 2);
+  ok("R3 and hands it to the GM's client", /\{ expiresRound, duration, spellEffect, spellEffectEnd, castId, sourceTraits, endsAtTurnStartOf, endsAtTurnEndOf \},/.test(EA)
+    && /"sourceTraits", "endsAtTurnStartOf", "endsAtTurnEndOf"\]\)/.test(read("module", "combat", "target-relay-workflow.mjs")));
   const R = await mod("combat", "target-relay.mjs");
   const seen = [];
   await R.performRelay({ action: R.RELAY_ACTIONS.CONDITIONS, uuid: "Actor.a", payload: { tags: [{ key: "prone" }], options: { endsAtTurnStartOf: CASTER } } },

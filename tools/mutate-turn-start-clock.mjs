@@ -27,7 +27,7 @@ const MUTATIONS = [
   { name: "S the stamp never read", file: EA, from: "      endsAtTurnStartOf: effect.getFlag?.(SYSTEM_ID, TURN_START_FLAG)\n", to: "      endsAtTurnStartOf: null\n" },
   { name: "S the turn not named at the sweep", file: CB, from: "      for (const label of await expireTimedConditions(subject, this.round, { turnOf: actor })) {\n        // THE SENTENCE MOVED OUT AT 3.514.0", to: "      for (const label of await expireTimedConditions(subject, this.round)) {\n        // THE SENTENCE MOVED OUT AT 3.514.0" },
   { name: "R the condition writer drops it", file: EA, from: "  if (endsAtTurnStartOf) updates[`flags.${SYSTEM_ID}.${TURN_START_FLAG}`] = String(endsAtTurnStartOf);", to: "" },
-  { name: "R the relay does not carry it", file: TRW, from: "\"sourceTraits\", \"endsAtTurnStartOf\"]) {", to: "\"sourceTraits\"]) {" },
+  { name: "R the relay does not carry it", file: TRW, from: "\"sourceTraits\", \"endsAtTurnStartOf\", \"endsAtTurnEndOf\"]) {", to: "\"sourceTraits\", \"endsAtTurnEndOf\"]) {" },
   { name: "R the GM's client trusts any value", file: TR, from: "        endsAtTurnStartOf: typeof carried.endsAtTurnStartOf === \"string\" ? carried.endsAtTurnStartOf : null,", to: "        endsAtTurnStartOf: carried.endsAtTurnStartOf ?? null," },
   { name: "C the sheet shows the backstop", file: SE, from: "  if (effect?.flags?.[SYSTEM_ID]?.endsAtTurnStartOf) return \"Until the start of the caster's next turn\";", to: "" },
   { name: "F several foes allowed", file: WD, from: "  if (n === limit) return \"\";", to: "  if (n >= limit) return \"\";" },

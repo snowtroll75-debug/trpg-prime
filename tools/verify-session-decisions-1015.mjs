@@ -74,7 +74,7 @@ equal("D3b the Yulussil conceals itself, its own effect not the enemies' mirror;
 ok("D4a an unowned creature's conditions are relayed, the GM's re-entry is direct",
   /if \(!direct && actor && actor\.isOwner === false\) \{\n    const \{ relayConditionTags \}/.test(src.eff)
   && /applyConditionTags\(target, tags, \{ \.\.\.options, direct: true \}\)/.test(src.rw));
-ok("D4b the spell's clock, cast id and traits travel with them", /for \(const key of \["duration", "spellEffect", "spellEffectEnd", "castId", "sourceTraits", "endsAtTurnStartOf"\]\)/.test(src.rw) // re-anchored at 3.707.1: and the turn-start stamp
+ok("D4b the spell's clock, cast id and traits travel with them", /for \(const key of \["duration", "spellEffect", "spellEffectEnd", "castId", "sourceTraits", "endsAtTurnStartOf", "endsAtTurnEndOf"\]\)/.test(src.rw) // re-anchored at 3.707.1 and 3.707.2: and the turn stamps
   && /castId: carried\.castId \?\? null,/.test(src.rl) && /duration: carried\.duration \?\? null,/.test(src.rl));
 {
   const RL = await import(new URL("../module/combat/target-relay.mjs", import.meta.url));

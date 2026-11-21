@@ -1636,6 +1636,27 @@ export class TRGCombat extends Combat {
     // stasis return above: no turn passes for a creature in stasis.
     Hooks.callAll("trgPrimeTurnEnded", { actor, combatant, combat: this });
 
+    // "UNTIL THE END OF YOUR NEXT TURN" (3.707.2; Graham, 21 November 2026):
+    // ended as its caster's next turn ends, for every creature carrying it.
+    // `context.round`, for the reason resolveTurnEndFall below gives: the
+    // combat has already advanced. The turn the spell was cast in is passed
+    // over — see magic/effect-duration.mjs's `turnEndClock`.
+    {
+      const { expireAtTurnEnd } = await import("../combat/effect-application-workflow.mjs");
+      const ended = [];
+      const swept = new Set();
+      for (const other of this.combatants ?? []) {
+        const subject = other?.actor;
+        if (!subject || swept.has(subject.uuid)) continue;
+        swept.add(subject.uuid);
+        for (const label of await expireAtTurnEnd(subject, { turnOf: actor, round: context?.round ?? this.round, combatantId: combatant.id })) {
+          const said = effectExpiredLine(label, subject === actor ? "" : subject.name);
+          if (said) ended.push(TRGCombat.#chatLine(said));
+        }
+      }
+      if (ended.length) await TRGCombat.#postTurnCard(actor, "Spells end", ended);
+    }
+
     // Flat-Footed from every source OTHER than Chapter 4 Step 4 — a
     // critical hit, a basic action's outcome — expires at the end of its
     // owner's turn, as it always has. Step 4's own Flat-Footed no longer
