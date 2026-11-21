@@ -100,7 +100,7 @@ ok("E5 once per round, by combat and round", amb.ambushRoundKey("c1", 3) === "c1
 ok("E6 the dice join the precision dice under their own name, and are announced after the damage",
   /precisionDice: precisionDice \+ compoundPrecision \+ ambushDice,/.test(aw) && /ambushDice \? \{ dice: ambushDice, label: ambush\.declared\.label,/.test(aw) && /Hooks\.callAll\("trgPrimeAmbushDealt", \{ actor, target: targetActor, weapon, dice: ambushDice, label: ambush\.declared\.label \}\);/.test(aw));
 ok("E7 a cause that needs a person is asked on the hit, never with Shift", /let take = ambush\.cause === "auto";\s*if \(!take && !skipDialog\(event\) && DialogV2\) \{/.test(aw));
-ok("E8 a Feint or a Diversion that lands records who left the target flat-footed", /if \(\["feint", "createADiversion"\]\.includes\(action\.key\) && targetActor\?\.hasCondition\?\.\("flatFooted"\) && targetActor\.setFlag\) \{\s*await targetActor\.setFlag\(SYSTEM_ID, "flatFootedFrom", \{ uuid: actor\.uuid,/.test(read("module", "combat", "action-workflow.mjs")));
+ok("E8 a Feint or a Diversion that lands records who left the target flat-footed", /if \(\["feint", "createADiversion"\]\.includes\(action\.key\)\) \{\s*await recordInflictedBy\(targetActor, actor, "flatFootedFrom", \{ action: action\.key \}\);/.test(read("module", "combat", "action-workflow.mjs")));
 
 /* F — Strike options, the group trait, the reaction penalty */
 equal("F1 considered flanked: the flanking bonus unless flanked already or unflankable", [

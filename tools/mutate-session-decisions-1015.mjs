@@ -27,7 +27,7 @@ const MUTATIONS = [
   { name: "an unowned creature's conditions are written locally", file: EF, from: "  if (!direct && actor && actor.isOwner === false) {", to: "  if (false) {", breaks: "D4a" },
   { name: "the GM's re-entry relays again", file: RW, from: "applyConditionTags(target, tags, { ...options, direct: true }),", to: "applyConditionTags(target, tags, options),", breaks: "D4a" },
   { name: "the cast id is dropped on the GM's side", file: RL, from: "        castId: carried.castId ?? null,\n", to: "", breaks: "D4c" },
-  { name: "the offer is GM-only again", file: OPP, from: "whisper: [...new Set([...ChatMessage.getWhisperRecipients(\"GM\").map((u) => u.id), ...reactorOwners])],", to: "whisper: ChatMessage.getWhisperRecipients(\"GM\").map((u) => u.id),", breaks: "D5" },
+  { name: "the offer is GM-only again", file: OPP, from: "}, { reactors: reactors.map(({ actor }) => actor).filter(Boolean), anchor: provokerToken?.actor ?? null });", to: "}, { reactors: [], anchor: provokerToken?.actor ?? null });", breaks: "D5" },
   { name: "Ready is free", file: AW, from: "      await commitActionCost(actor, action, readied, action.apCost, action.name, { traits: action.traits });\n      await readyActionAndEndTurn", to: "      await readyActionAndEndTurn", breaks: "D6" },
   { name: "the fist comes first", file: AW, from: "      .sort((a, b) => Number(Boolean(a.system?.natural)) - Number(Boolean(b.system?.natural)));", to: ";", breaks: "D7" },
   { name: "the Endeavour buttons sit in one row again", file: CSS, from: "  flex-direction: column;\n  align-items: stretch;\n  gap: 4px;\n}", to: "  gap: 4px;\n}", breaks: "D8" },

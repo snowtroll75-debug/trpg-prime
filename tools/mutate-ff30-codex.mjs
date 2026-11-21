@@ -67,7 +67,7 @@ const MUTATIONS = [
   { name: "Life Drain never heals", file: DASW, from: "    if (spec.selfHeal > 0) {", to: "    if (false) {", breaks: "B18" },
   { name: "Elemental Strikes ride nothing", file: RIDERS, from: ", ...elementalStrikeRiders(actor, weapon)]", to: "]", breaks: "B19" },
   { name: "Pack Attack adds no die", file: ATTACK, from: "  const packDice = packAttackDice(actor, targetToken, { attackerToken });", to: "  const packDice = 0;", breaks: "B20" },
-  { name: "the grapple is not recorded", file: ACTION, from: "        await targetActor.setFlag(SYSTEM_ID, \"grabbedBy\", { uuid: actor.uuid, name: actor.name, round: Number(game.combat?.round ?? 0) });", to: "        void 0;", breaks: "B21" },
+  { name: "the grapple is not recorded", file: ACTION, from: "        await recordInflictedBy(targetActor, actor, \"grabbedBy\");", to: "        void 0;", breaks: "B21" },
   { name: "MAP is charged on Monstrous Grab", file: ACTION, from: "  if (countsTowardMAP(action.traits) && !mapExempt) {", to: "  if (countsTowardMAP(action.traits)) {", breaks: "B22" },
   { name: "Fearful Strength never swaps", file: ACTOR, from: "      skill.ability = swap;\n", to: "", breaks: "B23" },
   { name: "the kill is announced to nobody", file: DYING, from: "    Hooks.callAll(\"trgPrimeCreatureSlain\", { victim: actor, sourceName, sourceLevel, deathCase: result.case });\n", to: "", breaks: "B24" },

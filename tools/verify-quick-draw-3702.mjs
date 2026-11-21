@@ -90,7 +90,9 @@ const wf = read("module", "combat", "action-feats-workflow.mjs");
   ok("D3 ...with the grip chosen", /changes\["system\.twoHandedGrip"\] = drawn\.grip;/.test(h));
   ok("D4 ...before the Strike, which is made with it", h.indexOf("await weapon.update(changes);") < h.indexOf('await strikePlan(actor, weapon, "quick draw");') && h.indexOf("await weapon.update(changes);") > 0);
   ok("D5 the card names the weapon drawn", /draws <strong>\$\{esc\(weapon\?\.name \?\? "a weapon"\)\}<\/strong> and strikes in one motion/.test(h));
-  ok("D6 a refused Strike leaves the weapon drawn, and says so", /checks\.refused \? line\(`<em>\$\{esc\(weapon\?\.name \?\? "The weapon"\)\} stays in hand/.test(h));
+  // 3.706.0 (Graham: a refused Strike costs a Strike feat nothing): no Strike, no draw, no AP.
+  ok("D6 a refused Strike puts the weapon back, and says so", /const unmade = !checks\.resolved;\n\s+if \(unmade && weapon && before\) await weapon\.update\(before\);/.test(h)
+    && /goes back where it was: no Strike, so no draw/.test(h) && /const before = weapon \? quickDrawRestore\(weapon\.system\) : null;/.test(h));
   ok("D7 no fallback to a weapon already in hand", !/meleeWeapon\(actor\)/.test(h));
 }
 
@@ -107,8 +109,8 @@ const wf = read("module", "combat", "action-feats-workflow.mjs");
 /* G — the version ----------------------------------------------------------- */
 {
   const sys = JSON.parse(read("system.json"));
-  equal("G1 the version and the download name 3.705.2", [sys.version, sys.download, JSON.parse(read("package.json")).version],
-    ["3.705.2", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.705.2/trg-prime.zip", "3.705.2"]);
+  equal("G1 the version and the download name 3.706.0", [sys.version, sys.download, JSON.parse(read("package.json")).version],
+    ["3.706.0", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.706.0/trg-prime.zip", "3.706.0"]);
 }
 
 console.log(`verify-quick-draw-3702: ${checks} checks${failures.length ? ` — ${failures.length} FAILED` : " — all green."}`);

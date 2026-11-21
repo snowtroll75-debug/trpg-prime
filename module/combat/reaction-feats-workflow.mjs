@@ -174,8 +174,10 @@ export async function offerReactionFeats({ trigger, headline, candidates = [], c
     ? heldRows.map((h) => line(`<em>${esc(h.actorName)} — ${esc(h.label)}: ${esc(h.reason)}.</em>`)).join("")
     : "";
 
-  return ChatMessage.create({
-    whisper: ChatMessage.getWhisperRecipients("GM").map((u) => u.id),
+  // THE GM'S ALONE, AUTHORED BY THE GM (3.706.0; Graham: "players should
+  // not be able to read this card"). See offer-card.mjs.
+  const { postOfferCard } = await import("./offer-card.mjs");
+  return postOfferCard({
     content:
       `<div class="trg-prime trg-check-card">`
       + `<header class="check-header"><div class="check-heading"><h3>Reaction</h3></div></header>`
@@ -184,7 +186,7 @@ export async function offerReactionFeats({ trigger, headline, candidates = [], c
       + heldText
       + `</div>`,
     flags: { [SYSTEM_ID]: { [CARD_FLAG]: { trigger, context, rows, used: [] } } }
-  });
+  }, { anchor: candidates.find((c) => c?.actor?.uuid)?.actor ?? null });
 }
 
 /* ------------------------------------------------------------------ */

@@ -90,6 +90,7 @@ import { consumeThrownWeapon } from "./thrown-weapons.mjs";
 import { damageCardSummary } from "./damage-summary.mjs";
 import { skipDialog } from "../apps/check-dialog.mjs";
 import { spendActionPoints } from "./action-points-workflow.mjs";
+import { recordInflictedBy } from "./basic-action-conditions.mjs";
 import { clearAimIfOtherAction } from "./aim.mjs";
 import { needsReloading, extractLoadValue, extractMagazine } from "./reload.mjs";
 import { hitLocationFromUnitDie, locationCoveredByArmour, armourAtLocation, armourPieceCoversLocation, armourContributesToHit, wholeBodyArmour, withWholeBodyArmour, HIT_LOCATION_LABELS } from "./hit-location.mjs";
@@ -690,6 +691,13 @@ export async function rollWeaponAttack(actor, weapon, {
   // THE REACH TRAIT'S -2 WAIVED FOR THIS STRIKE (3.704.0): a Lunge made in
   // Lunging Stance, whose "penalties … are completely negated" (3.705.1).
   waiveReachPenalty = false,
+  // A FEAT'S COST, PAID WHEN ITS STRIKE IS MADE (3.706.0). Called once this
+  // Strike has passed every refusal (reach, range, load, free hand,
+  // Sanctuary's lock-out), where a Strike's own 1 AP is spent. Asked whether
+  // a weapon feat whose Strike is refused should still cost its AP, Graham
+  // ruled (21 November 2026) that it should not. See action-feats-workflow
+  // `strikePlan`.
+  commitCost = null,
   // XITHRA AND SCREECH (3.643.0, F&F 3.0 block 13 R6): a weapon marked
   // `viaAbility` is struck only through that ability's Use.
   viaAbility = false,
@@ -1385,6 +1393,8 @@ export async function rollWeaponAttack(actor, weapon, {
     // ITS STEP LAPSE WAITS FOR THE ROLL (3.684.6, `deferNextAction`): a Strike
     // stopped before it is rolled (Sanctuary) keeps Agile Display's Step.
   }
+  // THE FEAT'S AP, NOW THAT ITS STRIKE IS BEING MADE (3.706.0).
+  if (typeof commitCost === "function") await commitCost();
   await recordTraitUsage(actor, strikeTraits);
   // A STRIKE THAT WAS MADE: Agile Display's Step goes, unless it was the
   // reaction's (3.684.6). After the roll below, and where a Strike made ends
@@ -3448,7 +3458,8 @@ export async function rollWeaponAttack(actor, weapon, {
   const grabOnly = isGrabOnly(weapon);
   if (grabOnly && outcome.hits && targetActor) {
     await applyConditionTags(targetActor, [{ key: "grabbed", label: "Grabbed" }], {});
-    if (targetActor.setFlag) await targetActor.setFlag(SYSTEM_ID, "grabbedBy", { uuid: actor.uuid, name: actor.name, round: Number(game.combat?.round ?? 0) });
+    // WHO HOLDS IT, THROUGH THE GM WHEN NEED BE (3.706.0; see recordInflictedBy).
+    await recordInflictedBy(targetActor, actor, "grabbedBy");
     await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }),
       content: `<div class="trg-prime trg-check-card">${line(grabOnlyLine(actor.name, targetActor.name, weapon.name, Boolean(outcome.critical)))}</div>` });
   }
@@ -3482,7 +3493,7 @@ export async function rollWeaponAttack(actor, weapon, {
     const { hasGrabTrait, grabTraitLine } = await import("./grab-only.mjs");
     if (strikeLands && outcome.hits && targetActor && hasGrabTrait(weapon)) {
       await applyConditionTags(targetActor, [{ key: "grabbed", label: "Grabbed" }], {});
-      if (targetActor.setFlag) await targetActor.setFlag(SYSTEM_ID, "grabbedBy", { uuid: actor.uuid, name: actor.name, round: Number(game.combat?.round ?? 0) });
+      await recordInflictedBy(targetActor, actor, "grabbedBy");
       await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<div class="trg-prime trg-check-card">${line(grabTraitLine(actor.name, targetActor.name, weapon.name))}</div>` });
     }
   }
@@ -3918,14 +3929,16 @@ export async function rollWeaponAttack(actor, weapon, {
       if (!noReactions) await offerReactiveDisarm(targetActor, actor, weapon);
       const jaw = noReactions ? null : savageJawOffer(Array.from(targetActor.items ?? []), { melee: true });
       if (jaw) {
-        await ChatMessage.create({
+        // THE DEFENDER'S OFFER (3.706.0): the GM and its own players only.
+        const { postOfferCard } = await import("./offer-card.mjs");
+        await postOfferCard({
           speaker: ChatMessage.getSpeaker({ actor: targetActor }),
           content: `<div class="trg-prime trg-check-card"><header class="check-header"><div class="check-heading"><span class="check-actor">${targetActor.name}</span><h3>${jaw.item.name} — Savage Jaw</h3></div></header>${
             line(`<strong>${actor.name} fumbled.</strong> Your Reaction is available: an Attack Check against ${actor.name} at your usual melee attack bonus.`)
           }${
             line(`On a hit, <strong>${jaw.damage} ${jaw.damageType}</strong> damage plus your ability modifier.`)
           }</div>`
-        });
+        }, { reactors: [targetActor] });
       }
     }
   }
@@ -4035,6 +4048,10 @@ export async function rollWeaponAttack(actor, weapon, {
       total: Number(check?.outcome?.total ?? check?.total ?? NaN)
     });
   }
+  // WHOM IT WAS AGAINST (3.706.0): Combat Grapple grabs the creature its
+  // Strike hit, which the feat cannot otherwise know once the Strike's own
+  // target question has been answered.
+  if (check && typeof check === "object") check.strikeTarget = targetActor ?? null;
   return check;
 }
 

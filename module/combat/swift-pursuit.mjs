@@ -75,7 +75,10 @@ async function offerSwiftPursuit(moverToken, reactors) {
         `<div style="margin:3px 0"><button type="button" class="trg-pursuit-button" data-action="takeSwiftPursuit" data-reactor="${ranger.id}">${ranger.name} — Swift Pursuit (reaction)</button></div>`
     )
     .join("");
-  return ChatMessage.create({
+  // THE GM AND THE RANGERS' OWN PLAYERS (3.706.0), not whoever moved. See
+  // offer-card.mjs.
+  const { postOfferCard } = await import("./offer-card.mjs");
+  return postOfferCard({
     speaker: { alias: "Swift Pursuit" },
     content:
       `<div class="trg-prime trg-check-card">` +
@@ -95,7 +98,7 @@ async function offerSwiftPursuit(moverToken, reactors) {
         }
       }
     }
-  });
+  }, { reactors: reactors.map(({ ranger }) => ranger).filter(Boolean), anchor: moverToken?.actor ?? null });
 }
 
 /** The button: re-check the reaction, spend it, print the movement. */

@@ -19,6 +19,7 @@ import { actorReactionBlock, FLAT_FOOTED_BLOCK } from "./reactions.mjs";
 import { chooseMeleeAttack, usableAttacks, getOrCreateUnarmedStrike } from "./strike.mjs";
 import { weaponReachExtension } from "./attack.mjs";
 import { spendReaction } from "./action-points-workflow.mjs";
+import { lungeWeapons, lungingStanceActive, lungingStanceThreatExtension } from "./action-feats.mjs";
 import {
   effectiveReach,
   movementProvokes,
@@ -60,6 +61,24 @@ export function reachOf(token) {
   const actor = token?.actor;
   const base = Number(actor?.system?.combat?.reach) || 5;
   return effectiveReach(base, equippedReachExtension(actor));
+}
+
+/**
+ * How far this token threatens for an Attack of Opportunity (3.706.0): its
+ * reach, and in Lunging Stance the range achievable with Lunge — see
+ * action-feats.mjs `lungingStanceThreatExtension`. Only the provoking
+ * measurements read it; a Charge's reach and every Strike still read
+ * `reachOf`.
+ */
+export function opportunityReachOf(token) {
+  const actor = token?.actor;
+  const base = Number(actor?.system?.combat?.reach) || 5;
+  const { eligible, reachAlready } = lungeWeapons(Array.from(actor?.items ?? []));
+  const stance = lungingStanceActive(Array.from(actor?.appliedEffects ?? actor?.effects ?? [])
+    .map((e) => ({ name: e?.name, disabled: e?.disabled, flags: e?.flags })));
+  return effectiveReach(base, lungingStanceThreatExtension(equippedReachExtension(actor), {
+    stance, wieldingMelee: eligible.length + reachAlready.length > 0
+  }));
 }
 
 /** The reactor's best melee weapon for an AoO (never a missile weapon). */
@@ -219,7 +238,8 @@ export function movementReactors(moverToken, movement) {
   const reactors = [];
   const blocked = [];
   for (const enemy of hostileTokens(moverToken)) {
-    const reach = reachOf(enemy);
+    // LUNGING STANCE THREATENS AS FAR AS A LUNGE (3.706.0).
+    const reach = opportunityReachOf(enemy);
     const departedFeet = departed.map((p) => feetFromPointToToken(p, enemy));
     // THREATENED FIRST, ELIGIBLE SECOND. The old order asked whether the
     // enemy could react before asking whether it was even involved, which
@@ -249,7 +269,7 @@ export function stationaryReactors(moverToken) {
   const blocked = [];
   for (const enemy of hostileTokens(moverToken)) {
     const feet = distanceBetween(moverToken, enemy);
-    if (feet === null || feet > reachOf(enemy)) continue;
+    if (feet === null || feet > opportunityReachOf(enemy)) continue;
     const elig = eligibleReactor(enemy);
     if (elig) reactors.push(elig);
     else {
@@ -279,8 +299,10 @@ async function offerAttacksOfOpportunity(provokerToken, found, triggerKind) {
   if (!reactors.length) {
     if (!blocked.length) return null;
     const provoker = provokerToken?.actor?.name ?? provokerToken?.name ?? "A creature";
-    return ChatMessage.create({
-      whisper: ChatMessage.getWhisperRecipients("GM").map((u) => u.id),
+    // THE GM'S, AUTHORED BY THE GM (3.706.0): who could not answer, and why,
+    // is not the mover's player's to read. See offer-card.mjs.
+    const { postOfferCard } = await import("./offer-card.mjs");
+    return postOfferCard({
       speaker: ChatMessage.getSpeaker({ actor: provokerToken?.actor ?? null }),
       content:
         `<div class="trg-prime trg-check-card">` +
@@ -290,7 +312,7 @@ async function offerAttacksOfOpportunity(provokerToken, found, triggerKind) {
           .map((b) => line(`<em>${b.actor.name} — ${b.reason}.</em>`))
           .join("") +
         `</div>`
-    });
+    }, { anchor: provokerToken?.actor ?? null });
   }
   const provokerName = provokerToken?.actor?.name ?? provokerToken?.name ?? "A creature";
   const buttons = reactors
@@ -311,12 +333,11 @@ async function offerAttacksOfOpportunity(provokerToken, found, triggerKind) {
   // AND TO EACH REACTOR'S OWN PLAYER (3.646.0). The offer was GM-only, so
   // the button the 3.645.0 fix showed to a reactor's owner was on a card that
   // owner never received — found live on 15 October 2026.
-  const reactorOwners = (game.users?.contents ?? Array.from(game.users ?? []))
-    .filter((u) => !u.isGM && reactors.some(({ actor }) => actor?.testUserPermission?.(u, "OWNER")))
-    .map((u) => u.id);
-  return ChatMessage.create({
+  // AND TO NOBODY ELSE (3.706.0): created by the GM's client when the mover's
+  // player is not one of its readers. See offer-card.mjs.
+  const { postOfferCard } = await import("./offer-card.mjs");
+  return postOfferCard({
     content,
-    whisper: [...new Set([...ChatMessage.getWhisperRecipients("GM").map((u) => u.id), ...reactorOwners])],
     speaker: ChatMessage.getSpeaker({ actor: provokerToken?.actor ?? null }),
     flags: {
       [SYSTEM_ID]: {
@@ -329,7 +350,7 @@ async function offerAttacksOfOpportunity(provokerToken, found, triggerKind) {
         }
       }
     }
-  });
+  }, { reactors: reactors.map(({ actor }) => actor).filter(Boolean), anchor: provokerToken?.actor ?? null });
 }
 
 /**

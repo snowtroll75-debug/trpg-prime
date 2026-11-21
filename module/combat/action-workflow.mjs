@@ -65,7 +65,7 @@ import { pushButtonsHtml } from "./forced-movement-workflow.mjs";
 import { involuntaryMovementPrompts } from "./forced-movement.mjs";
 import {
   basicActionConditionEffects,
-  applyBasicActionConditionEffects, climbingFlatFooted
+  applyBasicActionConditionEffects, climbingFlatFooted, recordInflictedBy
 } from "./basic-action-conditions.mjs";
 import {
   activeTakeCover, applyBasicActionStance, applyTakeCover, endTakeCover, takeCoverLevelOf
@@ -128,7 +128,7 @@ import { recordTraitUsage, traitGate, wordAftermathModifier } from "../traits-wo
 import { applyEscapeRoute } from "./escape.mjs";
 import { armCharge, chargeState } from "./charge-workflow.mjs";
 import { runDoubleSlice } from "./double-slice-workflow.mjs";
-import { activeToken } from "./geometry.mjs";
+import { activeToken, distanceBetween } from "./geometry.mjs";
 import { ACTION_REACH, actionReachRefusal, actionReachVerdict, actionWeaponExtension } from "./action-reach.mjs";
 import { lungeScopeFor } from "./lunge-scope.mjs";
 import { promptEscapeRoute } from "./escape-workflow.mjs";
@@ -632,6 +632,23 @@ function firstTargetActor() {
  */
 function firstTargetToken() {
   return game.user.targets?.first?.() ?? [...(game.user.targets ?? [])][0] ?? null;
+}
+
+/**
+ * Whether the targeted creature is adjacent to this actor (3.706.0), for the
+ * Whip's "Can't be used against adjacent creatures" on a Trip (see
+ * `maneuverWeapon`). False when positional automation is off or there is no
+ * pair of tokens to measure: the weapon is then used as before.
+ */
+function targetAdjacent(actor) {
+  let positional = true;
+  try { positional = game.settings.get(SYSTEM_ID, "positionalAutomation") !== false; } catch { positional = true; }
+  if (!positional) return false;
+  const mine = activeToken(actor);
+  const target = firstTargetToken();
+  if (!mine || !target) return false;
+  const feet = distanceBetween(mine, target);
+  return feet !== null && feet !== undefined && Number(feet) <= 5;
 }
 
 /**
@@ -1164,8 +1181,8 @@ function headerLines(action, effectiveApCost) {
  *   Knowledge) resolves differently depending on which skill the player
  *   clicked through to reach it.
  */
-function checkConfiguration(actor, action, invokedSkillKey, targetActor) {
-  const config = baseCheckConfiguration(actor, action, invokedSkillKey, targetActor);
+function checkConfiguration(actor, action, invokedSkillKey, targetActor, options = {}) {
+  const config = baseCheckConfiguration(actor, action, invokedSkillKey, targetActor, options);
   if (!config) return config;
 
   // THE MULTIPLE ATTACK PENALTY (page 191, Graham's R1 of the block-19
@@ -1196,7 +1213,7 @@ function checkConfiguration(actor, action, invokedSkillKey, targetActor) {
 }
 
 /** The modifiers the action's own check type brings, before the MAP. */
-function baseCheckConfiguration(actor, action, invokedSkillKey, targetActor) {
+function baseCheckConfiguration(actor, action, invokedSkillKey, targetActor, { targetAdjacent: adjacent = false } = {}) {
   const system = actor.system;
   const kind = ACTION_CHECK_TYPES[action.checkType] ?? ACTION_CHECK_TYPES.none;
 
@@ -1236,7 +1253,8 @@ function baseCheckConfiguration(actor, action, invokedSkillKey, targetActor) {
     // not an "Unarmed attack check".
     let madeWith = "";
     if (maneuverTrait) {
-      const weapon = maneuverWeapon(Array.from(actor.items ?? []), maneuverTrait);
+      // NOT THE WHIP AGAINST AN ADJACENT FOE (3.706.0; Graham: "Free hand").
+      const weapon = maneuverWeapon(Array.from(actor.items ?? []), maneuverTrait, { adjacent });
       if (weapon) madeWith = weapon.type === "shield" ? `Shield Bash attack with ${weapon.name}` : `Attack check with ${weapon.name}`;
       if (weapon) modifiers.push(...weaponManeuverModifiers(actor, weapon));
       // MADE WITH A SHIELD'S BASH (3.696.0, CD6): Ossuary Board's "gains the
@@ -2560,7 +2578,7 @@ export async function resolveAction(actor, action, {
     invokedSkillKey = chosen.invokedSkillKey ?? invokedSkillKey;
   }
 
-  const config = checkConfiguration(actor, action, invokedSkillKey, targetActor);
+  const config = checkConfiguration(actor, action, invokedSkillKey, targetActor, { targetAdjacent: targetAdjacent(actor) });
 
   // Actions with no check: the card is the whole workflow.
   if (!config) {
@@ -4936,11 +4954,13 @@ async function applyActionOutcome({
       // Inner Tempest's Unseen Assault needs a target "flat-footed to you as
       // a direct result of your own … Deception" (Graham's B4-3), and the
       // condition alone cannot say whose it is.
-      if (["feint", "createADiversion"].includes(action.key) && targetActor?.hasCondition?.("flatFooted") && targetActor.setFlag) {
-        await targetActor.setFlag(SYSTEM_ID, "flatFootedFrom", { uuid: actor.uuid, name: actor.name, action: action.key, round: Number(game.combat?.round ?? 0) });
+      // THROUGH THE GM WHEN THE TARGET IS NOT THIS CLIENT'S (3.706.0) — see
+      // `recordInflictedBy`; a player's direct write threw "lacks permission".
+      if (["feint", "createADiversion"].includes(action.key)) {
+        await recordInflictedBy(targetActor, actor, "flatFootedFrom", { action: action.key });
       }
-      if (action.key === "grappleAttack" && targetActor?.hasCondition?.("grabbed") && targetActor.setFlag) {
-        await targetActor.setFlag(SYSTEM_ID, "grabbedBy", { uuid: actor.uuid, name: actor.name, round: Number(game.combat?.round ?? 0) });
+      if (action.key === "grappleAttack") {
+        await recordInflictedBy(targetActor, actor, "grabbedBy");
       }
 
       // BREAKING OUT OF A SPELL'S HOLD (3.609.0). A success frees the actor

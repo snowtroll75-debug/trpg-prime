@@ -87,7 +87,7 @@ equal("B15 the curse: a humanoid left Bleeding by the critical, and nobody else"
 /* ---- source ---- */
 const src = { atk: read("module", "combat", "attack-workflow.mjs"), cw: read("module", "codex-actions-workflow.mjs"), dasw: read("module", "combat", "declared-after-strikes-workflow.mjs") };
 ok("S1 a grab-only hit Grabs, marks who holds it, and rolls neither injury nor damage",
-  /if \(grabOnly && outcome\.hits && targetActor\) \{\n\s+await applyConditionTags\(targetActor, \[\{ key: "grabbed", label: "Grabbed" \}\], \{\}\);\n\s+if \(targetActor\.setFlag\) await targetActor\.setFlag\(SYSTEM_ID, "grabbedBy"/.test(src.atk)
+  /if \(grabOnly && outcome\.hits && targetActor\) \{\n\s+await applyConditionTags\(targetActor, \[\{ key: "grabbed", label: "Grabbed" \}\], \{\}\);\n\s+\/\/ WHO HOLDS IT[^\n]*\n\s+await recordInflictedBy\(targetActor, actor, "grabbedBy"\);/.test(src.atk)
   && /const strikeLands = !grabOnly && !hitCondition && !spellCarried;/.test(src.atk)
   // Re-anchored at 3.671.0: a Strike its target cannot react to offers no critical replacement (C9).
   && /if \(strikeLands && outcome\.critical && !outcome\.critical\.injuryImmune && targetActor(?: && !noReactions)?\) \{/.test(src.atk)

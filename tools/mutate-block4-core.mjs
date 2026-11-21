@@ -45,7 +45,7 @@ const MUTATIONS = [
   { name: "the dice never reach the damage", file: AW, from: "      precisionDice: precisionDice + compoundPrecision + ambushDice,", to: "      precisionDice: precisionDice + compoundPrecision,", breaks: "E6" },
   { name: "Vanishing Retreat is never told", file: AW, from: "      Hooks.callAll(\"trgPrimeAmbushDealt\", { actor, target: targetActor, weapon, dice: ambushDice, label: ambush.declared.label });", to: "", breaks: "E6" },
   { name: "Shift still asks", file: AW, from: "      if (!take && !skipDialog(event) && DialogV2) {\n        take = Boolean(", to: "      if (!take && DialogV2) {\n        take = Boolean(", breaks: "E7" },
-  { name: "a Feint records nothing", file: ACW, from: "        await targetActor.setFlag(SYSTEM_ID, \"flatFootedFrom\", { uuid: actor.uuid,", to: "        await targetActor.setFlag(SYSTEM_ID, \"flatFootedFromX\", { uuid: actor.uuid,", breaks: "E8" },
+  { name: "a Feint records nothing", file: ACW, from: "        await recordInflictedBy(targetActor, actor, \"flatFootedFrom\", { action: action.key });", to: "        await recordInflictedBy(targetActor, actor, \"flatFootedFromX\", { action: action.key });", breaks: "E8" },
   // F
   { name: "considered flanked stacks on a real flank", file: SO, from: "  if (alreadyFlanking || cannotBeFlanked) return null;", to: "  if (cannotBeFlanked) return null;", breaks: "F1" },
   { name: "flat-footed loses only Dexterity", file: SO, from: "  return dex + dodge;", to: "  return dex;", breaks: "F2" },

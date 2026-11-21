@@ -29,19 +29,17 @@ function canReact(actor) {
 }
 
 async function offerCard(actor, item, spec, why) {
-  const whisper = [...new Set([
-    ...ChatMessage.getWhisperRecipients("GM").map((u) => u.id),
-    ...game.users.filter((u) => !u.isGM && actor.testUserPermission?.(u, "OWNER")).map((u) => u.id)
-  ])];
   const mode = spec.speedKey === "land" ? "" : ` (${spec.speedKey})`;
-  return ChatMessage.create({
+  // THE GM AND THE CREATURE'S OWN PLAYERS ONLY, NOT THE ATTACKER'S (3.706.0).
+  // See combat/offer-card.mjs.
+  const { postOfferCard } = await import("./combat/offer-card.mjs");
+  return postOfferCard({
     speaker: ChatMessage.getSpeaker({ actor }),
-    whisper,
     content: `<div class="trg-prime trg-check-card"><header class="check-header"><div class="check-heading"><span class="check-actor">${actor.name}</span><h3>${spec.label}</h3></div></header>`
       + line(`${why} Reaction: move up to <strong>${spec.feet} feet</strong>${mode}${spec.provokes ? "" : ", provoking no reactions"}.`)
       + `<p style="margin:6px 0 2px"><button type="button" data-action="creatureReactionMove">${spec.label}</button></p></div>`,
     flags: { [SYSTEM_ID]: { [FLAG]: { actorUuid: actor.uuid, spec, used: false } } }
-  });
+  }, { reactors: [actor] });
 }
 
 /** The moving token as it will stand at `at`, for the measurement. */

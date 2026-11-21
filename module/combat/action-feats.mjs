@@ -410,6 +410,42 @@ export function distractingStrike({ hits = false, critical = false } = {}) {
   return { damage: Boolean(critical), flatFooted: true };
 }
 
+/**
+ * WHERE A QUICK-DRAWN WEAPON GOES BACK TO (3.706.0): the three fields the
+ * draw changes, as they stood before it. Put back when the Strike is
+ * refused, so a Quick Draw that made no Strike drew nothing and cost
+ * nothing (Graham, 21 November 2026). Pure.
+ *
+ * @param {object} system the weapon's system data before the draw
+ * @returns {object} an update
+ */
+export function quickDrawRestore(system = {}) {
+  return {
+    "system.equipped": Boolean(system?.equipped),
+    "system.stowed": Boolean(system?.stowed),
+    "system.twoHandedGrip": Boolean(system?.twoHandedGrip)
+  };
+}
+
+/**
+ * COMBAT GRAPPLE'S GRAB (3.706.0). "If the Strike hits, you may use your free
+ * hand to automatically Grab your target. The target remains grabbed until
+ * the end of your next turn or until they manage to break free with an
+ * Escape check, whichever occurs first." Asked whether the feat should apply
+ * Grabbed rather than only say so, Graham ruled (21 November 2026): "Yes".
+ *
+ * A hit grabs; in an encounter the grab lasts to the end of the grappler's
+ * next turn (one round on, the clock every "until the end of your next turn"
+ * keeps); out of one there is no clock to keep. Pure.
+ *
+ * @param {{hits?: boolean, inCombat?: boolean, round?: number}} p
+ * @returns {{grab: boolean, expiresRound: number|null}}
+ */
+export function combatGrappleGrab({ hits = false, inCombat = false, round = 0 } = {}) {
+  if (!hits) return { grab: false, expiresRound: null };
+  return { grab: true, expiresRound: inCombat ? (Number(round) || 0) + 1 : null };
+}
+
 /* ------------------------------------------------------------------ */
 /* Striding Charge                                                     */
 /* ------------------------------------------------------------------ */
@@ -577,6 +613,35 @@ export function lungingStanceActive(effects = []) {
     if (own.lungePenaltiesNegated) return true;
     return Boolean(own.featStance) && normalise(e.name) === "lunging stance";
   });
+}
+
+/** The 5 ft a Lunge adds: the Reach trait's. */
+const LUNGE_REACH_FEET = 5;
+
+/**
+ * LUNGING STANCE'S ATTACKS OF OPPORTUNITY (3.706.0). The feat: "Whilst in this
+ * stance, you have the capability to make an Attack of Opportunity against an
+ * opponent positioned beyond your regular reach but still within the range
+ * achievable with Lunge. By doing so, you extend the reach of your Strike by
+ * 5 feet. Furthermore, any penalties associated with performing standard
+ * Lunge strikes are completely negated." Graham, 21 November 2026: "Please
+ * automate" (it was the one part of R-0001 left to the table).
+ *
+ * The range achievable with Lunge is your reach with the Reach trait: 5 ft
+ * further, or a held reach weapon's own reach where that is longer (Lunge
+ * adds nothing to a weapon that already has it, 3.704.0). In the stance and
+ * wielding a melee weapon (its requirement), that is how far an Attack of
+ * Opportunity threatens. The Strike itself is made at no penalty: an
+ * Attack of Opportunity is never measured again once offered, and the
+ * stance negates the Reach -2 besides. Pure.
+ *
+ * @param {number} weaponExtension what a held melee weapon already adds (feet)
+ * @param {{stance?: boolean, wieldingMelee?: boolean}} p
+ * @returns {number} the extension an Attack of Opportunity threatens with
+ */
+export function lungingStanceThreatExtension(weaponExtension = 0, { stance = false, wieldingMelee = false } = {}) {
+  const extension = Math.max(0, Number(weaponExtension) || 0);
+  return stance && wieldingMelee ? Math.max(extension, LUNGE_REACH_FEET) : extension;
 }
 
 /**

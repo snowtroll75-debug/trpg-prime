@@ -112,6 +112,25 @@ export const RELAY_ACTIONS = Object.freeze({
   // grabbed-by record and a Shove's push are all writes on a creature the
   // player does not own. The asker must own the actor whose total it is.
   ACTION_AT_TOTAL: "target.actionAtTotal",
+  // A CONDITION WITH A CLOCK, LAID BY A PLAYER ON THE GM'S CREATURE
+  // (3.706.0; found in the player-perspective live test of 3.705.1). The
+  // status toggle already crossed the socket (3.666.1), but its expiry
+  // ("until the end of your next turn") and its conditionals were then
+  // stamped on the effect from the player's client: "User PC Tester lacks
+  // permission to update ActiveEffect", and a player's successful Grapple
+  // lost its outcome card. The whole list goes to the GM's client instead,
+  // and is laid there exactly as the action lays it.
+  CONDITION_EFFECTS: "target.conditionEffects",
+  // WHO LAID IT (3.706.0): the grabbed-by and flat-footed-from records a
+  // Grapple, a Feint or a Grab trait writes on the target. Named kinds; the
+  // GM's client builds the record from the asker's own creature.
+  INFLICTED_BY: "target.inflictedBy",
+  // A REACTION'S OFFER, POSTED BY THE GM'S CLIENT (3.706.0; Graham, 21
+  // November 2026: "players should not be able to read this card"). A
+  // whisper's author always reads it, so an offer raised by a player's move
+  // or attack is created on the GM's client, for the GM and the reactors'
+  // own players only.
+  OFFER_CARD: "target.offerCard",
   RESULT: "target.result",
   // "I HAVE IT, AND IT MAY TAKE A WHILE" (3.673.0). Sent by the GM's client
   // the moment it takes a request, before carrying it out. A request that
@@ -129,6 +148,75 @@ export const RELAY_ACTIONS = Object.freeze({
 // "soulDestroyed" joined at 3.666.1: Soul Destruction's rung marks the body
 // for a later Resurrection, and a player's cast wrote it directly.
 const INJURY_RECORD_KINDS = Object.freeze(["persistence", "fatal", "location", "air", "ppDrain", "apWatch", "soulDestroyed"]);
+
+/** The records an INFLICTED_BY request may write (3.706.0), and the condition each needs. */
+export const INFLICTED_BY_KINDS = Object.freeze({ grabbedBy: "grabbed", flatFootedFrom: "flatFooted" });
+
+/**
+ * The record an INFLICTED_BY request writes, built from the asker's creature
+ * (3.706.0). The same shape the action writes when it may write directly.
+ * Null for a kind that is not one of the two. Pure.
+ *
+ * @param {string} kind "grabbedBy" | "flatFootedFrom"
+ * @param {{uuid: string, name: string}} actor who laid the condition
+ * @param {{action?: string, round?: number}} [context]
+ */
+export function inflictedByRecord(kind, actor, { action = "", round = 0 } = {}) {
+  if (!Object.hasOwn(INFLICTED_BY_KINDS, kind) || !actor?.uuid) return null;
+  const base = { uuid: String(actor.uuid), name: String(actor.name ?? ""), round: Number(round) || 0 };
+  return kind === "flatFootedFrom" ? { uuid: base.uuid, name: base.name, action: String(action ?? ""), round: base.round } : base;
+}
+
+/**
+ * The condition effects a CONDITION_EFFECTS request may lay (3.706.0): on the
+ * target only, a condition key, on or off, a numeric value, and conditionals
+ * as plain data. Anything else is dropped. Pure.
+ *
+ * @param {Array<object>} effects as `basicActionConditionEffects` returns them
+ * @returns {Array<object>}
+ */
+export function relayableConditionEffects(effects = []) {
+  return (Array.isArray(effects) ? effects : [])
+    .filter((e) => e && e.target === "target" && typeof e.conditionKey === "string" && e.conditionKey.trim())
+    .map((e) => {
+      const out = { target: "target", conditionKey: e.conditionKey.trim(), active: e.active !== false };
+      if (e.value !== undefined && e.value !== null && Number.isFinite(Number(e.value))) out.value = Number(e.value);
+      if (Array.isArray(e.conditionals) && e.conditionals.length) out.conditionals = JSON.parse(JSON.stringify(e.conditionals));
+      return out;
+    });
+}
+
+/** The system flags a relayed offer card may carry (3.706.0). */
+export const OFFER_CARD_FLAGS = Object.freeze([
+  "reactionFeatCard", "aooCard", "reactiveDisarm", "reactionMove", "knifeFlurryCard", "swiftPursuitCard"
+]);
+
+/**
+ * The ChatMessage data the GM's client creates for a relayed offer card
+ * (3.706.0): its content, speaker and whisper as plain data, and only the
+ * system's own offer flags. `knownUserIds` limits the whisper to real users;
+ * an empty whisper is refused (null), since an offer is never public. Pure.
+ *
+ * @param {object} payload {content, speaker, whisper, flags}
+ * @param {string[]} knownUserIds
+ * @returns {object|null}
+ */
+export function relayableOfferCard(payload = {}, knownUserIds = []) {
+  const known = new Set(knownUserIds.map(String));
+  const whisper = (Array.isArray(payload?.whisper) ? payload.whisper : []).map(String).filter((id) => known.has(id));
+  if (!whisper.length || typeof payload?.content !== "string") return null;
+  const speaker = {};
+  for (const key of ["scene", "actor", "token", "alias"]) {
+    const v = payload?.speaker?.[key];
+    if (v !== undefined && v !== null && v !== "") speaker[key] = String(v);
+  }
+  const ours = payload?.flags?.["trg-prime"] ?? {};
+  const flags = {};
+  for (const key of OFFER_CARD_FLAGS) {
+    if (ours[key] !== undefined) flags[key] = JSON.parse(JSON.stringify(ours[key]));
+  }
+  return { content: payload.content, speaker, whisper: [...new Set(whisper)], flags: { "trg-prime": flags } };
+}
 
 /** How long a client waits for the GM's answer before giving up. */
 export const RELAY_TIMEOUT_MS = 8000;
@@ -483,6 +571,39 @@ export async function performRelay(request, deps) {
       if (!INJURY_RECORD_KINDS.includes(kind)) return { ok: false, reason: `not an injury record: ${kind}` };
       const result = await deps.recordInjury(target, kind, payload.entry ?? {});
       return { ok: true, result: result ?? null };
+    }
+    case RELAY_ACTIONS.CONDITION_EFFECTS: {
+      // THE ASKER'S OWN CREATURE LAID THEM (3.706.0), as ACTION_AT_TOTAL asks:
+      // the inflictor is read for an inflicted floor (Korath's Demoralise).
+      const actor = await deps.fromUuid(String(payload.actorUuid ?? ""));
+      if (!actor) return { ok: false, reason: "the acting creature was not found" };
+      if (deps.userOwns?.(actor, String(request?.userId ?? "")) !== true) return { ok: false, reason: "the asker does not own the acting creature" };
+      const effects = relayableConditionEffects(payload.effects);
+      if (!effects.length) return { ok: false, reason: "no condition to lay" };
+      const rounds = Number(payload.expiresRound);
+      await deps.applyConditionEffects(actor, target, effects, {
+        expiresRound: Number.isFinite(rounds) && payload.expiresRound !== null ? Math.trunc(rounds) : null,
+        actionKey: payload.actionKey ? String(payload.actionKey) : null
+      });
+      return { ok: true, result: effects.length };
+    }
+    case RELAY_ACTIONS.INFLICTED_BY: {
+      const kind = String(payload.kind ?? "");
+      if (!Object.hasOwn(INFLICTED_BY_KINDS, kind)) return { ok: false, reason: `not an inflicted-by record: ${kind}` };
+      const actor = await deps.fromUuid(String(payload.actorUuid ?? ""));
+      if (!actor) return { ok: false, reason: "the acting creature was not found" };
+      if (deps.userOwns?.(actor, String(request?.userId ?? "")) !== true) return { ok: false, reason: "the asker does not own the acting creature" };
+      // ONLY WHILE THE CONDITION STANDS, as the action records it.
+      if (!target.hasCondition?.(INFLICTED_BY_KINDS[kind])) return { ok: false, reason: `${target.name ?? "the target"} is not ${INFLICTED_BY_KINDS[kind]}` };
+      const record = inflictedByRecord(kind, actor, { action: payload.action, round: deps.currentRound?.() ?? 0 });
+      await deps.setInflictedBy(target, kind, record);
+      return { ok: true, result: record };
+    }
+    case RELAY_ACTIONS.OFFER_CARD: {
+      const data = relayableOfferCard(payload, deps.knownUserIds?.() ?? []);
+      if (!data) return { ok: false, reason: "not an offer card" };
+      const created = await deps.createOfferCard(data);
+      return { ok: true, result: created?.id ?? null };
     }
     case RELAY_ACTIONS.DYING_AT: {
       const finalHP = Math.trunc(Number(payload.finalHP));

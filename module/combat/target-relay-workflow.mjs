@@ -450,6 +450,41 @@ export async function relayActionAtTotal(actor, target, payload, applyDirect) {
   return reply.ok ? reply.result : { ok: false, reason: reply.reason ?? "no answer", lines: [] };
 }
 
+/**
+ * Condition effects with their clock, laid on a creature this client may not
+ * write to (3.706.0) — see CONDITION_EFFECTS. True when the GM's client laid
+ * them.
+ */
+export async function relayConditionEffects(target, actor, effects, { expiresRound = null, actionKey = null } = {}, applyDirect) {
+  if (!needsRelay(target)) return applyDirect();
+  const reply = await ask(RELAY_ACTIONS.CONDITION_EFFECTS, target, {
+    actorUuid: actor?.uuid ?? "", effects, expiresRound, actionKey
+  });
+  return reply.ok;
+}
+
+/** Who grabbed it, or left it flat-footed, recorded on a creature this client may not write to (3.706.0). */
+export async function relayInflictedBy(target, actor, kind, { action = "" } = {}, applyDirect) {
+  if (!needsRelay(target)) return applyDirect();
+  const reply = await ask(RELAY_ACTIONS.INFLICTED_BY, target, { kind, actorUuid: actor?.uuid ?? "", action });
+  return reply.ok;
+}
+
+/**
+ * An offer card created by the GM's client (3.706.0) — see OFFER_CARD and
+ * combat/offer-card.mjs. `anchor` is any document the GM's client can find
+ * (the creature the card is about); nothing is written to it. Fire and
+ * forget: nothing waits on a card, and a table with no GM connected has
+ * nobody to take the offer.
+ */
+export function relayOfferCard(anchor, data) {
+  if (!anchor?.uuid) return Promise.resolve(false);
+  return ask(RELAY_ACTIONS.OFFER_CARD, anchor, data).then((reply) => {
+    if (!reply.ok) console.info(`TRG Prime | an offer card was not posted: ${reply.reason ?? "no answer"}`);
+    return reply.ok;
+  });
+}
+
 /** A Quick Donning result, set on a creature this client may not write to (3.703.0). */
 export async function relayQuickDonning(target, record, applyDirect) {
   if (!needsRelay(target)) return applyDirect();
@@ -583,6 +618,17 @@ async function liveDeps() {
     createCompanion: (data) => Actor.create(data),
     updateItem: (item, data) => item.update(data),
     setQuickDonning: (target, record) => target.setFlag("trg-prime", "quickDonning", record),
+    // A CONDITION'S CLOCK AND WHO LAID IT, ON THE GM'S CLIENT (3.706.0).
+    // `direct` stops the relay recursing — the GM already owns the target.
+    applyConditionEffects: async (actor, target, effects, opts) => {
+      const { applyBasicActionConditionEffects } = await import("./basic-action-conditions.mjs");
+      return applyBasicActionConditionEffects(effects, actor, target, { ...opts, direct: true });
+    },
+    setInflictedBy: (target, kind, record) => target.setFlag("trg-prime", kind, record),
+    currentRound: () => Number(game.combat?.round ?? 0),
+    // AN OFFER CARD, CREATED HERE SO ITS AUTHOR IS THE GM (3.706.0).
+    knownUserIds: () => Array.from(game.users ?? []).map((u) => u.id),
+    createOfferCard: (data) => ChatMessage.create(data),
     reply: (message) => game.socket.emit(RELAY_SOCKET, message),
     acknowledge: (message) => game.socket.emit(RELAY_SOCKET, message)
   };

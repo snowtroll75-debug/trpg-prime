@@ -52,19 +52,20 @@ export async function offerKnifeFlurry(actor, attackerToken, context = {}) {
   try {
     if (!hasKnifeFlurry(actor)) return null;
     const state = featStateFor(actor, "Knife Flurry");
-    const whisper = ChatMessage.getWhisperRecipients("GM").map((u) => u.id);
+    // THE GM'S AND THE KNIFE-WIELDER'S OWN PLAYERS', NOBODY ELSE'S (3.706.0).
+    // The feat is the player's own, so its player reads the card, as they
+    // did as its author; the button stays the GM's. See offer-card.mjs.
+    const { postOfferCard } = await import("./offer-card.mjs");
 
     if (!state.usable) {
-      return ChatMessage.create({
-        whisper,
+      return postOfferCard({
         content: `<div class="trg-prime trg-check-card">`
           + `<header class="check-header"><div class="check-heading"><h3>Knife Flurry</h3></div></header>`
           + `<p style="margin:2px 0"><em>${esc(actor.name)} — ${esc(state.reason)}.</em></p></div>`
-      });
+      }, { reactors: [actor] });
     }
 
-    return ChatMessage.create({
-      whisper,
+    return postOfferCard({
       content: `<div class="trg-prime trg-check-card">`
         + `<header class="check-header"><div class="check-heading"><h3>Knife Flurry</h3></div></header>`
         + `<p style="margin:2px 0"><strong>${esc(actor.name)}</strong>'s knife lands — a feint may follow.</p>`
@@ -74,7 +75,7 @@ export async function offerKnifeFlurry(actor, attackerToken, context = {}) {
         + `</div>`,
       // THE CREATURE, NOT ITS SHEET (3.612.1, H1 of the 3.612.0 drive).
       flags: { [SYSTEM_ID]: { [CARD_FLAG]: { actorId: actor.id, handle: actorHandle(actor, actor.token ?? null), context, used: false } } }
-    });
+    }, { reactors: [actor] });
   } catch (_error) {
     // Fire and forget, like everything hanging off a resolved attack: a
     // missing card must never disturb the swing that caused it.

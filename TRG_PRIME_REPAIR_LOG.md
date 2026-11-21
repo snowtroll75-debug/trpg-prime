@@ -423,3 +423,120 @@ No console errors. The world migration to 3.704.0 ran.
   - reaction offer cards are readable by the attacking player;
   - a weapon feat spends its AP before its Strike is checked;
   - Lunging Stance's Attack of Opportunity reach.
+
+---
+
+## R-0006 to R-0011 — Graham's answers to the player-perspective live test (3.706.0)
+
+These six repairs went into one release, 3.706.0, so they share a source state, a test run and a delivery. Each has its own diagnosis and change below.
+
+### Source state
+
+- **Starting version:** 3.705.2, on branch `fix/live-test-3705-2` at `23d1ed2`. It has not been installed or live-tested.
+- **Working tree:** clean. Work is on the new branch `fix/live-test-rulings`.
+- **Remote:** unchanged; nothing pushed.
+- **Rulings:** Graham, 21 November 2026, answering the questions of R-0005's report:
+  1. "Free hand"
+  2. "Yes"
+  3. "Yes"
+  4. "No"
+  5. "Please automate and players should not be able to read this card"
+
+### R-0006 — The Whip's adjacent Trip
+
+- **Ruling:** 1, "Free hand".
+- **Expected:** the Whip "Can't be used against adjacent creatures". Graham's ruling: a Trip against an adjacent foe is made with a free hand.
+- **Actual:** made "with Whip" (`maneuverWeapon` took the first equipped Trip-trait weapon), with its −4 for an exotic weapon.
+- **Change:**
+  - `maneuverWeapon(items, trait, { adjacent })` passes over a `noAdjacent` weapon when the target is adjacent.
+  - `resolveAction` measures adjacency (`targetAdjacent`: 5 ft or less, positional automation on) and hands it to the check.
+
+### R-0007 — Combat Grapple applies Grabbed
+
+- **Ruling:** 2, "Yes".
+- **Expected:** a hit Grabs the target until the end of the grappler's next turn or an Escape.
+- **Actual:** the card said so; nothing was applied.
+- **Change:**
+  - `combatGrappleGrab` (pure) gives the grab and its clock.
+  - The handler lays Grabbed on the creature struck (`check.strikeTarget`, newly returned by `rollWeaponAttack`) through `applyBasicActionConditionEffects`, and records grabbed-by.
+  - The card names the creature, and says when it couldn't be Grabbed.
+
+### R-0008 — A player's conditions on the GM's creature
+
+- **Found:** reproducing R-0007 live as PC Tester (3.705.1 installed). A successful Grapple Attack on ZZ Foe laid Grabbed (the toggle relays, 3.666.1), then threw "User PC Tester lacks permission to update ActiveEffect [VRd6sKfT8XezWOA6] in parent ActorDelta [wLo5jLR45eV7FbcN]". No outcome card was posted, no clock was stamped, and grabbed-by was not recorded.
+- **Expected:** the condition, its clock and who laid it, as when the GM acts.
+- **Actual:** the clock and conditionals were stamped, and `grabbedBy` and `flatFootedFrom` written, from the player's client. The same affected Feint, Create a Diversion, and both Grab strikes made by a player's creature.
+- **Change:**
+  - `applyBasicActionConditionEffects` hands the target's share to the GM's client when this client may not write it (`relayConditionsNeeded`; new request `CONDITION_EFFECTS`), and lays it there with `direct`.
+  - `recordInflictedBy` writes grabbed-by and flat-footed-from directly or through the GM's client (`INFLICTED_BY`). The GM's client builds the record and requires the condition.
+  - Both requests are accepted only for a creature the asking player owns.
+
+### R-0009 — Strike feats pay when their Strike is made
+
+- **Ruling:** 3, "Yes".
+- **Expected:** a Strike feat whose Strike is refused costs nothing.
+- **Actual:** `runActionFeat` spent the feat's AP before the attack workflow could refuse its Strike (Vital Strike at 15 ft: 2 AP gone, "No Strike was made").
+- **Change:**
+  - `paysAtStrike` names the feats whose handler is a Strike.
+  - `runActionFeat` doesn't spend for them.
+  - `strikePlan` gives `rollWeaponAttack` a `commitCost` that spends the feat's AP once, after every refusal, where a Strike's own AP is spent.
+  - The card adds "No AP was spent." when none was.
+  - Quick Draw puts the weapon back (`quickDrawRestore`) when its Strike is refused.
+
+### R-0010 — Lunging Stance's Attacks of Opportunity
+
+- **Ruling:** 5, "Please automate".
+- **Expected:** in the stance, an Attack of Opportunity reaches as far as a Lunge would.
+- **Actual:** not automated (left to the table since R-0001).
+- **Change:**
+  - `lungingStanceThreatExtension` (pure) and `opportunityReachOf` decide how far a reactor threatens; the provoking measurements read it.
+  - A Charge and a Strike still read `reachOf`.
+  - The stance's card says so.
+
+### R-0011 — Reaction offers hidden from the players they're not for
+
+- **Ruling:** 5, "players should not be able to read this card".
+- **Expected:** a reaction offer is read by the GM and the reactors' own players only.
+- **Actual:**
+  - The offers raised by a player's move or attack were created on the player's client, and a whisper's author reads it.
+  - Reactive Disarm and Savage Jaw weren't whispered at all.
+- **Change:**
+  - `postOfferCard` (`combat/offer-card.mjs`) whispers to `offerRecipients` (GMs, and the reactors' owners). It creates the card here only when this client is a reader; otherwise the GM's client creates it (`OFFER_CARD`, fire and forget).
+  - Used by:
+    - Attacks of Opportunity, and "nobody in reach can answer";
+    - the reaction feats;
+    - creature reaction moves;
+    - Knife Flurry (read by the GM and the wielder's own players);
+    - Swift Pursuit;
+    - Reactive Disarm and Savage Jaw.
+
+### Not changed
+
+- **Lunge's tooltip** (ruling 4, "No").
+
+### Testing
+
+- `verify-live-rulings-3706`: 62 pass. `mutate-live-rulings-3706`: 29 of 29 caught.
+- **Re-anchored, intent unchanged:**
+  - `verify-block4-core` E8;
+  - `verify-ff30-codex` B21;
+  - `verify-ff30-block19` S1;
+  - `verify-ff30-block24` S4;
+  - `verify-quick-draw-3702` D6;
+  - `verify-session-decisions-1015` D5;
+  - their mutation anchors.
+- **Core:**
+  - Scope: every script reading a changed file or carrying a pin, plus the whole-tree checks.
+  - 246 verify scripts and 206 mutation scripts, plus `verify-checks-read-source`, `mutate-fixes-3685-3b` (56 min) and `mutate-checks-read-source` (50 min). **All pass.**
+  - Two mutation anchors went stale and were re-anchored, then passed:
+    - `mutate-fixes-3692-0`: the asker-owns line now appears in three relay cases;
+    - `mutate-live-findings-3705-2`: Quick Draw's card tail.
+  - Knife Flurry's readers were corrected afterwards, and the seven scripts reading it re-ran and pass.
+- **Modules:** the 21 module verify scripts that read a changed core file give the same results as on 3.703.1. The failures are the modules' own version pins and a missing local book file, as before.
+- **Live Foundry:** not yet run for 3.706.0.
+
+### Delivery
+
+- **Version:** 3.706.0
+- **Branch:** `fix/live-test-rulings` (local, not pushed)
+- **Package:** `trg-prime.zip`

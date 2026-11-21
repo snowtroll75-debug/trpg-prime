@@ -86,8 +86,11 @@ ok("D4b the spell's clock, cast id and traits travel with them", /for \(const ke
   equal("D4c the GM's side lays the condition with the caster's options", [seen?.castId, seen?.spellEffect, seen?.duration, seen?.expiresRound], ["c1", true, { seconds: 60 }, 3]);
 }
 // D5
-ok("D5 the offer is whispered to each reactor's non-GM owner too", /\.filter\(\(u\) => !u\.isGM && reactors\.some\(\(\{ actor \}\) => actor\?\.testUserPermission\?\.\(u, "OWNER"\)\)\)/.test(src.opp)
-  && /whisper: \[\.\.\.new Set\(\[\.\.\.ChatMessage\.getWhisperRecipients\("GM"\)\.map\(\(u\) => u\.id\), \.\.\.reactorOwners\]\)\]/.test(src.opp));
+// Re-anchored at 3.706.0: the card goes through offer-card.mjs, which whispers
+// it to the GMs and to the players owning the reactors it is given
+// (`offerRecipients`, driven in verify-live-rulings-3706).
+ok("D5 the offer is whispered to each reactor's non-GM owner too", /\}, \{ reactors: reactors\.map\(\(\{ actor \}\) => actor\)\.filter\(Boolean\), anchor: provokerToken\?\.actor \?\? null \}\);/.test(src.opp)
+  && /const \{ postOfferCard \} = await import\("\.\/offer-card\.mjs"\);\n  return postOfferCard\(\{\n    content,/.test(src.opp));
 // D6
 ok("D6 Ready asks for and spends its own AP before ending the turn", /if \(!\(await ensureActionPoints\(actor, action\.apCost, action\.name, \{ traits: action\.traits \}\)\)\) return null;\n      await (?:spendActionCost\(actor|commitActionCost\(actor, action, readied), action\.apCost, action\.name, \{ traits: action\.traits \}\);\n      await readyActionAndEndTurn/.test(src.aw));
 // D7

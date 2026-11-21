@@ -2,6 +2,19 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.706.0 — 21 November 2026: Graham's answers to the player-perspective live test
+
+Branch `fix/live-test-rulings`, from 3.705.2. Full notes in `release-notes-3.706.0.md`; repair log R-0006 to R-0011.
+
+- **Whip, adjacent Trip:** made with a free hand ("Free hand"), not the Whip.
+- **Combat Grapple** applies Grabbed on a hit, with its clock and the grabbed-by record ("Yes").
+- **A player's conditions on the GM's creature** (found reproducing the above): the clock, the conditionals and who laid them are written by the GM's client. A player's Grapple used to throw a permission error and lose its outcome card.
+- **Strike feats pay when their Strike is made** ("Yes"): no AP for a refused Strike or a cancelled choice. Quick Draw puts the weapon back.
+- **Lunging Stance:** Attacks of Opportunity threaten as far as a Lunge reaches ("Please automate").
+- **Reaction offers** are read only by the GM and the reactors' own players, and created by the GM's client when need be ("players should not be able to read this card"). Reactive Disarm and Savage Jaw are no longer public.
+- **Lunge's tooltip:** unchanged ("No").
+- **Harness:** new `verify-live-rulings-3706` (62) / mutate (29); eight checks re-anchored; pins raised. No data or migration change.
+
 ## 3.705.2 — 21 November 2026: the player-perspective live test's findings
 
 Branch `fix/live-test-3705-2`, from 3.705.1. Full notes in `release-notes-3.705.2.md`; repair log R-0005; live report `live-testing-report-3.705.1-player.md`.

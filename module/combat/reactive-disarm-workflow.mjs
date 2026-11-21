@@ -26,13 +26,16 @@ export async function offerReactiveDisarm(defender, attacker, weapon) {
   const round = Number(game.combat?.round ?? 0);
   if (Number(defender.getFlag?.(SYSTEM_ID, "reactiveDisarmRound")) === round && game.combat?.started) return null;
   if (game.combat?.started && Number(defender.system?.resources?.reactions?.value ?? 0) < 1) return null;
-  return ChatMessage.create({
+  // THE DEFENDER'S OFFER, NOT THE FUMBLER'S TO READ (3.706.0): whispered to
+  // the GM and the defender's own players. See offer-card.mjs.
+  const { postOfferCard } = await import("./offer-card.mjs");
+  return postOfferCard({
     speaker: ChatMessage.getSpeaker({ actor: defender }),
     content: `<div class="trg-prime trg-check-card"><header class="check-header"><div class="check-heading"><span class="check-actor">${defender.name}</span><h3>Reactive Disarm</h3></div></header>${
       line(`<strong>${attacker.name} fumbled${weapon ? ` with ${weapon.name}` : ""}.</strong> Reaction: a Disarm attempt against ${attacker.name}, with no multiple attack penalty.`)
     }<p style="margin:6px 0 2px"><button type="button" data-action="reactiveDisarm">Disarm ${attacker.name}</button></p></div>`,
     flags: { [SYSTEM_ID]: { reactiveDisarm: { defenderUuid: defender.uuid, attackerUuid: attacker.uuid, round } } }
-  });
+  }, { reactors: [defender] });
 }
 
 async function pressReactiveDisarm(message) {

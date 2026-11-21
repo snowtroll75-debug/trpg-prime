@@ -99,7 +99,7 @@ const mod = (...p) => import(new URL(`../module/${p.join("/")}`, import.meta.url
 
 /* Z — the release ------------------------------------------------------ */
 const sys = JSON.parse(read("system.json"));
-equal("Z the version is 3.695.0, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.705.2/")], ["3.705.2", "3.705.2", true]);
+equal("Z the version is 3.695.0, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.706.0/")], ["3.706.0", "3.706.0", true]);
 
 console.log(`verify-fixes-3695-0: ${checks} checks — ${failures.length ? `${failures.length} FAILED` : "all green."}`);
 for (const f of failures) console.log(`  ✗ ${f}`);

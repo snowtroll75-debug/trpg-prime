@@ -50,7 +50,7 @@ ok("S3 a named kind's immunity is bypassed for that type only, its resistances a
   && /if \(packet\.immune && bypass && bypass === String\(type \?\? ""\)\.trim\(\)\.toLowerCase\(\)\) \{/.test(src.dw)
   && /\.filter\(\(t\) => t && t\.toLowerCase\(\) !== bypass\)/.test(src.dw));
 ok("S4 a landed grab-trait hit Grabs and marks the holder; a grab-only or carried-spell hit does not reach it",
-  /if \(strikeLands && outcome\.hits && targetActor && hasGrabTrait\(weapon\)\) \{\n\s+await applyConditionTags\(targetActor, \[\{ key: "grabbed", label: "Grabbed" \}\], \{\}\);\n\s+if \(targetActor\.setFlag\) await targetActor\.setFlag\(SYSTEM_ID, "grabbedBy", \{ uuid: actor\.uuid/.test(src.aw));
+  /if \(strikeLands && outcome\.hits && targetActor && hasGrabTrait\(weapon\)\) \{\n\s+await applyConditionTags\(targetActor, \[\{ key: "grabbed", label: "Grabbed" \}\], \{\}\);\n\s+await recordInflictedBy\(targetActor, actor, "grabbedBy"\);/.test(src.aw));
 
 const EXPECTED = 8;
 ok(`Z1 the check count is ${EXPECTED}`, checks + 1 === EXPECTED, `ran ${checks + 1}`);

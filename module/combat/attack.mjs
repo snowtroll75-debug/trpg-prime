@@ -349,17 +349,26 @@ export function traitsWithGranted(traits, grants = []) {
  * weapon" (3.575.0). It replaced `maneuverWeaponBonus`, which returned
  * only the item's own `attackBonus` field — 0 on every pack weapon.
  *
+ * NOT A WEAPON THAT CANNOT REACH AN ADJACENT TARGET (3.706.0). The Whip
+ * "Can't be used against adjacent creatures" (Chapter 6). Asked whether a
+ * Trip against an adjacent foe should then be refused or made with a free
+ * hand, Graham ruled (21 November 2026): "Free hand". So against an
+ * adjacent target a `noAdjacent` weapon is passed over, and the Trip is the
+ * ordinary unarmed one (or made with another trait weapon held).
+ *
  * @param {Array} weapons The actor's items.
  * @param {"shove"|"trip"} traitName
+ * @param {{adjacent?: boolean}} [options] the target is adjacent
  * @returns {object|null}
  */
-export function maneuverWeapon(weapons, traitName) {
+export function maneuverWeapon(weapons, traitName, { adjacent = false } = {}) {
   const pattern = new RegExp(`\\b${traitName}\\b`, "i");
   return (weapons ?? []).find(
     (item) =>
       item.type === "weapon" &&
       item.system?.equipped &&
-      pattern.test(String(item.system?.traits ?? ""))
+      pattern.test(String(item.system?.traits ?? "")) &&
+      !(adjacent && item.system?.noAdjacent === true)
   ) ?? bashTraitShield(weapons, traitName);
 }
 

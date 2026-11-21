@@ -25,6 +25,8 @@ import {
   SWIPE_MAX_TARGETS,
   VITAL_STRIKE_LOCATIONS,
   actionFeatState,
+  combatGrappleGrab,
+  quickDrawRestore,
   distractingStrike,
   ladderOwed,
   mapPlanFor,
@@ -58,9 +60,11 @@ const esc = (text) => String(text ?? "").replace(
 export function refusedLine(checks) {
   const refused = checks?.refused ?? 0;
   if (!refused) return "";
+  // AND NOTHING SPENT (3.706.0): a feat that pays at its Strike, none made.
+  const unpaid = checks?.unpaid ? " No AP was spent." : "";
   return line(refused === 1 && (checks?.resolved ?? 0) === 0
-    ? "<strong>No Strike was made</strong> — see the warning above for why. The multiple attack penalty was not advanced."
-    : `<strong>${refused} of the Strikes could not be made</strong> — see the warning above for why.`);
+    ? `<strong>No Strike was made</strong> — see the warning above for why. The multiple attack penalty was not advanced.${unpaid}`
+    : `<strong>${refused} of the Strikes could not be made</strong> — see the warning above for why.${unpaid}`);
 }
 
 /**
@@ -178,6 +182,14 @@ export async function strikePlan(actor, weapon, featKey, { extraModifiers = [], 
   if (noWeapon) {
     ui.notifications.warn(`${entry?.label ?? "This feat"}: you have no weapon to strike with.`);
   }
+  // THE FEAT'S AP, ONCE, AT THE FIRST STRIKE MADE (3.706.0; `paysAtStrike`).
+  const deferred = paysAtStrike(featKey);
+  let paid = false;
+  const commitCost = deferred ? async () => {
+    if (paid) return;
+    paid = true;
+    await spendActionCost(actor, entry.apCost, entry.label, { traits: entry.traits });
+  } : null;
   for (let i = 0; noWeapon ? false : i < plan.strikes; i += 1) {
     const token = targetsPerStrike[i] ?? null;
     if (token) token.setTarget(true, { user: game.user, releaseOthers: true });
@@ -188,6 +200,7 @@ export async function strikePlan(actor, weapon, featKey, { extraModifiers = [], 
       keepsStep,                  // Skirmish: its own Step is the same action
       grantTraits,                // Lunge: the Strike gains Reach
       waiveReachPenalty,          // Lunging Stance: the Reach -2 negated
+      commitCost,                 // a Strike feat's AP, when the Strike is made (3.706.0)
       mapFrozen: plan.frozen,
       skipTargetPrompt: Boolean(token),
       extraModifiers: [
@@ -219,7 +232,8 @@ export async function strikePlan(actor, weapon, featKey, { extraModifiers = [], 
   // Strike is the most confusing possible outcome; the warning that
   // refused it scrolls away, and the summary card would otherwise
   // describe an action that never happened.
-  return Object.assign(checks, { resolved, refused: plan.strikes - resolved });
+  // `unpaid` (3.706.0): a feat that pays at its Strike, none of them made.
+  return Object.assign(checks, { resolved, refused: plan.strikes - resolved, unpaid: deferred && !paid });
 }
 
 /* ------------------------------------------------------------------ */
@@ -296,6 +310,38 @@ const MELEE_WEAPON_FEATS = new Set([
 const ANY_WEAPON_FEATS = new Set(Object.entries(ACTION_FEATS)
   .filter(([, entry]) => entry.anyWeapon).map(([key]) => key));
 
+/**
+ * THE FEATS THAT ARE A STRIKE, AND PAY WHEN IT IS MADE (3.706.0).
+ *
+ * Found in the player-perspective live test of 3.705.1: Vital Strike against
+ * a target out of reach spent its 2 AP, then its Strike was refused ("No
+ * Strike was made"). Every feat here paid before the attack workflow could
+ * refuse its Strike — out of reach, out of range, unloaded, no free hand.
+ * Asked, Graham ruled (21 November 2026) that a refused Strike should not
+ * cost the feat's AP. So these pay through the Strike itself: `strikePlan`
+ * hands `rollWeaponAttack` a `commitCost` that spends the feat's AP once,
+ * at the first of its Strikes to pass every refusal. Lunge already pays
+ * this way (`strikePays`, its Strike's own 1 AP).
+ *
+ * The feats whose handler is a Strike (`strikePlan`); not Skirmish (its
+ * Strike comes later, from its button), Striding Charge or Void Step.
+ */
+const PAYS_AT_STRIKE = new Set([
+  "combat grapple", "distracting strike", "double shot", "quick draw",
+  "reverse strike", "swipe", "vital strike"
+]);
+
+/**
+ * Whether this feat's AP is spent by its Strike rather than up front (3.706.0).
+ *
+ * @param {string} key the feat key
+ * @returns {boolean}
+ */
+export function paysAtStrike(key) {
+  const entry = ACTION_FEATS[key];
+  return Boolean(entry) && PAYS_AT_STRIKE.has(key) && entry.apCost !== "0" && !entry.strikePays;
+}
+
 /* ------------------------------------------------------------------ */
 /* The eleven                                                          */
 /* ------------------------------------------------------------------ */
@@ -319,7 +365,8 @@ export async function runActionFeat(actor, item) {
   if (entry.draws) {
     const drawn = await readyToDraw(actor, entry.label);
     if (!drawn) return null;
-    await spendActionCost(actor, entry.apCost, entry.label, { traits: entry.traits });
+    // PAID WHEN ITS STRIKE IS MADE (3.706.0) — see `paysAtStrike`.
+    if (!paysAtStrike(state.key)) await spendActionCost(actor, entry.apCost, entry.label, { traits: entry.traits });
     const run = RUN[state.key];
     return run ? run(actor, item, entry, drawn) : null;
   }
@@ -332,7 +379,8 @@ export async function runActionFeat(actor, item) {
     : ANY_WEAPON_FEATS.has(state.key) ? await chooseAnyAttack(actor, entry.label) : undefined;
   if (chosen === null) return null;
   if (entry.apCost !== "0" && !entry.strikePays) {
-    await spendActionCost(actor, entry.apCost, entry.label, { traits: entry.traits });
+    // A STRIKE FEAT PAYS WHEN ITS STRIKE IS MADE (3.706.0) — see `paysAtStrike`.
+    if (!paysAtStrike(state.key)) await spendActionCost(actor, entry.apCost, entry.label, { traits: entry.traits });
   }
   const run = RUN[state.key];
   return run ? run(actor, item, entry, chosen ?? null) : null;
@@ -456,12 +504,29 @@ const RUN = {
     const checks = await strikePlan(actor, weapon, "combat grapple");
     const check = checks[0];
     const hit = Boolean(check?.attackOutcome?.hits);
+    // THE GRAB IS LAID, NOT ONLY SAID (3.706.0; Graham: "Yes"). Grabbed, its
+    // clock and who holds it, as a Grapple Attack lays them — through the
+    // GM's client when the target is not this player's (3.706.0).
+    const target = check?.strikeTarget ?? null;
+    const grab = combatGrappleGrab({ hits: hit && Boolean(target), inCombat: Boolean(game.combat?.started), round: game.combat?.round });
+    let grabbed = false;
+    if (grab.grab) {
+      const { applyBasicActionConditionEffects, recordInflictedBy } = await import("./basic-action-conditions.mjs");
+      await applyBasicActionConditionEffects([{ target: "target", conditionKey: "grabbed", active: true }], actor, target,
+        { expiresRound: grab.expiresRound });
+      grabbed = Boolean(target.hasCondition?.("grabbed"));
+      if (grabbed) await recordInflictedBy(target, actor, "grabbedBy");
+    }
     await card(actor, entry.label, [
       refusedLine(checks),
-      line(hit
-        ? `<strong>${esc(actor.name)}</strong> lands the blow and takes hold with the free hand — the target is <strong>Grabbed</strong>.`
-        : `<strong>${esc(actor.name)}</strong> misses, and there is nothing to take hold of.`),
-      hit ? line("<em>Grabbed until the end of your next turn, or until they Escape.</em>") : ""
+      line(!hit
+        ? `<strong>${esc(actor.name)}</strong> misses, and there is nothing to take hold of.`
+        : grabbed
+          ? `<strong>${esc(actor.name)}</strong> lands the blow and takes hold with the free hand — <strong>${esc(target?.name ?? "the target")}</strong> is <strong>Grabbed</strong>.`
+          : `<strong>${esc(actor.name)}</strong> lands the blow, but <strong>${esc(target?.name ?? "the target")}</strong> could not be Grabbed.`),
+      grabbed ? line(grab.expiresRound !== null
+        ? "<em>Grabbed until the end of your next turn, or until they Escape.</em>"
+        : "<em>Grabbed until the end of your next turn, or until they Escape — no encounter running, so clear it by hand.</em>") : ""
     ]);
     return struckOrNull(checks);
   },
@@ -535,6 +600,8 @@ const RUN = {
   // the Strike is refused (out of reach, no target): the Interact happened.
   async "quick draw"(actor, item, entry, drawn = null) {
     const weapon = drawn?.weapon ?? null;
+    // WHERE IT WAS, so a refused Strike puts it back (3.706.0).
+    const before = weapon ? quickDrawRestore(weapon.system) : null;
     if (weapon) {
       const changes = { "system.equipped": true };
       if (weapon.system?.stowed) changes["system.stowed"] = false;
@@ -542,10 +609,18 @@ const RUN = {
       await weapon.update(changes);
     }
     const checks = await strikePlan(actor, weapon, "quick draw");
+    // NO STRIKE, NO DRAW, NO AP (3.706.0). Quick Draw is one motion — the
+    // draw and the Strike — and Graham ruled that a refused Strike costs the
+    // feat nothing; a draw kept for free would be an Interact for 0 AP. The
+    // weapon goes back where it was. (3.702.0 to 3.705.2 kept it drawn,
+    // having already charged the AP.)
+    const unmade = !checks.resolved;
+    if (unmade && weapon && before) await weapon.update(before);
     await card(actor, entry.label, [
       refusedLine(checks),
-      line(`<strong>${esc(actor.name)}</strong> draws <strong>${esc(weapon?.name ?? "a weapon")}</strong> and strikes in one motion — the Interact and the Strike together for <strong>1 AP</strong>.`),
-      checks.refused ? line(`<em>${esc(weapon?.name ?? "The weapon")} stays in hand: the draw happened even though the Strike did not.</em>`) : ""
+      unmade
+        ? line(`<em>${esc(weapon?.name ?? "The weapon")} goes back where it was: no Strike, so no draw.</em>`)
+        : line(`<strong>${esc(actor.name)}</strong> draws <strong>${esc(weapon?.name ?? "a weapon")}</strong> and strikes in one motion — the Interact and the Strike together for <strong>1 AP</strong>.`)
     ]);
     return struckOrNull(checks);
   },

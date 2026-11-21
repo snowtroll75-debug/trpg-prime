@@ -68,15 +68,15 @@ const MUTATIONS = [
   { name: "E the grab's holder is not recorded", file: BW, from: "    await target.setFlag(SYSTEM_ID, \"grabbedBy\",", to: "    await target.setFlag(SYSTEM_ID, \"grabbedByX\"," },
   { name: "E the feinter is not recorded", file: BW, from: "    await target.setFlag(SYSTEM_ID, \"flatFootedFrom\",", to: "    await target.setFlag(SYSTEM_ID, \"flatFootedFromX\"," },
   { name: "E out of combat, no word", file: BW, from: "  if (!game.combat?.started && applied.some((e) => e.active) && (printedRounds", to: "  if (false && applied.some((e) => e.active) && (printedRounds" },
-  { name: "E the relay runs for anybody", file: TR, from: "      if (deps.userOwns?.(actor, String(request?.userId ?? \"\")) !== true) return { ok: false, reason: \"the asker does not own the acting creature\" };\n", to: "" },
+  { name: "E the relay runs for anybody", file: TR, from: "      if (deps.userOwns?.(actor, String(request?.userId ?? \"\")) !== true) return { ok: false, reason: \"the asker does not own the acting creature\" };\n      const total = Number(payload.total);", to: "      const total = Number(payload.total);" },
   { name: "E the relay runs with no total", file: TR, from: "      if (!Number.isFinite(total)) return { ok: false, reason: \"no total to resolve at\" };\n", to: "" },
   { name: "E the GM's client asks the relay again", file: TRW, from: "return resolveBasicActionAtTotal(actor, target, actionKey, { ...opts, direct: true });", to: "return resolveBasicActionAtTotal(actor, target, actionKey, { ...opts });" },
   { name: "F speedHalve is not handled", file: EK, from: "  \"speedHalve\",\n", to: "" },
   { name: "G the Sustain is not announced", file: SW, from: "    Hooks.callAll(\"trgPrimeSpellSustained\", {", to: "    Hooks.callAll(\"trgPrimeSpellSustainedX\", {" },
   { name: "G a Sustain that ran out is announced", file: SW, from: "  if (!ranOut) {\n    Hooks.callAll(\"trgPrimeSpellSustained\"", to: "  if (true) {\n    Hooks.callAll(\"trgPrimeSpellSustained\"" },
-  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.705.2\"", to: "\"version\": \"3.691.0\"" },
-  { name: "Z the download names the last release", file: SJ, from: "releases/download/v3.705.2/trg-prime.zip", to: "releases/download/v3.691.0/trg-prime.zip" },
-  { name: "Z package.json is left behind", file: PJ, from: "\"version\": \"3.705.2\"", to: "\"version\": \"3.691.0\"" }
+  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.706.0\"", to: "\"version\": \"3.691.0\"" },
+  { name: "Z the download names the last release", file: SJ, from: "releases/download/v3.706.0/trg-prime.zip", to: "releases/download/v3.691.0/trg-prime.zip" },
+  { name: "Z package.json is left behind", file: PJ, from: "\"version\": \"3.706.0\"", to: "\"version\": \"3.691.0\"" }
 ];
 
 const verify = path.join(SYSTEM_ROOT, "tools", "verify-fixes-3692-0.mjs");

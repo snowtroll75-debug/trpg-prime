@@ -1,4 +1,5 @@
 import { DEGREES, DEGREE_BY_KEY } from "../dice/resolution.mjs";
+import { inflictedByRecord, statusRelayNeeded } from "./target-relay.mjs";
 
 const SYSTEM_ID_FLOORS = "trg-prime";
 
@@ -359,9 +360,27 @@ export async function applyBasicActionConditionEffects(
   effects,
   actor,
   targetActor,
-  { expiresRound = null, actionKey = null } = {}
+  { expiresRound = null, actionKey = null, direct = false } = {}
 ) {
+  // THE TARGET'S SHARE GOES TO THE GM WHEN THIS CLIENT MAY NOT WRITE IT
+  // (3.706.0). Found in the player-perspective live test of 3.705.1: a
+  // player's Grapple on the GM's creature laid Grabbed (the toggle relays,
+  // 3.666.1), then stamped its clock on the effect from the player's client
+  // — "lacks permission to update ActiveEffect" — and the outcome card never
+  // posted. The whole of the target's list, with its clock and conditionals,
+  // is laid on the GM's client by this same function. `direct` is the GM's
+  // client doing it, and stops the relay recursing.
+  const relayed = !direct && targetActor && relayConditionsNeeded(effects, targetActor, globalThis.game?.user);
+  if (relayed) {
+    const { relayConditionEffects } = await import("./target-relay-workflow.mjs");
+    const ok = await relayConditionEffects(targetActor, actor, effects.filter((e) => e.target === "target"),
+      { expiresRound, actionKey }, () => false);
+    if (!ok) {
+      globalThis.ui?.notifications?.warn?.(`The conditions could not be laid on ${targetActor.name}: no GM answered. The GM needs to apply them by hand.`);
+    }
+  }
   for (const effect of effects) {
+    if (relayed && effect.target === "target") continue;
     const recipient = effect.target === "target" ? targetActor : actor;
     if (!recipient) continue;
     const options = { active: effect.active };
@@ -409,4 +428,46 @@ export async function applyBasicActionConditionEffects(
           );
     if (document?.update) await document.update(stamped);
   }
+}
+
+/**
+ * Must the target's share of these effects be laid on the GM's client
+ * (3.706.0)? Only when there is a target effect, a user, and that user may
+ * not write to the target — never on a GM's client, never in the harness
+ * with no user. Pure.
+ *
+ * @param {Array<{target: string}>} effects
+ * @param {{isOwner: boolean}} targetActor
+ * @param {{isGM: boolean}|null|undefined} user
+ */
+export function relayConditionsNeeded(effects, targetActor, user) {
+  if (!Array.isArray(effects) || !effects.some((e) => e?.target === "target")) return false;
+  return statusRelayNeeded(targetActor, user);
+}
+
+/**
+ * Record who laid a condition on the target (3.706.0): `grabbedBy` after a
+ * Grapple or a Grab, `flatFootedFrom` after a Feint or a Diversion. Written
+ * directly when this client may, and by the GM's client otherwise — the
+ * player's write threw "lacks permission" on the GM's creature, as the
+ * conditions' clock did. Only while the condition stands, as the action has
+ * always recorded it.
+ *
+ * @param {Actor} target
+ * @param {Actor} actor who laid it
+ * @param {"grabbedBy"|"flatFootedFrom"} kind
+ * @param {{action?: string}} [options]
+ * @returns {Promise<boolean>} whether it was recorded
+ */
+export async function recordInflictedBy(target, actor, kind, { action = "" } = {}) {
+  const condition = { grabbedBy: "grabbed", flatFootedFrom: "flatFooted" }[kind];
+  if (!target || !actor || !condition || !target.hasCondition?.(condition)) return false;
+  if (statusRelayNeeded(target, globalThis.game?.user)) {
+    const { relayInflictedBy } = await import("./target-relay-workflow.mjs");
+    return relayInflictedBy(target, actor, kind, { action }, () => false);
+  }
+  if (!target.setFlag) return false;
+  const record = inflictedByRecord(kind, actor, { action, round: Number(globalThis.game?.combat?.round ?? 0) });
+  await target.setFlag(SYSTEM_ID, kind, record);
+  return true;
 }
