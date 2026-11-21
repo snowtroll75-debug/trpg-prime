@@ -2,6 +2,15 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.707.3 — 21 November 2026: what the 3.707.2 live test found
+
+Branch `fix/stone-shield-range`, from 3.707.2. Full notes in `release-notes-3.707.3.md`; repair log R-0018 to R-0020; live report `live-testing-report-3.707.2.md`.
+
+- **Stone Shield can be cast against its foe.** The range gate measured the targeted foe against "self" (the spell prints no range) and refused every cast, both the reaction and from the sheet.
+- **Seer's Vision's glimpse lapses** at the end of the caster's next turn. It never expired before.
+- **The shield's damage card** names the shield, not "no target".
+- **Harness:** new `verify-live-findings-3707-2` (11) / mutate (8); four anchors re-anchored; version pins raised. No data change.
+
 ## 3.707.2 — 21 November 2026: "until the end of your next turn" ends at the caster's turn end
 
 Branch `fix/next-turn-end-clock`, from 3.707.1. Full notes in `release-notes-3.707.2.md`; repair log R-0017.

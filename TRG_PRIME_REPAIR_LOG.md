@@ -749,3 +749,51 @@ These six repairs went into one release, 3.706.0, so they share a source state, 
 - **Version:** 3.707.2
 - **Branch:** `fix/next-turn-end-clock` (local, not pushed)
 - **Package:** `trg-prime.zip`
+
+---
+
+## R-0018 to R-0020 — What the 3.707.2 live test found (3.707.3)
+
+### Source state
+
+- **Starting version:** 3.707.2, installed by Graham and live-tested in the Test world (`live-testing-report-3.707.2.md`). Branch `fix/next-turn-end-clock` at `71126d7`.
+- **Branch:** new, `fix/stone-shield-range`.
+- **Remote:** unchanged; nothing pushed.
+
+### R-0018 — Stone Shield couldn't be cast against a foe
+
+- **Found:** live tests S1b and S10: "ZZ Orc is 5 ft away — beyond Stone Shield's range of self."
+- **Cause:** the range gate (3.519.0, read through Graham's 8 September ruling for a spell printing neither range nor area) measured the targeted foe against "self". This predates 3.707.0.
+- **Change:**
+  - `targetOnlyNamesWardFoe` (pure, `magic/ward.mjs`): no range, no area, and every non-note row a ward on the caster;
+  - the gate skips such a spell. It reads the warped range and area, so a warp that grants one brings the gate back.
+
+### R-0019 — Seer's Vision's glimpse never lapsed
+
+- **Found:** live test T4.
+- **Cause:** the recorded d20 is a flag with no clock.
+- **Change:**
+  - `seersVisionRecord` carries `endsAtTurnEndOf` (two strings);
+  - the cast passes its spell's turn-end stamp;
+  - `expireAtTurnEnd` drops due records and keeps the rest.
+
+### R-0020 — "no target" on the shield's damage card (cosmetic)
+
+- **Change:** the summary reads "N type to <shield> (before its Hardness)".
+
+### Testing
+
+- **Core verify:** all 396 verify scripts at the final commit, in a clean worktree. **All pass**, after two checks on lines this release changed were re-anchored:
+  - `verify-fixes-3685-1` O3 (the range gate's condition);
+  - `verify-fixes-3681-2` W3 (the damage card's summary).
+- **Core mutation:** 261 scripts reading a changed file or carrying a pin, in their own worktree. **261 of 261 pass.** Two anchors (in `mutate-fixes-3685-1` and `mutate-fixes-3681-2`) were re-anchored and re-run.
+- **Not run:** the two long whole-tree mutation scripts, as in 3.707.1.
+- **Modules:** Pillars of Faith, Inner Tempest and Eldritch Arts give **identical results** on 3.707.3 and 3.706.1.
+- **Live Foundry:** 3.707.2's results are in `live-testing-report-3.707.2.md`. The retest of A and B waits for 3.707.3 to be installed.
+- **New:** `verify-live-findings-3707-2` (11), `mutate-live-findings-3707-2` (8 of 8).
+
+### Delivery
+
+- **Version:** 3.707.3
+- **Branch:** `fix/stone-shield-range` (local, not pushed)
+- **Package:** `trg-prime.zip`

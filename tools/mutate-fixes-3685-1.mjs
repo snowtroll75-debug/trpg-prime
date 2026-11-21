@@ -29,7 +29,7 @@ const MUTATIONS = [
   { name: "O any truthy mark counts", file: CA, from: "  return spell?.flags?.[\"trg-prime\"]?.targetsObject === true;", to: "  return Boolean(spell?.flags?.[\"trg-prime\"]?.targetsObject);", breaks: "O2" },
   { name: "O the picker is asked without the spell", file: CW, from: "  if (spellNeedsTarget(spellData, spell) && !storingNow && !reaction?.presetTargets && !presetTargets) {", to: "  if (spellNeedsTarget(spellData) && !storingNow && !reaction?.presetTargets && !presetTargets) {", breaks: "O3" },
   { name: "O the count is asked without the spell", file: CW, from: "  if (!storingNow && spellNeedsTarget(spellData, spell)) {", to: "  if (!storingNow && spellNeedsTarget(spellData)) {", breaks: "O3" },
-  { name: "O the range gate measures an object's spell", file: CW, from: "  if (!storingNow && !spellTargetsObject(spell) && (game.user?.targets?.size ?? 0)) {", to: "  if (!storingNow && (game.user?.targets?.size ?? 0)) {", breaks: "O3" },
+  { name: "O the range gate measures an object's spell", file: CW, from: "  if (!storingNow && !spellTargetsObject(spell) && !wardFoeOnly && (game.user?.targets?.size ?? 0)) {", to: "  if (!storingNow && !wardFoeOnly && (game.user?.targets?.size ?? 0)) {", breaks: "O3" },
   // N — an unknown recurring type
   { name: "N an unknown type is left out of the name again", file: MAN, from: "  if (id === \"recurring\" && String(damageType ?? \"\").trim()) {", to: "  if (id === \"recurring\" && damageType && DAMAGE_TYPES[damageType]) {", breaks: "N1" },
   // B — one effect for several slots

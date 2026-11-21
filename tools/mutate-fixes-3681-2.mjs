@@ -17,7 +17,7 @@ const MUTATIONS = [
   { name: "no name is handed over", file: AW,
     from: "    targetName: finalTaken !== null ? targetActor?.name ?? null : null,", to: "    targetName: null,", breaks: "W2" },
   { name: "the card is posted without the line", file: AW,
-    from: "    compactSummary: damageCompactSummary()\n  });", to: "    compactSummary: null\n  });", breaks: "W3" },
+    from: "      : damageCompactSummary()\n  });", to: "      : null\n  });", breaks: "W3" },
   { name: "the line drops the name", file: DS,
     from: "return `${escapeName(name)} takes ${taken} ${type}`;", to: "return `${taken} ${type} taken`;", breaks: "S1/S2/S5" },
   { name: "a stopped blow (0 taken) loses its name", file: DS,
