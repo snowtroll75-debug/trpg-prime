@@ -333,7 +333,14 @@ No console errors. The world migration to 3.704.0 ran.
 - **Core, 495 scripts:** every script reading a changed file or carrying a pin, plus the whole-tree checks and `verify-checks-read-source`. **495 of 495 pass.**
 - The two long mutation files are recorded in `release-notes-3.705.1.md`.
 - **Modules:** not re-run. Nothing they call changed since 3.705.0's comparison, which was identical to 3.703.1.
-- **Live Foundry:** not yet run for 3.705.1.
+- **Live Foundry: passed** on 21 November 2026 in the "Test" world (`live-testing-report-3.705.1.md`):
+  - the migration repaired a stale Lunge's text and notes;
+  - a plain Trip at 10 ft was refused;
+  - a Lunge Trip at 10 ft went through at −2 (no −1);
+  - a Lunge Strike at 10 ft took −2, and none against an adjacent foe;
+  - in Lunging Stance, no penalty;
+  - a Lunge Trip at 15 ft was refused;
+  - no console errors.
 
 ### Delivery
 
