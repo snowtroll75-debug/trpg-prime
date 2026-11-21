@@ -96,8 +96,9 @@ const row = (name, kind, i = 0) => (PLAN[name]?.effects ?? []).filter((e) => e.k
   ok("A8 impervious: the damage primitive refuses a creature in stasis",
     /if \(Array\.from\(actor\?\.effects \?\? \[\]\)\.some\(\(e\) => !e\.disabled && e\.flags\?\.\["trg-prime"\]\?\.stasis\)\) \{\s*\n\s*return \{ case: "stasis"/.test(DYING)
     && ATTACK.includes('if (damageResult.case === "stasis") {'));
-  ok("A9 no time passes: all three expiry sweeps skip what the stasis freezes",
-    (APPLY.match(/if \(frozenByStasis\(effect, stasis\)\) continue;/g) ?? []).length === 2
+  // FOUR SWEEPS AT 3.707.2: the turn-end sweep ("until the end of your next turn").
+  ok("A9 no time passes: all four expiry sweeps skip what the stasis freezes",
+    (APPLY.match(/if \(frozenByStasis\(effect, stasis\)\) continue;/g) ?? []).length === 3
     && LINKED.includes("if (frozenByStasis(effect, stasis)) continue;"));
   ok("A10 its turns: nothing starts, nothing ends, and the Fumble's save is rolled",
     COMBAT.includes("const said = await stasisTurnStart(actor);") && COMBAT.includes("const said = await stasisTurnEnd(actor);")

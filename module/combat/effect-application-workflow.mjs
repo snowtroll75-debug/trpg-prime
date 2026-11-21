@@ -781,8 +781,9 @@ export async function expireAtTurnEnd(actor, { turnOf = null, round = 0, combata
     const claim = claimExpiry(effect, actor);
     if (!claim) continue;
     try {
-      const statusId = effect.statuses?.values?.().next?.()?.value ?? null;
-      if (!speaksAtItsOwnEnd(effect)) expired.push(statusId ? (CONDITIONS[statusId]?.label ?? effect.name) : effect.name);
+      const ended = effect.statuses?.values?.().next?.()?.value ?? null;
+      const endedLabel = ended ? (CONDITIONS[ended]?.label ?? effect.name) : effect.name;
+      if (!speaksAtItsOwnEnd(effect)) expired.push(endedLabel);
       const castId = effect.getFlag?.(SYSTEM_ID, CAST_ID_FLAG) ?? null;
       await endEffect(effect, actor);
       await removeSpellItemsByCastId(actor, castId);
