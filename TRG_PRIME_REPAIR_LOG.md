@@ -645,3 +645,53 @@ These six repairs went into one release, 3.706.0, so they share a source state, 
 - **Version:** 3.707.0
 - **Branch:** `fix/spell-stone-shield` (local, not pushed)
 - **Package:** `trg-prime.zip`
+
+---
+
+## R-0015 and R-0016 — Graham's answers to the 3.707.0 questions (3.707.1)
+
+### Source state
+
+- **Starting version:** 3.707.0, on branch `fix/spell-stone-shield` at `5d40094`. It has not been installed or live-tested.
+- **Working tree:** clean, except that a killed whole-tree mutation run had left one mutant in `pending-cast-workflow.mjs`. It was restored from the harness snapshot and checked clean against git before work began.
+- **Branch:** new, `fix/next-turn-start-clock`.
+- **Remote:** unchanged; nothing pushed.
+- **Rulings:** Graham, 21 November 2026:
+  1. "Any spell that has a duration of 'until the start of your next turn' should end at the beginning of the characters turn, so yes change it and other spells that have the same issue."
+  2. "Yes it should" (Stone Shield from the sheet: one foe).
+
+### R-0015 — "Until the start of your next turn"
+
+- **Expected:** the effect ends when the caster's next turn starts.
+- **Actual:** `parseSpellDuration` read it as one round. In an encounter, the effect ended at whichever came first:
+  - the world clock's next round;
+  - the bearer's own turn, once the round had moved on.
+- **Change:**
+  - `parseSpellDuration` marks the phrase (`untilTurnStart`, "your" only).
+  - `applySpellEffects` stamps the caster on each effect's own duration.
+  - `spellExpiryTiming`, through `turnStartClock` (pure), drops the round clock in an encounter, carries `turnStartOf`, and keeps a two-round world-clock backstop.
+  - All 60 writers that copy the round clock copy `endsAtTurnStartOf` beside it.
+  - `applyConditionTags` and its relay carry it too.
+  - `expireTimedConditions(subject, round, { turnOf })` ends it at that caster's turn start; both turn-start sweeps in `documents/combat.mjs` name the turn.
+  - The sheet label reads "Until the start of the caster's next turn".
+
+### R-0016 — Stone Shield's one foe
+
+- **Expected:** a ward against one foe names exactly one.
+- **Actual:** a sheet cast warded against every enemy targeted. With none targeted it spent its PP and reaction, then applied nothing.
+- **Change:**
+  - the row declares `foes: 1`;
+  - `wardFoeRefusal` (pure, `magic/ward.mjs`) is asked in `castSpell` after the target set is final and before anything is spent;
+  - pack: declared fix `stone-shield-one-foe-3707-1`;
+  - owned copies: the `PACK_REPAIRS` row is moved on, with 3.707.0's row in `alsoFrom`;
+  - migration: re-gated to 3.707.1.
+
+### Testing
+
+TESTING_PLACEHOLDER
+
+### Delivery
+
+- **Version:** 3.707.1
+- **Branch:** `fix/next-turn-start-clock` (local, not pushed)
+- **Package:** `trg-prime.zip`

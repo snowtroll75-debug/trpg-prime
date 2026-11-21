@@ -49,8 +49,9 @@ const MUTATIONS = [
   {
     file: EA,
     name: "R3 THE ROUND CLOCK ENDS EVERYTHING EARLY",
-    from: "    if (Number(currentRound) < Number(expiresRound)) continue;",
-    to: "    if (false) continue;",
+    // RE-ANCHORED 3.707.1: the round test moved into `dueAtTurnStart`.
+    from: "  if (ends !== undefined && ends !== null && Number(round) >= Number(ends)) return true;",
+    to: "  if (ends !== undefined && ends !== null) return true;",
     breaks: "R3/R4 — a minute-long buff would end on the round it was cast"
   },
 

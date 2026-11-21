@@ -211,8 +211,9 @@ const MUTATIONS = [
   { file: APPLY, name: "I: a new rule stamps its deadline on somebody else's condition",
     // RE-ANCHORED 3.613.0: the end of the anchor moved to the source-traits
     // stamp (R14), which now sits between the timing and the update.
-    from: "        ...(wasAlreadyPresent ? {} : {\n          endsWith: timing.endsWith, expiresTime: timing.expiresTime, followOn: timing.followOn\n        })\n      });\n      // WHAT PUT IT THERE (3.613.0, R14)",
-    to: "        endsWith: timing.endsWith, expiresTime: timing.expiresTime, followOn: timing.followOn\n      });\n      // WHAT PUT IT THERE (3.613.0, R14)",
+    // RE-ANCHORED 3.707.1: the turn-start stamp joined the guarded block.
+    from: "        ...(wasAlreadyPresent ? {} : {\n          endsWith: timing.endsWith, expiresTime: timing.expiresTime, followOn: timing.followOn,\n          endsAtTurnStartOf\n        })\n      });\n      // WHAT PUT IT THERE (3.613.0, R14)",
+    to: "        endsWith: timing.endsWith, expiresTime: timing.expiresTime, followOn: timing.followOn,\n        endsAtTurnStartOf\n      });\n      // WHAT PUT IT THERE (3.613.0, R14)",
     breaks: "I7" },
   { file: ATTACKWF, name: "I THE DEFECT: the critical path never reads the row's own words about time",
     from: "      const { stampRowDurations } = await import(\"./linked-conditions-workflow.mjs\");",

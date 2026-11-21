@@ -2,6 +2,15 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.707.1 — 21 November 2026: "until the start of your next turn", and Stone Shield's one foe
+
+Branch `fix/next-turn-start-clock`, from 3.707.0. Full notes in `release-notes-3.707.1.md`; repair log R-0015, R-0016.
+
+- **"Until the start of your next turn"** ends when the caster's next turn starts, on every creature carrying it (Graham: "should end at the beginning of the characters turn"). It used to end at the next round's top or at the bearer's own turn. Covers Gust, Guidance, Invulnerability, Stone Shield, True Target and Weapon Surge, and any module spell with that duration. Out of combat: 6 s, as before.
+- **Stone Shield** raised from the sheet needs exactly one targeted enemy ("Yes it should"). Refused before anything is spent; no target is refused too, where it used to spend its PP for nothing.
+- **Data:** one pack record (`foes: 1`); owned copies, including 3.707.0's, repaired; migration re-gated to 3.707.1.
+- **Harness:** new `verify-turn-start-clock` (29) / mutate (17); `verify-stone-shield` updated; pins raised.
+
 ## 3.707.0 — 21 November 2026: Stone Shield, fully implemented
 
 Branch `fix/spell-stone-shield`, from 3.706.1. Full notes in `release-notes-3.707.0.md`; repair log R-0014.

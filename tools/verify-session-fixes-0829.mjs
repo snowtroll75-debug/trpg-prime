@@ -263,7 +263,9 @@ ok("D3b and says nothing extra when it is the current combatant's own",
   effectExpiredLine("Stunned", "") === "<strong>Stunned</strong> expires.",
   effectExpiredLine("Stunned", ""));
 ok("D4 the sweep still only deletes what is due",
-  /if \(Number\(currentRound\) < Number\(expiresRound\)\) continue;/.test(effects),
+  // RE-ANCHORED AT 3.707.1: the round test moved into `dueAtTurnStart`.
+  /if \(ends !== undefined && ends !== null && Number\(round\) >= Number\(ends\)\) return true;/.test(effects)
+  && /if \(!dueAtTurnStart\(stamp, \{ round: currentRound, turnOfUuid \}\)\) continue;/.test(effects),
   "asking about everybody is only safe because it refuses what is not due");
 
 /* ================================================================== */
