@@ -33,6 +33,6 @@ The live test of 3.706.0 (`live-testing-report-3.706.0.md`) passed everything it
 - **Core:** 189 verify and 141 mutation scripts, plus `verify-checks-read-source`, `mutate-fixes-3685-3b` (56 min) and `mutate-checks-read-source` (52 min). **All pass.**
 - **Modules:** the six module verify scripts that read a changed core file give the same results as on 3.703.1.
 - **Pack:** unchanged and not rebuilt. Restored from git after the runs.
-- **Live Foundry:** 3.706.0 was live-tested (see the report). For 3.706.1, check:
-  - a Combat Grapple hit's Grabbed reads the same round as a Grapple Attack's;
-  - the foe's Attack of Opportunity on a player who has moved away is a melee Strike, and keeps the Club.
+- **Live Foundry:** both fixes pass in the Test world (`live-testing-report-3.706.1.md`).
+  - Combat Grapple's and a Grapple Attack's Grabbed both read round 4 when laid in round 2.
+  - The foe's Attack of Opportunity on a player 15 ft away is a melee Club Strike, and the Club is kept.
