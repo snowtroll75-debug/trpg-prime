@@ -579,3 +579,63 @@ These six repairs went into one release, 3.706.0, so they share a source state, 
 - **Version:** 3.706.1
 - **Branch:** `fix/live-test-3706-1` (local, not pushed)
 - **Package:** `trg-prime.zip`
+
+---
+
+## R-0014 — Stone Shield (3.707.0)
+
+### Repair identification
+
+- **Date:** 21 November 2026
+- **Reference:** R-0014
+- **Feature:** Stone Shield (Chapter 10 spell, PP 2, Earth Translocation Utility, Cast R).
+- **Reported:** Graham: "despite your repeated assurances that the core system is fully implemented I am discovering things that are not. The latest is the Spell Stone Shield … Can you please fully implement this".
+
+### Source state
+
+- **Starting version:** 3.706.1, `main` at `6af3921` (GitHub). Clean clone.
+- **Working tree:** clean. Work is on the new branch `fix/spell-stone-shield`.
+- **Remote:** unchanged; nothing pushed.
+- **Rulings:** Graham, 21 November 2026:
+  1. Cover: "+4 DB only, as printed";
+  2. Area damage: "Area damage does not attack against your DB so why would it be needed. A damage the shield button for the GM would however be useful when used for the actual parameters of the spell";
+  3. Earth or stone: "Ask, and refuse on No";
+  4. "this spell is a reaction cast so a GM prompt (similar to what is used for Nimble Dodge) could work".
+
+### Diagnosis
+
+- **Rule (Core 3.7, Stone Shield):** cover from one chosen opponent, +4 circumstance to DB, until the start of your next turn. A miss by 4 or less from that opponent strikes the shield. The shield has Hardness 8 and Hits 15, and when it is destroyed the spell ends. Area effects damage the shield. The spell can't be cast unless the caster is adjacent to a large area of earth or stone.
+- **Actual (3.706.1):**
+  - Only the +4 was automated: the 3.406.0 ward, correctly scoped by uuid.
+  - The miss rule and the Hardness/Hits were a `note` that nothing read. Nothing ended the spell, and the requirement was never asked.
+  - The spell was cast only by hand from the sheet.
+  - No owned-copy repair had ever been written for Stone Shield, so a pre-3.406.0 copy on a sheet still gave +4 against every attacker.
+- **Found on the way:** Spiritual Weapon's strike read the sheet DB alone, so no `defenceDC` row (a ward's +4 among them) ever applied against it.
+
+### Change
+
+- **Rule:**
+  - `magic/barrier.mjs` (pure): the barrier spec, the state at the cast (with the ward's own scope), the miss window, damage through Hardness, finding the shield in the way, and the `castQuestion` reader.
+  - `magic/barrier-workflow.mjs`: damage applied directly or through the GM (`BARRIER_DAMAGE`), the spell ended at 0, the shield's card and the GM's button, the cast-time question gate, and the Stone Shield defence offer.
+- **Applier:** the `ward` case writes `flags.trg-prime.barrier` on the ward's effect, and the cast card carries the button.
+- **Attacks:** a miss by 1–4 from the warded foe strikes the shield on all four attack paths:
+  - Strike (`attack-workflow`): asked before the stray shot. Damage is rolled through `resolveWeaponDamage` with `struckObject`, so no creature is under it.
+  - spell attack (`cast-workflow`);
+  - bomb (`alchemical-workflow`): breaks on the shield and doesn't scatter;
+  - Spiritual Weapon (`spiritual-weapon-workflow`): now also reads the defender's DB rows.
+- **Cast:** `castQuestionGate` sits beside the elemental gate, before anything is spent. `castAsReaction` gained `{ castQuestionsAnswered }`.
+- **Offer:** a defence offer's `requires` now receives `{ kind, attackerUuid }`. Stone Shield is registered synchronously in `ready`, beside Nimble Dodge.
+- **Data:**
+  - pack: the declared fix `stone-shield-barrier-3707` (it supersedes `stone-shield-ward-scope`);
+  - owned copies: `PACK_REPAIRS` `stone-shield-barrier-3707`, whose `alsoFrom` is the pre-3.406.0 row;
+  - migration: the pack-copy gate and the schema are raised to 3.707.0.
+
+### Testing
+
+TESTING_PLACEHOLDER
+
+### Delivery
+
+- **Version:** 3.707.0
+- **Branch:** `fix/spell-stone-shield` (local, not pushed)
+- **Package:** `trg-prime.zip`

@@ -2,6 +2,17 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.707.0 — 21 November 2026: Stone Shield, fully implemented
+
+Branch `fix/spell-stone-shield`, from 3.706.1. Full notes in `release-notes-3.707.0.md`; repair log R-0014.
+
+- **The shield is real:** a miss by 1–4 from the chosen foe (Strike, spell attack, bomb, Spiritual Weapon) strikes it. Hardness 8 comes off, then the 15 Hits. At 0 the spell ends.
+- **Offered as a reaction when attacked**, as Nimble Dodge is, and cast against the attacker. From the sheet, the cast asks about earth or stone and is refused on No before anything is spent.
+- **The GM's "Damage the shield" button** takes area damage, or anything else, by hand (Graham's ruling). The +4 stays DB only, as printed.
+- **Spiritual Weapon** now reads the defender's DB bonuses (it ignored every ward and `defenceDC` row).
+- **Data:** one pack record changed; owned copies repaired (including pre-3.406.0 copies, which gave +4 against everyone); migration re-gated to 3.707.0.
+- **Harness:** new `verify-stone-shield` (64) / mutate (23); 9 checks and 1 mutation anchor re-anchored; pins raised.
+
 ## 3.706.1 — 21 November 2026: what the 3.706.0 live test found
 
 Branch `fix/live-test-3706-1`, from 3.706.0. Full notes in `release-notes-3.706.1.md`; repair log R-0012, R-0013; live report `live-testing-report-3.706.0.md`.
