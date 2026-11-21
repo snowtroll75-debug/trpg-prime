@@ -2,6 +2,14 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.706.1 — 21 November 2026: what the 3.706.0 live test found
+
+Branch `fix/live-test-3706-1`, from 3.706.0. Full notes in `release-notes-3.706.1.md`; repair log R-0012, R-0013; live report `live-testing-report-3.706.0.md`.
+
+- **Combat Grapple's Grabbed** lasts as long as a Grapple Attack's: two rounds on the clock, not one.
+- **An Attack of Opportunity** with a Thrown-trait weapon is a melee Strike, never a throw, even once the provoker has moved beyond reach.
+- **Harness:** new `verify-live-fixes-3706-1` (11) / mutate (4); one expectation updated; pins raised. No data or migration change.
+
 ## 3.706.0 — 21 November 2026: Graham's answers to the player-perspective live test
 
 Branch `fix/live-test-rulings`, from 3.705.2. Full notes in `release-notes-3.706.0.md`; repair log R-0006 to R-0011.

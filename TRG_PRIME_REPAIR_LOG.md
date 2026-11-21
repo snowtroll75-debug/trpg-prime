@@ -540,3 +540,42 @@ These six repairs went into one release, 3.706.0, so they share a source state, 
 - **Version:** 3.706.0
 - **Branch:** `fix/live-test-rulings` (local, not pushed)
 - **Package:** `trg-prime.zip`
+
+---
+
+## R-0012 and R-0013 — What the 3.706.0 live test found (3.706.1)
+
+### Source state
+
+- **Starting version:** 3.706.0 (installed by Graham, live-tested in the Test world), on branch `fix/live-test-rulings` at `24dcce5`.
+- **Working tree:** clean. Work is on the new branch `fix/live-test-3706-1`.
+- **Remote:** unchanged; nothing pushed.
+- **Report:** `live-testing-report-3.706.0.md`
+
+### R-0012 — Combat Grapple's clock
+
+- **Found:** live test L6. A Combat Grapple hit in round 1 stamped Grabbed to expire at round 2. A Grapple Attack in the same round (L7) stamps round 3.
+- **Expected:** "Until the end of your next turn", two rounds on the clock, as `extractDurationRounds` reads it for every action.
+- **Actual:** `combatGrappleGrab` (3.706.0) gave round + 1. This was introduced by R-0007.
+- **Change:** round + `UNTIL_END_OF_NEXT_TURN_ROUNDS` (2).
+
+### R-0013 — An Attack of Opportunity thrown
+
+- **Found:** live test L11. The player moved from adjacent to 15 ft, and the foe's Attack of Opportunity (the GM's button) was made "Club — Attack (thrown) … thrown 15 ft … Threw Club — that was the last one".
+- **Expected:** an Attack of Opportunity is a melee Strike. The provoker was in reach when it provoked.
+- **Actual:** `thrownByDistance` read the current distance even with `reachAlreadyEstablished`. This predates 3.706.0.
+- **Change:** `thrownByDistance` requires `!reachAlreadyEstablished`.
+
+### Testing
+
+- `verify-live-fixes-3706-1`: 11 pass. `mutate-live-fixes-3706-1`: 4 of 4 caught.
+- `verify-live-rulings-3706` B1's expectation, and its mutation anchor, updated for the new clock.
+- **Core:** every script reading a changed file or carrying a pin, plus the whole-tree checks: 189 verify and 141 mutation scripts, plus `verify-checks-read-source`, `mutate-fixes-3685-3b` (56 min) and `mutate-checks-read-source` (52 min). **All pass.**
+- **Modules:** the six module verify scripts that read a changed core file give the same results as on 3.703.1.
+- **Live Foundry:** 3.706.0's results are in `live-testing-report-3.706.0.md`. 3.706.1 itself: after install.
+
+### Delivery
+
+- **Version:** 3.706.1
+- **Branch:** `fix/live-test-3706-1` (local, not pushed)
+- **Package:** `trg-prime.zip`

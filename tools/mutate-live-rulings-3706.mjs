@@ -21,7 +21,7 @@ const MUTATIONS = [
   { name: "A the Whip used adjacent again", file: AT, from: "      !(adjacent && item.system?.noAdjacent === true)", to: "      true" },
   { name: "A the check not told the target is adjacent", file: AW, from: "maneuverWeapon(Array.from(actor.items ?? []), maneuverTrait, { adjacent });", to: "maneuverWeapon(Array.from(actor.items ?? []), maneuverTrait);" },
   { name: "A adjacency at 10 ft", file: AW, from: "  return feet !== null && feet !== undefined && Number(feet) <= 5;", to: "  return feet !== null && feet !== undefined && Number(feet) <= 10;" },
-  { name: "B Combat Grapple's grab has no clock", file: AF, from: "  return { grab: true, expiresRound: inCombat ? (Number(round) || 0) + 1 : null };", to: "  return { grab: true, expiresRound: null };" },
+  { name: "B Combat Grapple's grab has no clock", file: AF, from: "  return { grab: true, expiresRound: inCombat ? (Number(round) || 0) + UNTIL_END_OF_NEXT_TURN_ROUNDS : null };", to: "  return { grab: true, expiresRound: null };" },
   { name: "B the grab is said, not laid", file: AFW, from: "      await applyBasicActionConditionEffects([{ target: \"target\", conditionKey: \"grabbed\", active: true }], actor, target,\n        { expiresRound: grab.expiresRound });", to: "" },
   { name: "B the Strike forgets whom it was against", file: AWK, from: "  if (check && typeof check === \"object\") check.strikeTarget = targetActor ?? null;\n", to: "" },
   { name: "C a player's clock written directly again", file: BAC, from: "  return statusRelayNeeded(targetActor, user);", to: "  return false;" },

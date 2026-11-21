@@ -101,7 +101,8 @@ const pc = { isOwner: true, name: "ZZ PC" };
 
 /* B — Combat Grapple grabs ------------------------------------------------- */
 {
-  equal("B1 a hit in an encounter: grabbed to the end of the grappler's next turn", af.combatGrappleGrab({ hits: true, inCombat: true, round: 3 }), { grab: true, expiresRound: 4 });
+  // 3.706.1: two rounds on, as a Grapple Attack's (verify-live-fixes-3706-1).
+  equal("B1 a hit in an encounter: grabbed to the end of the grappler's next turn", af.combatGrappleGrab({ hits: true, inCombat: true, round: 3 }), { grab: true, expiresRound: 5 });
   equal("B2 a hit out of one: grabbed, no clock", af.combatGrappleGrab({ hits: true, inCombat: false, round: 3 }), { grab: true, expiresRound: null });
   equal("B3 a miss: nothing", af.combatGrappleGrab({ hits: false, inCombat: true, round: 3 }), { grab: false, expiresRound: null });
   const cg = block(AFW, '  async "combat grapple"(', '\n  },\n');

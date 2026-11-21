@@ -1061,6 +1061,13 @@ export async function rollWeaponAttack(actor, weapon, {
   const thrownByDistance =
     !inherentRanged &&
     canThrow &&
+    // NEVER A THROW FOR AN ATTACK OF OPPORTUNITY (3.706.1). Found in the live
+    // test of 3.706.0: a foe's Attack of Opportunity with its Club, taken
+    // once the player had moved on to 15 ft, was made as a throw — range
+    // penalty, and "Threw Club — that was the last one". The provoker was in
+    // reach when it provoked, and that is the fact the rule turns on (see
+    // `reach` below); an Attack of Opportunity is a melee Strike.
+    !reachAlreadyEstablished &&
     distanceToTarget !== null &&
     distanceToTarget > meleeReach &&
     // A SPELL'S REACH KEEPS IT A MELEE STRIKE (3.682.0, review): Shooting

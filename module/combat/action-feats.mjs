@@ -435,16 +435,26 @@ export function quickDrawRestore(system = {}) {
  * Grabbed rather than only say so, Graham ruled (21 November 2026): "Yes".
  *
  * A hit grabs; in an encounter the grab lasts to the end of the grappler's
- * next turn (one round on, the clock every "until the end of your next turn"
- * keeps); out of one there is no clock to keep. Pure.
+ * next turn; out of one there is no clock to keep. Pure.
+ *
+ * THE SAME CLOCK AS A GRAPPLE ATTACK'S (3.706.1). 3.706.0 set it one round
+ * on, and the live test showed a Combat Grapple's Grabbed stamped to expire
+ * at round 2 where a Grapple Attack's, laid the same round, expires at 3.
+ * "Until the end of your next turn" is two rounds on the clock
+ * (`extractDurationRounds`), which the expiry sweep, run at the start of the
+ * grabbed creature's turn, needs: one round would end the grab before the
+ * grappler's next turn whenever the creature acts first.
  *
  * @param {{hits?: boolean, inCombat?: boolean, round?: number}} p
  * @returns {{grab: boolean, expiresRound: number|null}}
  */
 export function combatGrappleGrab({ hits = false, inCombat = false, round = 0 } = {}) {
   if (!hits) return { grab: false, expiresRound: null };
-  return { grab: true, expiresRound: inCombat ? (Number(round) || 0) + 1 : null };
+  return { grab: true, expiresRound: inCombat ? (Number(round) || 0) + UNTIL_END_OF_NEXT_TURN_ROUNDS : null };
 }
+
+/** "Until the end of your next turn", in rounds on the clock — `extractDurationRounds`'s answer (3.706.1). */
+const UNTIL_END_OF_NEXT_TURN_ROUNDS = 2;
 
 /* ------------------------------------------------------------------ */
 /* Striding Charge                                                     */
