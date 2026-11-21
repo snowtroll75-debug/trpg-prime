@@ -216,16 +216,15 @@ export const ACTION_FEATS = Object.freeze({
     traits: "Attack, Martial, Rogue",
     map: MAP_RULES.single,
     requires: [REQUIREMENTS.meleeWeapon],
-    // "This strike is subject to a -1-circumstance penalty." Not declared as
-    // `strikePenalty`, because Lunging Stance negates it: see
-    // `lungeStrikeTerms`.
+    // No penalty of its own (3.705.1); the Reach trait's -2 at the extra
+    // distance, which Lunging Stance negates: see `lungeStrikeTerms`.
     lunge: true,
     // PAID BY THE STRIKE ITSELF: the attack workflow charges its 1 AP after
     // every refusal it can make (out of reach, no target), so a Lunge at a
     // foe too far away costs nothing; and Fight Defensively's paid Strike
     // and the off-turn GM authorisation apply as for any Strike.
     strikePays: true,
-    summary: "Strike with your melee weapon at Reach (+5 ft), at -1 only."
+    summary: "Take an attack action with the Reach trait: +5 ft, -2 at the extra distance."
   },
   "quick draw": {
     label: "Quick Draw",
@@ -532,11 +531,6 @@ export function actionFeatState(featName, state = {}) {
 /* ------------------------------------------------------------------ */
 
 /**
- * LUNGE'S PENALTY. "This strike is subject to a -1-circumstance penalty."
- */
-const LUNGE_PENALTY = -1;
-
-/**
  * THE WEAPONS LUNGE CAN BE MADE WITH. The book: "Requirements You are
  * wielding a melee weapon. Using your melee weapon, you may take an action
  * with the attack trait. This action gains the reach trait for that Strike."
@@ -588,14 +582,18 @@ export function lungingStanceActive(effects = []) {
 /**
  * WHAT A LUNGE STRIKE IS, as attack options.
  *
- * - The Strike gains the Reach trait (`grantTraits`): +5 ft of reach.
- * - Its only penalty is Lunge's -1 circumstance, near or far ("This strike
- *   is subject to a -1-circumstance penalty"). The Reach trait's own -2 at
- *   the extra distance does NOT apply to a Lunge: Graham, 20 November 2026,
- *   "-1 only for lunge" (3.704.1; 3.704.0 applied both). So the -2 is always
- *   waived (`waiveReachPenalty`).
+ * GRAHAM'S REVISED FEAT (20 November 2026, 3.705.1): "Using your melee
+ * weapon, you may take an action with the attack trait. This action gains
+ * the reach trait for that Strike." The -1 circumstance penalty is gone, and
+ * asked, he chose the Reach trait whole: its -2 at the extended distance
+ * applies to a Lunge as to any reach weapon. (3.704.1 to 3.705.0 applied a
+ * -1 and never the -2, under the earlier ruling "-1 only for lunge".)
+ *
+ * - The Strike gains the Reach trait (`grantTraits`): +5 ft of reach, and
+ *   the trait's -2 when the target is in that extra 5 ft. Against an
+ *   adjacent foe, nothing.
  * - In Lunging Stance, "any penalties associated with performing standard
- *   Lunge strikes are completely negated": the -1 goes too.
+ *   Lunge strikes are completely negated": the -2 is waived.
  *
  * Pure.
  *
@@ -605,11 +603,10 @@ export function lungingStanceActive(effects = []) {
 export function lungeStrikeTerms({ lungingStance = false } = {}) {
   return {
     grantTraits: ["Reach"],
-    extraModifiers: lungingStance
-      ? []
-      : [{ label: `Lunge (${LUNGE_PENALTY})`, value: LUNGE_PENALTY, type: "circumstance" }],
-    // ALWAYS (3.704.1): a Lunge never takes the Reach trait's -2.
-    waiveReachPenalty: true
+    // NO PENALTY OF ITS OWN (3.705.1): the revised feat prints none.
+    extraModifiers: [],
+    // THE REACH TRAIT'S -2, unless Lunging Stance negates it (3.705.1).
+    waiveReachPenalty: Boolean(lungingStance)
   };
 }
 

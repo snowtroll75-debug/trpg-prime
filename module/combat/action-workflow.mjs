@@ -2426,9 +2426,10 @@ export async function resolveAction(actor, action, {
   // check + Lunge"). Trip, Disarm, Shove, Grapple, Shield Bash, Aid and Coup
   // de Grace could be used on a creature any distance away. Refused here,
   // before anything is spent, as a Strike out of reach is. A Lunge (made
-  // through Lunge's Use: lunge-scope.mjs) reaches 5 ft further and its -1
-  // goes on the check; a reach weapon's own -2 at the extended distance
-  // applies as it does to a Strike, never to a Lunge. See action-reach.mjs.
+  // through Lunge's Use: lunge-scope.mjs) gains the Reach trait and reaches
+  // 5 ft further; the Reach trait's -2 at the extended distance applies to
+  // it as to a reach weapon, unless Lunging Stance waives it (3.705.1). See
+  // action-reach.mjs.
   const actionReachRows = [];
   if (ACTION_REACH[action.key] && !reachExempt) {
     const lunging = ACTION_REACH[action.key].kind === "adjacent" ? null : lungeScopeFor(actor);
@@ -2457,7 +2458,7 @@ export async function resolveAction(actor, action, {
         ui.notifications.warn(actionReachRefusal(action.name, targetActor.name, distance, verdict));
         return null;
       }
-      if (verdict?.reachPenalty) actionReachRows.push({ label: `Reach (attacking at ${distance} ft)`, value: verdict.reachPenalty, type: "untyped" });
+      if (verdict?.reachPenalty && !lunging?.waiveReachPenalty) actionReachRows.push({ label: `Reach (attacking at ${distance} ft)`, value: verdict.reachPenalty, type: "untyped" });
     }
     if (lunging) actionReachRows.push(...(lunging.extraModifiers ?? []));
   }
@@ -4110,8 +4111,8 @@ export async function resolveAction(actor, action, {
       ...sneakRows,
       ...misreadRows,
       ...(actionAttackTerms?.rows ?? []),
-      // REACH AND LUNGE (3.705.0): a reach weapon's -2 at the extended
-      // distance; Lunge's -1. See the reach check above.
+      // REACH AND LUNGE (3.705.0): the Reach trait's -2 at the extended
+      // distance, a reach weapon's or a Lunge's. See the reach check above.
       ...actionReachRows,
       // THE WORD AFTERMATH ON AN ATTACK ACTION (3.622.0; block 39's A12):
       // "all further spell and attack checks made during your turn".

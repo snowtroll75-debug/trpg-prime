@@ -128,12 +128,14 @@ const MEDIUM_REACH = 5;
 {
   const plain = af.lungeStrikeTerms();
   equal("E1 the Strike gains Reach", plain.grantTraits, ["Reach"]);
-  equal("E2 Lunge's -1 circumstance, as one row", plain.extraModifiers, [{ label: "Lunge (-1)", value: -1, type: "circumstance" }]);
+  // 3.705.1 (Graham's revised Lunge): no -1 of its own; the Reach trait's -2,
+  // which Lunging Stance negates.
+  equal("E2 no penalty row of Lunge's own", plain.extraModifiers, []);
   // 3.704.1 (Graham, 20 Nov 2026: "-1 only for lunge"): never the Reach -2.
-  ok("E3 the Reach -2 is waived on every Lunge, not only in the stance", plain.waiveReachPenalty === true);
+  ok("E3 the Reach trait's -2 applies outside the stance", plain.waiveReachPenalty === false);
   const st = af.lungeStrikeTerms({ lungingStance: true });
-  equal("E4 in Lunging Stance: no -1", st.extraModifiers, []);
-  ok("E5 ...and the Reach -2 still waived", st.waiveReachPenalty === true);
+  equal("E4 in Lunging Stance: still no row of its own", st.extraModifiers, []);
+  ok("E5 ...and the Reach -2 negated", st.waiveReachPenalty === true);
   equal("E6 ...and the Strike still has Reach", st.grantTraits, ["Reach"]);
 }
 
@@ -165,7 +167,7 @@ const FW = read("module", "feats-workflow.mjs");
     && AW.indexOf("const grantedTraits = traitsWithGranted(") < AW.indexOf("const reachExtension = weaponReachExtension(weaponData);"));
   ok("G4 the Reach -2 row is skipped only when waived", /if \(measuresReach && reach\.penalty && !waiveReachPenalty\) \{/.test(AW));
   ok("G5 strikePlan passes the grant, the waiver, and lets the Strike pay",
-    /apPaid: !entry\?\.strikePays,/.test(AFW) && /\n\s+grantTraits,\s+\/\/ Lunge/.test(AFW) && /\n\s+waiveReachPenalty,\s+\/\/ Lunge: never the Reach trait's -2/.test(AFW)
+    /apPaid: !entry\?\.strikePays,/.test(AFW) && /\n\s+grantTraits,\s+\/\/ Lunge/.test(AFW) && /\n\s+waiveReachPenalty,\s+\/\/ Lunging Stance: the Reach -2 negated/.test(AFW)
     && /keepsStep = false, grantTraits = \[\], waiveReachPenalty = false \} = \{\}\) \{/.test(AFW));
   // 3.705.0: Lunge's own branch asks which action first; a Strike then asks its weapon.
   ok("G6 runActionFeat hands Lunge to runLunge before anything, and spends nothing itself",
@@ -195,7 +197,15 @@ const FW = read("module", "feats-workflow.mjs");
   const lf1 = fixes.find((f) => f.id === "lunge-note-3704-1");
   const sf1 = fixes.find((f) => f.id === "lunging-stance-note-3704-1");
   // 3.705.0: Lunge's note again (any attack action). Its final text.
-  const lf2 = fixes.find((f) => f.id === "lunge-note-3705");
+  const lf2raw = fixes.find((f) => f.id === "lunge-note-3705");
+  // 3.705.1: and again, Graham's revised Lunge. The final texts.
+  const lf2 = fixes.find((f) => f.id === "lunge-note-3705-1");
+  const sf2 = fixes.find((f) => f.id === "lunging-stance-note-3705-1");
+  ok("H0 the 3.705.1 rows continue the chains, and retire their predecessors",
+    lf2?.from === lf2raw?.to && sf2?.from === sf1?.to && lf2raw?.supersededBy === "lunge-note-3705-1" && sf1?.supersededBy === "lunging-stance-note-3705-1"
+    && /Reach trait/.test(lf2?.to ?? "") && /-2/.test(lf2?.to ?? "") && !/-1/.test(lf2?.to ?? "-1") && /Reach -2/.test(sf2?.to ?? "") && !/-1/.test(sf2?.to ?? "-1"));
+  const dfix = fixes.find((f) => f.id === "lunge-description-3705-1");
+  ok("H0b the feat's own text is Graham's revised wording", dfix?.path === "system.description" && /This action gains the reach trait for that Strike\.$/.test(dfix?.to ?? "") && !/-1-circumstance/.test(dfix?.to ?? "-1-circumstance"));
   ok("H1 the pack fixes are declared, and 3.704.1's continue from 3.704.0's",
     [lf, sf, lf1, sf1].every((f) => f?.op === "editEffect" && f?.pack === "feats") && lf1?.from === lf?.to && sf1?.from === sf?.to);
   ok("H1c the 3.704.0 rows are retired to their heirs, and the fix tool honours that for an effect edit",
@@ -207,15 +217,15 @@ const FW = read("module", "feats-workflow.mjs");
   const lr1 = pr.EFFECT_REPAIRS.find((r) => r.id === "lunge-note-3704-1");
   const sr1 = pr.EFFECT_REPAIRS.find((r) => r.id === "lunging-stance-note-3704-1");
   ok("H2 a 3.703.1 owned copy goes straight to the final note", lr?.from.description === lf?.from && lr?.to.description === lf2?.to
-    && sr?.from.description === sf?.from && sr?.to.description === sf1?.to && lr?.itemType === "feat" && sr?.itemType === "feat");
+    && sr?.from.description === sf?.from && sr?.to.description === sf2?.to && lr?.itemType === "feat" && sr?.itemType === "feat");
   ok("H2b a 3.704.0 owned copy goes to the final note", lr1?.from.description === lf1?.from && lr1?.to.description === lf2?.to
-    && sr1?.from.description === sf1?.from && sr1?.to.description === sf1?.to && lr1?.itemType === "feat" && sr1?.itemType === "feat");
+    && sr1?.from.description === sf1?.from && sr1?.to.description === sf2?.to && lr1?.itemType === "feat" && sr1?.itemType === "feat");
   equal("H3 a 3.703.1 owned Lunge note is repaired", pr.effectRepairUpdate(lr, { name: "Lunge", description: lf.from }), { description: lf2.to });
   equal("H3b a 3.704.0 owned Lunge note is repaired", pr.effectRepairUpdate(lr1, { name: "Lunge", description: lf1.from }), { description: lf2.to });
   equal("H4 a GM's own edit is left alone", pr.effectRepairUpdate(lr, { name: "Lunge", description: "House rule." }), null);
   equal("H5 a repaired copy is left alone (idempotent)", [pr.effectRepairUpdate(lr, { name: "Lunge", description: lf2.to }), pr.effectRepairUpdate(lr1, { name: "Lunge", description: lf2.to })], [null, null]);
   const MIG = read("module", "migration.mjs");
-  ok("H6 the owned-effect migration runs again at 3.705.0", /const effectRepairs = \(await runIf\("3\.705\.0", /.test(MIG));
+  ok("H6 the owned-effect migration runs again at 3.705.1", /const effectRepairs = \(await runIf\("3\.705\.1", /.test(MIG));
   // The compiled pack carries the new notes (read from a copy: never the live folder).
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "lunge-pack-"));
   fs.cpSync(path.join(SYSTEM_ROOT, "packs", "feats"), tmp, { recursive: true });
@@ -228,10 +238,10 @@ const FW = read("module", "feats-workflow.mjs");
   await db.close();
   fs.rmSync(tmp, { recursive: true, force: true });
   equal("H7 the pack's Lunge note is the final one", notes.Lunge, lf2.to);
-  equal("H8 the pack's Lunging Stance note is the final one", notes["Lunging Stance"], sf1.to);
+  equal("H8 the pack's Lunging Stance note is the final one", notes["Lunging Stance"], sf2.to);
 }
 
-const EXPECTED = 70;
+const EXPECTED = 72;
 checks += 1;
 if (checks !== EXPECTED) failures.push(`Z the suite ran ${checks} checks, expected ${EXPECTED}`);
 if (failures.length) {

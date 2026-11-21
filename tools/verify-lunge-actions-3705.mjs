@@ -67,9 +67,11 @@ const AW = read("module", "combat", "action-workflow.mjs");
   equal("A2 Trip at 10 ft, no reach weapon: refused", V({ key: "tripAttack", distance: 10 }).allowed, false);
   equal("A3 Trip at 10 ft with a Trip-trait Reach weapon: allowed at the Reach -2",
     V({ key: "tripAttack", distance: 10, weaponExtension: 5 }), { allowed: true, limit: 10, reachPenalty: -2, extendedBy: "weapon" });
-  equal("A4 Trip at 10 ft as a Lunge: allowed, no Reach -2", V({ key: "tripAttack", distance: 10, lunge: true }), { allowed: true, limit: 10, reachPenalty: 0, extendedBy: "lunge" });
-  equal("A5 a Lunge with a Reach trait weapon gains nothing more, and still no -2",
-    V({ key: "tripAttack", distance: 10, weaponExtension: 5, lunge: true }), { allowed: true, limit: 10, reachPenalty: 0, extendedBy: "weapon" });
+  // 3.705.1 (Graham's revised Lunge): the Lunge's Reach is the trait whole, -2 included.
+  equal("A4 Trip at 10 ft as a Lunge: allowed, at the Reach -2", V({ key: "tripAttack", distance: 10, lunge: true }), { allowed: true, limit: 10, reachPenalty: -2, extendedBy: "lunge" });
+  equal("A5 a Lunge with a Reach trait weapon gains nothing more; the -2 as before",
+    V({ key: "tripAttack", distance: 10, weaponExtension: 5, lunge: true }), { allowed: true, limit: 10, reachPenalty: -2, extendedBy: "weapon" });
+  equal("A5b a Lunge against an adjacent foe: no penalty", V({ key: "tripAttack", distance: 5, lunge: true }).reachPenalty, 0);
   equal("A6 a Lunge at 15 ft: refused", V({ key: "shoveAttack", distance: 15, lunge: true }).allowed, false);
   equal("A7 a Large creature's own 10 ft reach", V({ key: "grappleAttack", distance: 10, ownReach: 10 }).allowed, true);
   ok("A8 Grapple ignores a weapon's reach", V({ key: "grappleAttack", distance: 10, weaponExtension: 5 }).allowed === false);
@@ -150,7 +152,8 @@ const AW = read("module", "combat", "action-workflow.mjs");
     /const distance = distanceBetween\(mine, targetToken\);/.test(body) && /mountedReach\(/.test(body));
   ok("E4 the weapon's reach, the Lunge and a held target all reach the verdict",
     /weaponExtension: actionWeaponExtension\(action\.key, Array\.from\(actor\.items \?\? \[\]\)\)/.test(body) && /lunge: Boolean\(lunging\)/.test(body) && /holdsTarget: targetActor\.getFlag\?\.\(SYSTEM_ID, "grabbedBy"\)\?\.uuid === actor\.uuid/.test(body));
-  ok("E5 the Reach -2 and Lunge's -1 reach the check", /\.\.\.actionReachRows,/.test(AW) && /if \(lunging\) actionReachRows\.push\(\.\.\.\(lunging\.extraModifiers \?\? \[\]\)\);/.test(body));
+  ok("E5 the Reach -2 reaches the check, unless the Lunge's stance waives it", /\.\.\.actionReachRows,/.test(AW) && /if \(lunging\) actionReachRows\.push\(\.\.\.\(lunging\.extraModifiers \?\? \[\]\)\);/.test(body)
+    && /if \(verdict\?\.reachPenalty && !lunging\?\.waiveReachPenalty\) actionReachRows\.push\(/.test(body));
   ok("E6 a Lunge does not reach adjacency", /const lunging = ACTION_REACH\[action\.key\]\.kind === "adjacent" \? null : lungeScopeFor\(actor\);/.test(body));
   ok("E7 the positional setting switches it off, as for a Strike", /game\.settings\.get\(SYSTEM_ID, "positionalAutomation"\) !== false/.test(body));
   const RF = read("module", "combat", "reaction-feats-workflow.mjs");
@@ -162,18 +165,18 @@ const AW = read("module", "combat", "action-workflow.mjs");
     && /return resolveAction\(defender, action, \{\}\);/.test(RD) && !/reachExempt/.test(RD));
   const AWK = read("module", "combat", "attack-workflow.mjs");
   const merge = block(AWK, "  // A LUNGE WITH ANOTHER ATTACK ACTION (3.705.0", "  const viaRefused");
-  ok("E9 a Strike in a Lunge's action gains Reach and the -1, never the -2; not a reaction; melee only",
+  ok("E9 a Strike in a Lunge's action gains Reach, its -2 waived only in the stance; not a reaction; melee only",
     /const lunging = \(isReaction \|\| asReaction\) \? null : lungeScopeFor\(actor\);/.test(merge)
     && /if \(lunging && \(weapon\?\.system\?\.attackMode \?\? "melee"\) === "melee"\) \{/.test(merge)
     && /grantTraits = \[\.\.\.grantTraits, \.\.\.\(lunging\.grantTraits \?\? \[\]\)\];/.test(merge)
-    && /waiveReachPenalty = true;/.test(merge)
+    && /if \(lunging\.waiveReachPenalty\) waiveReachPenalty = true;/.test(merge)
     && /extraModifiers = \[\.\.\.extraModifiers, \.\.\.\(lunging\.extraModifiers \?\? \[\]\)\];/.test(merge));
   const CW = read("module", "combat", "charge-workflow.mjs");
   ok("E10 a Charge records its Lunge, and its Strike on arrival uses it",
     /\{ lunge: lungeScopeFor\(actor\) \}\);/.test(AW) && /\.\.\.\(lunge \? \{ lunge \} : \{\}\)/.test(CW)
     && /const reach = reachOf\(chargerToken\?\.object \?\? chargerToken\) \+ \(lunge \? 5 : 0\);/.test(CW)
     && /extraModifiers: \[chargeStrikeModifier\(\), \.\.\.\(lunge\?\.extraModifiers \?\? \[\]\)\],/.test(CW)
-    && /\.\.\.\(lunge \? \{ grantTraits: lunge\.grantTraits \?\? \["Reach"\], waiveReachPenalty: true \} : \{\}\)/.test(CW));
+    && /\.\.\.\(lunge \? \{ grantTraits: lunge\.grantTraits \?\? \["Reach"\], waiveReachPenalty: Boolean\(lunge\.waiveReachPenalty\) \} : \{\}\)/.test(CW));
   const AFW = read("module", "combat", "action-feats-workflow.mjs");
   const run = block(AFW, "async function runLunge(actor, item, entry) {", "\n}\n");
   ok("E11 runLunge asks which action before anything", /const options = lungeActionOptions\(\{ featNames \}\);/.test(run) && /if \(!pick\) return null;/.test(run));
@@ -188,7 +191,7 @@ const AW = read("module", "combat", "action-workflow.mjs");
   ok("E15 the Lunge card only after an action that happened", /if \(result === null \|\| result === undefined\) return result;\n\s+await card\(/.test(run));
 }
 
-const EXPECTED = 65;
+const EXPECTED = 66;
 checks += 1;
 if (checks !== EXPECTED) failures.push(`Z the suite ran ${checks} checks, expected ${EXPECTED}`);
 if (failures.length) {

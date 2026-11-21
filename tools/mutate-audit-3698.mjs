@@ -46,7 +46,7 @@ const MUTATIONS = [
   { name: "E the strike never pushes the row", file: AW, from: "    if (row) modifiers.push(row);\n  }\n\n  const sweepTargets", to: "  }\n\n  const sweepTargets" },
   { name: "E Finesse still added to a Spellcraft attack", file: AW, from: "if (finesseBonus && !spellcraftBased)", to: "if (finesseBonus)" },
   { name: "E the dialog still says force", file: CWF, from: "It deals ${damageType} damage", to: "It deals force damage" },
-  { name: "E owned Flame Blades never get the blade", file: MG, from: "runIf(\"3.701.0\", \"stale owned copies of repaired pack items\"", to: "runIf(\"3.698.1\", \"stale owned copies of repaired pack items\"" },
+  { name: "E owned Flame Blades never get the blade", file: MG, from: "runIf(\"3.705.1\", \"stale owned copies of repaired pack items\"", to: "runIf(\"3.698.1\", \"stale owned copies of repaired pack items\"" },
   { name: "E the proficiency mark never read", file: PF, from: "item?.flags?.[SYSTEM_ID]?.casterProficient === true", to: "false" },
   { name: "E every conjured or bought Scimitar counted proficient", file: PF, from: "item?.flags?.[SYSTEM_ID]?.casterProficient === true", to: "/scimitar/i.test(item?.name ?? \"\")" },
   { name: "E the row's mark dropped", file: CW, from: "    casterProficient: raw.casterProficient === true", to: "    casterProficient: false" },
@@ -57,7 +57,7 @@ const MUTATIONS = [
   { name: "F a conjured blade offered for customising", file: CO, from: "  if (item?.flags?.[SYSTEM_ID]?.conjuredWeapon) return false;\n", to: "" },
   { name: "F every weapon refused customising", file: CO, from: "  if (item?.flags?.[SYSTEM_ID]?.conjuredWeapon) return false;\n", to: "  return false;\n" },
   { name: "F the fire blade called pure force again", file: SE, from: "lines.push(line(weaponSpec.damageType === \"force\"", to: "lines.push(line(true" },
-  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.705.0\"", to: "\"version\": \"3.698.3\"" }
+  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.705.1\"", to: "\"version\": \"3.698.3\"" }
 ];
 
 const verify = path.join(SYSTEM_ROOT, "tools", "verify-audit-3698.mjs");

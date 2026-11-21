@@ -168,7 +168,7 @@ export async function strikePlan(actor, weapon, featKey, { extraModifiers = [], 
       apPaid: !entry?.strikePays,
       keepsStep,                  // Skirmish: its own Step is the same action
       grantTraits,                // Lunge: the Strike gains Reach
-      waiveReachPenalty,          // Lunge: never the Reach trait's -2
+      waiveReachPenalty,          // Lunging Stance: the Reach -2 negated
       mapFrozen: plan.frozen,
       skipTargetPrompt: Boolean(token),
       extraModifiers: [
@@ -327,9 +327,9 @@ export async function runActionFeat(actor, item) {
  * attack actions, the action feats this character has; `lungeActionOptions`).
  *   Strike          the 3.704.0 path: the weapon, then the Strike with Reach.
  *   anything else   run as itself — its own AP, gates, checks and card —
- *                   while the Lunge is in scope (lunge-scope.mjs): its reach
- *                   is 5 ft further, its check takes Lunge's -1 (none in
- *                   Lunging Stance), and never the Reach -2.
+ *                   while the Lunge is in scope (lunge-scope.mjs): it gains
+ *                   the Reach trait, 5 ft further at the trait's -2 there
+ *                   (none in Lunging Stance; 3.705.1).
  * A short Lunge card follows an action that happened.
  */
 async function runLunge(actor, item, entry) {
@@ -372,8 +372,8 @@ async function runLunge(actor, item, entry) {
   await card(actor, entry.label, [
     line(`<strong>${esc(actor.name)}</strong> lunges: <strong>${esc(label)}</strong> reaches 5 ft further.`),
     lungingStance
-      ? line("<em>Lunging Stance: Lunge's -1 is negated — no penalty.</em>")
-      : line("<em>-1 circumstance on its attack, and no other penalty (the Reach trait's -2 does not apply to a Lunge).</em>")
+      ? line("<em>Lunging Stance: the Reach trait's -2 is negated — no penalty.</em>")
+      : line("<em>The Reach trait's -2 applies when the target is in the extra 5 ft; nothing against an adjacent foe.</em>")
   ]);
   return result;
 }
@@ -487,9 +487,9 @@ const RUN = {
   // attack trait. This action gains the reach trait for that Strike. This
   // strike is subject to a -1-circumstance penalty." Until 3.704.0 it queued
   // a -1 tick-box and nothing else, so a foe at 10 ft was still refused as
-  // beyond reach. Now the Strike has Reach (+5 ft) and Lunge's -1, and no
-  // other penalty (3.704.1, Graham: "-1 only for lunge" — not the Reach
-  // trait's -2); Lunging Stance negates the -1.
+  // beyond reach. Now the Strike has the Reach trait: +5 ft, and its -2 at the
+  // extra distance (3.705.1, Graham's revised feat: no -1 of its own);
+  // Lunging Stance negates the -2.
   async lunge(actor, item, entry, chosen = null) {
     const weapon = chosen ?? null;
     const lungingStance = lungingStanceActive(Array.from(actor.appliedEffects ?? actor.effects ?? []).map((e) => ({
@@ -501,8 +501,8 @@ const RUN = {
     await card(actor, entry.label, [
       line(`<strong>${esc(actor.name)}</strong> lunges with <strong>${esc(weapon?.name ?? "a melee weapon")}</strong>: the Strike has the <strong>Reach</strong> trait (+5 ft).`),
       lungingStance
-        ? line("<em>Lunging Stance: Lunge's -1 is negated — no penalty.</em>")
-        : line("<em>-1 circumstance on this Strike, and no other penalty (the Reach trait's -2 does not apply to a Lunge).</em>")
+        ? line("<em>Lunging Stance: the Reach trait's -2 is negated — no penalty.</em>")
+        : line("<em>The Reach trait's -2 applies when the target is in the extra 5 ft; nothing against an adjacent foe.</em>")
     ]);
   },
 

@@ -41,7 +41,7 @@ const MUTATIONS = [
   { name: "the sheet's ability wins over the cast's", file: SDA, from: "    ? [castingAbilityKey, casterSystem?.magic?.castingAbility]", to: "    ? [casterSystem?.magic?.castingAbility, castingAbilityKey]", breaks: "C2" },
   { name: "the Spellcraft swap is ignored", file: CW, from: "(isInnate ? innateAbilityAttr : (swapAbility ?? system.magic?.castingAbility))", to: "(isInnate ? innateAbilityAttr : system.magic?.castingAbility)", breaks: "C6" },
   { name: "owned copies keep the bare 1d6", file: PR, from: "    field: \"damage\", since: \"3.666.1\",", to: "    field: \"damage\", since: \"3.666.0\",", breaks: "C7" },
-  { name: "the migration gate stays where it was", file: MG, from: "runIf(\"3.701.0\", \"stale owned copies of repaired pack items\"", to: "runIf(\"3.648.0\", \"stale owned copies of repaired pack items\"", breaks: "C8" },
+  { name: "the migration gate stays where it was", file: MG, from: "runIf(\"3.705.1\", \"stale owned copies of repaired pack items\"", to: "runIf(\"3.648.0\", \"stale owned copies of repaired pack items\"", breaks: "C8" },
   // D
   { name: "THE NIMBLE DODGE COMPLAINT: a Strike asks nobody", file: AW, from: "    await offerDefences(actor, targetActor, { kind: \"weapon\", what: weapon.name });\n", to: "", breaks: "D10" },
   { name: "a spell attack asks nobody", file: CW, from: "      await offerDefences(actor, defender, { kind: \"spell\", what: spell.name });\n", to: "", breaks: "D11" },

@@ -687,9 +687,8 @@ export async function rollWeaponAttack(actor, weapon, {
   // anything reads it, so reach, the reach penalty and the card all see
   // them. See attack.mjs `traitsWithGranted`.
   grantTraits = [],
-  // THE REACH TRAIT'S -2 WAIVED FOR THIS STRIKE (3.704.0; since 3.704.1 every
-  // Lunge, by Graham's ruling "-1 only for lunge": the Strike gains Reach's
-  // range, not its penalty).
+  // THE REACH TRAIT'S -2 WAIVED FOR THIS STRIKE (3.704.0): a Lunge made in
+  // Lunging Stance, whose "penalties … are completely negated" (3.705.1).
   waiveReachPenalty = false,
   // XITHRA AND SCREECH (3.643.0, F&F 3.0 block 13 R6): a weapon marked
   // `viaAbility` is struck only through that ability's Use.
@@ -755,13 +754,14 @@ export async function rollWeaponAttack(actor, weapon, {
 } = {}) {
   // A LUNGE WITH ANOTHER ATTACK ACTION (3.705.0; Graham: Lunge works with any
   // action with the attack trait). While that action runs, its melee Strikes
-  // gain Reach (+5 ft) and Lunge's -1, and never the Reach -2 ("-1 only for
-  // lunge"). A reaction is not the Lunge's action. See lunge-scope.mjs.
+  // gain the Reach trait: +5 ft, and its -2 at the extra distance unless
+  // Lunging Stance waives it (3.705.1). A reaction is not the Lunge's action.
+  // See lunge-scope.mjs.
   {
     const lunging = (isReaction || asReaction) ? null : lungeScopeFor(actor);
     if (lunging && (weapon?.system?.attackMode ?? "melee") === "melee") {
       grantTraits = [...grantTraits, ...(lunging.grantTraits ?? [])];
-      waiveReachPenalty = true;
+      if (lunging.waiveReachPenalty) waiveReachPenalty = true;
       extraModifiers = [...extraModifiers, ...(lunging.extraModifiers ?? [])];
     }
   }

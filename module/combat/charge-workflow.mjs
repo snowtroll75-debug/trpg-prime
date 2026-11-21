@@ -33,7 +33,8 @@ export async function armCharge(actor, chargerToken, targetToken, { lunge = null
     name: targetToken?.name ?? "your target",
     startDistance,
     // A CHARGE MADE WITH LUNGE (3.705.0): its Strike, after the move, is the
-    // Lunge's — +5 ft, Lunge's -1, never the Reach -2. See lunge-scope.mjs.
+    // Lunge's: the Reach trait, +5 ft and its -2 at the extra distance unless
+    // Lunging Stance waives it (3.705.1). See lunge-scope.mjs.
     ...(lunge ? { lunge } : {})
   });
   return startDistance;
@@ -271,6 +272,6 @@ export async function resolveChargeStrike(actor, chargerToken, { endDistance = n
     // moved towards — asking for it again would be asking twice.
     skipTargetPrompt: true,
     extraModifiers: [chargeStrikeModifier(), ...(lunge?.extraModifiers ?? [])],
-    ...(lunge ? { grantTraits: lunge.grantTraits ?? ["Reach"], waiveReachPenalty: true } : {})
+    ...(lunge ? { grantTraits: lunge.grantTraits ?? ["Reach"], waiveReachPenalty: Boolean(lunge.waiveReachPenalty) } : {})
   });
 }

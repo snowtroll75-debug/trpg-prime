@@ -2,6 +2,14 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.705.1 — 20 November 2026: Lunge, revised
+
+Branch `fix/feat-lunge`, from 3.705.0. Full notes in `release-notes-3.705.1.md`; repair log R-0004.
+
+- **Graham's revised Lunge:** the action gains the Reach trait, with no −1. Asked, he chose the Reach trait whole: −2 at the extra 5 ft, none against an adjacent foe. Lunging Stance negates the −2. This replaces "-1 only for lunge".
+- **Data and migration:** the feat's text is now Graham's wording, and both notes are reworded, in the pack and on owned copies. Both migration passes and the schema are at 3.705.1.
+- **Harness:** `verify-lunge-3704` (72) / mutate (24); `verify-lunge-actions-3705` (66) / mutate (27); pins raised.
+
 ## 3.705.0 — 20 November 2026: reach for every attack action, and Lunge with any of them
 
 Branch `fix/feat-lunge`, from 3.704.1. Full notes in `release-notes-3.705.0.md`; repair log R-0003.

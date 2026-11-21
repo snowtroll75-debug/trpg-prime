@@ -9,11 +9,12 @@
  * scope says it is a Lunge. Everything that measures reach or adds the
  * Strike's modifiers during that run reads the scope:
  *
- *   rollWeaponAttack     a melee Strike gains Reach (+5 ft), Lunge's -1 and
- *                        never the Reach -2 (Double Slice's two Strikes,
- *                        Vital Strike's, Combat Grapple's, …)
+ *   rollWeaponAttack     a melee Strike gains the Reach trait: +5 ft, and
+ *                        its -2 at the extra distance unless Lunging Stance
+ *                        waives it (Double Slice's two Strikes, Vital
+ *                        Strike's, Combat Grapple's, …)
  *   resolveAction        a maneuver's reach (`action-reach.mjs`) is +5 ft,
- *                        with Lunge's -1 on its check
+ *                        with the Reach -2 there, as for a Strike
  *
  * Kept on this client, for the length of one action, because the action
  * runs here from start to finish. Nothing is written to the actor, so

@@ -31,8 +31,9 @@
  * THE REACH TRAIT'S -2. "Weapons with this trait increase the reach …
  * Such attacks are subject to a -2 penalty to AB", only at the extended
  * distance (Graham's earlier ruling, as for a Strike). A Trip made at ten
- * feet with a reach weapon takes it. A LUNGE NEVER DOES (Graham, 20
- * November 2026: "-1 only for lunge").
+ * feet with a reach weapon takes it, and so does a Lunge, which gains the
+ * Reach trait (Graham's revised Lunge, 20 November 2026, 3.705.1). Lunging
+ * Stance waives it for a Lunge: the workflow reads the Lunge's terms.
  *
  * Pure.
  */
@@ -114,7 +115,9 @@ export function actionReachVerdict({ key, distance = null, ownReach = 5, weaponE
   const allowed = d <= limit;
   const extended = allowed && d > base;
   const extendedBy = !extended ? null : (weaponExt > 0 && weaponExt >= lungeExt ? "weapon" : "lunge");
-  return { allowed, limit, reachPenalty: extended && extendedBy === "weapon" && !lunge ? -2 : 0, extendedBy };
+  // THE REACH TRAIT'S -2 at the extended distance, by a reach weapon or by a
+  // Lunge (3.705.1: the Lunge's Reach is the trait whole).
+  return { allowed, limit, reachPenalty: extended ? -2 : 0, extendedBy };
 }
 
 /**

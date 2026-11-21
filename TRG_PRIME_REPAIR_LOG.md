@@ -272,3 +272,72 @@ No console errors. The world migration to 3.704.0 ran.
 - **Outstanding:**
   - Lunging Stance's Attack of Opportunity reach is still not automated.
   - The compendium feat descriptions wait for Graham's amended Lunge wording.
+
+---
+
+## R-0004 — Lunge, revised: the Reach trait whole, no −1
+
+### Repair identification
+
+- **Date:** 20–21 November 2026
+- **Reference:** R-0004, following R-0003
+- **Feature:** Lunge, and Lunging Stance's negation
+- **Reported:** Graham revised the feat: "the Lunge feat should apply the reach trait rather than a -1 circumstance penalty". New text: "… This action gains the reach trait for that Strike." (the −1 sentence removed).
+- **Ruling:** asked whether the Reach trait's −2 then applies, he chose "Reach −2 at extra 5 ft". This supersedes R-0002's "-1 only for lunge".
+
+### Source state
+
+- **Starting version:** 3.705.0, on branch `fix/feat-lunge` at `cff1539`.
+- **Working tree:** clean.
+- **Remote:** unchanged.
+
+### Diagnosis
+
+- **Expected:** a Lunge gains the Reach trait. That means +5 ft, no penalty against a foe within normal reach, and −2 in the extra 5 ft. Lunging Stance negates that −2.
+- **Actual (3.705.0):** a Lunge took −1 at any distance and never the Reach −2. The feat's text and notes printed the −1.
+- **Relevant files:**
+  - `lungeStrikeTerms` (`combat/action-feats.mjs`)
+  - `actionReachVerdict` (`combat/action-reach.mjs`)
+  - the waiver's use in `resolveAction`, `rollWeaponAttack` and the Charge Strike
+  - the Lunge item's description and the two note effects
+
+### Implementation
+
+**Code:**
+
+- `lungeStrikeTerms` returns no modifier row; `waiveReachPenalty` is set only in Lunging Stance.
+- `actionReachVerdict` gives −2 whenever the reach is extended.
+- `resolveAction` skips the row when the Lunge's stance waives it.
+- `rollWeaponAttack` and Charge pass the waiver on, and no longer always set it.
+- Cards and comments are reworded.
+
+**Data:**
+
+- `system.description` is Graham's text (`lunge-description-3705-1`, plus a `PACK_REPAIRS` row for owned copies).
+- Two note fixes; the earlier rows are retired with `supersededBy`.
+- `EFFECT_REPAIRS` take every earlier note straight to the new one.
+
+**Migration:** the pack-copy and owned-effect passes and `TRG_SCHEMA_VERSION` are at 3.705.1.
+
+**Harness:**
+
+- `verify/mutate-lunge-3704` and `verify/mutate-lunge-actions-3705` updated.
+- Three mutation files' pack-copy gate anchors raised.
+- Pins raised to 3.705.1.
+
+### Testing
+
+- `verify-lunge-3704`: 72 pass. `mutate-lunge-3704`: 24 of 24 caught.
+- `verify-lunge-actions-3705`: 66 pass. `mutate-lunge-actions-3705`: 27 of 27 caught.
+- `apply-data-fixes`: 3 applied; the 25 refusals are pre-existing.
+- **Core, 495 scripts:** every script reading a changed file or carrying a pin, plus the whole-tree checks and `verify-checks-read-source`. **495 of 495 pass.**
+- The two long mutation files are recorded in `release-notes-3.705.1.md`.
+- **Modules:** not re-run. Nothing they call changed since 3.705.0's comparison, which was identical to 3.703.1.
+- **Live Foundry:** not yet run for 3.705.1.
+
+### Delivery
+
+- **Version:** 3.705.1
+- **Branch:** `fix/feat-lunge` (local, not pushed)
+- **Package:** `trg-prime.zip`
+- **Outstanding:** Lunging Stance's Attack of Opportunity reach is still not automated.

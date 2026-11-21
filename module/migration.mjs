@@ -88,7 +88,8 @@ const WORLD_SCHEMA_SETTING = "worldSchemaVersion";
 // Stance notes. The stamp equals the newest pass, as above.
 // 3.704.1: re-gated for the same notes, Lunge's -1 alone.
 // 3.705.0: and again for the Lunge note, any attack action.
-export const TRG_SCHEMA_VERSION = "3.705.0";
+// 3.705.1: both passes re-gated for Graham's revised Lunge (its text, notes).
+export const TRG_SCHEMA_VERSION = "3.705.1";
 
 /**
  * Register the hidden world setting used to determine whether a migration is
@@ -798,7 +799,8 @@ export async function migrateWorldData(fromVersion = "") {
   // RE-VERSIONED TO 3.698.2: the blade's proficiency (Graham).
   // RE-VERSIONED TO 3.699.0: Eternal's Death State (Graham, RD-01).
   // RE-VERSIONED TO 3.701.0: the Movement trait on 34 spells (Graham, 18 Nov 2026).
-  const packCopies = (await runIf("3.701.0", "stale owned copies of repaired pack items",
+  // RE-VERSIONED TO 3.705.1: Lunge's text, Graham's revised feat.
+  const packCopies = (await runIf("3.705.1", "stale owned copies of repaired pack items",
     () => migrateStalePackCopies([...actors, ...tokenActors], Array.from(game.items ?? []))))
     ?? { repaired: [], kept: [] };
   result.packCopies = packCopies;
@@ -858,7 +860,8 @@ export async function migrateWorldData(fromVersion = "") {
   // RE-VERSIONED TO 3.704.0: the Lunge and Lunging Stance notes (Lunge automated).
   // RE-VERSIONED TO 3.704.1: the same notes again, the -1 alone (Graham's ruling).
   // RE-VERSIONED TO 3.705.0: the Lunge note again, any attack action.
-  const effectRepairs = (await runIf("3.705.0", "declared effect repairs on owned items (Undead disease; Ooze disease and precision; the Storgar note; the Lunge and Lunging Stance notes)",
+  // RE-VERSIONED TO 3.705.1: the Lunge and Lunging Stance notes, revised Lunge.
+  const effectRepairs = (await runIf("3.705.1", "declared effect repairs on owned items (Undead disease; Ooze disease and precision; the Storgar note; the Lunge and Lunging Stance notes)",
     () => migrateOwnedEffectRepairs(actors, tokenActors, Array.from(game.items ?? [])))) ?? [];
   result.effectRepairs = effectRepairs;
 
