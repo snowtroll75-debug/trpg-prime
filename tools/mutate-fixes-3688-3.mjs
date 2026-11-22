@@ -13,8 +13,8 @@ const MUTATIONS = [
   { name: "the rows open on Critical", file: CW, from: "return `<option value=\"${key}\">${", to: "return `<option value=\"${key}\"${key === \"critical\" ? \" selected\" : \"\"}>${" },
   { name: "the blank option not marked selected", file: CW, from: "<option value=\"\" selected>— not participating —</option>", to: "<option value=\"\">— not participating —</option>" },
   { name: "a blank row counted as a seat", file: CW, from: "String(result[`secondary-${i}`] ?? \"\").trim()).filter(Boolean);", to: "String(result[`secondary-${i}`] ?? \"\").trim() || \"success\");" },
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.707.3\"", to: "\"version\": \"3.688.2\"" },
-  { name: "the download names the last release", file: SJ, from: "releases/download/v3.707.3/trg-prime.zip", to: "releases/download/v3.688.2/trg-prime.zip" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.708.0\"", to: "\"version\": \"3.688.2\"" },
+  { name: "the download names the last release", file: SJ, from: "releases/download/v3.708.0/trg-prime.zip", to: "releases/download/v3.688.2/trg-prime.zip" }
 ];
 
 const verify = path.join(SYSTEM_ROOT, "tools", "verify-fixes-3688-3.mjs");

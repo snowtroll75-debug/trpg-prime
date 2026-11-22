@@ -27,7 +27,7 @@ import {
   TRG_SCHEMA_VERSION
 } from "../module/migration.mjs";
 import { TRGActorSheet } from "../module/sheets/actor-sheet.mjs";
-import { TRGPartySheet } from "../module/sheets/party-sheet.mjs";
+import { TRGPartySheet, registerPartyLootDragGuard } from "../module/sheets/party-sheet.mjs";
 import { registerPartySocket } from "../module/party-socket.mjs";
 import { registerTargetRelay } from "../module/combat/target-relay-workflow.mjs";
 import { registerGMAuthorisation } from "../module/combat/gm-authorisation.mjs";
@@ -880,6 +880,8 @@ Hooks.once("init", () => {
     makeDefault: true,
     label: "TRG Prime Party Sheet"
   });
+  // A player may not drag party loot onto a sheet as a copy (3.708.0).
+  registerPartyLootDragGuard();
 
   // The effect sheet, replacing Foundry's own attribute-key form as the
   // default. Its technical half is behind a per-actor GM toggle.

@@ -18,7 +18,8 @@ import {
   ACCOMPLISHMENT_AWARDS, THREAT_LEVELS, averagePartyLevel, effectiveLevelOf,
   encounterSummary, splitXP, threatLevel, treasureGuide
 } from "./rewards.mjs";
-import { normaliseMembers } from "./party.mjs";
+import { PARTY_TYPE } from "./party.mjs";
+import { MEMBER_STATUS, activeMembers, liveResolvers, resolveActorUuids, resolvePartyRoster } from "./party-members.mjs";
 
 /** The stored encounter, cleaned up: `{threat, creatures: [{uuid, count}]}`. */
 export function normaliseEncounter(raw) {
@@ -33,29 +34,41 @@ export function normaliseEncounter(raw) {
   return { threat, creatures: [...seen].map(([uuid, count]) => ({ uuid, count })) };
 }
 
-async function resolve(uuid) {
-  try { return await fromUuid(uuid); } catch { return null; }
-}
-
-/** The members as actors (missing ones dropped). */
+/**
+ * The members as actors: the roster entries that resolved and may be on a
+ * roster (3.708.0: through party-members.mjs, the one resolver, in one
+ * batch). A missing or ineligible entry is not counted.
+ */
 async function partyMembers(party) {
-  const out = [];
-  for (const uuid of normaliseMembers(party?.system?.members)) {
-    const actor = await resolve(uuid);
-    if (actor) out.push(actor);
-  }
-  return out;
+  return activeMembers(await resolvePartyRoster(party));
 }
 
-/** Everything the Rewards tab shows. */
-export async function rewardsContext(party) {
-  const members = await partyMembers(party);
+/**
+ * Everything the Rewards tab shows.
+ *
+ * 3.708.0: `members` may be passed in, already resolved, by a caller that
+ * has the roster (the sheet resolves it once per render for every panel).
+ * Without it the roster is resolved here. The adversaries are resolved in
+ * one batch too, and the result's `watchEntries` tells the sheet which
+ * documents its encounter rows were read from.
+ *
+ * @param {Actor} party
+ * @param {{members?: Actor[]}} [options]
+ */
+export async function rewardsContext(party, { members = null } = {}) {
+  members = members ?? await partyMembers(party);
   const levels = members.map((actor) => Number(actor.system?.identity?.level ?? 0));
   const apl = averagePartyLevel(levels);
   const encounter = normaliseEncounter(party?.system?.encounter);
+  const counts = new Map(encounter.creatures.map((entry) => [entry.uuid, entry.count]));
+  const resolved = await resolveActorUuids(
+    encounter.creatures.map((entry) => entry.uuid), liveResolvers(),
+    (actor) => actor?.type !== PARTY_TYPE
+  );
   const creatures = [];
-  for (const entry of encounter.creatures) {
-    const actor = await resolve(entry.uuid);
+  for (const { uuid, actor: found, status } of resolved) {
+    const actor = status === MEMBER_STATUS.OK ? found : null;
+    const entry = { uuid, count: counts.get(uuid) ?? 1 };
     creatures.push({
       uuid: entry.uuid,
       count: entry.count,
@@ -81,7 +94,8 @@ export async function rewardsContext(party) {
     summary,
     split: splitXP(summary.total, apl.members),
     accomplishments: ACCOMPLISHMENT_AWARDS,
-    treasure: treasureGuide(apl.apl)
+    treasure: treasureGuide(apl.apl),
+    watchEntries: resolved
   };
 }
 

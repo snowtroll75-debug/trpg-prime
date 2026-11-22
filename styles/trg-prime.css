@@ -4640,6 +4640,12 @@
   opacity: 0.8;
 }
 
+/* 3.708.0: the GM's note that some roster entries need attention. */
+.trg-prime .party-unresolved {
+  margin: 0 0 8px;
+  color: var(--trg-burgundy, #6e1b25);
+}
+
 .trg-prime .party-member-portrait {
   flex: 0 0 56px;
   width: 56px;

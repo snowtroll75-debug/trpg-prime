@@ -139,12 +139,58 @@ export function barPercent(value, max) {
  *   conditions live on the live document and this module does not touch
  *   documents.
  */
-export function memberSummary(actor, uuid, readConditions = () => []) {
+export function memberSummary(actor, uuid, readConditions = () => [], { status = null, restricted = false } = {}) {
   const id = str(uuid);
   if (!actor) {
     // A member the world no longer has. Reported rather than hidden —
-    // a roster that quietly shrinks is one the GM cannot fix.
-    return { uuid: id, missing: true, name: "(missing actor)", conditions: [] };
+    // a roster that quietly shrinks is one the GM cannot fix. Its UUID is
+    // kept, so the GM's Remove button still has something to remove.
+    // 3.708.0: why it is missing travels with it, so the row can say
+    // "deleted" or "could not be looked up" rather than guess.
+    const lookupFailed = status === "error";
+    return {
+      uuid: id,
+      missing: true,
+      status: lookupFailed ? "error" : "missing",
+      name: "(missing actor)",
+      missingReason: lookupFailed
+        ? "This roster entry could not be looked up. It is kept until the GM removes it."
+        : "This actor has been deleted from the world, or is no longer available.",
+      conditions: []
+    };
+  }
+
+  // NOT ON A ROSTER BY THE RULES (3.708.0). Only a character or NPC may be
+  // added, but a companion or party put on by an older world or a macro
+  // still resolves. It is flagged for the GM rather than summarised as a
+  // member, and it does not count toward the APL or an XP split.
+  if (status === "ineligible") {
+    return {
+      uuid: id,
+      missing: true,
+      status: "ineligible",
+      name: str(actor.name) || "(unnamed)",
+      img: actor.img ?? null,
+      missingReason: `A ${str(actor.type) || "document"} cannot be a party member. Remove it from the roster.`,
+      conditions: []
+    };
+  }
+
+  // AN NPC THE VIEWER MAY NOT INSPECT (3.708.0; Graham, 22 Nov 2026): its
+  // name and portrait only. Nothing else about it is put in the context.
+  if (restricted) {
+    return {
+      uuid: id,
+      missing: false,
+      restricted: true,
+      status: "ok",
+      id: actor.id ?? null,
+      name: str(actor.name) || "(unnamed)",
+      img: actor.img ?? null,
+      type: str(actor.type),
+      isNPC: str(actor.type) === "npc",
+      conditions: []
+    };
   }
 
   const system = actor.system ?? {};
@@ -155,6 +201,8 @@ export function memberSummary(actor, uuid, readConditions = () => []) {
   return {
     uuid: id,
     missing: false,
+    restricted: false,
+    status: "ok",
     id: actor.id ?? null,
     name: str(actor.name) || "(unnamed)",
     img: actor.img ?? null,
@@ -227,6 +275,64 @@ export function lootSummary(items = []) {
     totalWeight: Math.round(weight * 100) / 100,
     empty: rows.length === 0
   };
+}
+
+/**
+ * May this dropped item go into the party loot? (3.708.0)
+ *
+ * Before 3.708.0 the party sheet passed a GM's item drop straight to
+ * Foundry's default, which creates ANY item: a spell or a feat dropped on
+ * the party became an embedded item that `lootSummary` then filtered out,
+ * so it sat on the actor where no one could see or remove it.
+ *
+ * @param {object} options
+ * @param {object|null} options.item The dropped item, resolved by this client.
+ * @param {boolean} options.isGM
+ * @param {string} [options.partyUuid] The party's own UUID, to recognise a re-sort.
+ * @returns {{ok: true, sort: boolean} | {ok: false, reason: string}}
+ */
+export function planLootDrop({ item, isGM, partyUuid = "" }) {
+  if (!isGM) return { ok: false, reason: "Only the GM can add to the party loot." };
+  if (!item) return { ok: false, reason: "That item could not be found." };
+  // A row dragged within this sheet is a re-sort of loot already here.
+  if (partyUuid && str(item.parent?.uuid) === str(partyUuid)) return { ok: true, sort: true };
+  if (!isLootItem(item)) {
+    return {
+      ok: false,
+      reason: `${str(item.name) || "That item"} is a ${str(item.type) || "document"}. The party loot takes `
+        + `weapons, armour, shields, gear, consumables and ammunition.`
+    };
+  }
+  // A stack of nothing is not loot. Quantity is read from the item itself,
+  // never from the drag data.
+  const raw = Number(item.system?.quantity ?? 1);
+  if (!Number.isFinite(raw) || raw < 1) {
+    return { ok: false, reason: `${str(item.name) || "That item"} has a quantity of ${Number.isFinite(raw) ? raw : "nothing"}.` };
+  }
+  return { ok: true, sort: false };
+}
+
+/**
+ * Should a drop onto an ACTOR SHEET be refused because the item came out
+ * of a party's loot? (3.708.0)
+ *
+ * Foundry v14 lets anyone start a drag from a sheet they can see, and an
+ * actor sheet's default drop creates a copy. A player could therefore drag
+ * a loot row onto their own character and get the item, while the party
+ * kept it. Taking goes through the Take button and the GM relay
+ * (party-socket.mjs), which moves the item rather than copying it.
+ *
+ * A GM may still drag a copy: the GM can create any item anyway.
+ *
+ * @param {{sourceParentType?: string, targetType?: string, isGM: boolean}} options
+ * @returns {string|null} why it is refused, or null to allow it
+ */
+export function refusePartyLootDrag({ sourceParentType, targetType, isGM }) {
+  if (isGM) return null;
+  if (str(sourceParentType) !== PARTY_TYPE) return null;
+  // Onto the party itself is the party sheet's own business.
+  if (str(targetType) === PARTY_TYPE) return null;
+  return "Use the party sheet's Take button to take loot. Dragging it would copy it.";
 }
 
 /* ------------------------------------------------------------------ */

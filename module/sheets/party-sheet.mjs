@@ -20,8 +20,12 @@
 
 import {
   PARTY_TYPE, addMember, canJoinRoster, lootSummary, memberSummary,
-  normaliseCoin, normaliseMembers, removeMember, COIN_DENOMINATIONS
+  normaliseCoin, normaliseMembers, planLootDrop, refusePartyLootDrag, removeMember, COIN_DENOMINATIONS
 } from "../party.mjs";
+import {
+  MEMBER_STATUS, activeMembers, canSeeMemberDetails, resolvePartyRoster, watchKeysFor
+} from "../party-members.mjs";
+import { RenderCoalescer, partyLiveSync } from "../party-live-sync.mjs";
 import { requestTakeCoin, requestTakeItem } from "../party-socket.mjs";
 import { CONDITIONS } from "../conditions/registry.mjs";
 import { coinValueInGP } from "../items.mjs";
@@ -55,7 +59,6 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     window: { icon: "fa-solid fa-users", resizable: true },
     form: { closeOnSubmit: false, submitOnChange: true },
     actions: {
-      selectTab: TRGPartySheet.selectTab,
       removeMember: TRGPartySheet.removeMember,
       openMember: TRGPartySheet.openMember,
       takeItem: TRGPartySheet.takeItem,
@@ -76,7 +79,12 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   };
 
   static PARTS = {
-    form: { template: "systems/trg-prime/templates/actor/party-sheet.hbs" }
+    form: {
+      template: "systems/trg-prime/templates/actor/party-sheet.hbs",
+      // Each tab panel scrolls on its own; a live re-render (a member's HP
+      // changing) keeps the GM where they were in it (3.708.0).
+      scrollable: ['section[data-tab="roster"]', 'section[data-tab="loot"]', 'section[data-tab="rewards"]']
+    }
   };
 
   static TABS = {
@@ -91,21 +99,35 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     }
   };
 
+  /**
+   * THE REWARDS TAB IS THE GM'S (3.708.0; Graham, 22 Nov 2026). It lists
+   * the encounter's adversaries, their Effective Levels, the budget and the
+   * XP, so for a player the tab is not offered and its context is not
+   * built. The award buttons were already refused to a player in the
+   * workflow itself (party-rewards-workflow.mjs).
+   */
+  _getTabsConfig(group) {
+    const config = super._getTabsConfig(group);
+    if (!config || group !== "primary" || game.user?.isGM) return config;
+    return { ...config, tabs: config.tabs.filter((tab) => tab.id !== "rewards") };
+  }
+
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
     const actor = this.actor;
     const system = actor.system ?? {};
     const isGM = game.user?.isGM === true;
 
-    // The roster, resolved now. `fromUuid` is async, so this is the one
-    // place the sheet awaits anything.
-    const uuids = normaliseMembers(system.members);
-    const members = [];
-    for (const uuid of uuids) {
-      let member = null;
-      try { member = await fromUuid(uuid); } catch { member = null; }
-      members.push(memberSummary(member, uuid, conditionLabels));
-    }
+    // THE ROSTER, RESOLVED ONCE FOR EVERY PANEL (3.708.0). One batch
+    // through party-members.mjs; the Rewards tab is handed the same
+    // actors rather than looking them up again.
+    const roster = await resolvePartyRoster(actor);
+    const members = roster.map((entry) => memberSummary(entry.actor, entry.uuid, conditionLabels, {
+      status: entry.status,
+      // Graham's ruling: an NPC member's statistics only for a GM or an
+      // Observer of that NPC. A player character is always shown.
+      restricted: entry.status === MEMBER_STATUS.OK && !canSeeMemberDetails(entry.actor, game.user)
+    }));
 
     const loot = lootSummary(Array.from(actor.items ?? []));
     const currency = normaliseCoin(system.currency);
@@ -118,24 +140,72 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       .map((a) => ({ uuid: a.uuid, name: a.name }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
+    const rewards = isGM ? await rewardsContext(actor, { members: activeMembers(roster) }) : null;
+
+    // What this render read from, for the live updates (_onRender).
+    this.#watchKeys = watchKeysFor([...roster, ...(rewards?.watchEntries ?? [])]);
+
     return {
       ...context,
       actor,
-      system,
+      // Only what the template prints. The whole `system` object carried
+      // the encounter and the GM's notes into a player's context.
       isGM,
       members,
       memberCount: members.filter((m) => !m.missing).length,
       hasMembers: members.length > 0,
+      hasUnresolved: members.some((m) => m.missing),
       loot,
       currency,
       coinKeys: COIN_DENOMINATIONS,
       currencyGP: coinValueInGP(currency),
       destinations,
       hasDestination: destinations.length > 0,
-      rewards: await rewardsContext(actor),
+      rewards,
       tabs: this._prepareTabs("primary"),
       tabList: Object.values(this._prepareTabs("primary"))
     };
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Live updates (3.708.0)                                           */
+  /* ---------------------------------------------------------------- */
+
+  /** The document UUIDs the last render read from. */
+  #watchKeys = new Set();
+
+  /** Coalesces a burst of member changes into one render. */
+  #coalescer = new RenderCoalescer({
+    render: () => this.render(),
+    isRendered: () => this.rendered,
+    isBusy: () => {
+      // Typing in one of this sheet's fields: a render would replace it.
+      const active = globalThis.document?.activeElement;
+      return Boolean(this.element && active && this.element.contains(active)
+        && active.matches?.("input, textarea, select") && !active.disabled);
+    },
+    whenIdle: (callback) => {
+      this.element?.addEventListener("focusout", () => setTimeout(callback, 0), { once: true });
+    }
+  });
+
+  /** Called by the shared registry when a member (or an adversary) changes. */
+  onPartyDocumentChanged() {
+    this.#coalescer.request();
+  }
+
+  async _onRender(context, options) {
+    await super._onRender(context, options);
+    // After every render, so a member added, removed or deleted is picked
+    // up without bookkeeping of its own. The registry replaces this sheet's
+    // previous set; it never accumulates.
+    partyLiveSync().watch(this, this.#watchKeys);
+  }
+
+  _onClose(options) {
+    super._onClose(options);
+    this.#coalescer.cancel();
+    partyLiveSync().unwatch(this);
   }
 
   /* ---------------------------------------------------------------- */
@@ -194,44 +264,72 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     return super._onDrop(event);
   }
 
+  /**
+   * AN ITEM DROPPED IN (3.708.0). Checked by `planLootDrop` (party.mjs)
+   * before anything is created: the GM only, a type the loot holds, and a
+   * quantity of at least one, read from the item itself. A spell or a feat
+   * used to land as a hidden embedded item; it is now refused, with the
+   * reason.
+   */
+  async _onDropItem(event, item) {
+    const plan = planLootDrop({ item, isGM: game.user?.isGM === true, partyUuid: this.actor.uuid });
+    if (!plan.ok) {
+      ui.notifications?.warn(plan.reason);
+      return null;
+    }
+    return super._onDropItem(event, item);
+  }
+
+  /** A party holds no effects: it has nothing for one to change (3.708.0). */
+  async _onDropActiveEffect() {
+    ui.notifications?.warn("A party has no statistics for an effect to change. Drop it on a member instead.");
+    return null;
+  }
+
+  /**
+   * A loot row may be dragged by the GM only (3.708.0). Foundry v14 lets
+   * anyone who can see a sheet start a drag from it, and a character
+   * sheet's default drop copies the item, so a player could take loot
+   * without the party losing it. Players take through the Take button.
+   */
+  _canDragStart(selector) {
+    return game.user?.isGM === true;
+  }
+
   /* ---------------------------------------------------------------- */
   /* Actions                                                          */
   /* ---------------------------------------------------------------- */
 
   /**
-   * Tab switching, kept identical to the actor sheet's so the two
-   * behave the same way under the same CSS.
+   * TABS ARE FOUNDRY'S OWN (3.708.0). The sheet used to carry a copy of the
+   * actor sheet's `selectTab`. It now uses ApplicationV2's `tab` action and
+   * `changeTab`, which keep `tabGroups` and restore the open tab on every
+   * render. Two small additions:
+   *
+   * - a click on the icon or label inside a tab button is a click on the
+   *   button. Foundry reads `event.target`, which is the icon, and would
+   *   ignore it;
+   * - `aria-selected` and `aria-hidden` stay in step with the open tab, as
+   *   the old handler kept them.
    */
-  static selectTab(event, target) {
-    event.preventDefault();
-    const tab = target.dataset.tab;
-    if (!tab) return;
-    const group = target.dataset.group ?? "primary";
-    const elements = this.element?.querySelectorAll(`[data-group="${group}"][data-tab]`);
-    if (!elements?.length) throw new Error(`TRG Prime | No elements for tab group "${group}"`);
+  _onClickTab(event) {
+    const button = event.target?.closest?.("[data-tab]");
+    if (!button) return;
+    const tab = button.dataset.tab;
+    if (!tab || button.classList.contains("active") || (event.button !== 0)) return;
+    this.changeTab(tab, button.dataset.group ?? "primary", { event, navElement: button.closest(".tabs") });
+  }
 
-    let button = false;
-    let panel = false;
-    for (const el of elements) {
+  changeTab(tab, group, options = {}) {
+    super.changeTab(tab, group, options);
+    for (const el of this.element?.querySelectorAll(`[data-group="${group}"][data-tab]`) ?? []) {
       const selected = el.dataset.tab === tab;
-      el.classList.toggle("active", selected);
       if (el.matches('[role="tab"]')) {
         el.setAttribute("aria-selected", String(selected));
         el.tabIndex = selected ? 0 : -1;
-        if (selected) button = true;
       }
-      if (el.classList.contains("sheet-tab-panel")) {
-        el.setAttribute("aria-hidden", String(!selected));
-        if (selected) panel = true;
-      }
+      if (el.classList.contains("sheet-tab-panel")) el.setAttribute("aria-hidden", String(!selected));
     }
-    // LOUD, exactly as the actor sheet's own selectTab is. A tab button
-    // whose panel is missing (or misnamed) otherwise just does nothing
-    // when clicked, which is the hardest kind of bug to report.
-    if (!button || !panel) {
-      throw new Error(`TRG Prime | No matching tab button and panel for "${group}"/"${tab}"`);
-    }
-    this.tabGroups[group] = tab;
   }
 
   static async removeMember(event, target) {
@@ -467,6 +565,30 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     if (!result || result === "cancel") return null;
     return result;
   }
+}
+
+/**
+ * Refuse a player's drag of party loot onto any actor sheet (3.708.0).
+ * See `refusePartyLootDrag` in party.mjs for why. Installed once, from the
+ * system's init.
+ */
+let lootDragGuardInstalled = false;
+export function registerPartyLootDragGuard() {
+  if (lootDragGuardInstalled) return;
+  lootDragGuardInstalled = true;
+  Hooks.on("dropActorSheetData", (actor, sheet, data) => {
+    if (data?.type !== "Item" || !data.uuid) return true;
+    let source = null;
+    try { source = globalThis.fromUuidSync?.(data.uuid, { strict: false }) ?? null; } catch { source = null; }
+    const reason = refusePartyLootDrag({
+      sourceParentType: source?.parent?.type,
+      targetType: actor?.type,
+      isGM: game.user?.isGM === true
+    });
+    if (!reason) return true;
+    ui.notifications?.warn(reason);
+    return false;
+  });
 }
 
 export { PARTY_TYPE };

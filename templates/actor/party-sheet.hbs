@@ -17,9 +17,10 @@
     </div>
   </header>
 
-  <nav class="sheet-tabs" data-group="primary" role="tablist" aria-label="Party sheet tabs">
+  {{!-- Foundry's own tabs (3.708.0): the "tab" action and the "tabs" class are what changeTab looks for. --}}
+  <nav class="sheet-tabs tabs" data-group="primary" role="tablist" aria-label="Party sheet tabs">
     {{#each tabList as |tab|}}
-      <button type="button" class="sheet-tab {{tab.cssClass}}" data-action="selectTab"
+      <button type="button" class="sheet-tab {{tab.cssClass}}" data-action="tab"
               data-group="primary" data-tab="{{tab.id}}" data-tooltip="{{tab.label}}"
               role="tab" aria-selected="{{tab.active}}">
         <i class="{{tab.icon}}"></i><span>{{tab.label}}</span>
@@ -42,13 +43,28 @@
             {{else}}The GM has not added anyone to this party yet.{{/if}}
           </p>
         {{/unless}}
+        {{#if isGM}}{{#if hasUnresolved}}
+          <p class="hint party-unresolved"><i class="fa-solid fa-triangle-exclamation"></i>
+            Some roster entries could not be shown as members. Each one says why; use <i class="fa-solid fa-user-minus"></i> to remove it.</p>
+        {{/if}}{{/if}}
 
         {{#each members as |m|}}
           <div class="party-member{{#if m.missing}} party-member-missing{{/if}}" data-uuid="{{m.uuid}}">
             {{#if m.missing}}
+              {{!-- 3.708.0: missing, unreadable or not allowed on a roster, each with its reason. Kept until the GM removes it. --}}
+              {{#if m.img}}<img class="party-member-portrait" src="{{m.img}}" alt="{{m.name}}">{{/if}}
               <div class="party-member-main">
                 <span class="party-member-name">{{m.name}}</span>
-                <span class="hint">This actor has been deleted from the world.</span>
+                <span class="hint">{{m.missingReason}}</span>
+              </div>
+            {{else if m.restricted}}
+              {{!-- An NPC this user may not inspect: name and portrait only (Graham, 22 Nov 2026). --}}
+              <img class="party-member-portrait" src="{{m.img}}" alt="{{m.name}}">
+              <div class="party-member-main">
+                <div class="party-member-head">
+                  <span class="party-member-name">{{m.name}}</span>
+                  {{#if m.isNPC}}<span class="party-member-tag">NPC</span>{{/if}}
+                </div>
               </div>
             {{else}}
               <img class="party-member-portrait" src="{{m.img}}" alt="{{m.name}}"
@@ -157,6 +173,8 @@
     {{!-- ---------------------------------------------------------- --}}
     {{!-- REWARDS (3.619.0; Chapter 12, pages 389-393)                --}}
     {{!-- ---------------------------------------------------------- --}}
+    {{!-- The GM's alone (3.708.0): for a player the tab and its context are not built at all. --}}
+    {{#if isGM}}
     <section class="tab sheet-tab-panel {{tabs.rewards.cssClass}}" data-group="primary" data-tab="rewards">
 
       <article class="ornate-card party-rewards">
@@ -240,5 +258,6 @@
         </article>
       {{/if}}
     </section>
+    {{/if}}
   </main>
 </div>

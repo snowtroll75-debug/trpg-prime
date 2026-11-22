@@ -273,7 +273,9 @@ const TEMPLATE = JSON.parse(read("template.json"));
 /* I — the Party sheet */
 {
   ok("I1 a Rewards tab, with its panel", /\{ id: "rewards", icon: "fa-solid fa-trophy", label: "Rewards" \}/.test(PARTY)
-    && /data-tab="rewards"/.test(PARTY_HBS) && /rewards: await rewardsContext\(actor\),/.test(PARTY));
+    && /data-tab="rewards"/.test(PARTY_HBS) && /rewardsContext\(actor, \{ members: activeMembers\(roster\) \}\)/.test(PARTY));
+  // RE-ANCHORED 3.708.0 (Party Sheet V2 Stage 1): the sheet hands the Rewards tab the roster it
+  // resolved once, and builds it for a GM only. Same meaning: the tab is built from rewardsContext.
   ok("I2 the encounter is stored on the party", TEMPLATE.Actor.party.encounter?.threat === "medium" && Array.isArray(TEMPLATE.Actor.party.encounter?.creatures));
   ok("I3 on that tab, a dropped actor is an adversary, not a member",
     /if \(data\?\.type === "Actor" && this\.tabGroups\?\.primary === "rewards"\) \{/.test(PARTY));
