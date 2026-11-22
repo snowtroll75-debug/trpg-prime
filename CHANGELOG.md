@@ -2,6 +2,15 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.708.1 — 22 November 2026: what the 3.708.0 live test found
+
+Branch `feature/party-sheet-v2-stage1`. Full notes in `release-notes-3.708.1.md`; repair log R-0023 to R-0025; live report `live-testing-report-3.708.0.md` (26 of 28 passed; the two failures are fixed here).
+
+- **The roster's Remove button** now appears for the GM. A bare `isGM` inside the members loop was always false; this predates 3.708.0.
+- **An unlinked token's base actor** is watched through the token (v14), so renaming the world actor updates the row live.
+- **A taken stack joins the character's stack** again. The merge compared stored data with prepared data (`totalWeight`); this predates 3.708.0.
+- "an affliction". **Harness:** stage-1 pair 120 / 51. No data change.
+
 ## 3.708.0 — 22 November 2026: Party Sheet V2, Stage 1 (foundation, live updating, security)
 
 Branch `feature/party-sheet-v2-stage1`, from 3.707.3. Full notes in `release-notes-3.708.0.md`; repair log R-0021, R-0022.

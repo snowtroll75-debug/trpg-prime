@@ -824,3 +824,35 @@ Found while auditing the Party sheet's drop handling for Stage 1. Branch `featur
 - **Version:** 3.708.0
 - **Branch:** `feature/party-sheet-v2-stage1` (local, not pushed)
 - **Package:** `trg-prime.zip`
+
+## R-0023 to R-0025 — What the 3.708.0 live test found (3.708.1)
+
+Report: `live-testing-report-3.708.0.md`. Branch `feature/party-sheet-v2-stage1`.
+
+### R-0023 — the roster's Remove button never appeared
+
+- **Found:** live test L13.
+- **Cause:** a bare `isGM` inside `{{#each members as |m|}}` is read from the member, so it was always false. This predates 3.708.0.
+- **Change:** `{{#if ../isGM}}`.
+
+### R-0024 — an unlinked token's base actor wasn't watched
+
+- **Found:** live test L15.
+- **Cause:** v14's synthetic actor has no `baseActor`; the token holds it.
+- **Change:** `watchKeysFor` reads `actor.token.baseActor`, falling back to `actor.baseActor`.
+
+### R-0025 — a taken stack didn't join the character's stack
+
+- **Found:** live test L28.
+- **Cause:** `findMergeTarget` compared stored data with prepared data (`totalWeight` is derived from the quantity). This predates 3.708.0. Totals were conserved.
+- **Change:** both sides use `_source`.
+
+### Testing
+
+- `verify-party-sheet-stage1` F1–F4 (120 checks); `mutate-party-sheet-stage1` 51 of 51.
+
+### Delivery
+
+- **Version:** 3.708.1
+- **Branch:** `feature/party-sheet-v2-stage1` (local, not pushed)
+- **Package:** `trg-prime.zip`
