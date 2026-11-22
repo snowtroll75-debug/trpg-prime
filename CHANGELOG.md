@@ -2,6 +2,17 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.708.0 — 22 November 2026: Party Sheet V2, Stage 1 (foundation, live updating, security)
+
+Branch `feature/party-sheet-v2-stage1`, from 3.707.3. Full notes in `release-notes-3.708.0.md`; repair log R-0021, R-0022.
+
+- **Live Party sheets.** A member's HP, PP, level, conditions, items, name, portrait or deletion updates every open Party sheet showing it. One shared set of hooks, removed with the last sheet; unrelated actors render nothing; bursts coalesce; typing isn't interrupted.
+- **One resolution per render**, in one batch, shared by Roster, Rewards, XP and Begin Session. Missing, failed and ineligible entries are reported, never removed automatically.
+- **Item drops validated:** only loot types, quantity of at least 1, GM only (R-0021). **Players can't copy loot by dragging** (R-0022).
+- **Visibility (Graham):** an NPC member's statistics only for a GM or an Observer of it; the Rewards tab is GM-only.
+- **Foundry v14's own tabs** replace the sheet's copy of `selectTab`.
+- **Harness:** new `verify-party-sheet-stage1` (115) / mutate (47); `verify-block38-rewards` I1 re-anchored; three harness seams recorded; version pins raised. No data change.
+
 ## 3.707.3 — 21 November 2026: what the 3.707.2 live test found
 
 Branch `fix/stone-shield-range`, from 3.707.2. Full notes in `release-notes-3.707.3.md`; repair log R-0018 to R-0020; live report `live-testing-report-3.707.2.md`.

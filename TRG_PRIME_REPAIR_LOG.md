@@ -797,3 +797,30 @@ These six repairs went into one release, 3.706.0, so they share a source state, 
 - **Version:** 3.707.3
 - **Branch:** `fix/stone-shield-range` (local, not pushed)
 - **Package:** `trg-prime.zip`
+
+## R-0021 and R-0022 — Party Sheet V2 Stage 1 (3.708.0)
+
+Found while auditing the Party sheet's drop handling for Stage 1. Branch `feature/party-sheet-v2-stage1`.
+
+### R-0021 — a non-loot item dropped on the party was hidden on it
+
+- **Found:** code audit; the party sheet passed a GM's item drop to Foundry's default `_onDropItem`.
+- **Cause:** the default creates any item type. `lootSummary` shows only `LOOT_ITEM_TYPES`, so a spell, feat, class or affliction became an embedded item no one could see or remove from the sheet.
+- **Change:** `planLootDrop` (party.mjs) runs in the sheet's `_onDropItem` before anything is created: GM only, a loot type, quantity ≥ 1 read from the item. A re-sort within the pile is allowed. Effect drops are refused.
+- **Existing data:** untouched. A hidden item already on a party stays where it is; none is deleted.
+
+### R-0022 — party loot could be copied by dragging
+
+- **Found:** the v14 client source. `ActorSheetV2._canDragStart` returns true for every user, and the character sheet uses the default drop, which copies.
+- **Cause:** a player with Observer on the party could drag a loot row onto their own character and get the item while the party kept it.
+- **Change:** the party sheet's `_canDragStart` is GM-only, and a `dropActorSheetData` guard (`refusePartyLootDrag`) refuses a non-GM's drop of party loot onto any actor. Taking goes through the Take button and the GM relay, as designed.
+
+### Testing
+
+- See `release-notes-3.708.0.md` and the Stage 1 report. New: `verify-party-sheet-stage1` (115), `mutate-party-sheet-stage1` (47 of 47).
+
+### Delivery
+
+- **Version:** 3.708.0
+- **Branch:** `feature/party-sheet-v2-stage1` (local, not pushed)
+- **Package:** `trg-prime.zip`
