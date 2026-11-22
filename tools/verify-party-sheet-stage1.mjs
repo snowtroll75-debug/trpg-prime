@@ -139,7 +139,9 @@ const RWS = strip(read("module", "party-rewards-workflow.mjs"));
     fctx.creatures.map((c) => [c.uuid, c.missing, c.count]), [["Actor.F", false, 2], ["Actor.DEAD", true, 1], ["Actor.P2", true, 1]]);
   ok("R13 ...and the sheet is told which documents they came from", fctx.watchEntries.some((e) => e.uuid === "Actor.F"));
   ok("R14 the sheet resolves the roster once and hands it to Rewards",
-    (SHEET.match(/resolvePartyRoster\(/g) ?? []).length === 1
+    // RE-ANCHORED 3.709.0: counted within the render (_prepareContext); the Stage 2
+    // party-initiative button resolves again when pressed, which is not a render.
+    (SHEET.slice(SHEET.indexOf("async _prepareContext"), SHEET.indexOf("#watchKeys = new Set()")).match(/resolvePartyRoster\(/g) ?? []).length === 1
     && /rewardsContext\(actor, \{ members: activeMembers\(roster\) \}\)/.test(SHEET)
     && !/await fromUuid\(uuid\)/.test(SHEET.slice(SHEET.indexOf("async _prepareContext"), SHEET.indexOf("#watchKeys = new Set()"))));
   ok("R15 the rewards workflow has no lookup loop of its own any more",
@@ -477,8 +479,8 @@ const RWS = strip(read("module", "party-rewards-workflow.mjs"));
 /* ------------------------------------------------------------ Z. version */
 {
   const sys = JSON.parse(read("system.json"));
-  equal("Z1 the version is 3.708.1, the download names it, and package.json agrees",
-    [sys.version, sys.download.includes("/v3.708.1/"), JSON.parse(read("package.json")).version], ["3.708.1", true, "3.708.1"]);
+  equal("Z1 the version is 3.709.0 (3.708.1 or later), the download names it, and package.json agrees",
+    [sys.version, sys.download.includes("/v3.709.0/"), JSON.parse(read("package.json")).version], ["3.709.0", true, "3.709.0"]);
   ok("Z2 the manifest URL is unchanged", sys.manifest === "https://raw.githubusercontent.com/snowtroll75-debug/trpg-prime/main/system.json");
 }
 

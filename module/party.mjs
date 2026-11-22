@@ -139,7 +139,9 @@ export function barPercent(value, max) {
  *   conditions live on the live document and this module does not touch
  *   documents.
  */
-export function memberSummary(actor, uuid, readConditions = () => [], { status = null, restricted = false } = {}) {
+export function memberSummary(actor, uuid, readConditions = () => [], {
+  status = null, restricted = false, readSpeed = null, readEffects = null, conviction = true
+} = {}) {
   const id = str(uuid);
   if (!actor) {
     // A member the world no longer has. Reported rather than hidden —
@@ -194,6 +196,7 @@ export function memberSummary(actor, uuid, readConditions = () => [], { status =
   }
 
   const system = actor.system ?? {};
+  const chips = conditionChipsOf(readConditions(actor));
   const hp = system.resources?.hp ?? {};
   const pp = system.resources?.pp ?? {};
   const identity = system.identity ?? {};
@@ -224,8 +227,81 @@ export function memberSummary(actor, uuid, readConditions = () => [], { status =
       max: nonNegative(pp.max),
       pct: barPercent(pp.value, pp.max)
     },
-    conditions: (readConditions(actor) ?? []).map((c) => str(c)).filter(Boolean)
+    conditions: chips.map((c) => c.label),
+    // DASHBOARD FIELDS (3.709.0, Stage 2). Every one is the actor's own
+    // prepared figure, the same path its sheet prints; nothing is computed
+    // here. A creature that lacks a figure gets null, which the dashboard
+    // shows as "—", never as 0.
+    conditionChips: chips,
+    stats: {
+      defence: statTotal(system.combat?.defence),
+      initiative: statTotal(system.combat?.initiative),
+      fortitude: statTotal(system.combat?.saves?.fortitude),
+      reflex: statTotal(system.combat?.saves?.reflex),
+      will: statTotal(system.combat?.saves?.will),
+      speed: readSpeed ? numberOrNull(readSpeed(actor)) : null
+    },
+    resources: {
+      ap: resourceOf(system, "ap"),
+      reactions: resourceOf(system, "reactions"),
+      // Only where the world uses Conviction (the Use Conviction setting).
+      conviction: conviction ? resourceOf(system, "conviction") : null
+    },
+    // The same three, as a list for the row to print, with their labels.
+    resourceList: [
+      ["ap", "AP", "Action Points"], ["reactions", "React", "Reactions"], ["conviction", "Conv", "Conviction"]
+    ].map(([key, short, label]) => {
+      if (key === "conviction" && !conviction) return null;
+      const r = resourceOf(system, key);
+      return r ? { ...r, short, label } : null;
+    }).filter(Boolean),
+    effects: (readEffects?.(actor) ?? []).map((e) => ({ id: str(e?.id), name: str(e?.name), img: e?.img ?? null }))
+      .filter((e) => e.name)
   };
+}
+
+/** A prepared statistic's total, or null if the creature has none. */
+function statTotal(node) {
+  if (node === null || node === undefined) return null;
+  if (typeof node === "object") return numberOrNull(node.total);
+  return numberOrNull(node);
+}
+
+function numberOrNull(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * A `{value, max}` resource, or null when the creature has no such pool.
+ * NPCs and characters share the creature template today, but the dashboard
+ * does not rely on it: a missing node is shown as absent, not as 0 / 0.
+ */
+function resourceOf(system, key) {
+  const node = system?.resources?.[key];
+  if (!node || typeof node !== "object") return null;
+  const value = numberOrNull(node.value);
+  if (value === null) return null;
+  const max = numberOrNull(node.max);
+  return { key, value, max: max ?? 0, pct: barPercent(value, max ?? 0) };
+}
+
+/**
+ * Condition chips. A reader may hand back plain labels (the 3.708.0 shape)
+ * or `{id, label, granted}`; both become chips. A GRANTED condition (the
+ * Flat-Footed that Blinded brings) is shown but cannot be removed by
+ * itself, so only a directly applied one is `removable`.
+ */
+function conditionChipsOf(raw) {
+  return (raw ?? []).map((c) => {
+    if (c && typeof c === "object") {
+      const label = str(c.label);
+      return label ? { id: str(c.id), label, granted: Boolean(c.granted), removable: Boolean(c.id) && !c.granted } : null;
+    }
+    const label = str(c);
+    return label ? { id: "", label, granted: false, removable: false } : null;
+  }).filter(Boolean);
 }
 
 /* ------------------------------------------------------------------ */

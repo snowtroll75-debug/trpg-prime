@@ -26,6 +26,13 @@ import {
   MEMBER_STATUS, activeMembers, canSeeMemberDetails, resolvePartyRoster, watchKeysFor
 } from "../party-members.mjs";
 import { RenderCoalescer, partyLiveSync } from "../party-live-sync.mjs";
+import {
+  combatRecord, initiativeState, memberTokens, nextToken, partyInitiativeIds, partySummary,
+  sceneTokenRecords, stepResource, STEPPED_RESOURCES
+} from "../party-dashboard.mjs";
+import { landSpeed } from "../travel-dialog.mjs";
+import { applyDamage } from "../combat/dying-workflow.mjs";
+import { convictionEnabled } from "../conviction.mjs";
 import { requestTakeCoin, requestTakeItem } from "../party-socket.mjs";
 import { CONDITIONS } from "../conditions/registry.mjs";
 import { coinValueInGP } from "../items.mjs";
@@ -43,19 +50,45 @@ const SYSTEM_ID = "trg-prime";
 function conditionLabels(actor) {
   const effective = actor?.conditions?.effective;
   if (!effective) return [];
+  const granted = actor.conditions?.granted;
   return [...effective].map((id) => {
     const label = CONDITIONS[id]?.label ?? id;
     const value = actor.getConditionValue?.(id);
     // A valued condition without its number is half the information —
     // "Weakened" and "Weakened 3" are different problems.
-    return CONDITIONS[id]?.valued && value ? `${label} ${value}` : label;
-  }).sort((a, b) => a.localeCompare(b));
+    return {
+      id,
+      label: CONDITIONS[id]?.valued && value ? `${label} ${value}` : label,
+      // GRANTED BY ANOTHER (Unconscious brings Blinded): shown, but it goes
+      // when its source goes, so the dashboard offers no remove on it.
+      granted: Boolean(granted?.has?.(id))
+    };
+  }).sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/**
+ * The member's other active effects (3.709.0): spells, items, auras, and
+ * not the condition effects, which are already shown as conditions.
+ */
+function activeEffectsOf(actor) {
+  const list = Array.from(actor?.appliedEffects ?? []);
+  return list
+    .filter((effect) => !effect.disabled && !Array.from(effect.statuses ?? []).some((id) => CONDITIONS[id]))
+    .map((effect) => ({ id: effect.id, name: effect.name, img: effect.img }))
+    .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+}
+
+/** May this user open the member's own sheet? Foundry's own test for it. */
+function canOpenSheet(actor, user) {
+  if (!actor) return false;
+  if (user?.isGM) return true;
+  try { return actor.testUserPermission(user, "LIMITED"); } catch { return false; }
 }
 
 export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static DEFAULT_OPTIONS = {
     classes: ["trg-prime", "sheet", "actor", "party"],
-    position: { width: 760, height: 720, top: 90, left: 110 },
+    position: { width: 820, height: 760, top: 90, left: 110 },
     window: { icon: "fa-solid fa-users", resizable: true },
     form: { closeOnSubmit: false, submitOnChange: true },
     actions: {
@@ -71,7 +104,16 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       awardEncounterXP: TRGPartySheet.awardEncounterXP,
       awardAccomplishment: TRGPartySheet.awardAccomplishment,
       awardCustomXP: TRGPartySheet.awardCustomXP,
-      beginSession: TRGPartySheet.beginSession
+      beginSession: TRGPartySheet.beginSession,
+      // THE OVERVIEW (3.709.0, Stage 2).
+      findToken: TRGPartySheet.findToken,
+      selectToken: TRGPartySheet.selectToken,
+      rollMemberInitiative: TRGPartySheet.rollMemberInitiative,
+      rollPartyInitiative: TRGPartySheet.rollPartyInitiative,
+      applyMemberDamage: TRGPartySheet.applyMemberDamage,
+      stepMemberResource: TRGPartySheet.stepMemberResource,
+      removeMemberCondition: TRGPartySheet.removeMemberCondition,
+      addMemberCondition: TRGPartySheet.addMemberCondition
     },
     // Actors and items are both dropped on this sheet — actors onto the
     // roster, items into the loot.
@@ -91,10 +133,15 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     primary: {
       initial: "roster",
       tabs: [
-        { id: "roster", icon: "fa-solid fa-users", label: "Roster" },
-        { id: "loot", icon: "fa-solid fa-sack-dollar", label: "Loot" },
+        // STAGE 2 (3.709.0): the roster becomes the Overview, the loot the
+        // Inventory and the rewards the Encounter. The ids are unchanged, so
+        // an open tab, a drop on "rewards" and every saved state carry over.
+        // Skills and Notes join when they are built (Stage 5; Graham,
+        // 22 Nov 2026: no placeholder tabs).
+        { id: "roster", icon: "fa-solid fa-users", label: "Overview" },
+        { id: "loot", icon: "fa-solid fa-sack-dollar", label: "Inventory" },
         // ENCOUNTERS AND REWARDS (3.619.0; Chapter 12, Graham's R2, R6, R8).
-        { id: "rewards", icon: "fa-solid fa-trophy", label: "Rewards" }
+        { id: "rewards", icon: "fa-solid fa-trophy", label: "Encounter" }
       ]
     }
   };
@@ -122,12 +169,22 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     // through party-members.mjs; the Rewards tab is handed the same
     // actors rather than looking them up again.
     const roster = await resolvePartyRoster(actor);
-    const members = roster.map((entry) => memberSummary(entry.actor, entry.uuid, conditionLabels, {
-      status: entry.status,
-      // Graham's ruling: an NPC member's statistics only for a GM or an
-      // Observer of that NPC. A player character is always shown.
-      restricted: entry.status === MEMBER_STATUS.OK && !canSeeMemberDetails(entry.actor, game.user)
-    }));
+    const conviction = convictionEnabled();
+    const tokens = sceneTokenRecords();
+    const combat = combatRecord();
+    const members = roster.map((entry) => {
+      const summary = memberSummary(entry.actor, entry.uuid, conditionLabels, {
+        status: entry.status,
+        // Graham's ruling: an NPC member's statistics only for a GM or an
+        // Observer of that NPC. A player character is always shown.
+        restricted: entry.status === MEMBER_STATUS.OK && !canSeeMemberDetails(entry.actor, game.user),
+        readSpeed: landSpeed,
+        readEffects: activeEffectsOf,
+        conviction
+      });
+      if (summary.missing) return summary;
+      return { ...summary, controls: this.#memberControls(entry.actor, summary, { tokens, combat, isGM }) };
+    });
 
     const loot = lootSummary(Array.from(actor.items ?? []));
     const currency = normaliseCoin(system.currency);
@@ -145,9 +202,24 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     // What this render read from, for the live updates (_onRender).
     this.#watchKeys = watchKeysFor([...roster, ...(rewards?.watchEntries ?? [])]);
 
+    const summary = partySummary({ rows: members, coinGP: coinValueInGP(currency) });
+    const partyInitiative = combat
+      ? partyInitiativeIds(combat, activeMembers(roster)).length
+      : 0;
+
     return {
       ...context,
       actor,
+      summary,
+      toolbar: {
+        hasCombat: Boolean(combat),
+        partyInitiative,
+        initiativeHint: !combat
+          ? "No combat is active."
+          : partyInitiative
+            ? `Roll initiative for ${partyInitiative} member${partyInitiative === 1 ? "" : "s"} you control.`
+            : "No member you control is waiting to roll in this combat."
+      },
       // Only what the template prints. The whole `system` object carried
       // the encounter and the GM's notes into a player's context.
       isGM,
@@ -206,6 +278,182 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     super._onClose(options);
     this.#coalescer.cancel();
     partyLiveSync().unwatch(this);
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* The Overview's member controls (3.709.0, Stage 2)                */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * Which controls a member row offers this user, and why one is off.
+   * Built at render; every handler checks again when pressed, since the
+   * canvas and the combat may have moved on since.
+   */
+  #memberControls(member, summary, { tokens, combat, isGM }) {
+    const found = memberTokens(member, tokens);
+    const owned = found.tokens.filter((t) => isGM || t.isOwner);
+    const init = initiativeState(combat, member);
+    const many = found.tokens.length > 1 ? ` (${found.tokens.length} on this scene; press again for the next)` : "";
+    const copies = found.unlinkedCopies
+      ? ` ${found.unlinkedCopies} unlinked cop${found.unlinkedCopies === 1 ? "y" : "ies"} of this actor ${found.unlinkedCopies === 1 ? "is a" : "are"} separate creature${found.unlinkedCopies === 1 ? "" : "s"} and ${found.unlinkedCopies === 1 ? "is" : "are"} not chosen.`
+      : "";
+    const initHint = {
+      none: "No combat is active.",
+      absent: "Not in the current combat.",
+      rolled: `Initiative ${init.value} — already rolled.`,
+      several: `${init.count} of this actor's combatants need a roll — use the Combat Tracker.`,
+      notYours: "You do not control this combatant.",
+      ready: "Roll initiative in the current combat."
+    }[init.state];
+    return {
+      canOpen: canOpenSheet(member, game.user),
+      find: { enabled: found.tokens.length > 0, hint: found.tokens.length ? `Find on this scene${many}.${copies}` : `No token for ${member.name} on this scene.${copies}` },
+      select: { enabled: owned.length > 0, hint: owned.length ? `Select${many}.` : (found.tokens.length ? "You do not control this token." : `No token for ${member.name} on this scene.`) },
+      initiative: { enabled: init.state === "ready", state: init.state, value: init.value ?? null, hint: initHint },
+      // GM-authorised (Graham, 22 Nov 2026): the damage dialog, resource
+      // steppers and condition controls, none of them for a gated row.
+      gm: isGM && !summary.restricted
+    };
+  }
+
+  /** The member a control belongs to, resolved now (not from the template). */
+  async #memberFrom(target) {
+    const uuid = target.closest("[data-uuid]")?.dataset?.uuid;
+    if (!uuid || !normaliseMembers(this.actor.system.members).includes(uuid)) return null;
+    try { return await fromUuid(uuid); } catch { return null; }
+  }
+
+  /** The last token Find went to, per member, so a second press goes to the next. */
+  #lastToken = new Map();
+
+  static async findToken(event, target) {
+    event.preventDefault();
+    const member = await this.#memberFrom(target);
+    if (!member) return;
+    const { tokens } = memberTokens(member, sceneTokenRecords());
+    const pick = nextToken(tokens, this.#lastToken.get(member.uuid));
+    if (!pick) {
+      ui.notifications?.warn(`${member.name} has no token on this scene that you can see.`);
+      return;
+    }
+    this.#lastToken.set(member.uuid, pick.id);
+    const { x, y } = pick.token.center;
+    await canvas.animatePan({ x, y });
+    canvas.ping?.(pick.token.center);
+  }
+
+  static async selectToken(event, target) {
+    event.preventDefault();
+    const member = await this.#memberFrom(target);
+    if (!member) return;
+    const { tokens } = memberTokens(member, sceneTokenRecords());
+    const owned = tokens.filter((t) => game.user.isGM || t.isOwner);
+    if (!owned.length) {
+      ui.notifications?.warn(tokens.length ? `You do not control ${member.name}'s token.` : `${member.name} has no token on this scene.`);
+      return;
+    }
+    // The token Find last went to, if it is one this user controls;
+    // otherwise the first, in the same fixed order.
+    const last = this.#lastToken.get(member.uuid);
+    const pick = owned.find((t) => t.id === last) ?? owned[0];
+    this.#lastToken.set(member.uuid, pick.id);
+    pick.token.control({ releaseOthers: true });
+    const { x, y } = pick.token.center;
+    await canvas.animatePan({ x, y });
+  }
+
+  static async rollMemberInitiative(event, target) {
+    event.preventDefault();
+    const member = await this.#memberFrom(target);
+    const combat = combatRecord();
+    if (!member || !combat) return;
+    const state = initiativeState(combat, member);
+    if (state.state !== "ready") {
+      ui.notifications?.warn(`${member.name}: ${state.state === "rolled" ? "initiative is already rolled" : "there is no roll to make here"}.`);
+      return;
+    }
+    // The system's own roll: ownership, Zealous Battlecry, Reactive Stance
+    // and the modules' initiative hooks all run there.
+    await combat.combat.rollInitiative([state.id]);
+  }
+
+  static async rollPartyInitiative(event) {
+    event.preventDefault();
+    const combat = combatRecord();
+    if (!combat) {
+      ui.notifications?.warn("No combat is active.");
+      return;
+    }
+    const roster = await resolvePartyRoster(this.actor);
+    const ids = partyInitiativeIds(combat, activeMembers(roster));
+    if (!ids.length) {
+      ui.notifications?.info("No member you control is waiting to roll initiative.");
+      return;
+    }
+    await combat.combat.rollInitiative(ids);
+  }
+
+  /** The existing Apply Damage dialog (DR, resistances, criticals, dying). GM only. */
+  static async applyMemberDamage(event, target) {
+    event.preventDefault();
+    if (!game.user.isGM) return;
+    const member = await this.#memberFrom(target);
+    if (member) await applyDamage(member);
+  }
+
+  /** One press of a resource stepper: the sheet field's own update. GM only. */
+  static async stepMemberResource(event, target) {
+    event.preventDefault();
+    if (!game.user.isGM) return;
+    const member = await this.#memberFrom(target);
+    const key = target.dataset.resource;
+    if (!member || !STEPPED_RESOURCES.includes(key)) return;
+    const step = stepResource({
+      key, value: member.system?.resources?.[key]?.value, delta: Number(target.dataset.delta)
+    });
+    if (step) await member.update({ [step.path]: step.value });
+  }
+
+  /** Remove a directly applied condition, through the actor's own toggle. GM only. */
+  static async removeMemberCondition(event, target) {
+    event.preventDefault();
+    if (!game.user.isGM) return;
+    const member = await this.#memberFrom(target);
+    const id = target.dataset.condition;
+    if (!member || !id || !CONDITIONS[id]) return;
+    if (member.conditions?.granted?.has?.(id)) {
+      ui.notifications?.warn(`${CONDITIONS[id].label} on ${member.name} comes from another condition; remove that one.`);
+      return;
+    }
+    await member.toggleStatusEffect(id, { active: false });
+  }
+
+  /** Add a condition, chosen from the system's list, through the actor's own toggle. GM only. */
+  static async addMemberCondition(event, target) {
+    event.preventDefault();
+    if (!game.user.isGM) return;
+    const member = await this.#memberFrom(target);
+    if (!member) return;
+    const options = Object.entries(CONDITIONS)
+      .filter(([id]) => !member.conditions?.effective?.has?.(id))
+      .sort(([, a], [, b]) => String(a.label).localeCompare(String(b.label)))
+      .map(([id, c]) => `<option value="${id}">${c.label}${c.valued ? " (valued)" : ""}</option>`).join("");
+    const id = await DialogV2.wait({
+      window: { title: `${member.name}: Add a Condition`, icon: "fa-solid fa-circle-plus" },
+      classes: ["trg-prime"],
+      position: { width: 340 },
+      content: `<div class="trg-prime trg-check-dialog"><div class="form-group stacked">
+        <label>Condition</label><select name="condition">${options}</select></div>
+        <p class="hint">Applied by the system's own condition toggle: immunity is respected, and a valued condition asks for its value.</p></div>`,
+      buttons: [
+        { action: "confirm", label: "Apply", icon: "fa-solid fa-check", default: true,
+          callback: (e, button) => button.form.elements.condition.value },
+        { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark" }
+      ],
+      rejectClose: false
+    });
+    if (!id || id === "cancel" || !CONDITIONS[id]) return;
+    await member.toggleStatusEffect(id, { active: true });
   }
 
   /* ---------------------------------------------------------------- */

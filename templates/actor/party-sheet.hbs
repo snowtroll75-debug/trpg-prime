@@ -17,6 +17,19 @@
     </div>
   </header>
 
+  {{!-- THE PARTY ACTIONS TOOLBAR (3.709.0, Stage 2): on every tab. Only controls with a
+        working system behind them; Rest, Travel and Award XP join in Stage 3. --}}
+  <div class="party-toolbar" role="toolbar" aria-label="Party actions">
+    <button type="button" data-action="rollPartyInitiative" data-tooltip="{{toolbar.initiativeHint}}" {{#unless toolbar.partyInitiative}}disabled{{/unless}}>
+      <i class="fa-solid fa-dice-d20"></i> Roll Initiative{{#if toolbar.partyInitiative}} ({{toolbar.partyInitiative}}){{/if}}
+    </button>
+    {{#if isGM}}
+      <button type="button" data-action="beginSession" data-tooltip="Hero's Resolve: each member with the feat regains a conviction point at the beginning of each game session.">
+        <i class="fa-solid fa-sun"></i> Begin Session
+      </button>
+    {{/if}}
+  </div>
+
   {{!-- Foundry's own tabs (3.708.0): the "tab" action and the "tabs" class are what changeTab looks for. --}}
   <nav class="sheet-tabs tabs" data-group="primary" role="tablist" aria-label="Party sheet tabs">
     {{#each tabList as |tab|}}
@@ -34,8 +47,30 @@
     {{!-- ROSTER                                                      --}}
     {{!-- ---------------------------------------------------------- --}}
     <section class="tab sheet-tab-panel {{tabs.roster.cssClass}}" data-group="primary" data-tab="roster">
-      <article class="ornate-card">
-        <h2><i class="fa-solid fa-users"></i> Roster</h2>
+
+      {{!-- THE PARTY SUMMARY (3.709.0, Stage 2). Each figure is an existing rule:
+            APL (Chapter 12), the slowest land Speed (the travel rule), coin in gp. --}}
+      <div class="party-summary" aria-label="Party summary">
+        <div class="party-summary-stat" data-tooltip="Members on the roster that resolved{{#if summary.npcs}}, {{summary.npcs}} of them NPCs{{/if}}">
+          <span class="party-summary-label">Members</span><strong>{{summary.members}}</strong>
+          {{#if summary.missing}}<span class="party-summary-warn" data-tooltip="Roster entries that could not be found">{{summary.missing}} missing</span>{{/if}}
+          {{#if summary.ineligible}}<span class="party-summary-warn" data-tooltip="Roster entries that may not be party members">{{summary.ineligible}} not allowed</span>{{/if}}
+        </div>
+        <div class="party-summary-stat" data-tooltip="Average Party Level: the average of the members' levels, rounded (Chapter 12){{#if summary.hidden}}. Members you cannot inspect are not counted{{/if}}">
+          <span class="party-summary-label">APL</span><strong>{{summary.apl.apl}}</strong>
+          {{#if summary.apl.members}}<span class="hint">{{summary.apl.exact}}</span>{{/if}}
+        </div>
+        <div class="party-summary-stat" data-tooltip="The slowest land Speed sets the party's pace{{#if summary.pacedBy}}: {{summary.pacedBy}}{{/if}}{{#if summary.hidden}}. Members you cannot inspect are not counted{{/if}}">
+          <span class="party-summary-label">Pace</span><strong>{{#if summary.speed}}{{summary.speed}} ft{{else}}&mdash;{{/if}}</strong>
+          {{#if summary.pacedBy}}<span class="hint">{{summary.pacedBy}}</span>{{/if}}
+        </div>
+        <div class="party-summary-stat" data-tooltip="The party's shared coin, in gold pieces">
+          <span class="party-summary-label">Party Coin</span><strong>{{summary.coinGP}} gp</strong>
+        </div>
+      </div>
+
+      <article class="ornate-card party-overview">
+        <h2><i class="fa-solid fa-users"></i> Members</h2>
 
         {{#unless hasMembers}}
           <p class="hint party-empty">
@@ -68,41 +103,101 @@
               </div>
             {{else}}
               <img class="party-member-portrait" src="{{m.img}}" alt="{{m.name}}"
-                   data-action="openMember" data-tooltip="Open {{m.name}}'s sheet">
+                   {{#if m.controls.canOpen}}data-action="openMember" data-tooltip="Open {{m.name}}'s sheet"{{/if}}>
               <div class="party-member-main">
                 <div class="party-member-head">
-                  <span class="party-member-name" data-action="openMember">{{m.name}}</span>
+                  <span class="party-member-name"{{#if m.controls.canOpen}} data-action="openMember"{{/if}}>{{m.name}}</span>
                   <span class="party-member-level">Level {{m.level}}</span>
                   {{#if m.isNPC}}<span class="party-member-tag">NPC</span>{{/if}}
-                </div>
-                <div class="party-member-identity">{{m.race}} &middot; {{m.class}}</div>
-
-                <div class="party-bar-row">
-                  <span class="party-bar-label">HP</span>
-                  <div class="party-bar"><div class="party-bar-fill party-bar-hp" style="width:{{m.hp.pct}}%"></div></div>
-                  <span class="party-bar-value">{{m.hp.value}} / {{m.hp.max}}{{#if m.hp.temp}} <span class="party-temp">+{{m.hp.temp}}</span>{{/if}}</span>
+                  <span class="party-member-identity">{{m.race}} &middot; {{m.class}}</span>
                 </div>
 
-                <div class="party-bar-row">
-                  <span class="party-bar-label">PP</span>
-                  <div class="party-bar"><div class="party-bar-fill party-bar-pp" style="width:{{m.pp.pct}}%"></div></div>
-                  <span class="party-bar-value">{{m.pp.value}} / {{m.pp.max}}</span>
+                <div class="party-member-body">
+                  <div class="party-member-bars">
+                    <div class="party-bar-row">
+                      <span class="party-bar-label">HP</span>
+                      <div class="party-bar" data-tooltip="Hit points {{m.hp.value}} of {{m.hp.max}}{{#if m.hp.temp}}, plus {{m.hp.temp}} temporary{{/if}}"><div class="party-bar-fill party-bar-hp" style="width:{{m.hp.pct}}%"></div></div>
+                      <span class="party-bar-value">{{m.hp.value}} / {{m.hp.max}}{{#if m.hp.temp}} <span class="party-temp">+{{m.hp.temp}}</span>{{/if}}</span>
+                      {{#if m.controls.gm}}<span class="party-steppers">
+                        <button type="button" class="party-step" data-action="stepMemberResource" data-resource="hp" data-delta="-1" data-tooltip="HP −1 (as editing the sheet's field)" aria-label="Lower {{m.name}}'s HP by 1">−</button>
+                        <button type="button" class="party-step" data-action="stepMemberResource" data-resource="hp" data-delta="1" data-tooltip="HP +1 (as editing the sheet's field)" aria-label="Raise {{m.name}}'s HP by 1">+</button>
+                      </span>{{/if}}
+                    </div>
+                    <div class="party-bar-row">
+                      <span class="party-bar-label">PP</span>
+                      <div class="party-bar" data-tooltip="Power points {{m.pp.value}} of {{m.pp.max}}"><div class="party-bar-fill party-bar-pp" style="width:{{m.pp.pct}}%"></div></div>
+                      <span class="party-bar-value">{{m.pp.value}} / {{m.pp.max}}</span>
+                      {{#if m.controls.gm}}<span class="party-steppers">
+                        <button type="button" class="party-step" data-action="stepMemberResource" data-resource="pp" data-delta="-1" data-tooltip="PP −1" aria-label="Lower {{m.name}}'s PP by 1">−</button>
+                        <button type="button" class="party-step" data-action="stepMemberResource" data-resource="pp" data-delta="1" data-tooltip="PP +1" aria-label="Raise {{m.name}}'s PP by 1">+</button>
+                      </span>{{/if}}
+                    </div>
+                  </div>
+
+                  <div class="party-stats" role="list">
+                    <span class="party-stat" role="listitem" data-tooltip="Defence Bonus"><label>DB</label><strong>{{#if (eq m.stats.defence null)}}&mdash;{{else}}{{m.stats.defence}}{{/if}}</strong></span>
+                    <span class="party-stat" role="listitem" data-tooltip="Initiative bonus"><label>Init</label><strong>{{#if (eq m.stats.initiative null)}}&mdash;{{else}}{{m.stats.initiative}}{{/if}}</strong></span>
+                    <span class="party-stat" role="listitem" data-tooltip="Fortitude save"><label>Fort</label><strong>{{#if (eq m.stats.fortitude null)}}&mdash;{{else}}{{m.stats.fortitude}}{{/if}}</strong></span>
+                    <span class="party-stat" role="listitem" data-tooltip="Reflex save"><label>Ref</label><strong>{{#if (eq m.stats.reflex null)}}&mdash;{{else}}{{m.stats.reflex}}{{/if}}</strong></span>
+                    <span class="party-stat" role="listitem" data-tooltip="Will save"><label>Will</label><strong>{{#if (eq m.stats.will null)}}&mdash;{{else}}{{m.stats.will}}{{/if}}</strong></span>
+                    <span class="party-stat" role="listitem" data-tooltip="Land Speed"><label>Speed</label><strong>{{#if m.stats.speed}}{{m.stats.speed}}{{else}}&mdash;{{/if}}</strong></span>
+                  </div>
+
+                  <div class="party-resources">
+                    {{#each m.resourceList as |r|}}
+                      <span class="party-resource" data-tooltip="{{r.label}} {{r.value}} of {{r.max}}">
+                        <label>{{r.short}}</label>
+                        {{#if m.controls.gm}}<button type="button" class="party-step" data-action="stepMemberResource" data-resource="{{r.key}}" data-delta="-1" data-tooltip="{{r.label}} −1" aria-label="Lower {{m.name}}'s {{r.label}} by 1">−</button>{{/if}}
+                        <strong>{{r.value}}/{{r.max}}</strong>
+                        {{#if m.controls.gm}}<button type="button" class="party-step" data-action="stepMemberResource" data-resource="{{r.key}}" data-delta="1" data-tooltip="{{r.label}} +1" aria-label="Raise {{m.name}}'s {{r.label}} by 1">+</button>{{/if}}
+                      </span>
+                    {{/each}}
+                  </div>
                 </div>
 
-                {{#if m.conditions.length}}
+                {{#if (or m.conditionChips.length m.effects.length m.controls.gm)}}
                   <div class="party-conditions">
-                    {{#each m.conditions as |c|}}<span class="party-condition">{{c}}</span>{{/each}}
+                    {{#each m.conditionChips as |c|}}
+                      {{#if (and m.controls.gm c.removable)}}
+                        <button type="button" class="party-condition party-condition-action" data-action="removeMemberCondition" data-condition="{{c.id}}"
+                                data-tooltip="{{c.label}} — click to remove">{{c.label}} <i class="fa-solid fa-xmark"></i></button>
+                      {{else}}
+                        <span class="party-condition{{#if c.granted}} party-condition-granted{{/if}}"{{#if c.granted}} data-tooltip="Granted by another condition"{{/if}}>{{c.label}}</span>
+                      {{/if}}
+                    {{/each}}
+                    {{#each m.effects as |e|}}
+                      <span class="party-effect" data-tooltip="Active effect">{{#if e.img}}<img src="{{e.img}}" alt="">{{/if}}{{e.name}}</span>
+                    {{/each}}
+                    {{#if m.controls.gm}}
+                      <button type="button" class="party-condition-add" data-action="addMemberCondition" data-tooltip="Add a condition" aria-label="Add a condition to {{m.name}}"><i class="fa-solid fa-plus"></i></button>
+                    {{/if}}
                   </div>
                 {{/if}}
               </div>
             {{/if}}
 
-            {{!-- ../isGM: inside the each, a bare isGM is read from the member and was always false,
-                  so the GM never had this button (found live, 3.708.1). --}}
-            {{#if ../isGM}}
-              <button type="button" class="party-remove" data-action="removeMember"
-                      data-tooltip="Remove from roster"><i class="fa-solid fa-user-minus"></i></button>
-            {{/if}}
+            {{!-- The member's controls. Each is checked again when pressed. --}}
+            <div class="party-member-controls">
+              {{#unless m.missing}}
+                {{#if m.controls.canOpen}}<button type="button" data-action="openMember" data-tooltip="Open sheet" aria-label="Open {{m.name}}'s sheet"><i class="fa-solid fa-id-card"></i></button>{{/if}}
+                <button type="button" data-action="findToken" data-tooltip="{{m.controls.find.hint}}" aria-label="Find {{m.name}}'s token" {{#unless m.controls.find.enabled}}disabled{{/unless}}><i class="fa-solid fa-location-crosshairs"></i></button>
+                <button type="button" data-action="selectToken" data-tooltip="{{m.controls.select.hint}}" aria-label="Select {{m.name}}'s token" {{#unless m.controls.select.enabled}}disabled{{/unless}}><i class="fa-solid fa-hand-pointer"></i></button>
+                {{#unless m.restricted}}
+                  {{#if (eq m.controls.initiative.state "rolled")}}
+                    <span class="party-init-value" data-tooltip="{{m.controls.initiative.hint}}">{{m.controls.initiative.value}}</span>
+                  {{else}}
+                    <button type="button" data-action="rollMemberInitiative" data-tooltip="{{m.controls.initiative.hint}}" aria-label="Roll initiative for {{m.name}}" {{#unless m.controls.initiative.enabled}}disabled{{/unless}}><i class="fa-solid fa-dice-d20"></i></button>
+                  {{/if}}
+                {{/unless}}
+                {{#if m.controls.gm}}<button type="button" data-action="applyMemberDamage" data-tooltip="Apply Damage (Chapter 7)" aria-label="Apply damage to {{m.name}}"><i class="fa-solid fa-heart-crack"></i></button>{{/if}}
+              {{/unless}}
+              {{!-- ../isGM: inside the each, a bare isGM is read from the member and was always false,
+                    so the GM never had this button (found live, 3.708.1). --}}
+              {{#if ../isGM}}
+                <button type="button" class="party-remove" data-action="removeMember"
+                        data-tooltip="Remove from roster" aria-label="Remove {{m.name}} from the roster"><i class="fa-solid fa-user-minus"></i></button>
+              {{/if}}
+            </div>
           </div>
         {{/each}}
       </article>

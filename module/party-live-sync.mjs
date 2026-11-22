@@ -46,8 +46,25 @@ export const PARTY_SYNC_EVENTS = Object.freeze([
   "createActor", "updateActor", "deleteActor",
   "createItem", "updateItem", "deleteItem",
   "createActiveEffect", "updateActiveEffect", "deleteActiveEffect",
-  "createToken", "deleteToken"
+  "createToken", "deleteToken",
+  // STAGE 2 (3.709.0): the Overview's Find, Select and initiative controls
+  // read the canvas and the active combat, so these reach it too.
+  "updateToken",
+  "createCombatant", "updateCombatant", "deleteCombatant",
+  "createCombat", "updateCombat", "deleteCombat",
+  "canvasReady"
 ]);
+
+/**
+ * Events every open Party sheet hears (3.709.0): a combat starting,
+ * ending or becoming the active one, and the GM viewing another scene.
+ * They are rare, and any of them can change every member's Find and
+ * initiative controls at once.
+ */
+const BROADCAST = Object.freeze(["createCombat", "deleteCombat", "canvasReady"]);
+
+/** The token changes that alter what Find offers (a player cannot find a hidden token). */
+const TOKEN_FIELDS = Object.freeze(["hidden", "actorLink", "actorId"]);
 
 /**
  * The actor a changed document belongs to, or null.
@@ -145,19 +162,35 @@ export class PartyLiveSync {
    * @returns {number} how many sheets were told
    */
   handle(event, document, ...rest) {
-    if (hookOptions(event, [document, ...rest]).render === false) return 0;
+    if (event !== "canvasReady" && hookOptions(event, [document, ...rest]).render === false) return 0;
     const told = new Set();
     const tell = (key) => {
       for (const sheet of this.#sheetsByKey.get(key) ?? []) told.add(sheet);
     };
+    const tellEveryone = () => { for (const sheet of this.#keysBySheet.keys()) told.add(sheet); };
 
-    if (event === "createToken" || event === "deleteToken") {
+    if (BROADCAST.includes(event)) {
+      tellEveryone();
+    } else if (event === "updateCombat") {
+      // Only a combat becoming (or ceasing to be) the active one, or moving
+      // scene. Not every turn: initiative and tokens do not change with it.
+      const changes = rest[0] ?? {};
+      if ("active" in changes || "scene" in changes) tellEveryone();
+    } else if (event === "createCombatant" || event === "updateCombatant" || event === "deleteCombatant") {
+      if (event === "updateCombatant" && !("initiative" in (rest[0] ?? {})) && !("hidden" in (rest[0] ?? {}))) return 0;
+      const uuid = document?.actor?.uuid;
+      if (uuid) tell(uuid);
+    } else if (event === "createToken" || event === "deleteToken" || event === "updateToken") {
+      if (event === "updateToken" && !TOKEN_FIELDS.some((field) => field in (rest[0] ?? {}))) return 0;
       // The token's actor is "<token uuid>.Actor.<id>"; a roster that names
       // an unlinked token's actor loses it when the token goes.
       const prefix = `${document?.uuid ?? ""}.Actor.`;
       if (document?.uuid) {
         for (const key of this.#sheetsByKey.keys()) if (key.startsWith(prefix)) tell(key);
       }
+      // A LINKED token is its world actor on the canvas: placing, removing
+      // or hiding one changes that member's Find and Select (3.709.0).
+      if (document?.actorLink && document?.actorId) tell(`Actor.${document.actorId}`);
     } else {
       const actor = owningActor(document);
       if (actor?.uuid) tell(actor.uuid);

@@ -272,7 +272,7 @@ const TEMPLATE = JSON.parse(read("template.json"));
 
 /* I — the Party sheet */
 {
-  ok("I1 a Rewards tab, with its panel", /\{ id: "rewards", icon: "fa-solid fa-trophy", label: "Rewards" \}/.test(PARTY)
+  ok("I1 a Rewards tab, with its panel", /\{ id: "rewards", icon: "fa-solid fa-trophy", label: "Encounter" \}/.test(PARTY) // RE-ANCHORED 3.709.0: the tab is labelled Encounter (Stage 2); same tab, same id
     && /data-tab="rewards"/.test(PARTY_HBS) && /rewardsContext\(actor, \{ members: activeMembers\(roster\) \}\)/.test(PARTY));
   // RE-ANCHORED 3.708.0 (Party Sheet V2 Stage 1): the sheet hands the Rewards tab the roster it
   // resolved once, and builds it for a GM only. Same meaning: the tab is built from rewardsContext.
