@@ -856,3 +856,29 @@ Report: `live-testing-report-3.708.0.md`. Branch `feature/party-sheet-v2-stage1`
 - **Version:** 3.708.1
 - **Branch:** `feature/party-sheet-v2-stage1` (local, not pushed)
 - **Package:** `trg-prime.zip`
+
+## R-0026 and R-0027 — What the 3.709.0 live test found (3.709.1)
+
+Report: `live-testing-report-3.709.0.md`. Branch `feature/party-sheet-v2-stage2`.
+
+### R-0026 — a player could use no button on a Party sheet
+
+- **Found:** live test P1, clicking as PC Tester.
+- **Cause:** v14 `DocumentSheetV2._onRender` calls `_toggleDisabled(true)` when the sheet isn't editable, and a player has Observer on a party. This predates V2 and affected the tabs, Take Item and Take Coin since v14.
+- **Change:** `_toggleDisabled` re-enables `data-player-ok` controls that the template didn't disable itself. Party-writing fields and GM controls stay locked.
+
+### R-0027 — a stepper's + at the maximum stored a value above it
+
+- **Found:** live test O9.
+- **Cause:** preparation clamps what's shown, not what's stored.
+- **Change:** `stepResource` takes the maximum and stops a raise there.
+
+### Testing
+
+- `verify-party-sheet-stage2` L1–L10 (140 checks); `mutate-party-sheet-stage2` 48 of 48.
+
+### Delivery
+
+- **Version:** 3.709.1
+- **Branch:** `feature/party-sheet-v2-stage2` (local, not pushed)
+- **Package:** `trg-prime.zip`

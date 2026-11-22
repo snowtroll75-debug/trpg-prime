@@ -2,6 +2,27 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.709.1 — 22 November 2026: what the 3.709.0 live test found
+
+Branch `feature/party-sheet-v2-stage2`. Full notes in `release-notes-3.709.1.md`; repair log R-0026, R-0027; live report `live-testing-report-3.709.0.md`.
+
+- **Players can use the Party sheet again.** Foundry v14 disabled every control on a sheet the user can't edit, so players couldn't switch tabs or press Take. This predates V2. The tabs, Take, Open, Find, Select and Roll Initiative are re-enabled; party-writing fields stay locked.
+- **Resource steppers stop at the maximum** rather than storing a hidden excess.
+- **Harness:** stage-2 pair 140 / 48. No data change.
+
+## 3.709.0 — 22 November 2026: Party Sheet V2, Stage 2 (the Overview dashboard)
+
+Branch `feature/party-sheet-v2-stage2`. Full notes in `release-notes-3.709.0.md`.
+
+- **Overview, Inventory, Encounter** tabs (Skills and Notes in Stage 5, per Graham), and a **Party Actions toolbar** on every tab (Roll Initiative, Begin Session).
+- **Summary:** members, APL (Chapter 12), the slowest land Speed (the travel rule), party coin.
+- **Member panels:** HP/PP, DB, Init, saves, Speed, AP, Reactions, Conviction, conditions and effects; each the member's own prepared figure.
+- **Controls:**
+  - Open, Find (linked tokens only, stepped in a fixed order), Select (owned only), Roll Initiative (the system's roll);
+  - GM: Apply Damage (the existing dialog), resource steppers, add or remove conditions via the actor's own toggle.
+- **Live updates** for combats, combatants, tokens and scene changes.
+- **Harness:** new `verify/mutate-party-sheet-stage2` (117 / 40); re-anchors; pins raised. No data change.
+
 ## 3.708.1 — 22 November 2026: what the 3.708.0 live test found
 
 Branch `feature/party-sheet-v2-stage1`. Full notes in `release-notes-3.708.1.md`; repair log R-0023 to R-0025; live report `live-testing-report-3.708.0.md` (26 of 28 passed; the two failures are fixed here).
