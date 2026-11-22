@@ -2,6 +2,14 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.710.2 — 22 November 2026: one check for a whole rest
+
+Branch `feature/party-sheet-v2-stage3`. Full notes in `release-notes-3.710.2.md`; repair log R-0029.
+
+- **Graham's ruling:** a multi-hour rest makes one Healing Trance, one Power Recovery and one Fatigue Recovery check per character, not one per hour. So it raises one Conviction prompt per check, not one per hour.
+- **Healing Trance's** multiplier covers every hour's Natural Healing. **Power Recovery's** bonus is paid once. **Fatigue** moves one step once.
+- **Harness:** new `verify/mutate-rest-single-check` (26 / 11), driven through `performRestForActor`; two indentation re-anchors. No data change.
+
 ## 3.710.1 — 22 November 2026: what the 3.710.0 live test found
 
 Branch `feature/party-sheet-v2-stage3`. Full notes in `release-notes-3.710.1.md`; repair log R-0028; live report `live-testing-report-3.710.0.md` (16 of 17 passed).

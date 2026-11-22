@@ -902,3 +902,32 @@ Report: `live-testing-report-3.710.0.md`. Branch `feature/party-sheet-v2-stage3`
 - **Version:** 3.710.1
 - **Branch:** `feature/party-sheet-v2-stage3` (local, not pushed)
 - **Package:** `trg-prime.zip`
+
+## R-0029 — One check of each kind for a whole rest (3.710.2)
+
+Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
+
+### R-0029 — a multi-hour rest rolled every recovery check every hour
+
+- **Found:** 3.710.0 live test. A group rest of five characters over 8 hours raised 49 Conviction prompts.
+- **Ruling:**
+  - "If the party are resting for a long period of time which provoke multiple checks, just make one check for the whole duration per character."
+  - Reach: Healing Trance's multiplier covers the whole rest; Power Recovery's bonus is paid once; Fatigue moves once.
+- **Change:**
+  - `performRestForActor` (`module/rest/rest-workflow.mjs`): the per-hour loop is gone. With `wholeHours > 0` and not Active, the function makes one Healing Trance check (safe environment, attempted), adds Natural Healing for each hour times that multiplier and Quick Recovery, makes one `rollFatigueRecovery`, and makes one Power Recovery check (attempted, not sustaining) whose bonus is added once. The daily-first doubling is kept.
+  - The roll records carry `hours` instead of `hour`.
+  - `postRestSummaryCard` prints one line per check.
+  - `rollFatigueRecovery` (`module/combat/exhaustion-workflow.mjs`) takes an optional `subtitle`. Its default is unchanged.
+
+### Testing
+
+- `verify-rest-single-check` (26 checks): behavioural, through `performRestForActor`. 17 of its checks fail on 3.710.1's code.
+- `mutate-rest-single-check`: 11 of 11 caught.
+- `mutate-daily-firsts` and `mutate-recovery-companions` re-anchored for indentation only.
+- `tools/uncalled-exports.json`: `performRestForActor` leaves the backlog (505 → 504).
+
+### Delivery
+
+- **Version:** 3.710.2
+- **Branch:** `feature/party-sheet-v2-stage3` (local, not pushed)
+- **Package:** `trg-prime.zip`
