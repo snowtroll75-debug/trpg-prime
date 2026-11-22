@@ -26,5 +26,7 @@
 - **Re-anchored, same meaning:** two mutations, `mutate-daily-firsts` "the rest never doubles" and `mutate-recovery-companions` "the rest no longer asks". The loop level went, so the lines lost two spaces of indentation.
 - **`verify-rules-have-callers` backlog:** `performRestForActor` now has a harness caller, so it leaves the backlog. The backlog goes from 505 to 504.
 - **Version pins** raised.
+- **Full sweep:** 400 verify scripts and 397 mutate scripts were run. The only failure was the callers backlog above, which is now fixed and re-run green. Two slow mutation scripts, `mutate-checks-read-source` and `mutate-fixes-3685-3b`, ran past the runner's time limit and were stopped. Neither touches the rest or fatigue code.
+- **Companion modules:** all 51 verify scripts across Pillars of Faith, Inner Tempest and Eldritch Arts give the same result on 3.707.3 and on 3.710.2. The 11 failures already known are unchanged.
 
 No data change and no migration.
