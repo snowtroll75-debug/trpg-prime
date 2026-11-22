@@ -761,24 +761,35 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       ui.notifications?.warn("Only the GM awards experience.");
       return null;
     }
-    return runOnce(TRGPartySheet.#running, `${this.actor.uuid}:xp`, async () => {
-      const { actors } = await this.#participants();
-      const preview = xpAwardPreview(actors, total);
-      if (!preview.ok) {
-        ui.notifications?.warn(actors.length ? "There is no XP to award." : "The party has no members to award XP to.");
-        return null;
-      }
-      if (!(await confirmXPAward(this.actor, preview, reason))) return null;
-      return awardPartyXP(this.actor, preview.xp, reason, { members: actors });
-    });
+    return runOnce(TRGPartySheet.#running, `${this.actor.uuid}:xp`, () => this.#awardXPNow(total, reason));
   }
 
+  /** The preview, the confirmation and the award, already inside the party's XP lock. */
+  async #awardXPNow(total, reason) {
+    const { actors } = await this.#participants();
+    const preview = xpAwardPreview(actors, total);
+    if (!preview.ok) {
+      ui.notifications?.warn(actors.length ? "There is no XP to award." : "The party has no members to award XP to.");
+      return null;
+    }
+    if (!(await confirmXPAward(this.actor, preview, reason))) return null;
+    return awardPartyXP(this.actor, preview.xp, reason, { members: actors });
+  }
+
+  /**
+   * The toolbar's Award XP. The WHOLE of it, choosing included, holds the
+   * party's XP lock (fixed 3.710.1, found live): a second press while the
+   * chooser or the confirmation is open does nothing, rather than opening
+   * a second chooser.
+   */
   static async partyAwardXP(event) {
     event.preventDefault();
     if (!game.user.isGM) return;
-    const context = await rewardsContext(this.actor);
-    const choice = await chooseXPAward({ encounterTotal: context.summary.total });
-    if (choice) await this.#awardXP(choice.xp, choice.reason);
+    await runOnce(TRGPartySheet.#running, `${this.actor.uuid}:xp`, async () => {
+      const context = await rewardsContext(this.actor);
+      const choice = await chooseXPAward({ encounterTotal: context.summary.total });
+      return choice ? this.#awardXPNow(choice.xp, choice.reason) : null;
+    });
   }
 
   /** Rest for THIS party: the existing dialog and workflow, given its members. */

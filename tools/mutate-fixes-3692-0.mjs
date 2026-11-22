@@ -74,9 +74,9 @@ const MUTATIONS = [
   { name: "F speedHalve is not handled", file: EK, from: "  \"speedHalve\",\n", to: "" },
   { name: "G the Sustain is not announced", file: SW, from: "    Hooks.callAll(\"trgPrimeSpellSustained\", {", to: "    Hooks.callAll(\"trgPrimeSpellSustainedX\", {" },
   { name: "G a Sustain that ran out is announced", file: SW, from: "  if (!ranOut) {\n    Hooks.callAll(\"trgPrimeSpellSustained\"", to: "  if (true) {\n    Hooks.callAll(\"trgPrimeSpellSustained\"" },
-  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.710.0\"", to: "\"version\": \"3.691.0\"" },
-  { name: "Z the download names the last release", file: SJ, from: "releases/download/v3.710.0/trg-prime.zip", to: "releases/download/v3.691.0/trg-prime.zip" },
-  { name: "Z package.json is left behind", file: PJ, from: "\"version\": \"3.710.0\"", to: "\"version\": \"3.691.0\"" }
+  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.710.1\"", to: "\"version\": \"3.691.0\"" },
+  { name: "Z the download names the last release", file: SJ, from: "releases/download/v3.710.1/trg-prime.zip", to: "releases/download/v3.691.0/trg-prime.zip" },
+  { name: "Z package.json is left behind", file: PJ, from: "\"version\": \"3.710.1\"", to: "\"version\": \"3.691.0\"" }
 ];
 
 const verify = path.join(SYSTEM_ROOT, "tools", "verify-fixes-3692-0.mjs");

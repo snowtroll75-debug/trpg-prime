@@ -220,13 +220,21 @@ const partB = PA.partyParticipants(rosterB);
     ok(`S8 the Encounter tab's ${name} goes through the same confirmation`, /await this\.#awardXP\(/.test(handler(name)) && !/awardPartyXP\(/.test(handler(name)));
   }
   ok("S9 Begin Session is the existing workflow", /\(\) => beginSession\(this\.actor\)/.test(handler("beginSession")));
+  // S10 (3.710.1, found live): the toolbar's Award XP holds the party's XP
+  // lock from the chooser onwards, so a second press while the chooser or the
+  // confirmation is open opens nothing.
+  const tool = SHEET.slice(SHEET.indexOf("static async partyAwardXP("), SHEET.indexOf("/** Rest for THIS party"));
+  ok("S10 the whole toolbar Award XP, choosing included, runs inside the party's XP lock",
+    /await runOnce\(TRGPartySheet\.#running, `\$\{this\.actor\.uuid\}:xp`, async \(\) => \{\s*const context = await rewardsContext\(this\.actor\);\s*const choice = await chooseXPAward\(/.test(tool)
+    && /return choice \? this\.#awardXPNow\(choice\.xp, choice\.reason\) : null;/.test(tool));
+  ok("S11 ...and calls the un-locked award inside it (a nested lock would refuse itself)", !/this\.#awardXP\(/.test(tool));
 }
 
 /* ------------------------------------------------------------ Z. version */
 {
   const sys = JSON.parse(read("system.json"));
-  equal("Z1 the version is 3.710.0, the download names it, and package.json agrees",
-    [sys.version, sys.download.includes("/v3.710.0/"), JSON.parse(read("package.json")).version], ["3.710.0", true, "3.710.0"]);
+  equal("Z1 the version is 3.710.1, the download names it, and package.json agrees",
+    [sys.version, sys.download.includes("/v3.710.1/"), JSON.parse(read("package.json")).version], ["3.710.1", true, "3.710.1"]);
 }
 
 if (failures.length) {

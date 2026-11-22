@@ -42,12 +42,14 @@ const MUTATIONS = [
   /* S */
   { name: "a player may launch the party's Rest", file: SHEET, from: "  static async partyRest(event) {\n    event.preventDefault();\n    if (!game.user.isGM) return;", to: "  static async partyRest(event) {\n    event.preventDefault();", breaks: "S1" },
   { name: "the sheet's Rest is the whole table's dialog", file: SHEET, from: "      return openRestDialog({\n        candidates: { actors: participants.actors, scopeNote: partyScopeNote(this.actor.name, \"Resting\", participants) }\n      });", to: "      return openRestDialog();", breaks: "S3" },
-  { name: "an award is written without the GM confirming it", file: SHEET, from: "      if (!(await confirmXPAward(this.actor, preview, reason))) return null;\n", to: "", breaks: "S7" },
+  { name: "an award is written without the GM confirming it", file: SHEET, from: "    if (!(await confirmXPAward(this.actor, preview, reason))) return null;\n", to: "", breaks: "S7" }, // re-anchored 3.710.1
   { name: "the Encounter tab awards without the confirmation", file: SHEET, from: "    await this.#awardXP(context.summary.total, \"the encounter\");", to: "    await awardPartyXP(this.actor, context.summary.total, \"the encounter\");", breaks: "S8" },
   { name: "Begin Session can run twice at once", file: SHEET, from: "    await runOnce(TRGPartySheet.#running, `${this.actor.uuid}:session`, () => beginSession(this.actor));", to: "    await beginSession(this.actor);", breaks: "S6/S9" },
+  { name: "LIVE: the chooser opens again on a second press (lock only around the award)", file: SHEET, from: "    await runOnce(TRGPartySheet.#running, `${this.actor.uuid}:xp`, async () => {\n      const context = await rewardsContext(this.actor);", to: "    await (async (f) => f())(async () => {\n      const context = await rewardsContext(this.actor);", breaks: "S10" },
+  { name: "LIVE: the toolbar award nests the lock and refuses itself", file: SHEET, from: "      return choice ? this.#awardXPNow(choice.xp, choice.reason) : null;", to: "      return choice ? this.#awardXP(choice.xp, choice.reason) : null;", breaks: "S10/S11" },
   /* Z */
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.710.0\"", to: "\"version\": \"3.709.1\"", breaks: "Z1" },
-  { name: "package.json is left behind", file: PJ, from: "\"version\": \"3.710.0\"", to: "\"version\": \"3.709.1\"", breaks: "Z1" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.710.1\"", to: "\"version\": \"3.709.1\"", breaks: "Z1" },
+  { name: "package.json is left behind", file: PJ, from: "\"version\": \"3.710.1\"", to: "\"version\": \"3.709.1\"", breaks: "Z1" }
 ];
 
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-party-sheet-stage3.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
