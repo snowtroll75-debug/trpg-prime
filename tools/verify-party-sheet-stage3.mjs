@@ -233,8 +233,8 @@ const partB = PA.partyParticipants(rosterB);
 /* ------------------------------------------------------------ Z. version */
 {
   const sys = JSON.parse(read("system.json"));
-  equal("Z1 the version is 3.710.1, the download names it, and package.json agrees",
-    [sys.version, sys.download.includes("/v3.710.1/"), JSON.parse(read("package.json")).version], ["3.710.1", true, "3.710.1"]);
+  equal("Z1 the version is 3.710.2, the download names it, and package.json agrees",
+    [sys.version, sys.download.includes("/v3.710.2/"), JSON.parse(read("package.json")).version], ["3.710.2", true, "3.710.2"]);
 }
 
 if (failures.length) {

@@ -76,8 +76,8 @@ const MUTATIONS = [
   { name: "LIVE: 'a affliction'", file: PARTY, from: "is ${/^[aeiou]/i.test(str(item.type) || \"document\") ? \"an\" : \"a\"} ${", to: "is a ${", breaks: "F4" },
   /* W, Z */
   { name: "XP is split across the deleted and ineligible entries too", file: RW, from: "  return activeMembers(await resolvePartyRoster(party));", to: "  return (await resolvePartyRoster(party)).map((e) => e.actor).filter(Boolean);", breaks: "R15/W5" },
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.710.1\"", to: "\"version\": \"3.707.3\"", breaks: "Z1" },
-  { name: "package.json is left behind", file: PJ, from: "\"version\": \"3.710.1\"", to: "\"version\": \"3.707.3\"", breaks: "Z1" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.710.2\"", to: "\"version\": \"3.707.3\"", breaks: "Z1" },
+  { name: "package.json is left behind", file: PJ, from: "\"version\": \"3.710.2\"", to: "\"version\": \"3.707.3\"", breaks: "Z1" }
 ];
 
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-party-sheet-stage1.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }

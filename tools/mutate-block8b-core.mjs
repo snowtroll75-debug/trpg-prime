@@ -71,9 +71,9 @@ const MUTATIONS = [
   { name: "H16 placeStorm raises one with no radius", file: SW, from: "  if (!scene || !at || !feet) return", to: "  if (!scene || !at) return", breaks: "H16 board: no radius" },
   { name: "H16 no helper for modules", file: APW, from: "      placeStorm: async (...args) => (await import(\"./magic/storm-workflow.mjs\")).placeStorm(...args),", to: "      placeStorm: null,", breaks: "H16 helper" },
   // Z
-  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.710.1\"", to: "\"version\": \"3.686.2\"", breaks: "Z1" },
-  { name: "Z the download names the last release", file: SJ, from: "releases/download/v3.710.1/trg-prime.zip", to: "releases/download/v3.686.2/trg-prime.zip", breaks: "Z1" },
-  { name: "Z package.json is left behind", file: PJ, from: "\"version\": \"3.710.1\"", to: "\"version\": \"3.686.2\"", breaks: "Z2" }
+  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.710.2\"", to: "\"version\": \"3.686.2\"", breaks: "Z1" },
+  { name: "Z the download names the last release", file: SJ, from: "releases/download/v3.710.2/trg-prime.zip", to: "releases/download/v3.686.2/trg-prime.zip", breaks: "Z1" },
+  { name: "Z package.json is left behind", file: PJ, from: "\"version\": \"3.710.2\"", to: "\"version\": \"3.686.2\"", breaks: "Z2" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-block8b-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

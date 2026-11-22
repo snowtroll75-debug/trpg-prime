@@ -271,7 +271,7 @@ export async function promptExhaustionCheck(actor) {
  * fatigue." A level-based DC, no difficulty adjustment (unlike the Easy
  * Exhaustion Check), against the character's own level.
  */
-export async function rollFatigueRecovery(actor, { postCard = true } = {}) {
+export async function rollFatigueRecovery(actor, { postCard = true, subtitle = "Level-based Fortitude save, after an hour of rest" } = {}) {
   const fortitude = actor.system?.combat?.saves?.fortitude;
   const modifiers = fortitude?.checkModifiers ?? [
     { label: "Fortitude", value: Number(fortitude?.total ?? 0), type: "untyped" }
@@ -281,7 +281,8 @@ export async function rollFatigueRecovery(actor, { postCard = true } = {}) {
     actor,
     label: "Fatigue Recovery",
     subject: "fortitude",
-    subtitle: "Level-based Fortitude save, after an hour of rest",
+    // The rest names its span (3.710.2): one save now covers a whole rest.
+    subtitle,
     type: "save",
     dc: levelDC(Number(actor.system?.identity?.level ?? 0)),
     modifiers: [...modifiers],

@@ -19,7 +19,7 @@ const MUTATIONS = [
   { name: "the extra is never applied", file: V, from: "      return level + extra;", to: "      return level;", breaks: "A3" },
   { name: "a Partial counts as a success", file: F, from: "return [\"heroic\", \"critical\", \"success\"].includes(", to: "return [\"heroic\", \"critical\", \"success\", \"partial\"].includes(", breaks: "B2" },
   { name: "the refocused ability is offered again", file: F, from: "i && i.id !== chosenId && i.spent &&", to: "i && i.spent &&", breaks: "B3" },
-  { name: "the rest no longer asks", file: W, from: "          powerRecoveryExtras(Array.from(actor.appliedEffects ?? actor.effects ?? [])));", to: "          []);", breaks: "C1" }
+  { name: "the rest no longer asks", file: W, from: "        powerRecoveryExtras(Array.from(actor.appliedEffects ?? actor.effects ?? [])));", to: "        []);", breaks: "C1" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-recovery-companions.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([V, F, W]);

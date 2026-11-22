@@ -130,85 +130,100 @@ export async function performRestForActor(actor, {
     // Recovery — both require actually resting, not just being
     // nearby while others do.
     ppRecovered = activePPRecovery(wholeHours);
-  } else {
-    for (let hour = 0; hour < wholeHours; hour++) {
-      if (safeEnvironment) {
-        let multiplier = 1;
-        if (attemptHealingTrance) {
-          const check = await TRGCheck.roll({
-            actor,
-            label: "Healing Trance",
-            subtitle: `Level-based check, hour ${hour + 1} of rest`,
-            type: "skill",
-            // WHICH SKILL AND WHICH ACTION. Both are read by the conditional
-            // engine, and neither was passed until 3.317.2 — see the note on
-            // Power Recovery below, which is the same omission and the one
-            // that was caught live.
-            subject: "meditation",
-            actionKey: "healingTrance",
-            dc: levelDC(level),
-            // "An Easy (DC +2) level-based check" — was rolling with no
-            // difficulty (Medium) here, the path that actually applies the
-            // healing. Power Recovery below is correctly Medium and stays so.
-            difficulty: "easy",
-            modifiers: [...meditationModifiers],
-            toMessage: false
-          });
-          const degree = check.outcome?.degree?.key ?? "failure";
-          multiplier = healingTranceMultiplier(degree);
-          healingTranceRolls.push({ hour: hour + 1, degree, multiplier });
-        }
-        // Quick Recovery (Chapter 5): "You regain double the amount of
-        // Hit Points when resting" — multiplies Natural Healing (and any
-        // Healing Trance multiplier on top of it).
-        const quickRecovery = Array.from(actor.items ?? []).some(
-          (i) => i.type === "feat" && String(i.name).trim().toLowerCase() === "quick recovery"
-        ) ? 2 : 1;
+  } else if (wholeHours > 0) {
+    /*
+     * ONE CHECK OF EACH KIND FOR THE WHOLE REST (3.710.2; Graham, 22 Nov
+     * 2026: "If the party are resting for a long period of time which
+     * provoke multiple checks, just make one check for the whole duration
+     * per character."). Each of these used to be rolled every hour, which
+     * for a party resting a night meant dozens of rolls, each one able to
+     * stop the rest on a Conviction prompt (49 in the 3.710.0 live test).
+     *
+     * How far the one result reaches (Graham's choice, the same day):
+     *   Healing Trance  its multiplier covers every hour's Natural Healing;
+     *   Power Recovery  its bonus Power Points are paid once;
+     *   Fatigue         it moves one step, once.
+     * A one-hour rest is unchanged: it always made one check of each.
+     */
+    const span = wholeHours === 1 ? "an hour of rest" : `the whole ${wholeHours}-hour rest`;
+    let multiplier = 1;
+    if (safeEnvironment && attemptHealingTrance) {
+      const check = await TRGCheck.roll({
+        actor,
+        label: "Healing Trance",
+        subtitle: `Level-based check, for ${span}`,
+        type: "skill",
+        // WHICH SKILL AND WHICH ACTION. Both are read by the conditional
+        // engine, and neither was passed until 3.317.2 — see the note on
+        // Power Recovery below, which is the same omission and the one
+        // that was caught live.
+        subject: "meditation",
+        actionKey: "healingTrance",
+        dc: levelDC(level),
+        // "An Easy (DC +2) level-based check" — was rolling with no
+        // difficulty (Medium) here, the path that actually applies the
+        // healing. Power Recovery below is correctly Medium and stays so.
+        difficulty: "easy",
+        modifiers: [...meditationModifiers],
+        toMessage: false
+      });
+      const degree = check.outcome?.degree?.key ?? "failure";
+      multiplier = healingTranceMultiplier(degree);
+      healingTranceRolls.push({ hours: wholeHours, degree, multiplier });
+    }
+    if (safeEnvironment) {
+      // Quick Recovery (Chapter 5): "You regain double the amount of
+      // Hit Points when resting" — multiplies Natural Healing (and any
+      // Healing Trance multiplier on top of it).
+      const quickRecovery = Array.from(actor.items ?? []).some(
+        (i) => i.type === "feat" && String(i.name).trim().toLowerCase() === "quick recovery"
+      ) ? 2 : 1;
+      for (let hour = 0; hour < wholeHours; hour++) {
         hpHealed += naturalHealingHP(maxHP, 1) * multiplier * quickRecovery;
       }
+    }
 
-      const fatigueResult = await rollFatigueRecovery(actor, { postCard: false });
-      fatigueResults.push({ hour: hour + 1, ...fatigueResult });
+    const fatigueResult = await rollFatigueRecovery(actor, { postCard: false, subtitle: `Level-based Fortitude save, for ${span}` });
+    fatigueResults.push({ hours: wholeHours, ...fatigueResult });
 
-      if (attemptPowerRecovery && !isSustaining) {
-        const check = await TRGCheck.roll({
-          actor,
-          label: "Power Recovery",
-          subtitle: `Level-based check, hour ${hour + 1} of rest`,
-          type: "skill",
-          // WHICH SKILL AND WHICH ACTION, and this is the whole of the
-          // Pelora fix. The heritage's "+2 racial bonus to all Power
-          // Recovery (Meditation) checks" is a conditional scoped
-          // `actions: ["powerRecovery"]` with `auto: true` — correct, and
-          // never asked, because this roll named neither. Caught live on
-          // 3.317.1 by capturing the config this call actually passes:
-          // `subject: null, actionKey: null`, and a modifier list holding
-          // only "Wisdom and ranks" and the Fatigued penalty.
-          //
-          // Same shape as Forbidden Magic's -2 one release earlier: the
-          // rule was authored properly and the roll it applies to never
-          // said what it was. A conditional can only be as good as the
-          // context handed to the check.
-          subject: "meditation",
-          actionKey: "powerRecovery",
-          dc: levelDC(level),
-          modifiers: [...meditationModifiers],
-          toMessage: false
-        });
-        const degree = check.outcome?.degree?.key ?? "failure";
-        let bonus = powerRecoveryBonus(degree, casterLevel,
-          // What a feat adds on a good result (3.625.0) — see recovery.mjs.
-          powerRecoveryExtras(Array.from(actor.appliedEffects ?? actor.effects ?? [])));
-        // THE FIRST TIME EACH DAY (3.664.0; Inner Tempest's Centred Recovery:
-        // "double the amount of PP restored"). See daily-firsts.mjs.
-        const carriers = declarationCarriers(actor);
-        if (hasDailyFirst(carriers, "powerRecovery", "multiplier") && !dailyFirstSpent(actor.flags?.[SYSTEM_ID], "powerRecovery")) {
-          bonus *= dailyFirstMultiplier(carriers, "powerRecovery", false);
-          await actor.setFlag(SYSTEM_ID, DAILY_FIRSTS_FLAG, { ...(actor.getFlag(SYSTEM_ID, DAILY_FIRSTS_FLAG) ?? {}), powerRecovery: true });
-        }
-        powerRecoveryRolls.push({ hour: hour + 1, degree, bonus });
-        ppRecovered += bonus;
+    if (attemptPowerRecovery && !isSustaining) {
+      const check = await TRGCheck.roll({
+        actor,
+        label: "Power Recovery",
+        subtitle: `Level-based check, for ${span}`,
+        type: "skill",
+        // WHICH SKILL AND WHICH ACTION, and this is the whole of the
+        // Pelora fix. The heritage's "+2 racial bonus to all Power
+        // Recovery (Meditation) checks" is a conditional scoped
+        // `actions: ["powerRecovery"]` with `auto: true` — correct, and
+        // never asked, because this roll named neither. Caught live on
+        // 3.317.1 by capturing the config this call actually passes:
+        // `subject: null, actionKey: null`, and a modifier list holding
+        // only "Wisdom and ranks" and the Fatigued penalty.
+        //
+        // Same shape as Forbidden Magic's -2 one release earlier: the
+        // rule was authored properly and the roll it applies to never
+        // said what it was. A conditional can only be as good as the
+        // context handed to the check.
+        subject: "meditation",
+        actionKey: "powerRecovery",
+        dc: levelDC(level),
+        modifiers: [...meditationModifiers],
+        toMessage: false
+      });
+      const degree = check.outcome?.degree?.key ?? "failure";
+      let bonus = powerRecoveryBonus(degree, casterLevel,
+        // What a feat adds on a good result (3.625.0) — see recovery.mjs.
+        powerRecoveryExtras(Array.from(actor.appliedEffects ?? actor.effects ?? [])));
+      // THE FIRST TIME EACH DAY (3.664.0; Inner Tempest's Centred Recovery:
+      // "double the amount of PP restored"). See daily-firsts.mjs.
+      const carriers = declarationCarriers(actor);
+      if (hasDailyFirst(carriers, "powerRecovery", "multiplier") && !dailyFirstSpent(actor.flags?.[SYSTEM_ID], "powerRecovery")) {
+        bonus *= dailyFirstMultiplier(carriers, "powerRecovery", false);
+        await actor.setFlag(SYSTEM_ID, DAILY_FIRSTS_FLAG, { ...(actor.getFlag(SYSTEM_ID, DAILY_FIRSTS_FLAG) ?? {}), powerRecovery: true });
       }
+      powerRecoveryRolls.push({ hours: wholeHours, degree, bonus });
+      ppRecovered += bonus;
     }
 
     if (!isSustaining) {
@@ -657,19 +672,21 @@ export async function postRestSummaryCard(summary) {
         + `${row.needed} day${row.needed === 1 ? "" : "s"} of rest.`));
   }
 
-  if (healingTranceRolls.length) {
-    const best = healingTranceRolls.filter((r) => r.multiplier > 1).length;
-    lines.push(summaryLine(`Healing Trance attempted ${healingTranceRolls.length} time(s), boosted healing on ${best}.`));
+  // ONE CHECK OF EACH FOR THE WHOLE REST (3.710.2, Graham): the card says
+  // the degree each one rolled and what it did.
+  const degreeLabel = (key) => String(key ?? "failure").charAt(0).toUpperCase() + String(key ?? "failure").slice(1);
+  for (const r of healingTranceRolls) {
+    lines.push(summaryLine(`Healing Trance (one check for the rest): ${degreeLabel(r.degree)}${r.multiplier > 1 ? ` — Natural Healing <strong>×${r.multiplier}</strong> for every hour` : " — no boost"}.`));
   }
-  if (powerRecoveryRolls.length) {
-    const totalBonus = powerRecoveryRolls.reduce((sum, r) => sum + r.bonus, 0);
-    lines.push(summaryLine(`Power Recovery attempted ${powerRecoveryRolls.length} time(s), +${totalBonus} PP from it.`));
+  for (const r of powerRecoveryRolls) {
+    lines.push(summaryLine(`Power Recovery (one check for the rest): ${degreeLabel(r.degree)}${r.bonus > 0 ? ` — <strong>+${r.bonus} PP</strong>` : " — no bonus"}.`));
   }
   if (fatigueResults.length) {
     const netFatigue = fatigueResults.reduce((sum, r) => sum + r.delta, 0);
-    if (netFatigue < 0) lines.push(summaryLine(`Fatigue Recovery: net <strong>-${-netFatigue}</strong> over the rest.`));
-    else if (netFatigue > 0) lines.push(summaryLine(`Fatigue Recovery: net <strong>+${netFatigue}</strong> over the rest.`));
-    else lines.push(summaryLine("Fatigue held steady throughout the rest."));
+    const how = fatigueResults.length === 1 ? ` (one check for the rest: ${degreeLabel(fatigueResults[0].check?.outcome?.degree?.key)})` : "";
+    if (netFatigue < 0) lines.push(summaryLine(`Fatigue Recovery${how}: <strong>-${-netFatigue}</strong>.`));
+    else if (netFatigue > 0) lines.push(summaryLine(`Fatigue Recovery${how}: <strong>+${netFatigue}</strong>.`));
+    else lines.push(summaryLine(`Fatigue Recovery${how}: fatigue held steady.`));
   }
   if (summary.fatigueCleared) {
     lines.push(summaryLine(`A full night's rest: the remaining <strong>Fatigue ${summary.fatigueCleared}</strong> is cleared.`));

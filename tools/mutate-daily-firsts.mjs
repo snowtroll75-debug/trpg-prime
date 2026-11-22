@@ -20,7 +20,7 @@ const MUTATIONS = [
   { name: "the action ignores the day's first", file: AW, from: "dailyFirst?.degree ?? attitudeImproved, DEGREES)", to: "attitudeImproved, DEGREES)", breaks: "C1" },
   { name: "the first is never spent", file: AW, from: "    await actor.setFlag(SYSTEM_ID, DAILY_FIRSTS_FLAG, { ...(actor.getFlag(SYSTEM_ID, DAILY_FIRSTS_FLAG) ?? {}), [action.key]: true });\n", to: "", breaks: "C2" },
   { name: "the card keeps quiet", file: AW, from: "    if (dailyFirstNote) lines.push(line(dailyFirstNote));\n", to: "", breaks: "C3" },
-  { name: "the rest never doubles", file: RW, from: "          bonus *= dailyFirstMultiplier(carriers, \"powerRecovery\", false);\n", to: "", breaks: "C4" },
+  { name: "the rest never doubles", file: RW, from: "        bonus *= dailyFirstMultiplier(carriers, \"powerRecovery\", false);\n", to: "", breaks: "C4" },
   { name: "a new day keeps yesterday's firsts", file: UW, from: "  if (actor.getFlag?.(\"trg-prime\", DAILY_FIRSTS_FLAG)) await actor.unsetFlag(\"trg-prime\", DAILY_FIRSTS_FLAG);\n", to: "", breaks: "C5" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-daily-firsts.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
