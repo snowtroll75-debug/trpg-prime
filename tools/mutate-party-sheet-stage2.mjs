@@ -62,10 +62,19 @@ const MUTATIONS = [
   { name: "every turn re-renders every sheet", file: LS, from: "      if (\"active\" in changes || \"scene\" in changes) tellEveryone();", to: "      tellEveryone();", breaks: "H4" },
   { name: "a token moving re-renders", file: LS, from: "      if (event === \"updateToken\" && !TOKEN_FIELDS.some((field) => field in (rest[0] ?? {}))) return 0;\n", to: "", breaks: "H8" },
   { name: "a linked token placed is not noticed", file: LS, from: "      if (document?.actorLink && document?.actorId) tell(`Actor.${document.actorId}`);\n", to: "", breaks: "H7" },
+  /* L — the live test's findings (3.709.1) */
+  { name: "LIVE: Foundry's pass leaves every player control disabled", file: SHEET, from: "      if (!offAlready.has(el)) el.disabled = false;", to: "      ;", breaks: "L1" },
+  { name: "LIVE: a control the template disabled is re-enabled", file: SHEET, from: "      if (!offAlready.has(el)) el.disabled = false;", to: "      el.disabled = false;", breaks: "L1/L2" },
+  { name: "LIVE: the tabs are not marked for players", file: HBS, from: "data-action=\"tab\" data-player-ok", to: "data-action=\"tab\"", breaks: "L3" },
+  { name: "LIVE: Take Coin is not marked for players", file: HBS, from: "class=\"party-take-coin\" data-player-ok data-action=\"takeCoin\"", to: "class=\"party-take-coin\" data-action=\"takeCoin\"", breaks: "L3" },
+  { name: "LIVE: a GM-only stepper is marked for players", file: HBS, from: "{{#if m.controls.gm}}<span class=\"party-steppers\">\n                        <button type=\"button\" class=\"party-step\" data-action=\"stepMemberResource\" data-resource=\"hp\" data-delta=\"-1\"", to: "{{#if m.controls.gm}}<span class=\"party-steppers\">\n                        <button type=\"button\" class=\"party-step\" data-player-ok data-action=\"stepMemberResource\" data-resource=\"hp\" data-delta=\"-1\"", breaks: "L4" },
+  { name: "LIVE: + writes above the maximum again", file: DASH, from: "  if (step > 0 && Number.isFinite(top) && max !== null) next = Math.min(next, Math.max(top, current));\n", to: "", breaks: "L6/L7/L8" },
+  { name: "LIVE: an over-maximum value is clamped down by a raise", file: DASH, from: "next = Math.min(next, Math.max(top, current));", to: "next = Math.min(next, top);", breaks: "L9" },
+  { name: "LIVE: the sheet does not pass the maximum", file: SHEET, from: "      key, value: member.system?.resources?.[key]?.value, max: member.system?.resources?.[key]?.max,", to: "      key, value: member.system?.resources?.[key]?.value,", breaks: "L10" },
   /* I, Z */
   { name: "the member panel scrolls sideways", file: CSS, from: ".trg-prime .party-member-body {\n  display: flex;\n  flex-wrap: wrap;", to: ".trg-prime .party-member-body {\n  display: flex;\n  flex-wrap: nowrap;", breaks: "I2" },
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.709.0\"", to: "\"version\": \"3.708.1\"", breaks: "Z1" },
-  { name: "package.json is left behind", file: PJ, from: "\"version\": \"3.709.0\"", to: "\"version\": \"3.708.1\"", breaks: "Z1" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.709.1\"", to: "\"version\": \"3.708.1\"", breaks: "Z1" },
+  { name: "package.json is left behind", file: PJ, from: "\"version\": \"3.709.1\"", to: "\"version\": \"3.708.1\"", breaks: "Z1" }
 ];
 
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-party-sheet-stage2.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }

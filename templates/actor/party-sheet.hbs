@@ -20,7 +20,7 @@
   {{!-- THE PARTY ACTIONS TOOLBAR (3.709.0, Stage 2): on every tab. Only controls with a
         working system behind them; Rest, Travel and Award XP join in Stage 3. --}}
   <div class="party-toolbar" role="toolbar" aria-label="Party actions">
-    <button type="button" data-action="rollPartyInitiative" data-tooltip="{{toolbar.initiativeHint}}" {{#unless toolbar.partyInitiative}}disabled{{/unless}}>
+    <button type="button" data-player-ok data-action="rollPartyInitiative" data-tooltip="{{toolbar.initiativeHint}}" {{#unless toolbar.partyInitiative}}disabled{{/unless}}>
       <i class="fa-solid fa-dice-d20"></i> Roll Initiative{{#if toolbar.partyInitiative}} ({{toolbar.partyInitiative}}){{/if}}
     </button>
     {{#if isGM}}
@@ -33,7 +33,7 @@
   {{!-- Foundry's own tabs (3.708.0): the "tab" action and the "tabs" class are what changeTab looks for. --}}
   <nav class="sheet-tabs tabs" data-group="primary" role="tablist" aria-label="Party sheet tabs">
     {{#each tabList as |tab|}}
-      <button type="button" class="sheet-tab {{tab.cssClass}}" data-action="tab"
+      <button type="button" class="sheet-tab {{tab.cssClass}}" data-action="tab" data-player-ok
               data-group="primary" data-tab="{{tab.id}}" data-tooltip="{{tab.label}}"
               role="tab" aria-selected="{{tab.active}}">
         <i class="{{tab.icon}}"></i><span>{{tab.label}}</span>
@@ -179,14 +179,14 @@
             {{!-- The member's controls. Each is checked again when pressed. --}}
             <div class="party-member-controls">
               {{#unless m.missing}}
-                {{#if m.controls.canOpen}}<button type="button" data-action="openMember" data-tooltip="Open sheet" aria-label="Open {{m.name}}'s sheet"><i class="fa-solid fa-id-card"></i></button>{{/if}}
-                <button type="button" data-action="findToken" data-tooltip="{{m.controls.find.hint}}" aria-label="Find {{m.name}}'s token" {{#unless m.controls.find.enabled}}disabled{{/unless}}><i class="fa-solid fa-location-crosshairs"></i></button>
-                <button type="button" data-action="selectToken" data-tooltip="{{m.controls.select.hint}}" aria-label="Select {{m.name}}'s token" {{#unless m.controls.select.enabled}}disabled{{/unless}}><i class="fa-solid fa-hand-pointer"></i></button>
+                {{#if m.controls.canOpen}}<button type="button" data-player-ok data-action="openMember" data-tooltip="Open sheet" aria-label="Open {{m.name}}'s sheet"><i class="fa-solid fa-id-card"></i></button>{{/if}}
+                <button type="button" data-player-ok data-action="findToken" data-tooltip="{{m.controls.find.hint}}" aria-label="Find {{m.name}}'s token" {{#unless m.controls.find.enabled}}disabled{{/unless}}><i class="fa-solid fa-location-crosshairs"></i></button>
+                <button type="button" data-player-ok data-action="selectToken" data-tooltip="{{m.controls.select.hint}}" aria-label="Select {{m.name}}'s token" {{#unless m.controls.select.enabled}}disabled{{/unless}}><i class="fa-solid fa-hand-pointer"></i></button>
                 {{#unless m.restricted}}
                   {{#if (eq m.controls.initiative.state "rolled")}}
                     <span class="party-init-value" data-tooltip="{{m.controls.initiative.hint}}">{{m.controls.initiative.value}}</span>
                   {{else}}
-                    <button type="button" data-action="rollMemberInitiative" data-tooltip="{{m.controls.initiative.hint}}" aria-label="Roll initiative for {{m.name}}" {{#unless m.controls.initiative.enabled}}disabled{{/unless}}><i class="fa-solid fa-dice-d20"></i></button>
+                    <button type="button" data-player-ok data-action="rollMemberInitiative" data-tooltip="{{m.controls.initiative.hint}}" aria-label="Roll initiative for {{m.name}}" {{#unless m.controls.initiative.enabled}}disabled{{/unless}}><i class="fa-solid fa-dice-d20"></i></button>
                   {{/if}}
                 {{/unless}}
                 {{#if m.controls.gm}}<button type="button" data-action="applyMemberDamage" data-tooltip="Apply Damage (Chapter 7)" aria-label="Apply damage to {{m.name}}"><i class="fa-solid fa-heart-crack"></i></button>{{/if}}
@@ -223,7 +223,7 @@
             <span>{{currencyGP}} gp</span>
           </div>
         </div>
-        <button type="button" class="party-take-coin" data-action="takeCoin">
+        <button type="button" class="party-take-coin" data-player-ok data-action="takeCoin">
           <i class="fa-solid fa-hand-holding-dollar"></i> Take Coin
         </button>
       </article>
@@ -250,7 +250,7 @@
                   <td>{{row.quantity}}</td>
                   <td>{{row.totalWeight}}</td>
                   <td class="party-loot-actions">
-                    <button type="button" data-action="takeItem" data-tooltip="Take this">
+                    <button type="button" data-player-ok data-action="takeItem" data-tooltip="Take this">
                       <i class="fa-solid fa-hand-holding"></i>
                     </button>
                     {{#if ../isGM}}

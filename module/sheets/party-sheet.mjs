@@ -316,6 +316,29 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     };
   }
 
+  /**
+   * A PLAYER'S CONTROLS STAY USABLE (3.709.0, found live). Foundry v14's
+   * DocumentSheetV2 disables EVERY form control on a sheet the user cannot
+   * edit, and a player has Observer on a party, never Owner. So, since the
+   * party sheet first ran on v14, a player could not switch tabs or press
+   * Take Item or Take Coin: the buttons rendered and did nothing.
+   *
+   * After Foundry's pass, the controls marked `data-player-ok` in the
+   * template are enabled again: the tabs, Take, Open, Find, Select and Roll
+   * Initiative, each of which checks its own permission when pressed (the
+   * relay for Take, ownership for Select and initiative). One the template
+   * itself disabled (no token to find, nothing to roll) stays disabled.
+   * Every field that writes the party (coin, the threat level) stays off.
+   */
+  _toggleDisabled(disabled) {
+    const offAlready = new Set(Array.from(this.element?.querySelectorAll("[data-player-ok]") ?? []).filter((el) => el.disabled));
+    super._toggleDisabled(disabled);
+    if (!disabled) return;
+    for (const el of this.element?.querySelectorAll("[data-player-ok]") ?? []) {
+      if (!offAlready.has(el)) el.disabled = false;
+    }
+  }
+
   /** The member a control belongs to, resolved now (not from the template). */
   async #memberFrom(target) {
     const uuid = target.closest("[data-uuid]")?.dataset?.uuid;
@@ -409,7 +432,8 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const key = target.dataset.resource;
     if (!member || !STEPPED_RESOURCES.includes(key)) return;
     const step = stepResource({
-      key, value: member.system?.resources?.[key]?.value, delta: Number(target.dataset.delta)
+      key, value: member.system?.resources?.[key]?.value, max: member.system?.resources?.[key]?.max,
+      delta: Number(target.dataset.delta)
     });
     if (step) await member.update({ [step.path]: step.value });
   }

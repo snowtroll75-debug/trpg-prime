@@ -22,6 +22,7 @@
  *      nothing Foundry v14 does not provide.
  *   H  Live updates for combat, combatants, tokens and the scene.
  *   I  The styles.
+ *   L  What the live test of 3.709.0 found (fixed in 3.709.1).
  *   Z  The version.
  */
 import fs from "node:fs";
@@ -247,11 +248,38 @@ const speedOf = (a) => Number(a.system?.combat?.movement?.land?.total ?? 0);
   ok("I4 the default window is wide enough for the panel", /position: \{ width: 820, height: 760/.test(SHEET));
 }
 
+/* ------------------------------------------------------------ L. found in the live test (3.709.1) */
+{
+  // L1: v14 disables every form control on a sheet the user cannot edit;
+  // a player has Observer on a party, so tabs, Take and the dashboard's own
+  // controls were dead for players. They are re-enabled after Foundry's pass.
+  const toggle = SHEET.slice(SHEET.indexOf("_toggleDisabled(disabled) {"), SHEET.indexOf("\n  }\n", SHEET.indexOf("_toggleDisabled(disabled) {")));
+  ok("L1 the sheet re-enables the player's controls after Foundry disables the form",
+    /super\._toggleDisabled\(disabled\);/.test(toggle) && /if \(!offAlready\.has\(el\)\) el\.disabled = false;/.test(toggle));
+  ok("L2 ...but a control the template itself disabled stays disabled",
+    /const offAlready = new Set\(Array\.from\(this\.element\?\.querySelectorAll\("\[data-player-ok\]"\) \?\? \[\]\)\.filter\(\(el\) => el\.disabled\)\);/.test(toggle));
+  for (const action of ["tab", "takeItem", "takeCoin", "openMember", "findToken", "selectToken", "rollMemberInitiative", "rollPartyInitiative"]) {
+    ok(`L3 ${action} is marked for players`, new RegExp(`data-player-ok[^>]*data-action="${action}"|data-action="${action}" data-player-ok`).test(HBS));
+  }
+  for (const action of ["stepMemberResource", "applyMemberDamage", "removeMemberCondition", "addMemberCondition", "removeMember", "deleteLoot", "beginSession"]) {
+    ok(`L4 the GM's ${action} is not marked for players`, !new RegExp(`data-player-ok[^>]*data-action="${action}"|data-action="${action}" data-player-ok`).test(HBS));
+  }
+  ok("L5 no input that writes the party is marked for players", !/<input[^>]*data-player-ok/.test(HBS) && !/<select[^>]*data-player-ok/.test(HBS));
+
+  // L6: a raise stops at the maximum, so no stored value sits above it.
+  equal("L6 Conviction at 1 of 1: + writes nothing", D.stepResource({ key: "conviction", value: 1, max: 1, delta: 1 }), null);
+  equal("L7 PP with no pool (max 0): + writes nothing", D.stepResource({ key: "pp", value: 0, max: 0, delta: 1 }), null);
+  equal("L8 HP at 29 of 30: + gives 30, not 31 on a second press", [D.stepResource({ key: "hp", value: 29, max: 30, delta: 1 })?.value, D.stepResource({ key: "hp", value: 30, max: 30, delta: 1 })], [30, null]);
+  equal("L9 a value already above its maximum is not pushed further, and may still be lowered",
+    [D.stepResource({ key: "hp", value: 35, max: 30, delta: 1 }), D.stepResource({ key: "hp", value: 35, max: 30, delta: -1 })?.value], [null, 34]);
+  ok("L10 the sheet passes the maximum to the stepper", /max: member\.system\?\.resources\?\.\[key\]\?\.max,/.test(SHEET));
+}
+
 /* ------------------------------------------------------------ Z. version */
 {
   const sys = JSON.parse(read("system.json"));
-  equal("Z1 the version is 3.709.0, the download names it, and package.json agrees",
-    [sys.version, sys.download.includes("/v3.709.0/"), JSON.parse(read("package.json")).version], ["3.709.0", true, "3.709.0"]);
+  equal("Z1 the version is 3.709.1, the download names it, and package.json agrees",
+    [sys.version, sys.download.includes("/v3.709.1/"), JSON.parse(read("package.json")).version], ["3.709.1", true, "3.709.1"]);
 }
 
 if (failures.length) {

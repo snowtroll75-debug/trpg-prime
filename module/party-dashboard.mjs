@@ -166,20 +166,27 @@ export const STEPPED_RESOURCES = Object.freeze(["hp", "pp", "ap", "reactions", "
  * same change editing the sheet's field makes).
  *
  * The value is written to `system.resources.<key>.value`, exactly as the
- * sheet's input does, and the actor's own preparation clamps it to its
- * maximum. HP is written as typed: below zero is how this system records
- * dying. PP, AP, Reactions and Conviction never go below zero.
+ * sheet's input does. HP may go below zero: that is how this system records
+ * dying. PP, AP, Reactions and Conviction never go below zero, and no
+ * resource is raised past its maximum (3.709.0, found live).
  *
  * @returns {{path: string, value: number}|null} null for an unknown
  *   resource, a missing pool, or a press that would change nothing
  */
-export function stepResource({ key, value, delta }) {
+export function stepResource({ key, value, max = null, delta }) {
   if (!STEPPED_RESOURCES.includes(str(key))) return null;
   const current = Number(value);
   const step = Math.trunc(Number(delta));
   if (!Number.isFinite(current) || !Number.isFinite(step) || step === 0) return null;
   let next = current + step;
   if (key !== "hp") next = Math.max(0, next);
+  // NOT ABOVE THE MAXIMUM (3.709.0, found live). The actor's preparation
+  // clamps what it SHOWS, but the stored value stayed above it: Conviction
+  // stored as 2 with a maximum of 1 would surface as a free point the day
+  // the maximum rose. A raise stops at the maximum; a value already above
+  // it (temporary effects, an old typed value) is never pushed further.
+  const top = Number(max);
+  if (step > 0 && Number.isFinite(top) && max !== null) next = Math.min(next, Math.max(top, current));
   if (next === current) return null;
   return { path: `system.resources.${key}.value`, value: next };
 }

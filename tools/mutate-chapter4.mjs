@@ -233,7 +233,7 @@ const MUTATIONS = [
   {
     file: path.join(SYSTEM_ROOT, "system.json"),
     name: "Z1 the version is not raised",
-    from: "\"version\": \"3.709.0\"",
+    from: "\"version\": \"3.709.1\"",
     to: "\"version\": \"3.675.0\"",
     breaks: "Z1 — a packaged change ships under the number it replaced"
   },
