@@ -299,7 +299,7 @@ export function planLootDrop({ item, isGM, partyUuid = "" }) {
   if (!isLootItem(item)) {
     return {
       ok: false,
-      reason: `${str(item.name) || "That item"} is a ${str(item.type) || "document"}. The party loot takes `
+      reason: `${str(item.name) || "That item"} is ${/^[aeiou]/i.test(str(item.type) || "document") ? "an" : "a"} ${str(item.type) || "document"}. The party loot takes `
         + `weapons, armour, shields, gear, consumables and ammunition.`
     };
   }
@@ -404,8 +404,13 @@ export function planTake({ item, requested, userOwnsDestination }) {
  */
 export function findMergeTarget(existing = [], payload = null) {
   if (!payload || !isLootItem(payload)) return null;
+  // STORED DATA ON BOTH SIDES (fixed 3.708.1, found live): the payload is
+  // `toObject()` source data, but an existing item's `system` is PREPARED
+  // data, which carries derived fields such as `totalWeight` that change
+  // with the quantity, so a stack of 2 never matched an incoming 1 and every
+  // take added a new row. `_source` is what the item stores.
   const fingerprint = (item) => {
-    const system = { ...(item?.system ?? {}) };
+    const system = { ...((item?._source ?? item)?.system ?? {}) };
     delete system.quantity;
     delete system.stowed;
     delete system.equipped;
@@ -413,7 +418,7 @@ export function findMergeTarget(existing = [], payload = null) {
       name: str(item?.name),
       type: str(item?.type),
       system,
-      flags: item?.flags ?? {}
+      flags: (item?._source ?? item)?.flags ?? {}
     });
   };
   const want = fingerprint(payload);

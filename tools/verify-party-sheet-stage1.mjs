@@ -21,6 +21,7 @@
  *   T  Foundry v14's own tabs.
  *   W  Existing workflows: Take item/coin conserve stock, XP award and
  *      Begin Session still run, through the shared resolver.
+ *   F  What the live test of 3.708.0 found (fixed in 3.708.1).
  *   Z  The version.
  */
 import fs from "node:fs";
@@ -444,11 +445,40 @@ const RWS = strip(read("module", "party-rewards-workflow.mjs"));
   globalThis.game.user = { id: "gm", isGM: true };
 }
 
+/* ------------------------------------------------------------ F. found in the live test (3.708.1) */
+{
+  // F1: the roster's Remove button. Inside {{#each members as |m|}} a bare
+  // isGM is read from the member, so the GM never had the button.
+  const rosterEach = HBS.slice(HBS.indexOf("{{#each members as |m|}}"), HBS.indexOf("{{/each}}", HBS.indexOf('data-action="removeMember"')));
+  ok("F1 the roster's Remove button reads the sheet's isGM (../isGM), not the member's",
+    /\{\{#if \.\.\/isGM\}\}\s*<button type="button" class="party-remove" data-action="removeMember"/.test(rosterEach)
+    && !/\{\{#if isGM\}\}\s*<button type="button" class="party-remove"/.test(rosterEach));
+
+  // F2: v14's synthetic actor has no baseActor; the token has it.
+  const keys = M.watchKeysFor([{ uuid: "Scene.s.Token.t.Actor.o", actor: { uuid: "Scene.s.Token.t.Actor.o", isToken: true, token: { baseActor: { uuid: "Actor.o" } } } }]);
+  ok("F2 an unlinked token's base actor is watched through the token (v14)", keys.has("Actor.o"), [...keys].join(", "));
+
+  // F3: a stack merges with an existing PREPARED item whose derived fields differ.
+  const existing = {
+    id: "e1", name: "Rope", type: "gear", flags: {},
+    system: { quantity: 2, weight: 1, totalWeight: 2, description: "hemp" },
+    _source: { name: "Rope", type: "gear", flags: {}, system: { quantity: 2, weight: 1, description: "hemp" } }
+  };
+  const payload = { name: "Rope", type: "gear", flags: {}, system: { quantity: 1, weight: 1, description: "hemp" } };
+  ok("F3 a taken stack joins the character's prepared stack (derived totalWeight ignored)", P.findMergeTarget([existing], payload) === existing);
+  const other = { ...payload, system: { ...payload.system, description: "silk" } };
+  ok("F3b ...and a genuinely different item still does not", P.findMergeTarget([existing], other) === null);
+
+  // F4: "an affliction", not "a affliction".
+  const aff = P.planLootDrop({ item: { type: "affliction", name: "Plague", system: { quantity: 1 } }, isGM: true });
+  ok("F4 the refusal reads 'an affliction'", /is an affliction\./.test(aff.reason ?? ""), aff.reason);
+}
+
 /* ------------------------------------------------------------ Z. version */
 {
   const sys = JSON.parse(read("system.json"));
-  equal("Z1 the version is 3.708.0, the download names it, and package.json agrees",
-    [sys.version, sys.download.includes("/v3.708.0/"), JSON.parse(read("package.json")).version], ["3.708.0", true, "3.708.0"]);
+  equal("Z1 the version is 3.708.1, the download names it, and package.json agrees",
+    [sys.version, sys.download.includes("/v3.708.1/"), JSON.parse(read("package.json")).version], ["3.708.1", true, "3.708.1"]);
   ok("Z2 the manifest URL is unchanged", sys.manifest === "https://raw.githubusercontent.com/snowtroll75-debug/trpg-prime/main/system.json");
 }
 

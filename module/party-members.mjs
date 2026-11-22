@@ -132,7 +132,13 @@ export function watchKeysFor(entries = []) {
   for (const entry of entries) {
     if (entry?.uuid) keys.add(entry.uuid);
     if (entry?.actor?.uuid) keys.add(entry.actor.uuid);
-    const base = entry?.actor?.isToken ? entry.actor.baseActor?.uuid : null;
+    // FIXED 3.708.1 (found live): in v14 the base actor hangs off the TOKEN
+    // (`actor.token.baseActor`); a synthetic actor has no `baseActor` of its
+    // own, so 3.708.0 never watched it and a renamed or levelled base actor
+    // left its unlinked tokens' rows stale until the next render.
+    const base = entry?.actor?.isToken
+      ? (entry.actor.token?.baseActor?.uuid ?? entry.actor.baseActor?.uuid ?? null)
+      : null;
     if (base) keys.add(base);
   }
   return keys;

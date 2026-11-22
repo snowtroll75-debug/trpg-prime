@@ -152,7 +152,7 @@ ok("CD9 every spell heal is announced, after the heal is written, with the PP an
 
 /* Z ---------------------------------------------------------------------- */
 const sys = JSON.parse(read("system.json"));
-equal("Z the version is 3.696.0, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.708.0/")], ["3.708.0", "3.708.0", true]);
+equal("Z the version is 3.696.0, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.708.1/")], ["3.708.1", "3.708.1", true]);
 
 console.log(`verify-fixes-3696-0: ${checks} checks — ${failures.length ? `${failures.length} FAILED` : "all green."}`);
 for (const f of failures) console.log(`  ✗ ${f}`);

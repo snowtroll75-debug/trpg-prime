@@ -97,7 +97,9 @@
               </div>
             {{/if}}
 
-            {{#if isGM}}
+            {{!-- ../isGM: inside the each, a bare isGM is read from the member and was always false,
+                  so the GM never had this button (found live, 3.708.1). --}}
+            {{#if ../isGM}}
               <button type="button" class="party-remove" data-action="removeMember"
                       data-tooltip="Remove from roster"><i class="fa-solid fa-user-minus"></i></button>
             {{/if}}
