@@ -72,3 +72,18 @@
 - **Restored:** Caves is active and viewed again.
 - **Now:** 5 actors, 209 messages, no combats, no world items, paused, 23 `updateActor` hooks.
 - **Browsers:** the player's browser tab was closed, which also discarded the in-memory test patches. The Chrome tab was closed.
+
+## Re-test of 3.709.1 (installed by Graham), 22 November 2026, about 16:45
+
+Throwaway ZZ Bard (owned by PC Tester) and a party holding 5 gp and 3 rope.
+
+| # | Test | Result |
+|---|---|---|
+| R1 | GM: + at the maximum on Conviction (1/1), HP (30/30) and AP (3/3) | **Pass (B fixed).** Nothing is written; the stored values stay at 1, 30 and 3. HP −1 then +1 still works. |
+| R2 | Player: the sheet stays read-only (`isEditable` false), yet the tabs are live | **Pass (A fixed).** A real click on Inventory switches the tab. |
+| R3 | Player clicks the rope's Take | **Pass.** The "Give To" chooser, then 2 of 3: the party has 1 and the Bard 2. |
+| R4 | Player clicks Take Coin | **Pass.** The chooser, then 2 gp: party 5 → 3, Bard 2. |
+| R5 | Player takes the last rope | **Pass.** It joins the Bard's stack: one row of 3 (the 3.708.1 merge fix, live). |
+| R6 | Player's locks | **Pass.** The coin fields and party name stay disabled, and there are no GM controls. |
+
+**Clean-up:** both ZZ actors, the folder and 3 chat cards were deleted. The world is back to 5 actors, 209 messages, Caves, no combats or items, paused, 23 hooks. Both browser tabs were closed.
