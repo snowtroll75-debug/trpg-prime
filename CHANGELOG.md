@@ -2,6 +2,23 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.710.1 — 22 November 2026: what the 3.710.0 live test found
+
+Branch `feature/party-sheet-v2-stage3`. Full notes in `release-notes-3.710.1.md`; repair log R-0028; live report `live-testing-report-3.710.0.md` (16 of 17 passed).
+
+- **Award XP pressed twice** no longer opens a second chooser: the party's XP lock now covers the chooser too.
+- **Harness:** stage-3 pair 66 / 25. No data change.
+
+## 3.710.0 — 22 November 2026: Party Sheet V2, Stage 3 (the Party Actions)
+
+Branch `feature/party-sheet-v2-stage3`. Full notes in `release-notes-3.710.0.md`.
+
+- **Toolbar Rest, Travel, Begin Session and Award XP** for this party's members only, through the existing workflows. Group Check is reserved and not drawn until Stage 5.
+- **Rest and Travel** take an optional participant list; with no argument (the macro, the scene control, the API) they're unchanged. Rows are keyed by position. `performRest` rests an actor once.
+- **Every XP award from the sheet** shows a confirmation (shares, who is written and who only counted, the remainder) before the existing `awardPartyXP` runs, with the same members.
+- **One at a time,** per party, on the pressing client.
+- **Harness:** new `verify/mutate-party-sheet-stage3` (64 / 23); re-anchors in chapter8 and stage2; pins raised. No data change.
+
 ## 3.709.1 — 22 November 2026: what the 3.709.0 live test found
 
 Branch `feature/party-sheet-v2-stage2`. Full notes in `release-notes-3.709.1.md`; repair log R-0026, R-0027; live report `live-testing-report-3.709.0.md`.

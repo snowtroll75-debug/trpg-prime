@@ -882,3 +882,23 @@ Report: `live-testing-report-3.709.0.md`. Branch `feature/party-sheet-v2-stage2`
 - **Version:** 3.709.1
 - **Branch:** `feature/party-sheet-v2-stage2` (local, not pushed)
 - **Package:** `trg-prime.zip`
+
+## R-0028 — What the 3.710.0 live test found (3.710.1)
+
+Report: `live-testing-report-3.710.0.md`. Branch `feature/party-sheet-v2-stage3`.
+
+### R-0028 — a second press of the toolbar's Award XP opened a second chooser
+
+- **Found:** live test S13.
+- **Cause:** `runOnce` wrapped `#awardXP` (the confirmation and the award) but not the chooser that `partyAwardXP` showed first.
+- **Change:** `partyAwardXP` takes the party's `:xp` lock itself and calls the un-locked `#awardXPNow`; the Encounter tab's buttons go through `#awardXP`, which takes the same lock.
+
+### Testing
+
+- `verify-party-sheet-stage3` S10 and S11 (66 checks); `mutate-party-sheet-stage3` 25 of 25.
+
+### Delivery
+
+- **Version:** 3.710.1
+- **Branch:** `feature/party-sheet-v2-stage3` (local, not pushed)
+- **Package:** `trg-prime.zip`
