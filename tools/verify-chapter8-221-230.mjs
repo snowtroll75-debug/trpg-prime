@@ -672,11 +672,11 @@ ok("K7 allies are read from the canvas",
   ok("M13 and the rest asks the sustenance module for it",
     /advanceSustenanceDay\(actor, \{ ate, drank \}\)/.test(rest));
   ok("M14 the dialog asks whether they ate and drank",
-    /name="ate-\$\{actor\.id\}" checked/.test(rest) && /name="drank-\$\{actor\.id\}" checked/.test(rest),
+    /name="ate-\$\{i\}" checked/.test(rest) && /name="drank-\$\{i\}" checked/.test(rest), // re-anchored 3.710.0: rows keyed by position
     "defaulted on, because the common case is a party with rations");
   ok("M15 and the answers reach the rest itself",
-    /ate: Boolean\(result\[`ate-\$\{actor\.id\}`\]\)/.test(rest)
-    && /drank: Boolean\(result\[`drank-\$\{actor\.id\}`\]\)/.test(rest),
+    /ate: Boolean\(result\[`ate-\$\{i\}`\]\)/.test(rest)
+    && /drank: Boolean\(result\[`drank-\$\{i\}`\]\)/.test(rest),
     "a checkbox nothing reads is decoration — block 22's F2 in another file");
   ok("M16 the card says what the day cost",
     /for \(const said of summary\.sustenanceLines \?\? \[\]\) lines\.push\(summaryLine\(said\)\)/.test(rest));

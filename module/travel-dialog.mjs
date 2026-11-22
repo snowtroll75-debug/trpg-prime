@@ -35,9 +35,12 @@ export function landSpeed(actor) {
  *
  * @returns {Promise<object|null>} the posted message, or null
  */
-export async function openTravelDialog() {
+export async function openTravelDialog({ candidates = null } = {}) {
   const { DialogV2 } = foundry.applications.api;
-  const { actors, scopeNote } = restCandidates();
+  // WHO TRAVELS (3.710.0, Party Sheet V2 Stage 3): with no argument, the
+  // rest candidates as before (the scene control and the API). The Party
+  // sheet passes its own roster, so its Travel paces that party only.
+  const { actors, scopeNote } = candidates ?? restCandidates();
 
   if (!actors.length) {
     ui.notifications.warn(
@@ -47,9 +50,9 @@ export async function openTravelDialog() {
   }
 
   const rows = actors
-    .map((actor) => `
+    .map((actor, i) => `
       <tr>
-        <td><label><input type="checkbox" name="include-${actor.id}" checked> ${actor.name}</label></td>
+        <td><label><input type="checkbox" name="include-${i}" checked> ${actor.name}</label></td>
         <td style="text-align:right">${landSpeed(actor)}</td>
       </tr>`)
     .join("");
@@ -97,7 +100,7 @@ export async function openTravelDialog() {
   if (!result || result === "cancel") return null;
 
   const members = actors
-    .filter((actor) => result[`include-${actor.id}`])
+    .filter((actor, i) => result[`include-${i}`])
     .map((actor) => ({ name: actor.name, speed: landSpeed(actor) }));
 
   if (!members.length) {

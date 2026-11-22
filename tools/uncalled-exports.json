@@ -164,7 +164,9 @@
     "module/magic/counteract-workflow-choice.mjs#chosenCandidates": "Harness-only assertion, kept deliberately (3.696.0, CD3): the pure half of the counteract prompt (order, de-duplication, the cap), whose caller is a DialogV2 a harness cannot press.",
     "module/party-live-sync.mjs#PartyLiveSync": "Harness seam (3.708.0, Party Sheet V2 Stage 1): the class behind partyLiveSync(), exported so verify-party-sheet-stage1 can build one over fake Hooks and drive every hook path. Its live caller is partyLiveSync() in the same file.",
     "module/party-live-sync.mjs#PARTY_SYNC_EVENTS": "Harness seam (3.708.0): the hook events the live Party sheet listens to, exported so the harness can assert each one is installed once and removed with the last sheet.",
-    "module/party-live-sync.mjs#owningActor": "Harness seam (3.708.0): which actor an item or effect change belongs to; its live caller is PartyLiveSync.handle in the same file."
+    "module/party-live-sync.mjs#owningActor": "Harness seam (3.708.0): which actor an item or effect change belongs to; its live caller is PartyLiveSync.handle in the same file.",
+    "module/party-actions.mjs#PARTY_TOOLBAR_ACTIONS": "Harness seam (3.710.0, Party Sheet V2 Stage 3): the toolbar's ordered action list, Group Check reserved and not drawn. Its live caller is toolbarFor() in the same file; exported so verify-party-sheet-stage3 can pin the reservation.",
+    "module/party-actions.mjs#xpSources": "Harness seam (3.710.0): the Award XP sources, the encounter plus the five Chapter 12 accomplishments. Its live caller is chooseXPAward() in the same file."
   },
   "orphans": [
     "module/afflictions.mjs#STAGE_DELTA",

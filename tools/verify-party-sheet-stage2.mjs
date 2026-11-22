@@ -144,7 +144,7 @@ const speedOf = (a) => Number(a.system?.combat?.movement?.land?.total ?? 0);
   equal("D6 members without a land Speed give no pace (shown —), not 0 ft", [noSpeed.speed, noSpeed.pacedBy], [0, null]);
   ok("D7 the summary uses the existing rules, not its own", /import \{ averagePartyLevel \} from "\.\/rewards\.mjs";/.test(read("module", "party-dashboard.mjs"))
     && /import \{ partyTravelSpeed \} from "\.\/travel\.mjs";/.test(read("module", "party-dashboard.mjs"))
-    && /readSpeed: landSpeed,/.test(SHEET) && /import \{ landSpeed \} from "\.\.\/travel-dialog\.mjs";/.test(SHEET)
+    && /readSpeed: landSpeed,/.test(SHEET) && /import \{ landSpeed, openTravelDialog \} from "\.\.\/travel-dialog\.mjs";/.test(SHEET) /* re-anchored 3.710.0 */
     && /partySummary\(\{ rows: members, coinGP: coinValueInGP\(currency\) \}\)/.test(SHEET));
 }
 
@@ -189,7 +189,9 @@ const speedOf = (a) => Number(a.system?.combat?.movement?.land?.total ?? 0);
 {
   const toolbarAt = HBS.indexOf('class="party-toolbar"');
   ok("G1 the toolbar sits outside the tabs, so it is on every tab", toolbarAt > 0 && toolbarAt < HBS.indexOf("<main class=\"sheet-body\">"));
-  ok("G2 Begin Session on the toolbar is the GM's", /\{\{#if isGM\}\}\s*<button type="button" data-action="beginSession"/.test(HBS.slice(toolbarAt, HBS.indexOf("</div>", toolbarAt) + 400)));
+  // RE-ANCHORED 3.710.0: the toolbar's GM actions sit in one isGM block, each behind its toolbar flag.
+  { const bar = HBS.slice(toolbarAt, HBS.indexOf("<nav", toolbarAt)); const gm = bar.indexOf("{{#if isGM}}");
+    ok("G2 Begin Session on the toolbar is the GM's", gm > 0 && bar.indexOf('data-action="beginSession"') > gm); }
   ok("G3 the tabs are Overview, Inventory and Encounter (ids unchanged)",
     /\{ id: "roster", icon: "fa-solid fa-users", label: "Overview" \}/.test(SHEET) && /\{ id: "loot", icon: "fa-solid fa-sack-dollar", label: "Inventory" \}/.test(SHEET) && /label: "Encounter" \}/.test(SHEET));
   ok("G4 no Skills or Notes tab before they are built (Graham)", !/id: "skills"|id: "notes"/.test(SHEET) && !/data-tab="skills"|data-tab="notes"/.test(HBS));
@@ -278,8 +280,8 @@ const speedOf = (a) => Number(a.system?.combat?.movement?.land?.total ?? 0);
 /* ------------------------------------------------------------ Z. version */
 {
   const sys = JSON.parse(read("system.json"));
-  equal("Z1 the version is 3.709.1, the download names it, and package.json agrees",
-    [sys.version, sys.download.includes("/v3.709.1/"), JSON.parse(read("package.json")).version], ["3.709.1", true, "3.709.1"]);
+  equal("Z1 the version is 3.710.0 (3.709.1 or later), the download names it, and package.json agrees",
+    [sys.version, sys.download.includes("/v3.710.0/"), JSON.parse(read("package.json")).version], ["3.710.0", true, "3.710.0"]);
 }
 
 if (failures.length) {

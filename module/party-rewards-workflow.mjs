@@ -128,12 +128,14 @@ export async function setEncounterCount(party, uuid, count) {
  * @param {number} total
  * @param {string} reason
  */
-export async function awardPartyXP(party, total, reason) {
+export async function awardPartyXP(party, total, reason, { members: given = null } = {}) {
   if (!game.user?.isGM) {
     ui.notifications?.warn("Only the GM awards experience.");
     return null;
   }
-  const members = await partyMembers(party);
+  // 3.710.0: the Party sheet's confirmation resolves the members once and
+  // passes them, so the split the GM confirmed is the split written.
+  const members = given ?? await partyMembers(party);
   const xp = Math.max(0, Math.floor(Number(total) || 0));
   if (!members.length || !xp) {
     ui.notifications?.warn(members.length ? "There is no XP to award." : "The party has no members to award XP to.");

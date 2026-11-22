@@ -30,7 +30,11 @@ import {
   combatRecord, initiativeState, memberTokens, nextToken, partyInitiativeIds, partySummary,
   sceneTokenRecords, stepResource, STEPPED_RESOURCES
 } from "../party-dashboard.mjs";
-import { landSpeed } from "../travel-dialog.mjs";
+import { landSpeed, openTravelDialog } from "../travel-dialog.mjs";
+import { openRestDialog } from "../rest/rest-workflow.mjs";
+import {
+  chooseXPAward, confirmXPAward, partyParticipants, partyScopeNote, runOnce, toolbarFor, xpAwardPreview
+} from "../party-actions.mjs";
 import { applyDamage } from "../combat/dying-workflow.mjs";
 import { convictionEnabled } from "../conviction.mjs";
 import { requestTakeCoin, requestTakeItem } from "../party-socket.mjs";
@@ -113,7 +117,11 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       applyMemberDamage: TRGPartySheet.applyMemberDamage,
       stepMemberResource: TRGPartySheet.stepMemberResource,
       removeMemberCondition: TRGPartySheet.removeMemberCondition,
-      addMemberCondition: TRGPartySheet.addMemberCondition
+      addMemberCondition: TRGPartySheet.addMemberCondition,
+      // THE PARTY ACTIONS (3.710.0, Stage 3).
+      partyRest: TRGPartySheet.partyRest,
+      partyTravel: TRGPartySheet.partyTravel,
+      partyAwardXP: TRGPartySheet.partyAwardXP
     },
     // Actors and items are both dropped on this sheet — actors onto the
     // roster, items into the loot.
@@ -212,6 +220,10 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       actor,
       summary,
       toolbar: {
+        // Which party actions this user is offered (party-actions.mjs).
+        // Group Check has its place in that list and is not drawn until
+        // it is built (Stage 5).
+        show: Object.fromEntries(toolbarFor({ isGM }).map((a) => [a.id, true])),
         hasCombat: Boolean(combat),
         partyInitiative,
         initiativeHint: !combat
@@ -710,25 +722,102 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static async awardEncounterXP(event) {
     event.preventDefault();
     const context = await rewardsContext(this.actor);
-    await awardPartyXP(this.actor, context.summary.total, "the encounter");
+    await this.#awardXP(context.summary.total, "the encounter");
   }
 
   static async awardAccomplishment(event, target) {
     event.preventDefault();
     const award = ACCOMPLISHMENT_AWARDS.find((entry) => entry.key === target.dataset.award);
-    if (award) await awardPartyXP(this.actor, award.xp, `a ${award.label} accomplishment`);
+    if (award) await this.#awardXP(award.xp, `a ${award.label} accomplishment`);
   }
 
   static async awardCustomXP(event) {
     event.preventDefault();
     const input = this.element?.querySelector("[data-custom-xp]");
     const amount = Math.floor(Number(input?.value) || 0);
-    if (amount > 0) await awardPartyXP(this.actor, amount, "the GM's award");
+    if (amount > 0) await this.#awardXP(amount, "the GM's award");
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* The Party Actions (3.710.0, Stage 3)                             */
+  /* ---------------------------------------------------------------- */
+
+  /** Actions running on this client, so a second press does nothing. */
+  static #running = new Set();
+
+  /** This party's participants: each eligible member once, the rest named. */
+  async #participants() {
+    return partyParticipants(await resolvePartyRoster(this.actor));
+  }
+
+  /**
+   * EVERY XP AWARD FROM THIS SHEET (3.710.0): the toolbar's, the Encounter
+   * tab's and the accomplishments'. The members are resolved once, the GM
+   * sees the split, and only on Award is `awardPartyXP` (the existing
+   * Chapter 12 workflow, unchanged) given those same members.
+   */
+  async #awardXP(total, reason) {
+    if (!game.user.isGM) {
+      ui.notifications?.warn("Only the GM awards experience.");
+      return null;
+    }
+    return runOnce(TRGPartySheet.#running, `${this.actor.uuid}:xp`, async () => {
+      const { actors } = await this.#participants();
+      const preview = xpAwardPreview(actors, total);
+      if (!preview.ok) {
+        ui.notifications?.warn(actors.length ? "There is no XP to award." : "The party has no members to award XP to.");
+        return null;
+      }
+      if (!(await confirmXPAward(this.actor, preview, reason))) return null;
+      return awardPartyXP(this.actor, preview.xp, reason, { members: actors });
+    });
+  }
+
+  static async partyAwardXP(event) {
+    event.preventDefault();
+    if (!game.user.isGM) return;
+    const context = await rewardsContext(this.actor);
+    const choice = await chooseXPAward({ encounterTotal: context.summary.total });
+    if (choice) await this.#awardXP(choice.xp, choice.reason);
+  }
+
+  /** Rest for THIS party: the existing dialog and workflow, given its members. */
+  static async partyRest(event) {
+    event.preventDefault();
+    if (!game.user.isGM) return;
+    await runOnce(TRGPartySheet.#running, `${this.actor.uuid}:rest`, async () => {
+      const participants = await this.#participants();
+      if (!participants.actors.length) {
+        ui.notifications?.warn(`${this.actor.name} has no members who can rest.`);
+        return null;
+      }
+      return openRestDialog({
+        candidates: { actors: participants.actors, scopeNote: partyScopeNote(this.actor.name, "Resting", participants) }
+      });
+    });
+  }
+
+  /** Travel for THIS party: the existing dialog and card, its members' land Speeds. */
+  static async partyTravel(event) {
+    event.preventDefault();
+    if (!game.user.isGM) return;
+    await runOnce(TRGPartySheet.#running, `${this.actor.uuid}:travel`, async () => {
+      const participants = await this.#participants();
+      if (!participants.actors.length) {
+        ui.notifications?.warn(`${this.actor.name} has no members to travel.`);
+        return null;
+      }
+      return openTravelDialog({
+        candidates: { actors: participants.actors, scopeNote: partyScopeNote(this.actor.name, "Travelling with", participants) }
+      });
+    });
   }
 
   static async beginSession(event) {
     event.preventDefault();
-    await beginSession(this.actor);
+    if (!game.user.isGM) return;
+    // ONE AT A TIME (3.710.0): a double-click gives one point, not two.
+    await runOnce(TRGPartySheet.#running, `${this.actor.uuid}:session`, () => beginSession(this.actor));
   }
 
   /** A creature's count is typed on the Rewards tab, not submitted with the form. */

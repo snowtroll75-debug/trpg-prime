@@ -20,13 +20,34 @@
   {{!-- THE PARTY ACTIONS TOOLBAR (3.709.0, Stage 2): on every tab. Only controls with a
         working system behind them; Rest, Travel and Award XP join in Stage 3. --}}
   <div class="party-toolbar" role="toolbar" aria-label="Party actions">
+    {{!-- In the order of PARTY_TOOLBAR_ACTIONS (party-actions.mjs). Group Check has its
+          place there and is drawn here once it is built (Stage 5). --}}
+    {{#if toolbar.show.rollPartyInitiative}}
     <button type="button" data-player-ok data-action="rollPartyInitiative" data-tooltip="{{toolbar.initiativeHint}}" {{#unless toolbar.partyInitiative}}disabled{{/unless}}>
       <i class="fa-solid fa-dice-d20"></i> Roll Initiative{{#if toolbar.partyInitiative}} ({{toolbar.partyInitiative}}){{/if}}
     </button>
+    {{/if}}
     {{#if isGM}}
+      {{#if toolbar.show.partyRest}}
+      <button type="button" data-action="partyRest" data-tooltip="Rest this party's members only: the Rest dialog, with each eligible member listed once.">
+        <i class="fa-solid fa-bed"></i> Rest
+      </button>
+      {{/if}}
+      {{#if toolbar.show.partyTravel}}
+      <button type="button" data-action="partyTravel" data-tooltip="Travel with this party's members only: the slowest land Speed sets the pace.">
+        <i class="fa-solid fa-person-hiking"></i> Travel
+      </button>
+      {{/if}}
+      {{#if toolbar.show.beginSession}}
       <button type="button" data-action="beginSession" data-tooltip="Hero's Resolve: each member with the feat regains a conviction point at the beginning of each game session.">
         <i class="fa-solid fa-sun"></i> Begin Session
       </button>
+      {{/if}}
+      {{#if toolbar.show.partyAwardXP}}
+      <button type="button" data-action="partyAwardXP" data-tooltip="Award XP to this party: the encounter, an accomplishment or a custom amount. You see the split before anything is written.">
+        <i class="fa-solid fa-trophy"></i> Award XP
+      </button>
+      {{/if}}
     {{/if}}
   </div>
 

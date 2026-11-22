@@ -481,9 +481,14 @@ export function restCandidates() {
  * @returns {Promise<Array|null>} The rest summaries, or null if
  *   cancelled.
  */
-export async function openRestDialog() {
+export async function openRestDialog({ candidates = null } = {}) {
   const { DialogV2 } = foundry.applications.api;
-  const { actors, scopeNote } = restCandidates();
+  // WHO IS OFFERED (3.710.0, Party Sheet V2 Stage 3). With no argument,
+  // exactly as before: `restCandidates()`, from the macro and the API. The
+  // Party sheet passes its own roster instead (party-actions.mjs), so a
+  // party's Rest lists that party and nobody else. Everything after this
+  // line is the same for both.
+  const { actors, scopeNote } = candidates ?? restCandidates();
 
   if (!actors.length) {
     ui.notifications.warn(
@@ -492,23 +497,25 @@ export async function openRestDialog() {
     return null;
   }
 
+  // Rows are keyed by position, not actor id (3.710.0): an unlinked
+  // token's actor has its base actor's id, and a party may hold both.
   const rows = actors
     .map(
-      (actor) => `
+      (actor, i) => `
         <tr data-actor-id="${actor.id}">
-          <td><label><input type="checkbox" name="include-${actor.id}" checked> ${actor.name}</label></td>
+          <td><label><input type="checkbox" name="include-${i}" checked> ${actor.name}</label></td>
           <td>
-            <select name="activity-${actor.id}">
+            <select name="activity-${i}">
               <option value="resting" selected>Resting</option>
               <option value="sleeping">Sleeping</option>
               <option value="active">Active</option>
             </select>
           </td>
-          <td><label><input type="checkbox" name="healingTrance-${actor.id}"> Healing Trance</label></td>
-          <td><label><input type="checkbox" name="powerRecovery-${actor.id}"> Power Recovery</label></td>
-          <td><label><input type="checkbox" name="sustaining-${actor.id}"> Sustaining a Spell</label></td>
-          <td><label><input type="checkbox" name="ate-${actor.id}" checked> Ate</label></td>
-          <td><label><input type="checkbox" name="drank-${actor.id}" checked> Drank</label></td>
+          <td><label><input type="checkbox" name="healingTrance-${i}"> Healing Trance</label></td>
+          <td><label><input type="checkbox" name="powerRecovery-${i}"> Power Recovery</label></td>
+          <td><label><input type="checkbox" name="sustaining-${i}"> Sustaining a Spell</label></td>
+          <td><label><input type="checkbox" name="ate-${i}" checked> Ate</label></td>
+          <td><label><input type="checkbox" name="drank-${i}" checked> Drank</label></td>
         </tr>`
     )
     .join("");
@@ -552,18 +559,19 @@ export async function openRestDialog() {
   if (!result || result === "cancel") return null;
 
   const entries = actors
-    .filter((actor) => result[`include-${actor.id}`])
-    .map((actor) => ({
+    .map((actor, i) => ({ actor, i }))
+    .filter(({ i }) => result[`include-${i}`])
+    .map(({ actor, i }) => ({
       actor,
-      activity: result[`activity-${actor.id}`],
-      attemptHealingTrance: Boolean(result[`healingTrance-${actor.id}`]),
-      attemptPowerRecovery: Boolean(result[`powerRecovery-${actor.id}`]),
-      sustainingASpell: Boolean(result[`sustaining-${actor.id}`]),
+      activity: result[`activity-${i}`],
+      attemptHealingTrance: Boolean(result[`healingTrance-${i}`]),
+      attemptPowerRecovery: Boolean(result[`powerRecovery-${i}`]),
+      sustainingASpell: Boolean(result[`sustaining-${i}`]),
       // FOOD AND WATER (3.582.1; page 230, Graham's R12). Ticked by
       // default, because the common case is a party with rations — the
       // GM unticks the day the packs ran out.
-      ate: Boolean(result[`ate-${actor.id}`]),
-      drank: Boolean(result[`drank-${actor.id}`])
+      ate: Boolean(result[`ate-${i}`]),
+      drank: Boolean(result[`drank-${i}`])
     }));
 
   if (!entries.length) {
@@ -688,7 +696,15 @@ export async function postRestSummaryCard(summary) {
  */
 export async function performRest(entries, shared) {
   const summaries = [];
+  // ONE REST EACH (3.710.0): the same actor twice in the entries (a
+  // roster naming it twice, a caller that merged two lists) is rested
+  // once, under its first entry. Keyed by UUID, so an unlinked token's
+  // actor and its base actor stay two creatures.
+  const seen = new Set();
   for (const entry of entries) {
+    const key = entry?.actor?.uuid ?? entry?.actor?.id;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
     const summary = await performRestForActor(entry.actor, { ...shared, ...entry });
     await postRestSummaryCard(summary);
     summaries.push(summary);
