@@ -961,3 +961,21 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
   - New loot dragged from the sidebar or a compendium is still created, by the GM only, as before.
 - **Testing:** `verify-party-sheet-stage4` P1–P7, and `mutate-party-sheet-stage4` "the GM's drag onto a character is Foundry's copy again" and "a drop on the member strip creates a copy".
 - **Delivery:** 3.711.0, `feature/party-sheet-v2-stage4`, local and not pushed.
+
+## R-0032 — Stage 4 live findings (3.711.1)
+
+- **Found:** in the 3.711.0 live test, 23 November 2026 (`live-testing-report-3.711.0.md`), with the GM and a player in the Test world.
+- **Defects:**
+  1. The Deposit Item chooser read `button.form.elements.item.value`. `item` is the form collection's own method, so the value was undefined and nothing was deposited.
+  2. A player's drag-to-deposit was ignored, because `_canDragDrop` defaulted to `isEditable` and a player has Observer on the party.
+  3. The GM's Give card read "X took".
+  4. Item types had no labels in `lang/en.json`, so "TYPES.Item.weapon" showed in the Type column and on item sheet titles. This was older than Stage 4.
+- **Fixes:**
+  1. The chooser's field is now `depositItem`, read with `namedItem`.
+  2. `_canDragDrop` returns true, and `_onDrop` decides; the GM's client checks every request again.
+  3. The card reads "was given" when a GM requested it, or it came from a drag.
+  4. `TYPES.Item` labels were added for all 19 types, with a fallback in the Type column.
+- **Testing:**
+  - `verify-party-sheet-stage4`: L1–L4 and G4b;
+  - `mutate-party-sheet-stage4`: four LIVE mutations.
+- **Delivery:** 3.711.1, `feature/party-sheet-v2-stage4`, local and not pushed.

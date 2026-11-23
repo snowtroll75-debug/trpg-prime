@@ -2,6 +2,15 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.711.1 — 23 November 2026: Stage 4 live fixes
+
+`feature/party-sheet-v2-stage4`. Full notes in `release-notes-3.711.1.md`; repair log R-0032.
+
+- **Deposit Item:** the chooser read `form.elements.item` (the form's own `item()` method), so nothing was deposited. Fixed.
+- **Players' drag-to-deposit:** it was ignored, because Foundry refused the drop on a sheet the player can't edit. Fixed.
+- **Wording:** the GM's Give now reads "was given", not "took".
+- **Item type labels:** added to `lang/en.json`. The Type column and item sheet titles no longer show "TYPES.Item.x".
+
 ## 3.711.0 — 23 November 2026: Party Sheet V2, Stage 4
 
 Branch `feature/party-sheet-v2-stage4`. Full notes in `release-notes-3.711.0.md`; Stage 4 report in `party-sheet-v2-stage4-report.md`; repair log R-0031.

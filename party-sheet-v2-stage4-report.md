@@ -1,11 +1,11 @@
 # Party Sheet V2, Stage 4: completion report
 
-23 November 2026. TRG Prime **3.710.3 → 3.711.0**. Branch `feature/party-sheet-v2-stage4` (from Stage 3 at `a48074d`), local and not pushed. Package `trg-prime-3.711.0.zip`. **Not yet tested live.**
+23 November 2026. TRG Prime **3.710.3 → 3.711.0 → 3.711.1**. Branch `feature/party-sheet-v2-stage4` (from Stage 3 at `a48074d`), local and not pushed. Package `trg-prime-3.711.1.zip`. Tested live on 3.711.0; its four findings are fixed in 3.711.1, which hasn't been re-tested live.
 
 ## 1. Versions
 
 - **Before:** 3.710.3 (Stage 3 and its fixes, live-tested)
-- **After:** 3.711.0
+- **After:** 3.711.0 (Stage 4), then 3.711.1 (the live test's fixes)
 - **Manifest URL:** unchanged
 
 ## 2. What was implemented
@@ -135,7 +135,25 @@
 - **Companion modules:** Pillars of Faith, Inner Tempest and Eldritch Arts give the same results on 3.707.3 and 3.711.0: 51 scripts, 0 differ. The 11 failures are the ones already known, unchanged.
 - **Template:** rendered offline as GM and as player.
 
-**Live:** not yet. That is the next step after you install.
+**Live (3.711.0), GM and player in the Test world:** 19 of 23 passed. See `live-testing-report-3.711.0.md`.
+- **Passed:**
+  - Give, partial and with the override;
+  - the inventory's columns, search and filter;
+  - Split Coin's preview and its conservation;
+  - Give, Deposit and Take Coin, with insufficient funds refused;
+  - the GM's drags to the strip and to a character's sheet;
+  - the GM's drag-deposit;
+  - a player's take and coin;
+  - four requests forged from a player's console, all refused;
+  - a player's drag of loot onto their own sheet, refused;
+  - a race for the last potion between the player and the GM;
+  - the Unfinished Transfers list.
+- **Failed, fixed in 3.711.1 (R-0032):**
+  - the Deposit Item chooser;
+  - a player's drag-to-deposit;
+  - the "took" wording on the GM's Give;
+  - the item type labels.
+- **On 3.711.1:** all 401 verify scripts pass, as do the six mutation scripts that read the changed files.
 
 ## 6. Limitations and remaining live testing
 
@@ -147,26 +165,29 @@
 - **Too-short timeouts.** A player whose answer takes longer than 15 seconds is told *unknown*; the chat card is the record.
 - **Not covered by the harness:** the held-by-curse or unfinished states as they appear on the live sheet. They need live testing.
 
-**Live tests to run:** GM and player in the Test world:
-- Take and Give, partial;
-- Deposit Item, by the button and by drag;
-- drag to the member strip, and to a character sheet;
-- Deposit, Take, Give and Split Coin;
-- search and filter;
-- open an item;
-- a player refused for another player's character;
-- repeated clicks;
-- (if possible) a player request while the GM's tab is backgrounded.
+**To re-check live on 3.711.1:**
+- Deposit Item by the button, for the GM and the player;
+- a player's drag of their own item onto the party sheet;
+- the GM's Give card wording;
+- the Type column labels.
+
+**Not tested live:** a player's request while the GM's tab is in the background, and the curse-held or undo-failed states as they appear on the sheet.
 
 ## 7. Regression and security issues found and fixed
 
 **R-0031:** the GM's drags duplicated inventory, in both directions. Both are now moves.
 
+**R-0032 (from the live test):**
+- the Deposit Item chooser never deposited;
+- a player's drag-to-deposit was ignored;
+- the GM's Give card read "took";
+- item types had no labels (this predates Stage 4; it also affected item sheet titles).
+
 Also tightened, as Stage 4 requires: players can only take to, and deposit from, their own characters **in this party**. Before, a take could go to any character they owned anywhere.
 
 ## 8. Artefact
 
-- **Package:** `trg-prime-3.711.0.zip`
+- **Package:** `trg-prime-3.711.1.zip`
 - **Branch:** `feature/party-sheet-v2-stage4` (not pushed; it builds on the Stage 1–3 branches)
 
 Stage 5 has not been started.
