@@ -978,4 +978,5 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
 - **Testing:**
   - `verify-party-sheet-stage4`: L1–L4 and G4b;
   - `mutate-party-sheet-stage4`: four LIVE mutations.
+- **Live (23 Nov 2026):** all four fixes pass, for the GM and the player. See `live-testing-report-3.711.1.md`.
 - **Delivery:** 3.711.1, `feature/party-sheet-v2-stage4`, local and not pushed.

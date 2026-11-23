@@ -1,6 +1,6 @@
 # Party Sheet V2, Stage 4: completion report
 
-23 November 2026. TRG Prime **3.710.3 → 3.711.0 → 3.711.1**. Branch `feature/party-sheet-v2-stage4` (from Stage 3 at `a48074d`), local and not pushed. Package `trg-prime-3.711.1.zip`. Tested live on 3.711.0; its four findings are fixed in 3.711.1, which hasn't been re-tested live.
+23 November 2026. TRG Prime **3.710.3 → 3.711.0 → 3.711.1**. Branch `feature/party-sheet-v2-stage4` (from Stage 3 at `a48074d`), local and not pushed. Package `trg-prime-3.711.1.zip`. Tested live on 3.711.0. Its four findings are fixed in 3.711.1, and the fixes passed a live re-test (`live-testing-report-3.711.1.md`).
 
 ## 1. Versions
 
@@ -165,11 +165,7 @@
 - **Too-short timeouts.** A player whose answer takes longer than 15 seconds is told *unknown*; the chat card is the record.
 - **Not covered by the harness:** the held-by-curse or unfinished states as they appear on the live sheet. They need live testing.
 
-**To re-check live on 3.711.1:**
-- Deposit Item by the button, for the GM and the player;
-- a player's drag of their own item onto the party sheet;
-- the GM's Give card wording;
-- the Type column labels.
+**Re-checked live on 3.711.1:** all four fixes pass, for the GM and the player.
 
 **Not tested live:** a player's request while the GM's tab is in the background, and the curse-held or undo-failed states as they appear on the sheet.
 
