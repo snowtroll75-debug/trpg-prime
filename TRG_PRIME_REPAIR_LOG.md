@@ -947,3 +947,17 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
   - `postRestSummaryCard` leaves the callers backlog.
 - **Live (23 Nov 2026):** rest-card and standalone-card lines match the applied change in every case seen (Failure, Partial, Success at 0, Heroic, Fumble). Pass. See `live-testing-report-3.710.3.md`.
 - **Delivery:** 3.710.3, `feature/party-sheet-v2-stage3`, local and not pushed.
+
+## R-0031 — The GM's drags duplicated party inventory (3.711.0)
+
+- **Found:** while building Party Sheet V2 Stage 4, 23 November 2026, reading the existing drop paths.
+- **Defects (both older than Stage 4):**
+  - A GM dragging a party item onto a character's sheet got Foundry's default drop, a copy, and the party kept its own.
+  - A GM dragging an item from a character onto the party sheet also made a copy, and the character kept theirs.
+  - Either way, one drag made two items.
+- **Fix:**
+  - The `dropActorSheetData` guard sends the GM's drag of party loot onto a holder's sheet to `TRGPartySheet.distributeByDrag`, a validated withdrawal (a move). A drag onto someone outside the party asks first.
+  - On the party sheet, an item dropped from an actor is a deposit (a move), through the same engine.
+  - New loot dragged from the sidebar or a compendium is still created, by the GM only, as before.
+- **Testing:** `verify-party-sheet-stage4` P1–P7, and `mutate-party-sheet-stage4` "the GM's drag onto a character is Foundry's copy again" and "a drop on the member strip creates a copy".
+- **Delivery:** 3.711.0, `feature/party-sheet-v2-stage4`, local and not pushed.

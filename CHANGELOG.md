@@ -2,6 +2,20 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.711.0 — 23 November 2026: Party Sheet V2, Stage 4
+
+Branch `feature/party-sheet-v2-stage4`. Full notes in `release-notes-3.711.0.md`; Stage 4 report in `party-sheet-v2-stage4-report.md`; repair log R-0031.
+
+- **Inventory:** type, details, search and filter, open item, Take/Give with partial stacks, Deposit Item, and drag a row onto a member to give it.
+- **Treasury:** Deposit Coin, Take Coin (players), Give Coin (GM), and Split Coin (GM). Split shows a preview, and the remainder stays in the treasury.
+- **Transfer engine (`party-transfers.mjs`):**
+  - one performing client, one queue per party;
+  - destination first, source re-read, undo;
+  - request ids refused twice;
+  - a journal of unfinished transfers for the GM.
+- **Changed:** the GM's drags are moves, not copies. Players take and deposit only through their own party members.
+- **Harness:** new `verify/mutate-party-sheet-stage4` (125 checks / 39 mutations). Stage 1 W1–W3 and Stage 2 L5 re-anchored, with the same meaning.
+
 ## 3.710.3 — 23 November 2026: the Fatigue line says what changed
 
 Branch `feature/party-sheet-v2-stage3`. Full notes in `release-notes-3.710.3.md`; repair log R-0030.
