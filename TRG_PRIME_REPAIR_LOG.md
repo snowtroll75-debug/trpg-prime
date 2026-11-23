@@ -945,4 +945,5 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
   - `mutate-rest-single-check`: 18 of 18 caught.
   - Sweeps: 400 of 400 verify scripts pass, and the 15 rest-related mutate scripts pass.
   - `postRestSummaryCard` leaves the callers backlog.
+- **Live (23 Nov 2026):** rest-card and standalone-card lines match the applied change in every case seen (Failure, Partial, Success at 0, Heroic, Fumble). Pass. See `live-testing-report-3.710.3.md`.
 - **Delivery:** 3.710.3, `feature/party-sheet-v2-stage3`, local and not pushed.
