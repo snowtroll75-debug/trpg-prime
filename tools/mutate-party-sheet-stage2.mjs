@@ -56,7 +56,8 @@ const MUTATIONS = [
   { name: "a player gets the HP steppers", file: HBS, from: "                      {{#if m.controls.gm}}<span class=\"party-steppers\">\n                        <button type=\"button\" class=\"party-step\" data-action=\"stepMemberResource\" data-resource=\"hp\"", to: "                      {{#if true}}<span class=\"party-steppers\">\n                        <button type=\"button\" class=\"party-step\" data-action=\"stepMemberResource\" data-resource=\"hp\"", breaks: "G7" },
   { name: "a player gets the damage button", file: HBS, from: "{{#if m.controls.gm}}<button type=\"button\" data-action=\"applyMemberDamage\"", to: "<button type=\"button\" data-action=\"applyMemberDamage\"", breaks: "G10" },
   { name: "a missing Defence prints blank", file: HBS, from: "{{#if (eq m.stats.defence null)}}&mdash;{{else}}{{m.stats.defence}}{{/if}}", to: "{{m.stats.defence}}", breaks: "G11" },
-  { name: "a placeholder Notes tab", file: SHEET, from: "        { id: \"rewards\", icon: \"fa-solid fa-trophy\", label: \"Encounter\" }", to: "        { id: \"rewards\", icon: \"fa-solid fa-trophy\", label: \"Encounter\" },\n        { id: \"notes\", icon: \"fa-solid fa-book\", label: \"Notes\" }", breaks: "G4" },
+  // Re-anchored 3.712.0 (Stage 5): the Notes tab is built, so the defect is now its loss.
+  { name: "the built Notes tab is not declared", file: SHEET, from: "        { id: \"notes\", icon: \"fa-solid fa-book-open\", label: \"Notes\" }", to: "", breaks: "G4" },
   /* H */
   { name: "every combatant change re-renders", file: LS, from: "      if (event === \"updateCombatant\" && !(\"initiative\" in (rest[0] ?? {})) && !(\"hidden\" in (rest[0] ?? {}))) return 0;\n", to: "", breaks: "H2" },
   { name: "every turn re-renders every sheet", file: LS, from: "      if (\"active\" in changes || \"scene\" in changes) tellEveryone();", to: "      tellEveryone();", breaks: "H4" },
@@ -73,8 +74,8 @@ const MUTATIONS = [
   { name: "LIVE: the sheet does not pass the maximum", file: SHEET, from: "      key, value: member.system?.resources?.[key]?.value, max: member.system?.resources?.[key]?.max,", to: "      key, value: member.system?.resources?.[key]?.value,", breaks: "L10" },
   /* I, Z */
   { name: "the member panel scrolls sideways", file: CSS, from: ".trg-prime .party-member-body {\n  display: flex;\n  flex-wrap: wrap;", to: ".trg-prime .party-member-body {\n  display: flex;\n  flex-wrap: nowrap;", breaks: "I2" },
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.711.1\"", to: "\"version\": \"3.708.1\"", breaks: "Z1" },
-  { name: "package.json is left behind", file: PJ, from: "\"version\": \"3.711.1\"", to: "\"version\": \"3.708.1\"", breaks: "Z1" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.712.0\"", to: "\"version\": \"3.708.1\"", breaks: "Z1" },
+  { name: "package.json is left behind", file: PJ, from: "\"version\": \"3.712.0\"", to: "\"version\": \"3.708.1\"", breaks: "Z1" }
 ];
 
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-party-sheet-stage2.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }

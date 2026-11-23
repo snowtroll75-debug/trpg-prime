@@ -5130,6 +5130,80 @@
 
 .trg-prime .party-pending-list li .hint { flex-basis: 100%; }
 
+/* --- the Skills page, the Notes and the import list (3.712.0, Stage 5) --- */
+.trg-prime .party-skills-scroll {
+  overflow: auto;
+  max-height: 460px;
+  border: 1px solid var(--trg-parchment-dark);
+  border-radius: 4px;
+}
+
+.trg-prime .party-skills-table { border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; }
+
+.trg-prime .party-skills-table th,
+.trg-prime .party-skills-table td {
+  padding: 2px 6px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  text-align: center;
+  white-space: nowrap;
+  background: var(--trg-parchment-light);
+}
+
+.trg-prime .party-skills-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--trg-muted);
+  border-bottom: 1px solid var(--trg-parchment-dark);
+  vertical-align: bottom;
+}
+
+.trg-prime .party-skills-table .party-skills-name {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  text-align: left;
+  border-right: 1px solid var(--trg-parchment-dark);
+}
+
+.trg-prime .party-skills-table thead .party-skills-name { z-index: 3; }
+
+.trg-prime .party-skills-table tbody .party-skills-name { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+
+.trg-prime .party-skills-table tbody .party-skills-name img {
+  width: 22px;
+  height: 22px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.trg-prime .party-skill-roll {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--trg-ink);
+  padding: 0 4px;
+  width: auto;
+  min-width: 2.2em;
+}
+
+.trg-prime .party-skill-roll:hover { border-color: var(--trg-parchment-dark); background: var(--trg-parchment); }
+
+.trg-prime .party-skills-table td.party-skill-best { background: var(--trg-gold-light); font-weight: 700; }
+
+.trg-prime .party-skills-table td.party-skill-hidden,
+.trg-prime .party-skills-table td.party-skill-unavailable { color: var(--trg-muted); }
+
+.trg-prime .party-notes prose-mirror { min-height: 240px; display: block; }
+
+.trg-prime .party-notes-view { min-height: 80px; }
+
+.trg-prime .party-import-row img { width: 20px; height: 20px; object-fit: cover; border-radius: 50%; vertical-align: middle; }
+
 /* ------------------------------------------------------------------
  * A USES COUNTER YOU CAN PUT BACK (3.311.3).
  *

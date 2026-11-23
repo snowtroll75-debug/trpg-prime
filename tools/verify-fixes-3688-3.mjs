@@ -40,8 +40,8 @@ const { magicRitualSecondaryModifier } = await import(new URL("../module/magic/c
 }
 
 const sys = JSON.parse(read("system.json"));
-equal("Z the version is 3.691.0", [sys.version, JSON.parse(read("package.json")).version], ["3.711.1", "3.711.1"]);
-equal("Z the download names it", sys.download, "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.711.1/trg-prime.zip");
+equal("Z the version is 3.691.0", [sys.version, JSON.parse(read("package.json")).version], ["3.712.0", "3.712.0"]);
+equal("Z the download names it", sys.download, "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.712.0/trg-prime.zip");
 
 if (failures.length) { for (const f of failures) console.log(`  ✗ ${f}`); console.log(`verify-fixes-3688-3: ${failures.length} failure(s) of ${checks}`); process.exit(1); }
 console.log(`verify-fixes-3688-3: all ${checks} checks pass`);

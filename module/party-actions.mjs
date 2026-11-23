@@ -140,15 +140,14 @@ export async function runOnce(running, key, work) {
  * `implemented`, so a planned one has its place and its id without a
  * button that does nothing.
  *
- * GROUP CHECK is that place (Stage 5): its id, label, icon and order are
- * set here, and the sheet will offer it the day `implemented` is true and
- * a `groupCheck` action exists on the sheet. Until then it is not drawn.
+ * GROUP CHECK (3.712.0, Stage 5) was held here, undrawn, from Stage 3; it is
+ * built now (party-skills.mjs and the sheet's `groupCheck` action).
  */
 export const PARTY_TOOLBAR_ACTIONS = Object.freeze([
   { id: "rollPartyInitiative", label: "Roll Initiative", icon: "fa-solid fa-dice-d20", gmOnly: false, implemented: true },
   { id: "partyRest", label: "Rest", icon: "fa-solid fa-bed", gmOnly: true, implemented: true },
   { id: "partyTravel", label: "Travel", icon: "fa-solid fa-person-hiking", gmOnly: true, implemented: true },
-  { id: "groupCheck", label: "Group Check", icon: "fa-solid fa-people-group", gmOnly: true, implemented: false },
+  { id: "groupCheck", label: "Group Check", icon: "fa-solid fa-people-group", gmOnly: true, implemented: true },
   { id: "beginSession", label: "Begin Session", icon: "fa-solid fa-sun", gmOnly: true, implemented: true },
   { id: "partyAwardXP", label: "Award XP", icon: "fa-solid fa-trophy", gmOnly: true, implemented: true }
 ]);

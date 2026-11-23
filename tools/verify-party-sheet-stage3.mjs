@@ -186,11 +186,13 @@ const partB = PA.partyParticipants(rosterB);
 {
   equal("B1 the toolbar's order", PA.PARTY_TOOLBAR_ACTIONS.map((a) => a.id), ["rollPartyInitiative", "partyRest", "partyTravel", "groupCheck", "beginSession", "partyAwardXP"]);
   const gc = PA.PARTY_TOOLBAR_ACTIONS.find((a) => a.id === "groupCheck");
-  ok("B2 Group Check has its place, and is not implemented yet", gc && gc.implemented === false && gc.gmOnly === true);
-  equal("B3 a GM is offered every implemented action", PA.toolbarFor({ isGM: true }).map((a) => a.id), ["rollPartyInitiative", "partyRest", "partyTravel", "beginSession", "partyAwardXP"]);
+  // Re-anchored 3.712.0 (Stage 5): Group Check is built, in the place Stage 3 held for it.
+  ok("B2 Group Check has its place, built now, for the GM", gc && gc.implemented === true && gc.gmOnly === true);
+  equal("B3 a GM is offered every implemented action", PA.toolbarFor({ isGM: true }).map((a) => a.id), ["rollPartyInitiative", "partyRest", "partyTravel", "groupCheck", "beginSession", "partyAwardXP"]);
   equal("B4 a player is offered Roll Initiative only", PA.toolbarFor({ isGM: false }).map((a) => a.id), ["rollPartyInitiative"]);
   const HBS = read("templates", "actor", "party-sheet.hbs");
-  ok("B5 no Group Check button is drawn", !/data-action="groupCheck"/.test(HBS));
+  // Re-anchored 3.712.0 (Stage 5): drawn now, inside the GM block, behind its flag.
+  ok("B5 the Group Check button is drawn for the GM, behind its flag", /\{\{#if toolbar\.show\.groupCheck\}\}\s*<button type="button" data-action="groupCheck"/.test(HBS));
   const bar = HBS.slice(HBS.indexOf('class="party-toolbar"'), HBS.indexOf("<nav"));
   const gm = bar.indexOf("{{#if isGM}}");
   for (const id of ["partyRest", "partyTravel", "beginSession", "partyAwardXP"]) {
@@ -233,8 +235,8 @@ const partB = PA.partyParticipants(rosterB);
 /* ------------------------------------------------------------ Z. version */
 {
   const sys = JSON.parse(read("system.json"));
-  equal("Z1 the version is 3.711.1, the download names it, and package.json agrees",
-    [sys.version, sys.download.includes("/v3.711.1/"), JSON.parse(read("package.json")).version], ["3.711.1", true, "3.711.1"]);
+  equal("Z1 the version is 3.712.0, the download names it, and package.json agrees",
+    [sys.version, sys.download.includes("/v3.712.0/"), JSON.parse(read("package.json")).version], ["3.712.0", true, "3.712.0"]);
 }
 
 if (failures.length) {

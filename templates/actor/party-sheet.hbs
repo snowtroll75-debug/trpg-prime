@@ -20,8 +20,7 @@
   {{!-- THE PARTY ACTIONS TOOLBAR (3.709.0, Stage 2): on every tab. Only controls with a
         working system behind them; Rest, Travel and Award XP join in Stage 3. --}}
   <div class="party-toolbar" role="toolbar" aria-label="Party actions">
-    {{!-- In the order of PARTY_TOOLBAR_ACTIONS (party-actions.mjs). Group Check has its
-          place there and is drawn here once it is built (Stage 5). --}}
+    {{!-- In the order of PARTY_TOOLBAR_ACTIONS (party-actions.mjs). --}}
     {{#if toolbar.show.rollPartyInitiative}}
     <button type="button" data-player-ok data-action="rollPartyInitiative" data-tooltip="{{toolbar.initiativeHint}}" {{#unless toolbar.partyInitiative}}disabled{{/unless}}>
       <i class="fa-solid fa-dice-d20"></i> Roll Initiative{{#if toolbar.partyInitiative}} ({{toolbar.partyInitiative}}){{/if}}
@@ -36,6 +35,11 @@
       {{#if toolbar.show.partyTravel}}
       <button type="button" data-action="partyTravel" data-tooltip="Travel with this party's members only: the slowest land Speed sets the pace.">
         <i class="fa-solid fa-person-hiking"></i> Travel
+      </button>
+      {{/if}}
+      {{#if toolbar.show.groupCheck}}
+      <button type="button" data-action="groupCheck" data-tooltip="Group Check: each chosen member rolls their own skill check, and the card lists every result. The rules set no group result.">
+        <i class="fa-solid fa-people-group"></i> Group Check
       </button>
       {{/if}}
       {{#if toolbar.show.beginSession}}
@@ -225,6 +229,54 @@
     </section>
 
     {{!-- ---------------------------------------------------------- --}}
+    {{!-- SKILLS (3.712.0, Stage 5)                                    --}}
+    {{!-- ---------------------------------------------------------- --}}
+    <section class="tab sheet-tab-panel {{tabs.skills.cssClass}}" data-group="primary" data-tab="skills">
+      <article class="ornate-card">
+        <h2><i class="fa-solid fa-list-check"></i> Party Skills</h2>
+        <p class="hint">Each member's skill modifier, as their own sheet prints it. Click one to roll that member's check. The highest in each column is marked; "?" is a member whose statistics you cannot see, "—" a skill the member's data does not have.</p>
+        <div class="party-inventory-tools">
+          <input type="search" data-skill-filter data-player-ok placeholder="Filter skills" value="{{skills.filter}}" aria-label="Filter the skills">
+        </div>
+        {{#if skills.empty}}
+          <p class="hint party-empty">The party has no members to show.</p>
+        {{else}}
+          <div class="party-skills-scroll">
+            <table class="party-skills-table">
+              <thead>
+                <tr>
+                  <th class="party-skills-name">
+                    <button type="button" class="party-item-link" data-player-ok data-action="sortSkills" data-tooltip="Sort by name">
+                      Member <i class="fa-solid {{#if (eq skills.sort "asc")}}fa-arrow-down-a-z{{else}}fa-arrow-up-z-a{{/if}}"></i>
+                    </button>
+                  </th>
+                  {{#each skills.columns as |c|}}
+                    <th data-skill-col="{{c.key}}" {{#unless c.shown}}hidden{{/unless}} scope="col"><span>{{c.label}}</span></th>
+                  {{/each}}
+                </tr>
+              </thead>
+              <tbody>
+                {{#each skills.rows as |r|}}
+                  <tr data-uuid="{{r.uuid}}">
+                    <th class="party-skills-name" scope="row">{{#if r.img}}<img src="{{r.img}}" alt="">{{/if}}<span>{{r.name}}</span></th>
+                    {{#each r.cells as |cell|}}
+                      <td data-skill-col="{{cell.key}}" class="{{#if cell.best}}party-skill-best{{/if}} party-skill-{{cell.state}}" {{#unless cell.shown}}hidden{{/unless}}>
+                        {{#if cell.rollable}}
+                          <button type="button" class="party-skill-roll" data-player-ok data-action="rollMemberSkill" data-skill="{{cell.key}}" data-tooltip="Roll {{r.name}}'s check">{{cell.text}}</button>
+                        {{else}}<span {{#if (eq cell.state "hidden")}}data-tooltip="Hidden"{{/if}}{{#if (eq cell.state "unavailable")}}data-tooltip="Not in this member's data"{{/if}}>{{cell.text}}</span>{{/if}}
+                      </td>
+                    {{/each}}
+                  </tr>
+                {{/each}}
+              </tbody>
+            </table>
+          </div>
+          <p class="hint party-empty" data-skill-none hidden>No skill matches the filter.</p>
+        {{/if}}
+      </article>
+    </section>
+
+    {{!-- ---------------------------------------------------------- --}}
     {{!-- LOOT                                                        --}}
     {{!-- ---------------------------------------------------------- --}}
     <section class="tab sheet-tab-panel {{tabs.loot.cssClass}}" data-group="primary" data-tab="loot">
@@ -379,7 +431,7 @@
             <tbody>
               {{#each rewards.creatures as |c|}}
                 <tr data-creature-uuid="{{c.uuid}}">
-                  <td class="loot-name">{{#if c.img}}<img src="{{c.img}}" alt="">{{/if}}<span>{{c.name}}</span>
+                  <td class="loot-name">{{#if c.img}}<img src="{{c.img}}" alt="">{{/if}}<span {{#if c.tokens}}data-tooltip="Counted from {{c.tokens}} token{{#if (gt c.tokens 1)}}s{{/if}}"{{/if}}>{{c.name}}</span>
                     {{#if c.beyond}}<span class="party-over" data-tooltip="Effective Level {{c.difference}} from the party's — off Chapter 12's table">beyond the table</span>{{/if}}</td>
                   <td>{{c.el}}</td>
                   <td><input type="number" min="0" value="{{c.count}}" data-encounter-count {{#unless ../isGM}}disabled{{/unless}}></td>
@@ -396,8 +448,9 @@
 
         {{#if isGM}}
           <div class="party-reward-buttons">
-            <button type="button" data-action="addSelectedTokens"><i class="fa-solid fa-crosshairs"></i> Add Selected Tokens</button>
-            <button type="button" data-action="clearEncounter"><i class="fa-solid fa-eraser"></i> Clear</button>
+            <button type="button" data-action="importCombat" data-tooltip="Import the adversaries of the active combat, or another you choose. Party members are left out."><i class="fa-solid fa-shield-halved"></i> Import Combat</button>
+            <button type="button" data-action="addSelectedTokens" data-tooltip="Import the selected tokens' creatures. Party members are left out."><i class="fa-solid fa-crosshairs"></i> Add Selected Tokens</button>
+            <button type="button" data-action="clearEncounter" data-tooltip="Empty this list. No actor, token or combat is deleted."><i class="fa-solid fa-eraser"></i> Clear</button>
             <button type="button" data-action="awardEncounterXP" {{#unless rewards.summary.total}}disabled{{/unless}}>
               <i class="fa-solid fa-trophy"></i> Award {{rewards.summary.total}} XP ({{rewards.split.each}} each)
             </button>
@@ -441,5 +494,20 @@
       {{/if}}
     </section>
     {{/if}}
+
+    {{!-- ---------------------------------------------------------- --}}
+    {{!-- NOTES (3.712.0, Stage 5): system.details.notes, shared      --}}
+    {{!-- ---------------------------------------------------------- --}}
+    <section class="tab sheet-tab-panel {{tabs.notes.cssClass}}" data-group="primary" data-tab="notes">
+      <article class="ornate-card party-notes">
+        <h2><i class="fa-solid fa-book-open"></i> Party Notes</h2>
+        {{#if notes.editable}}
+          <p class="hint">Shared with everyone who can see this party. Players read them; the GM edits. A secret block is shown to the GM only on this sheet, but the text is still stored in the party, so keep true secrets elsewhere.</p>
+          <prose-mirror name="system.details.notes" value="{{notes.raw}}" toggled>{{{notes.html}}}</prose-mirror>
+        {{else}}
+          {{#if notes.empty}}<p class="hint party-empty">No notes yet.</p>{{else}}<div class="party-notes-view">{{{notes.html}}}</div>{{/if}}
+        {{/if}}
+      </article>
+    </section>
   </main>
 </div>

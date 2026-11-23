@@ -8,6 +8,12 @@
   "totalExportsChecked": 5777,
   "orphanCount": 505,
   "keep": {
+    "module/party-rewards-workflow.mjs#ENCOUNTER_VERSION": "Party Sheet V2 Stage 5 (3.712.0): used inside its own module, and exported so verify-party-sheet-stage5 can test it directly; its behaviour is also covered through the public function that calls it.",
+    "module/party-rewards-workflow.mjs#mergeEncounterImport": "Party Sheet V2 Stage 5 (3.712.0): used inside its own module, and exported so verify-party-sheet-stage5 can test it directly; its behaviour is also covered through the public function that calls it.",
+    "module/party-rewards-workflow.mjs#tokenIdentity": "Party Sheet V2 Stage 5 (3.712.0): used inside its own module, and exported so verify-party-sheet-stage5 can test it directly; its behaviour is also covered through the public function that calls it.",
+    "module/party-skills.mjs#groupCheckCard": "Party Sheet V2 Stage 5 (3.712.0): used inside its own module, and exported so verify-party-sheet-stage5 can test it directly; its behaviour is also covered through the public function that calls it.",
+    "module/party-skills.mjs#groupCheckSummary": "Party Sheet V2 Stage 5 (3.712.0): used inside its own module, and exported so verify-party-sheet-stage5 can test it directly; its behaviour is also covered through the public function that calls it.",
+    "module/party-skills.mjs#skillCell": "Party Sheet V2 Stage 5 (3.712.0): used inside its own module, and exported so verify-party-sheet-stage5 can test it directly; its behaviour is also covered through the public function that calls it.",
     "module/party-socket.mjs#PARTY_RESULT": "Party Sheet V2 Stage 4 (3.711.0): the reply message's action, used inside party-socket.mjs; exported so verify-party-sheet-stage4 M4 can assert the reply's shape.",
     "module/party-socket.mjs#REPLY_TIMEOUT_MS": "Party Sheet V2 Stage 4 (3.711.0): how long a requester waits, used inside party-socket.mjs; exported so verify-party-sheet-stage4 M9 can hold it to a sensible floor.",
     "module/party-transfers.mjs#JOURNAL_DONE_LIMIT": "Party Sheet V2 Stage 4 (3.711.0): used inside the transfer engine, and exported so verify-party-sheet-stage4 can test it directly; its behaviour is also covered through performTransfer.",

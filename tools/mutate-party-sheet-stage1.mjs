@@ -68,7 +68,7 @@ const MUTATIONS = [
   /* T — tabs */
   { name: "the nav loses the .tabs container changeTab looks in", file: HBS, from: "<nav class=\"sheet-tabs tabs\" data-group=\"primary\"", to: "<nav class=\"sheet-tabs\" data-group=\"primary\"", breaks: "T2" },
   { name: "a click on the tab's icon does nothing (Foundry's event.target)", file: SHEET, from: "    const button = event.target?.closest?.(\"[data-tab]\");", to: "    const button = event.target;", breaks: "T3" },
-  { name: "scroll positions are lost on a live render", file: SHEET, from: "      scrollable: ['section[data-tab=\"roster\"]', 'section[data-tab=\"loot\"]', 'section[data-tab=\"rewards\"]']\n", to: "", breaks: "T6" },
+  { name: "scroll positions are lost on a live render", file: SHEET, from: "      scrollable: ['section[data-tab=\"roster\"]', 'section[data-tab=\"skills\"]', '.party-skills-scroll', 'section[data-tab=\"loot\"]', 'section[data-tab=\"rewards\"]', 'section[data-tab=\"notes\"]']\n", to: "", breaks: "T6" }, // re-anchored 3.712.0: the two new panels
   /* F — the live test's findings (3.708.1) */
   { name: "LIVE: the Remove button reads the member's isGM again", file: HBS, from: "              {{#if ../isGM}}\n                <button type=\"button\" class=\"party-remove\"", to: "              {{#if isGM}}\n                <button type=\"button\" class=\"party-remove\"", breaks: "F1" }, // re-anchored 3.709.0 (inside the controls column)
   { name: "LIVE: the base actor is looked for on the synthetic actor only", file: MEM, from: "      ? (entry.actor.token?.baseActor?.uuid ?? entry.actor.baseActor?.uuid ?? null)", to: "      ? (entry.actor.baseActor?.uuid ?? null)", breaks: "F2" },
@@ -76,8 +76,8 @@ const MUTATIONS = [
   { name: "LIVE: 'a affliction'", file: PARTY, from: "is ${/^[aeiou]/i.test(str(item.type) || \"document\") ? \"an\" : \"a\"} ${", to: "is a ${", breaks: "F4" },
   /* W, Z */
   { name: "XP is split across the deleted and ineligible entries too", file: RW, from: "  return activeMembers(await resolvePartyRoster(party));", to: "  return (await resolvePartyRoster(party)).map((e) => e.actor).filter(Boolean);", breaks: "R15/W5" },
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.711.1\"", to: "\"version\": \"3.707.3\"", breaks: "Z1" },
-  { name: "package.json is left behind", file: PJ, from: "\"version\": \"3.711.1\"", to: "\"version\": \"3.707.3\"", breaks: "Z1" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.712.0\"", to: "\"version\": \"3.707.3\"", breaks: "Z1" },
+  { name: "package.json is left behind", file: PJ, from: "\"version\": \"3.712.0\"", to: "\"version\": \"3.707.3\"", breaks: "Z1" }
 ];
 
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-party-sheet-stage1.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }

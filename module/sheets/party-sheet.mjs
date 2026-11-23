@@ -46,8 +46,13 @@ import {
 import { CONDITIONS } from "../conditions/registry.mjs";
 import { coinValueInGP } from "../items.mjs";
 import {
-  addEncounterCreatures, awardPartyXP, beginSession, rewardsContext, setEncounterCount
+  addEncounterCreatures, awardPartyXP, beginSession, encounterCandidates, importEncounterPicks,
+  normaliseEncounter, rewardsContext, setEncounterCount
 } from "../party-rewards-workflow.mjs";
+import {
+  difficultyOptions, matchesSkillFilter, planGroupCheck, rollGroupCheck, skillColumns, skillMatrix
+} from "../party-skills.mjs";
+import { TRGCheck, applyMessageMode } from "../dice/check.mjs";
 import { ACCOMPLISHMENT_AWARDS } from "../rewards.mjs";
 
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -132,7 +137,12 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       // THE PARTY ACTIONS (3.710.0, Stage 3).
       partyRest: TRGPartySheet.partyRest,
       partyTravel: TRGPartySheet.partyTravel,
-      partyAwardXP: TRGPartySheet.partyAwardXP
+      partyAwardXP: TRGPartySheet.partyAwardXP,
+      // SKILLS, THE GROUP CHECK AND THE ENCOUNTER (3.712.0, Stage 5).
+      sortSkills: TRGPartySheet.sortSkills,
+      rollMemberSkill: TRGPartySheet.rollMemberSkill,
+      groupCheck: TRGPartySheet.groupCheck,
+      importCombat: TRGPartySheet.importCombat
     },
     // Actors and items are both dropped on this sheet — actors onto the
     // roster, items into the loot.
@@ -144,7 +154,7 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       template: "systems/trg-prime/templates/actor/party-sheet.hbs",
       // Each tab panel scrolls on its own; a live re-render (a member's HP
       // changing) keeps the GM where they were in it (3.708.0).
-      scrollable: ['section[data-tab="roster"]', 'section[data-tab="loot"]', 'section[data-tab="rewards"]']
+      scrollable: ['section[data-tab="roster"]', 'section[data-tab="skills"]', '.party-skills-scroll', 'section[data-tab="loot"]', 'section[data-tab="rewards"]', 'section[data-tab="notes"]']
     }
   };
 
@@ -158,9 +168,13 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         // Skills and Notes join when they are built (Stage 5; Graham,
         // 22 Nov 2026: no placeholder tabs).
         { id: "roster", icon: "fa-solid fa-users", label: "Overview" },
+        // THE SKILLS PAGE (3.712.0, Stage 5).
+        { id: "skills", icon: "fa-solid fa-list-check", label: "Skills" },
         { id: "loot", icon: "fa-solid fa-sack-dollar", label: "Inventory" },
         // ENCOUNTERS AND REWARDS (3.619.0; Chapter 12, Graham's R2, R6, R8).
-        { id: "rewards", icon: "fa-solid fa-trophy", label: "Encounter" }
+        { id: "rewards", icon: "fa-solid fa-trophy", label: "Encounter" },
+        // THE PARTY'S NOTES (3.712.0, Stage 5): system.details.notes.
+        { id: "notes", icon: "fa-solid fa-book-open", label: "Notes" }
       ]
     }
   };
@@ -239,6 +253,25 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
     const rewards = isGM ? await rewardsContext(actor, { members: activeMembers(roster) }) : null;
 
+    // THE SKILLS PAGE (3.712.0, Stage 5). Each member's prepared skill
+    // totals; an NPC this user may not see gives no numbers (Graham's
+    // Stage 1 ruling); a modifier is a button only for whoever may roll it.
+    const skills = skillMatrix(roster.filter((e) => e.status === MEMBER_STATUS.OK).map((e) => ({
+      uuid: e.uuid, name: e.actor.name, img: e.actor.img, actor: e.actor,
+      restricted: !canSeeMemberDetails(e.actor, game.user),
+      canRoll: isGM || e.actor.isOwner
+    })), { sort: this.#skillSort });
+    for (const column of skills.columns) column.shown = matchesSkillFilter(column, this.#skillFilter);
+    for (const row of skills.rows) row.cells.forEach((cell, i) => { cell.shown = skills.columns[i].shown; });
+
+    // THE NOTES (3.712.0, Stage 5): the party's own field, shared. Graham,
+    // 23 Nov 2026: shared notes only, the GM edits and players read. Secret
+    // blocks are shown to a GM only.
+    const notesRaw = String(system.details?.notes ?? "");
+    const notesHTML = await foundry.applications.ux.TextEditor.implementation.enrichHTML(notesRaw, {
+      secrets: isGM, relativeTo: actor, rollData: {}
+    });
+
     // What this render read from, for the live updates (_onRender).
     this.#watchKeys = watchKeysFor([...roster, ...(rewards?.watchEntries ?? [])]);
 
@@ -291,6 +324,8 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         canSplit: isGM && myMembers.length > 0 && !coinIsEmpty(currency)
       },
       rewards,
+      skills: { ...skills, filter: this.#skillFilter, empty: skills.rows.length === 0 },
+      notes: { raw: notesRaw, html: notesHTML, editable: isGM && this.isEditable, empty: !notesRaw.trim() },
       tabs: this._prepareTabs("primary"),
       tabList: Object.values(this._prepareTabs("primary"))
     };
@@ -307,16 +342,35 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   #coalescer = new RenderCoalescer({
     render: () => this.render(),
     isRendered: () => this.rendered,
-    isBusy: () => {
-      // Typing in one of this sheet's fields: a render would replace it.
-      const active = globalThis.document?.activeElement;
-      return Boolean(this.element && active && this.element.contains(active)
-        && active.matches?.("input, textarea, select") && !active.disabled);
-    },
+    isBusy: () => this.#isBusy(),
+    // Wait until the field loses focus, or the Notes editor closes, and is
+    // not busy again (3.712.0: focus can move inside the open editor).
     whenIdle: (callback) => {
-      this.element?.addEventListener("focusout", () => setTimeout(callback, 0), { once: true });
+      const wait = () => {
+        const done = () => {
+          this.element?.removeEventListener("focusout", done);
+          this.element?.removeEventListener("close", done);
+          setTimeout(() => (this.#isBusy() ? wait() : callback()), 0);
+        };
+        this.element?.addEventListener("focusout", done, { once: true });
+        this.element?.addEventListener("close", done, { once: true });
+      };
+      wait();
     }
   });
+
+  /**
+   * Typing in one of this sheet's fields, or the Notes editor open (3.712.0):
+   * a live render would replace it and lose what was typed.
+   */
+  #isBusy() {
+    const root = this.element;
+    if (!root) return false;
+    if (root.querySelector("prose-mirror[open], prose-mirror.active")) return true;
+    const active = globalThis.document?.activeElement;
+    return Boolean(active && root.contains(active)
+      && (active.isContentEditable || (active.matches?.("input, textarea, select") && !active.disabled)));
+  }
 
   /** Called by the shared registry when a member (or an adversary) changes. */
   onPartyDocumentChanged() {
@@ -330,6 +384,148 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     // previous set; it never accumulates.
     partyLiveSync().watch(this, this.#watchKeys);
     this.#wireInventoryFilter();
+    this.#wireSkillFilter();
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* The Skills page (3.712.0, Stage 5)                               */
+  /* ---------------------------------------------------------------- */
+
+  /** The member order and the skill filter, kept across renders. */
+  #skillSort = "asc";
+  #skillFilter = "";
+
+  /** The skill filter hides columns in place, as the inventory's does rows. */
+  #wireSkillFilter() {
+    const root = this.element;
+    const input = root?.querySelector("[data-skill-filter]");
+    if (!input) return;
+    const columns = skillColumns();
+    const apply = () => {
+      this.#skillFilter = input.value ?? "";
+      let shown = 0;
+      for (const column of columns) {
+        const visible = matchesSkillFilter(column, this.#skillFilter);
+        if (visible) shown += 1;
+        for (const el of root.querySelectorAll(`[data-skill-col="${column.key}"]`)) el.hidden = !visible;
+      }
+      const none = root.querySelector("[data-skill-none]");
+      if (none) none.hidden = shown > 0;
+    };
+    input.addEventListener("input", apply);
+    apply();
+  }
+
+  /** Member names, A–Z or Z–A. */
+  static async sortSkills(event) {
+    event.preventDefault();
+    this.#skillSort = this.#skillSort === "asc" ? "desc" : "asc";
+    return this.render();
+  }
+
+  /**
+   * A MODIFIER CLICKED IS THE MEMBER'S OWN ROLL: the character sheet's
+   * `rollSkill`, with its action chooser, its check dialog and everything
+   * after. Nothing here adds to or works out the check.
+   */
+  static async rollMemberSkill(event, target) {
+    event.preventDefault();
+    const uuid = target.closest("[data-uuid]")?.dataset?.uuid;
+    const key = target.dataset.skill;
+    const member = uuid ? await fromUuid(uuid).catch(() => null) : null;
+    if (!member || !key) {
+      ui.notifications?.warn("That member is no longer available.");
+      return null;
+    }
+    if (!game.user.isGM && !member.isOwner) {
+      ui.notifications?.warn(`You do not control ${member.name}.`);
+      return null;
+    }
+    const sheet = member.sheet;
+    const roll = sheet?.constructor?.rollSkill;
+    if (typeof roll !== "function") {
+      ui.notifications?.warn(`${member.name}'s sheet has no skill roll.`);
+      return null;
+    }
+    return roll.call(sheet, event, { dataset: { skill: key } });
+  }
+
+  /**
+   * THE GROUP CHECK (3.712.0, Stage 5; the GM). The skill, the members, a DC
+   * and difficulty, and the visibility, chosen in one dialog; then each
+   * member's own check through TRGCheck, and a summary in the same
+   * visibility. No member is changed by the check itself.
+   */
+  static async groupCheck(event) {
+    event.preventDefault();
+    if (!game.user.isGM) return;
+    await runOnce(TRGPartySheet.#running, `${this.actor.uuid}:groupCheck`, async () => {
+      const members = (await this.#participants()).actors;
+      if (!members.length) {
+        ui.notifications?.warn(`${this.actor.name} has no members to check.`);
+        return null;
+      }
+      const choice = await TRGPartySheet.#chooseGroupCheck(this.actor.name, members);
+      if (!choice) return null;
+      const plan = planGroupCheck({ ...choice, members: members.filter((a) => choice.uuids.includes(a.uuid)) });
+      if (!plan.ok) {
+        ui.notifications?.warn(`Group Check: ${plan.reason}.`);
+        return null;
+      }
+      return rollGroupCheck(plan, {
+        roll: (config) => TRGCheck.roll(config),
+        post: (content, rollMode) => {
+          const data = { content, speaker: { alias: this.actor.name } };
+          if (rollMode) applyMessageMode(data, rollMode);
+          return ChatMessage.create(data);
+        },
+        partyName: this.actor.name,
+        offerConditionals: choice.offerConditionals
+      });
+    });
+  }
+
+  static async #chooseGroupCheck(partyName, members) {
+    const skills = skillColumns().map((c) => `<option value="${c.key}">${escape(c.label)}</option>`).join("");
+    const ticks = members.map((a) => `<label class="checkbox"><input type="checkbox" name="m" value="${a.uuid}" checked> ${escape(a.name)}</label>`).join("");
+    const levels = difficultyOptions().map((d) => `<option value="${d.key}"${d.selected ? " selected" : ""}>${escape(d.label)}</option>`).join("");
+    const current = game.settings.get("core", "messageMode");
+    const modes = Object.entries(CONFIG.ChatMessage?.modes ?? {}).map(([key, label]) =>
+      `<option value="${key}"${key === current ? " selected" : ""}>${escape(game.i18n.localize(label?.label ?? label))}</option>`).join("");
+    const result = await DialogV2.wait({
+      window: { title: "Group Check", icon: "fa-solid fa-people-group" },
+      classes: ["trg-prime"],
+      position: { width: 420 },
+      content: `<div class="trg-prime trg-check-dialog">
+        <p class="hint">Each chosen member of ${escape(partyName)} rolls their own check, with their own modifiers. The rules set no group result: the card lists each one.</p>
+        <div class="form-group"><label>Skill</label><select name="skill">${skills}</select></div>
+        <div class="form-group stacked"><label>Members</label>${ticks}</div>
+        <div class="form-group"><label>DC</label><input type="number" name="dc" placeholder="None" step="1"></div>
+        <div class="form-group"><label>Difficulty</label><select name="difficulty">${levels}</select></div>
+        <div class="form-group"><label>Visibility</label><select name="rollMode">${modes}</select></div>
+        <label class="checkbox"><input type="checkbox" name="offer" checked> Ask about each member's optional bonuses</label>
+      </div>`,
+      buttons: [
+        {
+          action: "confirm", label: "Roll", icon: "fa-solid fa-dice-d20", default: true,
+          callback: (e, button) => {
+            const f = button.form;
+            return {
+              skill: f.elements.namedItem("skill")?.value,
+              uuids: [...f.querySelectorAll('input[name="m"]:checked')].map((i) => i.value),
+              dc: f.elements.namedItem("dc")?.value ?? "",
+              difficulty: f.elements.namedItem("difficulty")?.value,
+              rollMode: f.elements.namedItem("rollMode")?.value,
+              offerConditionals: f.elements.namedItem("offer")?.checked === true
+            };
+          }
+        },
+        { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark" }
+      ],
+      rejectClose: false
+    });
+    if (!result || result === "cancel") return null;
+    return result;
   }
 
   /* ---------------------------------------------------------------- */
@@ -989,18 +1185,100 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   /* ---------------------------------------------------------------- */
 
   /** The controlled tokens' creatures join the encounter. */
+  /**
+   * ADD SELECTED TOKENS (3.619.0; improved 3.712.0, Stage 5). Through the
+   * same import as a combat: a party member is never offered, each creature
+   * is counted once per token and once only, and the GM sees the list first.
+   */
   static async addSelectedTokens(event) {
     event.preventDefault();
     if (!game.user.isGM) return;
-    const uuids = (canvas?.tokens?.controlled ?? [])
-      .map((token) => token.actor)
-      .filter((actor) => actor && actor.type !== PARTY_TYPE)
-      .map((actor) => actor.uuid);
-    if (!uuids.length) {
+    const tokens = (canvas?.tokens?.controlled ?? []).map((t) => t.document).filter(Boolean);
+    if (!tokens.length) {
       ui.notifications?.warn("Select the adversaries' tokens first.");
       return;
     }
-    await addEncounterCreatures(this.actor, uuids);
+    await runOnce(TRGPartySheet.#running, `${this.actor.uuid}:encounter`, () => this.#importSources(
+      tokens.map((token) => ({ tokenUuid: token.uuid, token, name: token.name, hidden: token.hidden, defeated: false })),
+      "Add Selected Tokens"
+    ));
+  }
+
+  /**
+   * IMPORT A COMBAT (3.712.0, Stage 5): the active combat, or another
+   * chosen from the world's combats; its combatants, as the import list.
+   * Nothing in the combat, the scene or the world is changed.
+   */
+  static async importCombat(event) {
+    event.preventDefault();
+    if (!game.user.isGM) return;
+    await runOnce(TRGPartySheet.#running, `${this.actor.uuid}:encounter`, async () => {
+      const combats = Array.from(game.combats ?? []);
+      if (!combats.length) {
+        ui.notifications?.warn("There is no combat to import.");
+        return null;
+      }
+      let combat = game.combat ?? combats[0];
+      if (combats.length > 1) {
+        const options = combats.map((c) => `<option value="${c.id}"${c.id === combat?.id ? " selected" : ""}>${escape(c.scene?.name ?? "No scene")} — ${c.combatants.size} combatant${c.combatants.size === 1 ? "" : "s"}${c.active ? " (active)" : ""}</option>`).join("");
+        const id = await DialogV2.wait({
+          window: { title: "Import Combat", icon: "fa-solid fa-shield-halved" },
+          classes: ["trg-prime"],
+          position: { width: 380 },
+          content: `<div class="trg-prime trg-check-dialog"><div class="form-group stacked"><label>Which combat?</label><select name="combat">${options}</select></div></div>`,
+          buttons: [
+            { action: "confirm", label: "Choose", icon: "fa-solid fa-check", default: true, callback: (e, button) => button.form.elements.namedItem("combat")?.value },
+            { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark" }
+          ],
+          rejectClose: false
+        });
+        if (!id || id === "cancel") return null;
+        combat = game.combats.get(id);
+      }
+      if (!combat) return null;
+      const sources = Array.from(combat.combatants ?? []).map((c) => ({
+        tokenUuid: c.token?.uuid ?? `Combatant.${c.id}`,
+        token: c.token ?? null,
+        name: c.name,
+        hidden: c.hidden === true || c.token?.hidden === true,
+        defeated: c.isDefeated === true
+      }));
+      return this.#importSources(sources, "Import Combat");
+    });
+  }
+
+  /** The import list, the GM's ticks, and the write. */
+  async #importSources(sources, title) {
+    const encounter = normaliseEncounter(this.actor.system?.encounter);
+    const { rows, missing } = encounterCandidates(sources, {
+      members: normaliseMembers(this.actor.system?.members), encounter,
+      friendly: CONST.TOKEN_DISPOSITIONS?.FRIENDLY ?? 1
+    });
+    if (!rows.length) {
+      ui.notifications?.warn(missing.length ? `Nothing to import: ${missing.length} token${missing.length === 1 ? " is" : "s are"} missing.` : "Nothing to import: every token is a party member.");
+      return null;
+    }
+    const list = rows.map((r, i) => `<label class="checkbox party-import-row"><input type="checkbox" name="r" value="${i}"${r.ticked ? " checked" : ""}${r.blocked ? " disabled" : ""}>
+      ${r.img ? `<img src="${escape(r.img)}" alt="">` : ""} ${escape(r.name)}${r.hidden ? ' <i class="fa-solid fa-eye-slash" data-tooltip="Hidden"></i>' : ""}
+      ${r.reasons.length ? `<span class="hint">(${escape(r.reasons.join("; "))})</span>` : ""}</label>`).join("");
+    const picked = await DialogV2.wait({
+      window: { title, icon: "fa-solid fa-dragon" },
+      classes: ["trg-prime"],
+      position: { width: 440 },
+      content: `<div class="trg-prime trg-check-dialog">
+        <p class="hint">Party members are left out. Defeated and friendly start unticked. A creature already imported from the same token is not counted again.</p>
+        <div class="form-group stacked">${list}</div>
+        ${missing.length ? `<p class="hint">Skipped, no longer on the scene: ${escape(missing.join(", "))}.</p>` : ""}</div>`,
+      buttons: [
+        { action: "confirm", label: "Import", icon: "fa-solid fa-check", default: true, callback: (e, button) => [...button.form.querySelectorAll('input[name="r"]:checked')].map((i) => Number(i.value)) },
+        { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark" }
+      ],
+      rejectClose: false
+    });
+    if (!Array.isArray(picked) || !picked.length) return null;
+    const result = await importEncounterPicks(this.actor, picked.map((i) => rows[i]).filter(Boolean));
+    ui.notifications?.info(`Encounter: ${result.added} added${result.skipped ? `, ${result.skipped} already counted` : ""}.`);
+    return result;
   }
 
   static async removeEncounterCreature(event, target) {
@@ -1010,9 +1288,19 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     if (uuid) await setEncounterCount(this.actor, uuid, 0);
   }
 
+  /**
+   * CLEAR (3.712.0: asked first). The party's list only: no actor, token or
+   * combat is deleted.
+   */
   static async clearEncounter(event) {
     event.preventDefault();
     if (!game.user.isGM) return;
+    const ok = await DialogV2.confirm({
+      window: { title: "Clear Encounter" },
+      content: "<p>Remove every adversary from this party's encounter list? No actor, token or combat is deleted.</p>",
+      rejectClose: false
+    });
+    if (!ok) return;
     await this.actor.update({ "system.encounter.creatures": [] });
   }
 
@@ -1128,6 +1416,21 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     await runOnce(TRGPartySheet.#running, `${this.actor.uuid}:session`, () => beginSession(this.actor));
   }
 
+  /**
+   * ONE FIELD CHANGED, ONE FIELD WRITTEN (3.712.0, Stage 5). The sheet
+   * submits on change, and a whole-form submit sends every field as the
+   * sheet last drew it. With the Notes editor open, live renders wait (they
+   * would lose the typing), so the drawn treasury could be stale: saving the
+   * notes would then write the old coin back over a transfer made meanwhile.
+   * A change submits only the field that changed.
+   */
+  _processFormData(event, form, formData) {
+    const data = super._processFormData(event, form, formData);
+    const name = event?.type === "change" ? event.target?.name : null;
+    if (!name || !foundry.utils.hasProperty(data, name)) return data;
+    return foundry.utils.expandObject({ [name]: foundry.utils.getProperty(data, name) });
+  }
+
   /** A creature's count is typed on the Rewards tab, not submitted with the form. */
   _onChangeForm(formConfig, event) {
     // Unnamed inputs, so the form never submits them as actor fields.
@@ -1139,6 +1442,7 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     }
     if (input?.dataset?.customXp !== undefined) return;
     if (input?.dataset?.inventorySearch !== undefined || input?.dataset?.inventoryType !== undefined) return;
+    if (input?.dataset?.skillFilter !== undefined) return;
     return super._onChangeForm(formConfig, event);
   }
 

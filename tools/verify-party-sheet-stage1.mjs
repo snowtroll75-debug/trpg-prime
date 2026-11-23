@@ -397,7 +397,8 @@ const RWS = strip(read("module", "party-rewards-workflow.mjs"));
   ok("T2 the nav uses Foundry's tab action, inside a .tabs container", /<nav class="sheet-tabs tabs" data-group="primary"/.test(HBS) && /data-action="tab"/.test(HBS));
   ok("T3 a click on the tab's icon or label still changes tab", /_onClickTab\(event\) \{\s*const button = event\.target\?\.closest\?\.\("\[data-tab\]"\);/.test(SHEET));
   ok("T4 changeTab is Foundry's, with the aria state kept in step", /changeTab\(tab, group, options = \{\}\) \{\s*super\.changeTab\(tab, group, options\);/.test(SHEET));
-  ok("T5 each panel is still a .tab with its group, as changeTab finds them", (HBS.match(/class="tab sheet-tab-panel/g) ?? []).length === 3);
+  // Re-anchored 3.712.0 (Stage 5), same meaning: five panels now (Skills and Notes built).
+  ok("T5 each panel is still a .tab with its group, as changeTab finds them", (HBS.match(/class="tab sheet-tab-panel/g) ?? []).length === 5);
   ok("T6 scroll positions survive a live re-render", /scrollable: \['section\[data-tab="roster"\]'/.test(SHEET));
   ok("T7 the three tabs are still declared", /\{ id: "roster"/.test(SHEET) && /\{ id: "loot"/.test(SHEET) && /\{ id: "rewards"/.test(SHEET));
 }
@@ -487,8 +488,8 @@ const RWS = strip(read("module", "party-rewards-workflow.mjs"));
 /* ------------------------------------------------------------ Z. version */
 {
   const sys = JSON.parse(read("system.json"));
-  equal("Z1 the version is 3.711.1 (3.708.1 or later), the download names it, and package.json agrees",
-    [sys.version, sys.download.includes("/v3.711.1/"), JSON.parse(read("package.json")).version], ["3.711.1", true, "3.711.1"]);
+  equal("Z1 the version is 3.712.0 (3.708.1 or later), the download names it, and package.json agrees",
+    [sys.version, sys.download.includes("/v3.712.0/"), JSON.parse(read("package.json")).version], ["3.712.0", true, "3.712.0"]);
   ok("Z2 the manifest URL is unchanged", sys.manifest === "https://raw.githubusercontent.com/snowtroll75-debug/trpg-prime/main/system.json");
 }
 

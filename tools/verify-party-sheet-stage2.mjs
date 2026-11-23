@@ -194,7 +194,9 @@ const speedOf = (a) => Number(a.system?.combat?.movement?.land?.total ?? 0);
     ok("G2 Begin Session on the toolbar is the GM's", gm > 0 && bar.indexOf('data-action="beginSession"') > gm); }
   ok("G3 the tabs are Overview, Inventory and Encounter (ids unchanged)",
     /\{ id: "roster", icon: "fa-solid fa-users", label: "Overview" \}/.test(SHEET) && /\{ id: "loot", icon: "fa-solid fa-sack-dollar", label: "Inventory" \}/.test(SHEET) && /label: "Encounter" \}/.test(SHEET));
-  ok("G4 no Skills or Notes tab before they are built (Graham)", !/id: "skills"|id: "notes"/.test(SHEET) && !/data-tab="skills"|data-tab="notes"/.test(HBS));
+  // Re-anchored 3.712.0 (Stage 5): Graham's rule was "add each tab when it is
+  // built". Stage 5 builds them, so each declared tab now has its panel.
+  ok("G4 each tab is added when it is built: Skills and Notes, each declared with its panel (Graham)", /id: "skills"/.test(SHEET) && /id: "notes"/.test(SHEET) && /data-tab="skills"/.test(HBS) && /data-tab="notes"/.test(HBS));
   ok("G5 only helpers Foundry v14 registers (no `array`)", !/\(array /.test(HBS));
   ok("G6 nested blocks read the member through its block parameter, not ../m", !/\.\.\/m\./.test(HBS));
   for (const r of ["hp", "pp"]) ok(`G7 the ${r} steppers are inside a GM block`, new RegExp(`\\{\\{#if m\\.controls\\.gm\\}\\}<span class="party-steppers">\\s*<button[^>]*data-resource="${r}"`).test(HBS));
@@ -283,8 +285,8 @@ const speedOf = (a) => Number(a.system?.combat?.movement?.land?.total ?? 0);
 /* ------------------------------------------------------------ Z. version */
 {
   const sys = JSON.parse(read("system.json"));
-  equal("Z1 the version is 3.711.1 (3.709.1 or later), the download names it, and package.json agrees",
-    [sys.version, sys.download.includes("/v3.711.1/"), JSON.parse(read("package.json")).version], ["3.711.1", true, "3.711.1"]);
+  equal("Z1 the version is 3.712.0 (3.709.1 or later), the download names it, and package.json agrees",
+    [sys.version, sys.download.includes("/v3.712.0/"), JSON.parse(read("package.json")).version], ["3.712.0", true, "3.712.0"]);
 }
 
 if (failures.length) {

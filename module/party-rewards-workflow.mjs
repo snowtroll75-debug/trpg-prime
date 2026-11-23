@@ -21,7 +21,17 @@ import {
 import { PARTY_TYPE } from "./party.mjs";
 import { MEMBER_STATUS, activeMembers, liveResolvers, resolveActorUuids, resolvePartyRoster } from "./party-members.mjs";
 
-/** The stored encounter, cleaned up: `{threat, creatures: [{uuid, count}]}`. */
+/**
+ * THE ENCOUNTER'S STORAGE VERSION (3.712.0, Stage 5). Version 1 stored
+ * `{threat, creatures: [{uuid, count}]}`. Version 2 adds, per creature, the
+ * `tokens` an import counted it from, so importing the same combat or the
+ * same selection twice adds nothing the second time. A version 1 encounter
+ * reads as version 2 with no tokens recorded: nothing in it is changed,
+ * and it is written as version 2 the next time the GM changes it.
+ */
+export const ENCOUNTER_VERSION = 2;
+
+/** The stored encounter, cleaned up: `{version, threat, creatures: [{uuid, count, tokens}]}`. */
 export function normaliseEncounter(raw) {
   const threat = threatLevel(raw?.threat) ? raw.threat : "medium";
   const seen = new Map();
@@ -29,9 +39,128 @@ export function normaliseEncounter(raw) {
     const uuid = String(entry?.uuid ?? "").trim();
     if (!uuid) continue;
     const count = Math.max(1, Math.floor(Number(entry?.count) || 1));
-    seen.set(uuid, (seen.get(uuid) ?? 0) + count);
+    const tokens = (Array.isArray(entry?.tokens) ? entry.tokens : []).map((t) => String(t ?? "").trim()).filter(Boolean);
+    const held = seen.get(uuid);
+    if (held) {
+      held.count += count;
+      for (const t of tokens) if (!held.tokens.includes(t)) held.tokens.push(t);
+    } else {
+      seen.set(uuid, { uuid, count, tokens: [...new Set(tokens)] });
+    }
   }
-  return { threat, creatures: [...seen].map(([uuid, count]) => ({ uuid, count })) };
+  return { version: ENCOUNTER_VERSION, threat, creatures: [...seen.values()] };
+}
+
+/* ------------------------------------------------------------------ */
+/* Importing adversaries (3.712.0, Stage 5)                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * WHICH CREATURE A TOKEN IS: its actor's UUID. A linked token's actor is
+ * the world actor, so two linked tokens of one actor are one creature. An
+ * unlinked token's actor is its own synthetic one (`Scene.….Token.….Actor.…`),
+ * so three unlinked goblins are three. This is the identity the encounter
+ * stores.
+ */
+export function tokenIdentity(token) {
+  const actor = token?.actor ?? null;
+  if (!actor) return null;
+  // A linked token's actor IS the world actor; an unlinked one's is synthetic.
+  return actor.uuid;
+}
+
+/**
+ * The import list: one row per token or combatant, with why a row is
+ * not ticked. Graham's ruling (23 Nov 2026): defeated and Friendly start
+ * unticked; hidden adversaries are included (the page is the GM's); a party
+ * member is never offered.
+ *
+ * @param {Array<{tokenUuid: string, token: object|null, name?: string, defeated?: boolean, hidden?: boolean}>} sources
+ * @param {object} options
+ * @param {string[]} options.members the party's member UUIDs
+ * @param {object} options.encounter the normalised encounter
+ * @param {number} [options.friendly] the Friendly disposition value (CONST.TOKEN_DISPOSITIONS.FRIENDLY)
+ */
+export function encounterCandidates(sources = [], { members = [], encounter = { creatures: [] }, friendly = 1 } = {}) {
+  const memberSet = new Set(members);
+  const rows = [];
+  const missing = [];
+  const seenIdentity = new Set();
+  for (const source of sources) {
+    const token = source?.token ?? null;
+    const actor = token?.actor ?? null;
+    if (!token || !actor) { missing.push(source?.name || "a token that no longer exists"); continue; }
+    const identity = tokenIdentity(token);
+    const base = actor.token ? actor.baseActor?.uuid ?? null : actor.uuid;
+    const isMember = memberSet.has(identity) || memberSet.has(actor.uuid) || (token.actorLink && base && memberSet.has(base));
+    if (isMember || actor.type === "party") continue;
+    const entry = encounter.creatures.find((e) => e.uuid === identity);
+    const counted = Boolean(entry?.tokens?.includes(source.tokenUuid));
+    // A linked actor already in the list is that creature already, however it got there.
+    const sameCreature = Boolean(entry) && identity === base;
+    const handAdded = !entry && Boolean(base) && encounter.creatures.some((e) => e.uuid === base && !(e.tokens?.length));
+    const disposition = Number(token.disposition ?? token.document?.disposition);
+    const reasons = [];
+    if (counted) reasons.push("already imported");
+    else if (sameCreature) reasons.push("already in the encounter");
+    if (seenIdentity.has(identity)) reasons.push("another token of the same creature");
+    if (source.defeated) reasons.push("defeated");
+    if (disposition === friendly) reasons.push("friendly");
+    if (handAdded) reasons.push(`${actor.name} is in the encounter already, added by hand`);
+    seenIdentity.add(identity);
+    rows.push({
+      tokenUuid: source.tokenUuid,
+      uuid: identity,
+      linked: identity === base,
+      name: source.name || token.name || actor.name,
+      img: actor.img ?? null,
+      hidden: Boolean(source.hidden),
+      defeated: Boolean(source.defeated),
+      ticked: reasons.length === 0,
+      blocked: counted || sameCreature,
+      reasons
+    });
+  }
+  return { rows, missing };
+}
+
+/**
+ * The encounter after an import. Each picked token is recorded on its
+ * creature; a creature is added, or counted once more, only for a token
+ * not seen before. An entry is never removed or lowered by an import.
+ *
+ * @returns {{encounter: object, added: number, skipped: number}}
+ */
+export function mergeEncounterImport(encounter, picks = []) {
+  const out = normaliseEncounter(encounter);
+  let added = 0;
+  let skipped = 0;
+  for (const pick of picks) {
+    const uuid = String(pick?.uuid ?? "").trim();
+    const tokenUuid = String(pick?.tokenUuid ?? "").trim();
+    if (!uuid || !tokenUuid) { skipped += 1; continue; }
+    const entry = out.creatures.find((e) => e.uuid === uuid);
+    if (!entry) {
+      out.creatures.push({ uuid, count: 1, tokens: [tokenUuid] });
+      added += 1;
+    } else if (entry.tokens.includes(tokenUuid) || pick.linked) {
+      // The same token twice, or another token of a linked actor already here.
+      if (!entry.tokens.includes(tokenUuid)) entry.tokens.push(tokenUuid);
+      skipped += 1;
+    } else {
+      entry.tokens.push(tokenUuid);
+      entry.count += 1;
+      added += 1;
+    }
+  }
+  return { encounter: out, added, skipped };
+}
+
+/** Write an import. Returns what was added and skipped. */
+export async function importEncounterPicks(party, picks = []) {
+  const { encounter, added, skipped } = mergeEncounterImport(party.system?.encounter, picks);
+  if (added) await party.update({ "system.encounter": encounter });
+  return { added, skipped };
 }
 
 /**
@@ -72,6 +201,8 @@ export async function rewardsContext(party, { members = null } = {}) {
     creatures.push({
       uuid: entry.uuid,
       count: entry.count,
+      // How many tokens an import counted it from (version 2), for the GM's tooltip.
+      tokens: encounter.creatures.find((e) => e.uuid === uuid)?.tokens?.length ?? 0,
       missing: !actor,
       name: actor?.name ?? "(missing actor)",
       img: actor?.img ?? null,
@@ -99,13 +230,13 @@ export async function rewardsContext(party, { members = null } = {}) {
   };
 }
 
-/** Add creatures (by uuid) to the encounter. */
+/** Add creatures (by uuid) to the encounter: an actor dropped on the tab. */
 export async function addEncounterCreatures(party, uuids = []) {
   const encounter = normaliseEncounter(party.system?.encounter);
   for (const uuid of uuids) {
     const existing = encounter.creatures.find((entry) => entry.uuid === uuid);
     if (existing) existing.count += 1;
-    else encounter.creatures.push({ uuid, count: 1 });
+    else encounter.creatures.push({ uuid, count: 1, tokens: [] });
   }
   await party.update({ "system.encounter": encounter });
 }
