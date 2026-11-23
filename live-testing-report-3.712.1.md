@@ -37,7 +37,11 @@ These are the checks the final report listed as still unverified.
 
 - **First GM's client (before the hand-over):** the party, the combat, the 2 tokens, the temporary NPC and all new messages were deleted. The five actors, XP included, were restored from snapshots and compare equal. 5 actors, 209 messages, 0 combats, 0 items, world time 36.
 - **Second GM's client (after the hand-over):** its temporary party, Kharon's arrows and its messages were deleted. 5 actors, 209 messages.
-- **Console:** no errors on either client.
+- **Console:** none on the first GM's client. On the second GM's client, one error from Foundry's own notification code: `#postNotification`, "Cannot set properties of null (setting 'hidden')".
+  - **When:** as the refusal in test 5 ("Party: that item is no longer in the party inventory") was posted, so that warning didn't appear on screen.
+  - **What it isn't:** the transfer result itself was correct and returned.
+  - **Likely cause:** the browser pane was in the background, which Foundry's notification area may not handle. The same kind of warning displayed normally for the player in the 3.711.0 and 3.711.1 tests.
+  - **Not changed:** this isn't TRG Prime code, and I haven't changed anything for it.
 
 ## Not covered
 
