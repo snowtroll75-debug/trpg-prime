@@ -6,6 +6,27 @@
       "companion": "Animal Companion",
       "familiar": "Familiar",
       "party": "Party"
+    },
+    "Item": {
+      "weapon": "Weapon",
+      "armour": "Armour",
+      "shield": "Shield",
+      "gear": "Gear",
+      "consumable": "Consumable",
+      "ammunition": "Ammunition",
+      "spell": "Spell",
+      "feat": "Feat",
+      "ability": "Ability",
+      "skill": "Skill",
+      "class": "Class",
+      "race": "Race",
+      "heritage": "Heritage",
+      "background": "Background",
+      "origin": "Origin",
+      "divine-aspect": "Divine Aspect",
+      "wizard-school": "Wizard School",
+      "affliction": "Affliction",
+      "creature-type": "Creature Type"
     }
   },
   "TRGPrime": {

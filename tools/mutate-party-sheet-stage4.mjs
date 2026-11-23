@@ -54,6 +54,10 @@ const MUTATIONS = [
   { name: "the search box writes to the actor", file: H, from: "<input type=\"search\" data-inventory-search data-player-ok", to: "<input type=\"search\" name=\"system.details.notes\" data-inventory-search data-player-ok", breaks: "U3" },
   { name: "any player opens any item", file: SH, from: "    if (!game.user.isGM && item.testUserPermission?.(game.user, \"OBSERVER\") !== true) {", to: "    if (false) {", breaks: "U5" },
   { name: "Split Coin is offered to players", file: H, from: "<button type=\"button\" data-action=\"splitCoin\">", to: "<button type=\"button\" data-player-ok data-action=\"splitCoin\">", breaks: "U2" },
+  { name: "LIVE: a player's drop is ignored again", file: SH, from: "  _canDragDrop(selector) {\n    return true;\n  }", to: "  _canDragDrop(selector) {\n    return this.isEditable;\n  }", breaks: "L1" },
+  { name: "LIVE: the deposit chooser reads elements.item", file: SH, from: "button.form.elements.namedItem(\"depositItem\")?.value", to: "button.form.elements.item.value", breaks: "L2" },
+  { name: "LIVE: the GM's Give reads as taken", file: E, from: "  const given = request.origin === \"drag\" || requesterIsGM;", to: "  const given = request.origin === \"drag\";", breaks: "G4b" },
+  { name: "LIVE: the raw key shows as the type", file: SH, from: "return label && label !== key ? label : type.charAt(0).toUpperCase() + type.slice(1);", to: "return label;", breaks: "L4" },
   { name: "the override is not limited to the GM in the chooser", file: SH, from: "override: picked.override && isGM", to: "override: picked.override", breaks: "U6" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-party-sheet-stage4.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }

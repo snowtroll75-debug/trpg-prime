@@ -234,6 +234,7 @@ const conserved = (label) => equal(`${label} — conservation: every item and ev
   const r3 = await run({ kind: "withdraw", itemUuid: "Actor.Party.Item.potion", quantity: 1, destUuid: "Actor.Out", userId: "gm", override: true });
   equal("G3 the GM, with the override, gives the potion to Out", [r3.ok, rowsOf(out, "Potion")], [true, 1]);
   ok("G4 ...and the card says it went outside the party", /outside the party/.test(announced.at(-1)), announced.at(-1));
+  ok("G4b the GM's Give reads as given, not taken (3.711.1, found live)", /Out<\/strong> was given <strong>Test|Out<\/strong> was given <strong>Potion/.test(announced.at(-1)) && /Given from the party/.test(announced.at(-1)), announced.at(-1));
   const r4 = await run({ kind: "deposit", itemUuid: "Actor.Out.Item.gem", quantity: 1, userId: "gm" });
   equal("G5 the GM may deposit from anyone", [r4.ok, rowsOf(party, "Gem")], [true, 1]);
   equal("G6 the GM gives to an NPC member", (await run({ kind: "withdraw", itemUuid: [...party.items].find((i) => i.name === "Gem").uuid, quantity: 1, destUuid: "Actor.Hen", userId: "gm" })).ok, true);
@@ -519,11 +520,23 @@ const conserved = (label) => equal(`${label} — conservation: every item and ev
   ok("U14 the deposit button, the treasury buttons and the drop strip are offered only when this user has a member to act for", /canDeposit: myMembers\.length > 0/.test(SHEET) && /\{\{#if inventory\.members\.length\}\}/.test(HBS) && /members: isGM \? myMembers : \[\]/.test(SHEET));
 }
 
+/* ------------------------------------------------------------ L. found live on 3.711.0, fixed in 3.711.1 */
+{
+  const SHEET = strip(read("module", "sheets", "party-sheet.mjs"));
+  const LANG = JSON.parse(read("lang", "en.json"));
+  ok("L1 a player's drop reaches the sheet: drops are heard from everyone, and _onDrop decides", /_canDragDrop\(selector\) \{\s*return true;\s*\}/.test(SHEET)
+    && /if \(!isGM && !holder\.isOwner\) \{/.test(SHEET) && /Only the GM can change the party roster/.test(SHEET));
+  ok("L2 the deposit chooser reads its field by name, not the collection's item() method", /<select name="depositItem">/.test(SHEET) && /button\.form\.elements\.namedItem\("depositItem"\)\?\.value/.test(SHEET) && !/elements\.item\b/.test(SHEET));
+  equal("L3 every item type has a label (the inventory's Type column and the item sheet's title)",
+    JSON.parse(read("template.json")).Item.types.filter((t) => !LANG.TYPES?.Item?.[t]), []);
+  ok("L4 an unlocalised type falls back to the type, never the raw key", /return label && label !== key \? label : type\.charAt\(0\)\.toUpperCase\(\) \+ type\.slice\(1\);/.test(SHEET));
+}
+
 /* ------------------------------------------------------------ Z. the version */
 {
   const sys = JSON.parse(read("system.json"));
-  equal("Z1 the version is 3.711.0, the download names it, and package.json agrees",
-    [sys.version, sys.download.includes("/v3.711.0/"), JSON.parse(read("package.json")).version], ["3.711.0", true, "3.711.0"]);
+  equal("Z1 the version is 3.711.1, the download names it, and package.json agrees",
+    [sys.version, sys.download.includes("/v3.711.1/"), JSON.parse(read("package.json")).version], ["3.711.1", true, "3.711.1"]);
 }
 
 if (failures.length) {

@@ -520,17 +520,19 @@ async function planWithdrawal(request, party, requesterIsGM, deps) {
   if (!item || item.parent?.uuid !== party.uuid) return { ok: false, reason: "that item is no longer in the party inventory" };
   const move = planItemMove({ item, holder: party, requested: request.quantity });
   if (!move.ok) return move;
-  const verb = request.origin === "drag" ? "gave" : "took";
+  // The GM gives (Give, or a drag); a player takes (fixed 3.711.1, found
+  // live: the GM's Give read "Kharon took").
+  const given = request.origin === "drag" || requesterIsGM;
   return {
     ok: true,
     summary: `${times(move.take)}${item.name} from ${party.name} to ${dest.name}`,
     steps: itemSteps({ item, holder: party, receiver: dest, take: move.take, payload: payloadFor(item, move.take) }),
     outcome: { take: move.take, remaining: move.remaining },
     card: (who) => transferCard({
-      title: request.origin === "drag" ? "Distributed from the party" : "Taken from the party",
-      line: request.origin === "drag"
+      title: given ? "Given from the party" : "Taken from the party",
+      line: given
         ? `<strong>${dest.name}</strong> was given ${times(move.take)}<strong>${item.name}</strong> from ${party.name}.`
-        : `<strong>${dest.name}</strong> ${verb} ${times(move.take)}<strong>${item.name}</strong> from ${party.name}.`,
+        : `<strong>${dest.name}</strong> took ${times(move.take)}<strong>${item.name}</strong> from ${party.name}.`,
       who, override: allowed.override
     })
   };

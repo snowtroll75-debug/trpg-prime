@@ -54,9 +54,9 @@ const MUTATIONS = [
   { name: "the natural die not on the strike", file: AW, from: "      natural: Number(check?.dice?.unmodified ?? 0) || 0,\n      fumble: Boolean(confirmedFumble)", to: "      fumble: Boolean(confirmedFumble)" },
   { name: "the fumble not on the strike", file: AW, from: "      natural: Number(check?.dice?.unmodified ?? 0) || 0,\n      fumble: Boolean(confirmedFumble)", to: "      natural: Number(check?.dice?.unmodified ?? 0) || 0" },
   { name: "the weapon fumble not announced", file: AW, from: "      Hooks.callAll(\"trgPrimeWeaponFumble\", {", to: "      (() => ({" },
-  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.711.0\"", to: "\"version\": \"3.688.4\"" },
-  { name: "Z the download names the last release", file: SJ, from: "releases/download/v3.711.0/trg-prime.zip", to: "releases/download/v3.688.4/trg-prime.zip" },
-  { name: "Z package.json is left behind", file: PJ, from: "\"version\": \"3.711.0\"", to: "\"version\": \"3.688.4\"" }
+  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.711.1\"", to: "\"version\": \"3.688.4\"" },
+  { name: "Z the download names the last release", file: SJ, from: "releases/download/v3.711.1/trg-prime.zip", to: "releases/download/v3.688.4/trg-prime.zip" },
+  { name: "Z package.json is left behind", file: PJ, from: "\"version\": \"3.711.1\"", to: "\"version\": \"3.688.4\"" }
 ];
 
 const verify = path.join(SYSTEM_ROOT, "tools", "verify-block9b-core.mjs");

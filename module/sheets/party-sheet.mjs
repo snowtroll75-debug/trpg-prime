@@ -210,7 +210,12 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
     // THE INVENTORY PAGE (3.711.0, Stage 4): each row with its type, its
     // details from the item's own fields, and whether this user may open it.
-    const typeLabel = (type) => game.i18n?.localize?.(CONFIG.Item?.typeLabels?.[type] ?? type) ?? type;
+    const typeLabel = (type) => {
+      const key = CONFIG.Item?.typeLabels?.[type] ?? `TYPES.Item.${type}`;
+      const label = game.i18n?.localize?.(key);
+      // An unlocalised key reads as the key itself; show the type instead.
+      return label && label !== key ? label : type.charAt(0).toUpperCase() + type.slice(1);
+    };
     loot.rows = loot.rows.map((row) => {
       const item = actor.items.get(row.id);
       return {
@@ -728,6 +733,18 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     return super._onDropItem(event, item);
   }
 
+  /**
+   * DROPS ARE HEARD FROM EVERYONE (3.711.1, found live on 3.711.0). Foundry
+   * lets only those who can edit a sheet drop on it, and a player has
+   * Observer on the party, so a player's drag-to-deposit was silently
+   * ignored. `_onDrop` decides what each drop may do, for whom: a player's
+   * actor drop is refused, a player's item drop is a deposit through the
+   * GM's client, which checks it again.
+   */
+  _canDragDrop(selector) {
+    return true;
+  }
+
   /** A party holds no effects: it has nothing for one to change (3.708.0). */
   async _onDropActiveEffect() {
     ui.notifications?.warn("A party has no statistics for an effect to change. Drop it on a member instead.");
@@ -1231,10 +1248,13 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       classes: ["trg-prime"],
       position: { width: 380 },
       content: `<div class="trg-prime trg-check-dialog"><div class="form-group stacked"><label>Which item goes into ${escape(this.actor.name)}'s inventory?</label>
-        <select name="item">${options}</select></div>
+        <select name="depositItem">${options}</select></div>
         <p class="hint">It moves: the character no longer carries it.</p></div>`,
       buttons: [
-        { action: "confirm", label: "Choose", icon: "fa-solid fa-check", default: true, callback: (e, button) => button.form.elements.item.value },
+        // NOT `elements.item`: that is the collection's own item() method,
+        // so the choice read as undefined and nothing was deposited (found
+        // live on 3.711.0).
+        { action: "confirm", label: "Choose", icon: "fa-solid fa-check", default: true, callback: (e, button) => button.form.elements.namedItem("depositItem")?.value },
         { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark" }
       ],
       rejectClose: false
