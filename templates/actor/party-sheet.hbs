@@ -229,8 +229,27 @@
     {{!-- ---------------------------------------------------------- --}}
     <section class="tab sheet-tab-panel {{tabs.loot.cssClass}}" data-group="primary" data-tab="loot">
 
+      {{!-- UNFINISHED TRANSFERS (3.711.0, Stage 4): the GM's alone. A transfer cut off half-way (a disconnect)
+           stays in the party's journal and is shown here until the GM has checked it. --}}
+      {{#if inventory.hasPending}}
+        <article class="ornate-card party-transfer-pending">
+          <h2><i class="fa-solid fa-triangle-exclamation"></i> Unfinished Transfers</h2>
+          <p class="hint">These did not finish. Check both inventories, put them right by hand if needed, then mark each one checked.</p>
+          <ul class="party-pending-list">
+            {{#each inventory.pending as |p|}}
+              <li data-transfer-id="{{p.id}}">
+                <span><strong>{{p.summary}}</strong>{{#if p.user}} — {{p.user}}{{/if}}, {{p.when}}</span>
+                {{#if p.unresolved}}<span class="hint">{{p.unresolved}}</span>{{/if}}
+                <button type="button" data-action="resolveTransfer"><i class="fa-solid fa-check"></i> Checked</button>
+              </li>
+            {{/each}}
+          </ul>
+        </article>
+      {{/if}}
+
+      {{!-- THE TREASURY (Stage 4): balances and value; every movement goes through the GM's client. --}}
       <article class="ornate-card">
-        <h2><i class="fa-solid fa-coins"></i> Party Coin</h2>
+        <h2><i class="fa-solid fa-coins"></i> Treasury</h2>
         <div class="party-coin-row">
           {{#each coinKeys as |key|}}
             <div class="party-coin">
@@ -240,42 +259,86 @@
             </div>
           {{/each}}
           <div class="party-coin-total">
-            <label>Total</label>
+            <label>Total value</label>
             <span>{{currencyGP}} gp</span>
           </div>
         </div>
-        <button type="button" class="party-take-coin" data-player-ok data-action="takeCoin">
-          <i class="fa-solid fa-hand-holding-dollar"></i> Take Coin
-        </button>
+        <div class="party-treasury-actions">
+          {{#if treasury.canDeposit}}
+            <button type="button" data-player-ok data-action="depositCoin"><i class="fa-solid fa-piggy-bank"></i> Deposit Coin</button>
+          {{/if}}
+          {{#if treasury.canTake}}
+            <button type="button" class="party-take-coin" data-player-ok data-action="takeCoin"><i class="fa-solid fa-hand-holding-dollar"></i> Take Coin</button>
+          {{/if}}
+          {{#if treasury.canGive}}
+            <button type="button" class="party-take-coin" data-action="takeCoin"><i class="fa-solid fa-hand-holding-dollar"></i> Give Coin</button>
+          {{/if}}
+          {{#if treasury.canSplit}}
+            <button type="button" data-action="splitCoin"><i class="fa-solid fa-scale-balanced"></i> Split Coin</button>
+          {{/if}}
+        </div>
       </article>
 
       <article class="ornate-card">
-        <h2><i class="fa-solid fa-sack-dollar"></i> Party Loot
+        <h2><i class="fa-solid fa-sack-dollar"></i> Party Inventory
           <span class="hint party-loot-total">{{loot.count}} items &middot; {{loot.totalWeight}} lb</span>
         </h2>
 
+        <div class="party-inventory-tools">
+          <input type="search" data-inventory-search data-player-ok placeholder="Search by name" value="{{inventory.search}}" aria-label="Search the inventory">
+          <select data-inventory-type data-player-ok aria-label="Filter by type">
+            <option value="">All types</option>
+            {{#each inventory.types as |t|}}<option value="{{t.type}}" {{#if t.selected}}selected{{/if}}>{{t.label}}</option>{{/each}}
+          </select>
+          {{#if inventory.canDeposit}}
+            <button type="button" data-player-ok data-action="depositItem"><i class="fa-solid fa-box-archive"></i> Deposit Item</button>
+          {{/if}}
+        </div>
+
+        {{!-- THE GM'S DROP TARGETS: drag an item onto a member to give it to them (a move, never a copy). --}}
+        {{#if inventory.members.length}}
+          <div class="party-drop-strip">
+            <span class="hint">Drag an item onto a member to give it:</span>
+            {{#each inventory.members as |m|}}
+              <div class="party-drop-member" data-drop-member="{{m.uuid}}" data-tooltip="Give to {{m.name}}">
+                {{#if m.img}}<img src="{{m.img}}" alt="">{{/if}}<span>{{m.name}}</span>
+              </div>
+            {{/each}}
+          </div>
+        {{/if}}
+
         {{#if loot.empty}}
           <p class="hint party-empty">
-            {{#if isGM}}Drag gear, weapons, armour or consumables onto this sheet to add them to the pile.
-            {{else}}The party has no loot to share right now.{{/if}}
+            {{#if isGM}}Drag gear, weapons, armour or consumables onto this sheet to add them, or deposit them from a member.
+            {{else}}The party has nothing to share right now.{{#if inventory.canDeposit}} Deposit something from your character.{{/if}}{{/if}}
           </p>
         {{else}}
-          <table class="party-loot-table">
+          <table class="party-loot-table party-inventory-table">
             <thead>
-              <tr><th>Name</th><th>Qty</th><th>Wt.</th><th class="party-loot-actions"></th></tr>
+              <tr><th>Name</th><th>Type</th><th>Qty</th><th data-tooltip="Weight each / in all">Wt.</th><th>Details</th><th class="party-loot-actions"></th></tr>
             </thead>
             <tbody>
               {{#each loot.rows as |row|}}
-                <tr class="loot-row" data-item-id="{{row.id}}">
-                  <td class="loot-name"><img src="{{row.img}}" alt=""><span>{{row.name}}</span></td>
+                <tr class="loot-row" data-item-id="{{row.id}}" data-type="{{row.type}}" data-name="{{row.name}}">
+                  <td class="loot-name">
+                    {{#if row.canOpen}}
+                      <button type="button" class="party-item-link" data-player-ok data-action="openLootItem" data-tooltip="Open {{row.name}}">
+                        <img src="{{row.img}}" alt=""><span>{{row.name}}</span>
+                      </button>
+                    {{else}}<img src="{{row.img}}" alt=""><span>{{row.name}}</span>{{/if}}
+                  </td>
+                  <td>{{row.typeLabel}}</td>
                   <td>{{row.quantity}}</td>
-                  <td>{{row.totalWeight}}</td>
+                  <td>{{row.weight}}{{#if (gt row.quantity 1)}} / {{row.totalWeight}}{{/if}}</td>
+                  <td class="hint">{{row.detail}}</td>
                   <td class="party-loot-actions">
-                    <button type="button" data-player-ok data-action="takeItem" data-tooltip="Take this">
-                      <i class="fa-solid fa-hand-holding"></i>
-                    </button>
+                    {{#if ../inventory.canTake}}
+                      <button type="button" data-player-ok data-action="takeItem" data-tooltip="{{#if ../isGM}}Give to a member{{else}}Take this{{/if}}">
+                        <i class="fa-solid fa-hand-holding"></i>
+                      </button>
+                    {{/if}}
                     {{#if ../isGM}}
-                      <button type="button" data-action="deleteLoot" data-tooltip="Remove from the pile">
+                      <button type="button" data-action="deleteLoot" data-tooltip="Remove from the inventory">
                         <i class="fa-solid fa-trash"></i>
                       </button>
                     {{/if}}
@@ -284,6 +347,7 @@
               {{/each}}
             </tbody>
           </table>
+          <p class="hint party-empty" data-inventory-none hidden>Nothing matches the search.</p>
         {{/if}}
       </article>
     </section>

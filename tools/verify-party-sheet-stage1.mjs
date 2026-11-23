@@ -405,22 +405,30 @@ const RWS = strip(read("module", "party-rewards-workflow.mjs"));
 /* ------------------------------------------------------------ W. existing workflows */
 {
   // Take an item: the stack is conserved between party and character.
-  const sword = { id: "i1", name: "Sword", type: "weapon", system: { quantity: 5 }, toObject() { return { name: "Sword", type: "weapon", system: { quantity: 5 } }; } };
-  const partyItems = new Map([["i1", sword]]);
-  const party = { uuid: "Actor.P", name: "P", items: { get: (id) => partyItems.get(id) },
+  // RE-ANCHORED 3.711.0 (Stage 4), same meaning: the take now runs through
+  // the transfer engine (party-transfers.mjs), and the character must be a
+  // member of the party, as Stage 4 requires.
+  const PT = await imp("party-transfers.mjs");
+  const partyItems = new Map();
+  const party = { uuid: "Actor.P", name: "P", type: "party", flags: {}, items: { get: (id) => partyItems.get(id), [Symbol.iterator]: () => partyItems.values() },
     async updateEmbeddedDocuments(_t, rows) { for (const r of rows) partyItems.get(r._id).system.quantity = r["system.quantity"]; },
     async deleteEmbeddedDocuments(_t, ids) { for (const id of ids) partyItems.delete(id); },
-    system: { currency: { mp: 0, pp: 0, gp: 10, sp: 5, cp: 0 } }, async update(c) { Object.assign(this.system, { currency: c["system.currency"] }); } };
+    system: { members: ["Actor.H"], currency: { mp: 0, pp: 0, gp: 10, sp: 5, cp: 0 } },
+    async update(c) { if (c["system.currency"]) this.system.currency = c["system.currency"]; for (const [k, v] of Object.entries(c)) if (k.startsWith("flags.")) { this.flags["trg-prime"] = { ...(this.flags["trg-prime"] ?? {}), transferJournal: v }; } } };
+  const sword = { id: "i1", uuid: "Actor.P.Item.i1", name: "Sword", type: "weapon", parent: party, system: { quantity: 5 }, toObject() { return { name: "Sword", type: "weapon", system: { quantity: this.system.quantity } }; } };
+  partyItems.set("i1", sword);
   const created = [];
-  const hero = { uuid: "Actor.H", name: "H", items: [], async createEmbeddedDocuments(_t, rows) { created.push(...rows); },
+  const hero = { uuid: "Actor.H", name: "H", type: "character", items: [], async createEmbeddedDocuments(_t, rows) { created.push(...rows); return rows.map((r, i) => ({ id: `n${created.length}${i}` })); },
     async updateEmbeddedDocuments() {}, system: { currency: { mp: 0, pp: 0, gp: 0, sp: 0, cp: 0 } }, async update(c) { Object.assign(this.system, { currency: c["system.currency"] }); } };
-  const docs = { "Actor.P": party, "Actor.H": hero };
-  const deps = { resolve: async (u) => docs[u] ?? null, ownsActor: (a, u) => u === "p1" && a === hero, notify: () => {}, announce: async () => {} };
-  const take = await PS.performTakeItem(PS.buildTakeItemRequest({ partyUuid: "Actor.P", itemId: "i1", quantity: 2, destUuid: "Actor.H", userId: "p1" }), deps);
+  const docs = { "Actor.P": party, "Actor.H": hero, "Actor.P.Item.i1": sword };
+  const deps = { resolve: async (u) => docs[u] ?? null, ownsActor: (a, u) => u === "p1" && a === hero, isGMUser: () => false, userName: () => "",
+    writeJournal: (p, j) => p.update({ "flags.trg-prime.transferJournal": j }), announce: async () => {}, ledger: new PT.RequestLedger(), queue: new PT.PartyQueue() };
+  const req = (fields) => PT.buildTransferRequest({ partyUuid: "Actor.P", requestId: PT.newRequestId(fields.userId), ...fields });
+  const take = await PT.performTransfer(req({ kind: "withdraw", itemUuid: "Actor.P.Item.i1", quantity: 2, destUuid: "Actor.H", userId: "p1" }), deps);
   equal("W1 Take 2 of 5: 2 to the character, 3 left, 5 in all", [take.ok, created[0]?.system.quantity, partyItems.get("i1").system.quantity], [true, 2, 3]);
-  const refused = await PS.performTakeItem(PS.buildTakeItemRequest({ partyUuid: "Actor.P", itemId: "i1", quantity: 1, destUuid: "Actor.H", userId: "p2" }), deps);
+  const refused = await PT.performTransfer(req({ kind: "withdraw", itemUuid: "Actor.P.Item.i1", quantity: 1, destUuid: "Actor.H", userId: "p2" }), deps);
   equal("W2 a player taking for a character they do not own is refused, nothing moves", [refused.ok, partyItems.get("i1").system.quantity, created.length], [false, 3, 1]);
-  const coin = await PS.performTakeCoin(PS.buildTakeCoinRequest({ partyUuid: "Actor.P", coin: { gp: 4 }, destUuid: "Actor.H", userId: "p1" }), deps);
+  const coin = await PT.performTransfer(req({ kind: "coinTake", coin: { gp: 4 }, destUuid: "Actor.H", userId: "p1" }), deps);
   equal("W3 Take Coin: 4 gp moves, 10 gp in all", [coin.ok, hero.system.currency.gp, party.system.currency.gp], [true, 4, 6]);
   const twoGMs = [PS.shouldHandleAsGM({ id: "g1", isGM: true }, { id: "g1" }), PS.shouldHandleAsGM({ id: "g2", isGM: true }, { id: "g1" })];
   equal("W4 with two GMs connected exactly one carries a take out", twoGMs, [true, false]);
@@ -479,8 +487,8 @@ const RWS = strip(read("module", "party-rewards-workflow.mjs"));
 /* ------------------------------------------------------------ Z. version */
 {
   const sys = JSON.parse(read("system.json"));
-  equal("Z1 the version is 3.710.3 (3.708.1 or later), the download names it, and package.json agrees",
-    [sys.version, sys.download.includes("/v3.710.3/"), JSON.parse(read("package.json")).version], ["3.710.3", true, "3.710.3"]);
+  equal("Z1 the version is 3.711.0 (3.708.1 or later), the download names it, and package.json agrees",
+    [sys.version, sys.download.includes("/v3.711.0/"), JSON.parse(read("package.json")).version], ["3.711.0", true, "3.711.0"]);
   ok("Z2 the manifest URL is unchanged", sys.manifest === "https://raw.githubusercontent.com/snowtroll75-debug/trpg-prime/main/system.json");
 }
 

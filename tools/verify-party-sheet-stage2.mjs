@@ -266,7 +266,10 @@ const speedOf = (a) => Number(a.system?.combat?.movement?.land?.total ?? 0);
   for (const action of ["stepMemberResource", "applyMemberDamage", "removeMemberCondition", "addMemberCondition", "removeMember", "deleteLoot", "beginSession"]) {
     ok(`L4 the GM's ${action} is not marked for players`, !new RegExp(`data-player-ok[^>]*data-action="${action}"|data-action="${action}" data-player-ok`).test(HBS));
   }
-  ok("L5 no input that writes the party is marked for players", !/<input[^>]*data-player-ok/.test(HBS) && !/<select[^>]*data-player-ok/.test(HBS));
+  // Re-anchored 3.711.0 (Stage 4), same meaning: the inventory's search
+  // and type filter are marked for players, and are UNNAMED, so they never
+  // reach the form or the actor. A NAMED input or select is what writes.
+  ok("L5 no input that writes the party is marked for players", !/<(?:input|select)(?=[^>]*\bname=)[^>]*data-player-ok/.test(HBS) && !/<(?:input|select)[^>]*data-player-ok[^>]*\bname=/.test(HBS));
 
   // L6: a raise stops at the maximum, so no stored value sits above it.
   equal("L6 Conviction at 1 of 1: + writes nothing", D.stepResource({ key: "conviction", value: 1, max: 1, delta: 1 }), null);
@@ -280,8 +283,8 @@ const speedOf = (a) => Number(a.system?.combat?.movement?.land?.total ?? 0);
 /* ------------------------------------------------------------ Z. version */
 {
   const sys = JSON.parse(read("system.json"));
-  equal("Z1 the version is 3.710.3 (3.709.1 or later), the download names it, and package.json agrees",
-    [sys.version, sys.download.includes("/v3.710.3/"), JSON.parse(read("package.json")).version], ["3.710.3", true, "3.710.3"]);
+  equal("Z1 the version is 3.711.0 (3.709.1 or later), the download names it, and package.json agrees",
+    [sys.version, sys.download.includes("/v3.711.0/"), JSON.parse(read("package.json")).version], ["3.711.0", true, "3.711.0"]);
 }
 
 if (failures.length) {

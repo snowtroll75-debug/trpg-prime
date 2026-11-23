@@ -416,46 +416,6 @@ export function refusePartyLootDrag({ sourceParentType, targetType, isGM }) {
 /* ------------------------------------------------------------------ */
 
 /**
- * Whether a take may proceed, and what it does to the source stack.
- *
- * THIS IS THE SECURITY BOUNDARY, so it is a pure function the harness
- * can exhaust rather than a check scattered through a socket handler.
- * The request arrives from a player's client and every field in it is
- * that player's assertion — the item id, the quantity, the destination.
- * Nothing here trusts any of it; `userOwnsDestination` in particular is
- * resolved by the GM's client from its own documents, never taken from
- * the message.
- *
- * @param {object} options
- * @param {object|null} options.item The item as the PARTY holds it.
- * @param {number} options.requested
- * @param {boolean} options.userOwnsDestination
- * @returns {{ok: true, take: number, remaining: number, deleteSource: boolean}
- *   | {ok: false, reason: string}}
- */
-export function planTake({ item, requested, userOwnsDestination }) {
-  if (!userOwnsDestination) {
-    return { ok: false, reason: "you do not own that character" };
-  }
-  if (!item) {
-    // The ordinary race: two players click Take on the last potion at
-    // the same time. The loser is told plainly rather than shown an error.
-    return { ok: false, reason: "that item is no longer in the party loot" };
-  }
-  if (!isLootItem(item)) {
-    return { ok: false, reason: `${str(item.name) || "that"} cannot be taken` };
-  }
-  const have = quantityOf(item);
-  const want = int(requested);
-  if (want < 1) return { ok: false, reason: "ask for at least one" };
-  if (have < 1) return { ok: false, reason: "there are none left" };
-  if (want > have) {
-    return { ok: false, reason: `only ${have} left of ${str(item.name)}` };
-  }
-  return { ok: true, take: want, remaining: have - want, deleteSource: want === have };
-}
-
-/**
  * An existing stack on the destination that a taken item should join,
  * or null if it should arrive as its own row.
  *
@@ -490,6 +450,8 @@ export function findMergeTarget(existing = [], payload = null) {
     delete system.quantity;
     delete system.stowed;
     delete system.equipped;
+    // Carry state, like the two above (3.711.0): it is reset on a transfer.
+    delete system.invested;
     return JSON.stringify({
       name: str(item?.name),
       type: str(item?.type),
@@ -512,40 +474,6 @@ export function normaliseCoin(raw) {
 export function coinIsEmpty(coin) {
   const c = normaliseCoin(coin);
   return COIN_DENOMINATIONS.every((key) => c[key] === 0);
-}
-
-/**
- * Whether a coin withdrawal may proceed, and what each purse becomes.
- *
- * DENOMINATION BY DENOMINATION, deliberately — NOT by converting both
- * purses to a gp value and comparing. `deductCurrency` in items.mjs does
- * convert, because a shopkeeper making change is exactly that; but a
- * player taking coin from a pile is picking up specific coins. If the
- * party has 5 gp and a player asks for 50 sp, the honest answer is "the
- * party has no silver", not a silent conversion that empties the gold.
- *
- * @returns {{ok: true, taken: object, remaining: object}
- *   | {ok: false, reason: string}}
- */
-export function planCoinTake({ pot, request, userOwnsDestination }) {
-  if (!userOwnsDestination) {
-    return { ok: false, reason: "you do not own that character" };
-  }
-  const have = normaliseCoin(pot);
-  const want = normaliseCoin(request);
-  if (coinIsEmpty(want)) return { ok: false, reason: "no coin was requested" };
-
-  const short = COIN_DENOMINATIONS.filter((key) => want[key] > have[key]);
-  if (short.length) {
-    return {
-      ok: false,
-      reason: `the party does not have that much ${short.map((k) => k.toUpperCase()).join(", ")}`
-    };
-  }
-
-  const remaining = {};
-  for (const key of COIN_DENOMINATIONS) remaining[key] = have[key] - want[key];
-  return { ok: true, taken: want, remaining };
 }
 
 /** Add a taken purse to a destination purse. */

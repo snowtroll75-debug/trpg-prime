@@ -1,5 +1,5 @@
 /**
- * The GM relay behind the party sheet's Take buttons.
+ * The GM relay behind every party transfer.
  *
  * THE PROBLEM. Taking loot means deleting an item from the party actor
  * and creating it on a character. A player cannot delete from a document
@@ -11,22 +11,28 @@
  * WHERE THE TRUST BOUNDARY IS. The request is a message from a player's
  * client, so every field in it is that player's assertion — including
  * which character receives the goods. NOTHING in the message is trusted:
- * the GM's client resolves both documents itself, decides ownership from
- * its own copy of the world, and runs `planTake` (party.mjs) on what it
- * found rather than on what it was told. A player who edits the payload
- * to name someone else's character is refused by the same line that
- * refuses an honest mistake.
+ * the GM's client resolves every document itself, decides ownership and
+ * membership from its own copy of the world, and plans on what it found
+ * (party-transfers.mjs) rather than on what it was told.
  *
- * EXACTLY ONE GM ACTS. Every connected GM receives the broadcast, and if
- * each of them performed the move the party would lose one item per GM
- * online. `shouldHandleAsGM` picks the single designated GM, and it is
- * pure so the harness can prove that a two-GM table moves one sword.
+ * EXACTLY ONE CLIENT ACTS (3.711.0, Stage 4). Every connected GM receives
+ * the broadcast; `shouldHandleAsGM` picks the designated GM's elected
+ * connection. Since 3.711.0 a GM on any OTHER client relays too, rather
+ * than writing from their own: every transfer on a party then runs in one
+ * queue on one client, which is what makes "one at a time" true.
+ *
+ * THE REPLY. The performing client answers each request with its result,
+ * so the requester's button stays locked until the move is done and the
+ * requester hears a refusal in plain words. A request with no answer
+ * within REPLY_TIMEOUT_MS is reported as unknown, never as failed: it may
+ * still have happened, and the chat card is the record.
  */
 
 import { isGMConnectionWriter } from "./gm-connection.mjs";
 import {
-  addCoin, coinLine, findMergeTarget, planCoinTake, planTake, quantityOf
-} from "./party.mjs";
+  PartyQueue, RequestLedger, TRANSFER_JOURNAL_FLAG, buildTransferRequest, newRequestId, performTransfer, readJournal
+} from "./party-transfers.mjs";
+import { quantityOf } from "./party.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -34,9 +40,14 @@ const SYSTEM_ID = "trg-prime";
 export const PARTY_SOCKET = `system.${SYSTEM_ID}`;
 
 export const PARTY_ACTIONS = Object.freeze({
-  TAKE_ITEM: "party.takeItem",
-  TAKE_COIN: "party.takeCoin"
+  TRANSFER: "party.transfer"
 });
+
+/** The performing client's answer. */
+export const PARTY_RESULT = "party.result";
+
+/** How long a requester waits for the answer. */
+export const REPLY_TIMEOUT_MS = 15000;
 
 /**
  * Should THIS client carry out a relayed request?
@@ -64,221 +75,123 @@ export function shouldHandleAsGM(user, activeGM, connectionWriter = true) {
   return activeGM.id === user.id;
 }
 
-/**
- * The message a client sends. Built here rather than at the call site so
- * the shape exists in one place, and so the harness can assert that what
- * the sender builds is what the handler reads.
- */
-export function buildTakeItemRequest({ partyUuid, itemId, quantity, destUuid, userId }) {
-  return {
-    action: PARTY_ACTIONS.TAKE_ITEM,
-    partyUuid: String(partyUuid ?? ""),
-    itemId: String(itemId ?? ""),
-    quantity: Math.max(1, Math.floor(Number(quantity) || 1)),
-    destUuid: String(destUuid ?? ""),
-    userId: String(userId ?? "")
-  };
-}
-
-export function buildTakeCoinRequest({ partyUuid, coin, destUuid, userId }) {
-  return {
-    action: PARTY_ACTIONS.TAKE_COIN,
-    partyUuid: String(partyUuid ?? ""),
-    coin: coin ?? {},
-    destUuid: String(destUuid ?? ""),
-    userId: String(userId ?? "")
-  };
-}
-
 /* ------------------------------------------------------------------ */
-/* Carrying it out (runs on the GM's client)                           */
+/* The performing client                                               */
 /* ------------------------------------------------------------------ */
 
-/**
- * Perform a relayed item take.
- *
- * `deps` is injected so this whole function is testable without Foundry:
- * the harness supplies fake document lookups and records what would have
- * been written. A transfer rule that is only ever exercised through a
- * live socket is a rule nobody checks.
- *
- * @param {object} request
- * @param {object} deps
- * @param {(uuid: string) => Promise<object|null>} deps.resolve
- * @param {(actor: object, userId: string) => boolean} deps.ownsActor
- * @param {(message: string, userId: string) => void} deps.notify
- * @param {(text: string) => Promise<void>} [deps.announce]
- */
-export async function performTakeItem(request, deps) {
-  const { resolve, ownsActor, notify, announce } = deps;
-  const party = await resolve(request.partyUuid);
-  const dest = await resolve(request.destUuid);
-
-  if (!party || !dest) {
-    notify("that party or character is no longer available", request.userId);
-    return { ok: false, reason: "missing document" };
-  }
-
-  const item = party.items?.get?.(request.itemId) ?? null;
-  // OWNERSHIP IS DECIDED HERE, from this client's own documents, never
-  // from the request. See the header.
-  const plan = planTake({
-    item,
-    requested: request.quantity,
-    userOwnsDestination: ownsActor(dest, request.userId)
-  });
-
-  if (!plan.ok) {
-    notify(plan.reason, request.userId);
-    return plan;
-  }
-
-  // Build the copy that lands on the character BEFORE touching the
-  // source, so a failure to create cannot leave the loot already gone.
-  const payload = item.toObject();
-  payload.system = { ...(payload.system ?? {}), quantity: plan.take };
-  // A stowed flag belongs to whoever stowed it, not to the item — an
-  // item taken out of the party pile is in your hands, not in your sack.
-  if (payload.system.stowed) payload.system.stowed = false;
-  if (payload.system.equipped) payload.system.equipped = false;
-  delete payload._id;
-
-  // Join an identical stack the character already has, rather than
-  // adding a second row of the same thing. findMergeTarget decides what
-  // "identical" means and is deliberately strict about it.
-  const merge = findMergeTarget(Array.from(dest.items ?? []), payload);
-  if (merge) {
-    await dest.updateEmbeddedDocuments("Item", [
-      { _id: merge.id, "system.quantity": quantityOf(merge) + plan.take }
-    ]);
-  } else {
-    // trgPartyTransfer: transient, and read by customise-on-add.mjs so a
-    // take does not pop a Customise dialog on the GM's screen.
-    await dest.createEmbeddedDocuments("Item", [payload], { trgPartyTransfer: true });
-  }
-
-  if (plan.deleteSource) {
-    await party.deleteEmbeddedDocuments("Item", [item.id]);
-  } else {
-    await party.updateEmbeddedDocuments("Item", [
-      { _id: item.id, "system.quantity": plan.remaining }
-    ]);
-  }
-
-  await announce?.(
-    `<p><strong>${dest.name}</strong> took ${plan.take === 1 ? "" : `${plan.take} × `}` +
-    `<strong>${item.name}</strong> from ${party.name}.</p>`
-  );
-  return { ok: true, take: plan.take, remaining: plan.remaining };
-}
-
-/** Perform a relayed coin withdrawal. Same trust rules as above. */
-export async function performTakeCoin(request, deps) {
-  const { resolve, ownsActor, notify, announce } = deps;
-  const party = await resolve(request.partyUuid);
-  const dest = await resolve(request.destUuid);
-
-  if (!party || !dest) {
-    notify("that party or character is no longer available", request.userId);
-    return { ok: false, reason: "missing document" };
-  }
-
-  const plan = planCoinTake({
-    pot: party.system?.currency,
-    request: request.coin,
-    userOwnsDestination: ownsActor(dest, request.userId)
-  });
-
-  if (!plan.ok) {
-    notify(plan.reason, request.userId);
-    return plan;
-  }
-
-  await dest.update({
-    "system.currency": addCoin(dest.system?.currency, plan.taken)
-  });
-  await party.update({ "system.currency": plan.remaining });
-
-  await announce?.(
-    `<p><strong>${dest.name}</strong> took ${coinLine(plan.taken)} from ${party.name}.</p>`
-  );
-  return { ok: true, taken: plan.taken, remaining: plan.remaining };
-}
-
-/* ------------------------------------------------------------------ */
-/* Wiring                                                              */
-/* ------------------------------------------------------------------ */
+/** This client's memory of handled requests, and its queue. One of each. */
+const ledger = new RequestLedger();
+const queue = new PartyQueue();
 
 /** The Foundry-side dependencies, in one place. */
 function liveDeps() {
   return {
-    resolve: (uuid) => fromUuid(uuid).catch(() => null),
+    resolve: (uuid) => (uuid ? fromUuid(uuid).catch(() => null) : Promise.resolve(null)),
     ownsActor: (actor, userId) => {
       const user = game.users.get(userId);
       return Boolean(user) && actor.testUserPermission(user, "OWNER");
     },
-    notify: (message, userId) => {
-      if (game.user.id === userId) ui.notifications?.warn(message);
-      else game.socket.emit(PARTY_SOCKET, { action: "party.refused", userId, message });
-    },
-    announce: (content) => ChatMessage.create({ content })
+    isGMUser: (userId) => game.users.get(userId)?.isGM === true,
+    userName: (userId) => game.users.get(userId)?.name ?? "",
+    writeJournal: (party, journal) => party.update({ [`flags.${SYSTEM_ID}.${TRANSFER_JOURNAL_FLAG}`]: journal }),
+    announce: (content) => ChatMessage.create({ content }),
+    alertGM: (content) => ChatMessage.create({ content, whisper: ChatMessage.getWhisperRecipients("GM").map((u) => u.id) }),
+    ledger,
+    queue
   };
 }
 
 /** Dispatch one inbound message. Exported so the harness can drive it. */
-export async function handlePartyMessage(data, { user, activeGM, deps, connectionWriter = true }) {
-  if (data?.action === "party.refused") {
-    if (user.id === data.userId) ui.notifications?.warn(data.message);
-    return { handled: false, reason: "refusal notice" };
-  }
+export async function handlePartyMessage(data, { user, activeGM, deps, connectionWriter = true, reply = () => {} }) {
+  if (data?.action === PARTY_RESULT) return { handled: false, reason: "a reply" };
   if (!Object.values(PARTY_ACTIONS).includes(data?.action)) {
     return { handled: false, reason: "not a party message" };
   }
   if (!shouldHandleAsGM(user, activeGM, connectionWriter)) {
     return { handled: false, reason: "another client is the designated GM" };
   }
-  const result = data.action === PARTY_ACTIONS.TAKE_ITEM
-    ? await performTakeItem(data, deps)
-    : await performTakeCoin(data, deps);
+  const result = await performTransfer(data, deps).catch((error) => {
+    console.error("TRG Prime | party transfer", error);
+    return { ok: false, reason: "the transfer failed on the GM's side; check the party sheet" };
+  });
+  // A duplicate is not answered: the first copy's answer is the answer.
+  if (!result.duplicate) reply({ action: PARTY_RESULT, requestId: data.requestId, userId: data.userId, result });
   return { handled: true, result };
 }
+
+/* ------------------------------------------------------------------ */
+/* The requesting client                                               */
+/* ------------------------------------------------------------------ */
+
+/** Requests this client sent and is waiting on. */
+const waiting = new Map();
 
 /** Install the listener. Called once from the ready hook. */
 export function registerPartySocket() {
   game.socket.on(PARTY_SOCKET, (data) => {
+    if (data?.action === PARTY_RESULT) {
+      if (data.userId === game.user?.id) waiting.get(data.requestId)?.(data.result);
+      return;
+    }
     handlePartyMessage(data, {
       user: game.user,
       activeGM: game.users.activeGM ?? null,
       connectionWriter: isGMConnectionWriter(),
-      deps: liveDeps()
+      deps: liveDeps(),
+      reply: (message) => game.socket.emit(PARTY_SOCKET, message)
     }).catch((error) => console.error("TRG Prime | party socket", error));
   });
+  // A TRANSFER CUT OFF LAST TIME (Stage 4). Once the GM connections have
+  // settled, the performing GM is told of any party whose journal still
+  // holds an unfinished transfer; the party sheet lists what each was.
+  setTimeout(() => {
+    if (!iPerform()) return;
+    const parties = game.actors.filter((a) => a.type === "party" && readJournal(a).pending.length);
+    if (parties.length) {
+      ui.notifications?.warn(`Unfinished party transfer${parties.length === 1 ? "" : "s"} in ${parties.map((a) => a.name).join(", ")}: open the party's Inventory to check.`);
+    }
+  }, 3000);
+}
+
+/** Am I the client that performs transfers? */
+function iPerform() {
+  return shouldHandleAsGM(game.user, game.users.activeGM ?? null, isGMConnectionWriter());
 }
 
 /**
- * Ask for something from the party pile.
+ * Send a transfer, and wait for its outcome.
  *
- * A GM does it directly — there is no reason to bounce a message off
- * yourself, and doing so would make the GM's own Take button depend on
- * the socket being healthy.
+ * The designated GM's own connection performs it in place (through the
+ * same queue and ledger); everyone else relays and waits for the answer.
  */
-export async function requestTakeItem({ party, item, quantity, destination }) {
-  const request = buildTakeItemRequest({
-    partyUuid: party.uuid, itemId: item.id, quantity,
-    destUuid: destination.uuid, userId: game.user.id
-  });
-  if (game.user.isGM) return performTakeItem(request, liveDeps());
-  game.socket.emit(PARTY_SOCKET, request);
-  return { ok: true, relayed: true };
+export async function requestTransfer(fields) {
+  const request = buildTransferRequest({ ...fields, requestId: newRequestId(game.user.id), userId: game.user.id });
+  let result;
+  if (iPerform()) {
+    result = await performTransfer(request, liveDeps());
+  } else if (!game.users.activeGM) {
+    result = { ok: false, reason: "no GM is connected to carry out party transfers" };
+  } else {
+    result = await new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        waiting.delete(request.requestId);
+        resolve({ ok: false, unknown: true, reason: "the GM's client did not answer. Check the party sheet and chat before trying again: it may have happened" });
+      }, REPLY_TIMEOUT_MS);
+      waiting.set(request.requestId, (answer) => {
+        clearTimeout(timer);
+        waiting.delete(request.requestId);
+        resolve(answer ?? { ok: false, reason: "no answer" });
+      });
+      game.socket.emit(PARTY_SOCKET, request);
+    });
+  }
+  if (!result?.ok && result?.reason) ui.notifications?.warn(`Party: ${result.reason}.`);
+  return result;
 }
 
-export async function requestTakeCoin({ party, coin, destination }) {
-  const request = buildTakeCoinRequest({
-    partyUuid: party.uuid, coin, destUuid: destination.uuid, userId: game.user.id
-  });
-  if (game.user.isGM) return performTakeCoin(request, liveDeps());
-  game.socket.emit(PARTY_SOCKET, request);
-  return { ok: true, relayed: true };
+/** Is a transfer on this party running on this client right now? */
+export function transferInFlight(partyUuid) {
+  return queue.busy(String(partyUuid ?? ""));
 }
 
 export { quantityOf };

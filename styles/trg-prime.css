@@ -5044,6 +5044,92 @@
 
 .trg-prime .party-loot-total { float: right; font-weight: 400; }
 
+/* --- the shared inventory and treasury (3.711.0, Stage 4) --- */
+.trg-prime .party-treasury-actions,
+.trg-prime .party-inventory-tools {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 4px 0 6px;
+}
+
+.trg-prime .party-treasury-actions button,
+.trg-prime .party-inventory-tools button {
+  background: none;
+  border: 1px solid var(--trg-parchment-dark);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--trg-ink);
+  padding: 2px 8px;
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.trg-prime .party-treasury-actions button:hover,
+.trg-prime .party-inventory-tools button:hover { background: var(--trg-parchment-dark); }
+
+.trg-prime .party-inventory-tools input[type="search"] { flex: 1 1 12em; min-width: 8em; }
+.trg-prime .party-inventory-tools select { flex: 0 0 auto; width: auto; }
+
+.trg-prime .party-drop-strip {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.trg-prime .party-drop-member {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 2px 2px;
+  border: 1px dashed var(--trg-parchment-dark);
+  border-radius: 12px;
+  font-size: 0.8rem;
+}
+
+.trg-prime .party-drop-member img {
+  width: 20px;
+  height: 20px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.trg-prime .party-item-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--trg-ink);
+  text-align: left;
+  width: auto;
+}
+
+.trg-prime .party-item-link:hover span { text-decoration: underline; }
+
+.trg-prime .party-inventory-table td.hint { font-size: 0.78rem; }
+
+.trg-prime .party-transfer-pending { border-color: var(--trg-red); }
+
+.trg-prime .party-pending-list { list-style: none; margin: 0; padding: 0; }
+
+.trg-prime .party-pending-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.trg-prime .party-pending-list li .hint { flex-basis: 100%; }
+
 /* ------------------------------------------------------------------
  * A USES COUNTER YOU CAN PUT BACK (3.311.3).
  *

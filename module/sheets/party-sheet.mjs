@@ -19,8 +19,9 @@
  */
 
 import {
-  PARTY_TYPE, addMember, canJoinRoster, lootSummary, memberSummary,
-  normaliseCoin, normaliseMembers, planLootDrop, refusePartyLootDrag, removeMember, COIN_DENOMINATIONS
+  PARTY_TYPE, addMember, canJoinRoster, coinIsEmpty, coinLine, isLootItem, lootSummary, memberSummary,
+  normaliseCoin, normaliseMembers, planLootDrop, quantityOf, refusePartyLootDrag, removeMember,
+  COIN_DENOMINATIONS, LOOT_ITEM_TYPES
 } from "../party.mjs";
 import {
   MEMBER_STATUS, activeMembers, canSeeMemberDetails, resolvePartyRoster, watchKeysFor
@@ -37,7 +38,11 @@ import {
 } from "../party-actions.mjs";
 import { applyDamage } from "../combat/dying-workflow.mjs";
 import { convictionEnabled } from "../conviction.mjs";
-import { requestTakeCoin, requestTakeItem } from "../party-socket.mjs";
+import { requestTransfer, transferInFlight } from "../party-socket.mjs";
+import {
+  HOLDER_TYPES, TRANSFER_KINDS, TRANSFER_JOURNAL_FLAG, isPartyMember, itemDetail, journalFinish,
+  matchesInventoryFilter, planCoinSplit, readJournal, transferRestriction
+} from "../party-transfers.mjs";
 import { CONDITIONS } from "../conditions/registry.mjs";
 import { coinValueInGP } from "../items.mjs";
 import {
@@ -100,6 +105,12 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       openMember: TRGPartySheet.openMember,
       takeItem: TRGPartySheet.takeItem,
       takeCoin: TRGPartySheet.takeCoin,
+      // THE SHARED INVENTORY AND TREASURY (3.711.0, Stage 4).
+      depositItem: TRGPartySheet.depositItem,
+      depositCoin: TRGPartySheet.depositCoin,
+      splitCoin: TRGPartySheet.splitCoin,
+      openLootItem: TRGPartySheet.openLootItem,
+      resolveTransfer: TRGPartySheet.resolveTransfer,
       deleteLoot: TRGPartySheet.deleteLoot,
       editImage: TRGPartySheet.editImage,
       addSelectedTokens: TRGPartySheet.addSelectedTokens,
@@ -197,13 +208,29 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const loot = lootSummary(Array.from(actor.items ?? []));
     const currency = normaliseCoin(system.currency);
 
-    // Which of MY characters a take would go to. A player with one
-    // character never sees a chooser; a GM, or a player with several,
-    // picks. Built here because the template must not do lookups.
-    const destinations = game.actors
-      .filter((a) => ["character", "npc"].includes(a.type) && a.isOwner)
-      .map((a) => ({ uuid: a.uuid, name: a.name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    // THE INVENTORY PAGE (3.711.0, Stage 4): each row with its type, its
+    // details from the item's own fields, and whether this user may open it.
+    const typeLabel = (type) => game.i18n?.localize?.(CONFIG.Item?.typeLabels?.[type] ?? type) ?? type;
+    loot.rows = loot.rows.map((row) => {
+      const item = actor.items.get(row.id);
+      return {
+        ...row,
+        uuid: item?.uuid ?? "",
+        typeLabel: typeLabel(row.type),
+        detail: itemDetail(item),
+        canOpen: Boolean(item) && (isGM || item.testUserPermission?.(game.user, "OBSERVER") === true)
+      };
+    });
+    const types = LOOT_ITEM_TYPES
+      .filter((type) => loot.rows.some((row) => row.type === type))
+      .map((type) => ({ type, label: typeLabel(type), selected: this.#filter.type === type }));
+
+    // WHO MAY RECEIVE OR GIVE, ON THIS CLIENT (Stage 4). The default is the
+    // party's own members, the ones this user owns; the GM, all of them.
+    // The GM's client checks again when the transfer is carried out.
+    const holders = activeMembers(roster).filter((a) => HOLDER_TYPES.includes(a.type));
+    const myMembers = holders.filter((a) => isGM || a.isOwner).map((a) => ({ uuid: a.uuid, name: a.name, img: a.img }));
+    const pending = isGM ? this.#pendingTransfers() : [];
 
     const rewards = isGM ? await rewardsContext(actor, { members: activeMembers(roster) }) : null;
 
@@ -243,8 +270,21 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       currency,
       coinKeys: COIN_DENOMINATIONS,
       currencyGP: coinValueInGP(currency),
-      destinations,
-      hasDestination: destinations.length > 0,
+      inventory: {
+        types,
+        search: this.#filter.search,
+        canTake: myMembers.length > 0,
+        canDeposit: myMembers.length > 0,
+        members: isGM ? myMembers : [],
+        pending,
+        hasPending: pending.length > 0
+      },
+      treasury: {
+        canDeposit: myMembers.length > 0,
+        canTake: !isGM && myMembers.length > 0,
+        canGive: isGM && myMembers.length > 0,
+        canSplit: isGM && myMembers.length > 0 && !coinIsEmpty(currency)
+      },
       rewards,
       tabs: this._prepareTabs("primary"),
       tabList: Object.values(this._prepareTabs("primary"))
@@ -284,6 +324,59 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     // up without bookkeeping of its own. The registry replaces this sheet's
     // previous set; it never accumulates.
     partyLiveSync().watch(this, this.#watchKeys);
+    this.#wireInventoryFilter();
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* The inventory page (3.711.0, Stage 4)                            */
+  /* ---------------------------------------------------------------- */
+
+  /** The search text and type filter, kept across renders. */
+  #filter = { search: "", type: "" };
+
+  /**
+   * Filtering is done in place, on the rows already drawn, so typing does
+   * not re-render the sheet (and lose the cursor). The inputs are unnamed:
+   * they never reach the form or the actor.
+   */
+  #wireInventoryFilter() {
+    const root = this.element;
+    const search = root?.querySelector("[data-inventory-search]");
+    const type = root?.querySelector("[data-inventory-type]");
+    if (!search || !type) return;
+    const apply = () => {
+      this.#filter = { search: search.value ?? "", type: type.value ?? "" };
+      let shown = 0;
+      for (const row of root.querySelectorAll(".loot-row[data-item-id]")) {
+        const visible = matchesInventoryFilter({ name: row.dataset.name, type: row.dataset.type }, this.#filter);
+        row.hidden = !visible;
+        if (visible) shown += 1;
+      }
+      const none = root.querySelector("[data-inventory-none]");
+      if (none) none.hidden = shown > 0;
+    };
+    search.addEventListener("input", apply);
+    type.addEventListener("change", apply);
+    apply();
+  }
+
+  /**
+   * The journal's transfers that did not finish (Stage 4). One cut off by a
+   * disconnect stays pending; it is shown once it is plainly not still
+   * running on this client, with what it was meant to do.
+   */
+  #pendingTransfers() {
+    if (transferInFlight(this.actor.uuid)) return [];
+    const now = Date.now();
+    return readJournal(this.actor).pending
+      .filter((p) => p.unresolved || now - (Number(p.at) || 0) > 20000)
+      .map((p) => ({
+        id: p.id,
+        summary: p.summary ?? p.kind,
+        user: p.user ?? "",
+        when: new Date(Number(p.at) || 0).toLocaleString(),
+        unresolved: p.unresolved ?? ""
+      }));
   }
 
   _onClose(options) {
@@ -541,11 +634,82 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       return;
     }
 
-    if (data?.type === "Item" && !game.user.isGM) {
-      ui.notifications?.warn("Only the GM can add to the party loot.");
-      return;
-    }
+    if (data?.type === "Item") return this.#onDropItemData(event, data);
     return super._onDrop(event);
+  }
+
+  /**
+   * AN ITEM DROPPED ON THE PARTY (3.711.0, Stage 4). Where it came from
+   * decides what it means:
+   *   - from this party, onto a member in the Inventory's member strip: the
+   *     GM gives it to that member (a validated withdrawal, never a copy);
+   *   - from this party, anywhere else: the GM re-sorts the list;
+   *   - from a character or NPC: a DEPOSIT, which moves it (the character
+   *     no longer has it). A player may deposit only from a character they
+   *     own that is in the party; the GM's client checks that again;
+   *   - from the sidebar or a compendium: the GM adds new loot, as before.
+   */
+  async #onDropItemData(event, data) {
+    const item = data?.uuid ? await fromUuid(data.uuid).catch(() => null) : null;
+    if (!item) {
+      ui.notifications?.warn("That item could not be found.");
+      return null;
+    }
+    const isGM = game.user.isGM === true;
+    const holder = item.parent ?? null;
+
+    if (holder?.uuid === this.actor.uuid) {
+      const strip = event.target?.closest?.("[data-drop-member]");
+      if (strip && isGM) return this.#distribute(item, strip.dataset.dropMember);
+      if (!isGM) return null;
+      return super._onDropItem(event, item);
+    }
+
+    if (holder?.documentName === "Actor") {
+      if (!isGM && !holder.isOwner) {
+        ui.notifications?.warn("You can only deposit from a character you own.");
+        return null;
+      }
+      return this.#transferOnce(async () => {
+        const quantity = await TRGPartySheet.#chooseQuantity(item.name, quantityOf(item), "Deposit");
+        if (!quantity) return null;
+        return requestTransfer({ kind: TRANSFER_KINDS.DEPOSIT, partyUuid: this.actor.uuid, itemUuid: item.uuid, quantity });
+      });
+    }
+
+    if (!isGM) {
+      ui.notifications?.warn("Only the GM can add new loot. Deposit from your character instead.");
+      return null;
+    }
+    const allowed = Hooks.call("dropActorSheetData", this.actor, this, data);
+    if (allowed === false) return null;
+    return this._onDropItem(event, item);
+  }
+
+  /** The GM gives a party item to a member by dragging it onto them. */
+  async #distribute(item, memberUuid) {
+    return this.#transferOnce(async () => {
+      const member = await fromUuid(memberUuid).catch(() => null);
+      if (!member) {
+        ui.notifications?.warn("That member is no longer available.");
+        return null;
+      }
+      const quantity = await TRGPartySheet.#chooseQuantity(item.name, quantityOf(item), `Give to ${member.name}`);
+      if (!quantity) return null;
+      return requestTransfer({
+        kind: TRANSFER_KINDS.WITHDRAW, partyUuid: this.actor.uuid, itemUuid: item.uuid,
+        quantity, destUuid: member.uuid, origin: "drag"
+      });
+    });
+  }
+
+  /**
+   * ONE TRANSFER AT A TIME FROM THIS SHEET (Stage 4): the dialogs and the
+   * request, together, hold the party's transfer lock, so a second click
+   * or a second drop while one is open does nothing.
+   */
+  #transferOnce(work) {
+    return runOnce(TRGPartySheet.#running, `${this.actor.uuid}:transfer`, work);
   }
 
   /**
@@ -646,34 +810,150 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     await item.delete();
   }
 
-  /** Take an item — the whole stack, or a chosen number of it. */
+  /**
+   * TAKE (a player) or GIVE (the GM) an item from the party (3.711.0): to
+   * one of the party's members, the whole stack or part of it. The GM may
+   * choose someone outside the party, explicitly, in the same chooser.
+   */
   static async takeItem(event, target) {
     event.preventDefault();
     const id = target.closest("[data-item-id]")?.dataset?.itemId;
     const item = id ? this.actor.items.get(id) : null;
     if (!item) return;
-
-    const destination = await TRGPartySheet.#chooseDestination();
-    if (!destination) return;
-
-    const have = Math.max(1, Number(item.system?.quantity) || 1);
-    let quantity = 1;
-    if (have > 1) {
-      quantity = await TRGPartySheet.#chooseQuantity(item.name, have);
-      if (!quantity) return;
-    } else {
-      quantity = have;
-    }
-    await requestTakeItem({ party: this.actor, item, quantity, destination });
+    await this.#transferOnce(async () => {
+      const destination = await this.#chooseDestination(game.user.isGM ? `Give ${item.name}` : `Take ${item.name}`);
+      if (!destination) return null;
+      const have = quantityOf(item);
+      const quantity = have > 1 ? await TRGPartySheet.#chooseQuantity(item.name, have, game.user.isGM ? "Give" : "Take") : have;
+      if (!quantity) return null;
+      return requestTransfer({
+        kind: TRANSFER_KINDS.WITHDRAW, partyUuid: this.actor.uuid, itemUuid: item.uuid,
+        quantity, destUuid: destination.actor.uuid, override: destination.override
+      });
+    });
   }
 
+  /** DEPOSIT an item (3.711.0): from a member's own inventory into the party's. */
+  static async depositItem(event) {
+    event.preventDefault();
+    await this.#transferOnce(async () => {
+      const item = await this.#chooseDepositItem();
+      if (!item) return null;
+      const have = quantityOf(item);
+      const quantity = have > 1 ? await TRGPartySheet.#chooseQuantity(item.name, have, "Deposit") : have;
+      if (!quantity) return null;
+      return requestTransfer({ kind: TRANSFER_KINDS.DEPOSIT, partyUuid: this.actor.uuid, itemUuid: item.uuid, quantity });
+    });
+  }
+
+  /** TAKE COIN (a player) or GIVE COIN (the GM) from the treasury. */
   static async takeCoin(event) {
     event.preventDefault();
-    const destination = await TRGPartySheet.#chooseDestination();
-    if (!destination) return;
-    const coin = await TRGPartySheet.#chooseCoin(normaliseCoin(this.actor.system.currency));
-    if (!coin) return;
-    await requestTakeCoin({ party: this.actor, coin, destination });
+    await this.#transferOnce(async () => {
+      const destination = await this.#chooseDestination(game.user.isGM ? "Give Coin" : "Take Coin");
+      if (!destination) return null;
+      const coin = await TRGPartySheet.#chooseCoin(normaliseCoin(this.actor.system.currency), {
+        title: game.user.isGM ? `Give Coin to ${destination.actor.name}` : "Take Coin", verb: game.user.isGM ? "Give" : "Take", from: this.actor.name
+      });
+      if (!coin) return null;
+      return requestTransfer({
+        kind: TRANSFER_KINDS.COIN_TAKE, partyUuid: this.actor.uuid, coin,
+        destUuid: destination.actor.uuid, override: destination.override
+      });
+    });
+  }
+
+  /** DEPOSIT COIN from a member's purse into the treasury. */
+  static async depositCoin(event) {
+    event.preventDefault();
+    await this.#transferOnce(async () => {
+      const source = await this.#chooseMember("Deposit Coin", "Whose coin goes into the treasury?");
+      if (!source) return null;
+      const coin = await TRGPartySheet.#chooseCoin(normaliseCoin(source.system?.currency), {
+        title: `Deposit Coin from ${source.name}`, verb: "Deposit", from: source.name
+      });
+      if (!coin) return null;
+      return requestTransfer({ kind: TRANSFER_KINDS.COIN_DEPOSIT, partyUuid: this.actor.uuid, coin, sourceUuid: source.uuid });
+    });
+  }
+
+  /**
+   * SPLIT COIN (the GM; Graham, 23 Nov 2026). The proposed shares are shown
+   * before anything moves; what does not divide stays in the treasury. The
+   * shares shown travel with the request, so a treasury that changed since
+   * is refused rather than split differently from what the GM saw.
+   */
+  static async splitCoin(event) {
+    event.preventDefault();
+    if (!game.user.isGM) return;
+    await this.#transferOnce(async () => {
+      const members = (await this.#participants()).actors.filter((a) => HOLDER_TYPES.includes(a.type));
+      const choice = await TRGPartySheet.#chooseSplit(normaliseCoin(this.actor.system.currency), members);
+      if (!choice) return null;
+      return requestTransfer({
+        kind: TRANSFER_KINDS.COIN_SPLIT, partyUuid: this.actor.uuid, recipients: choice.recipients, coin: choice.share
+      });
+    });
+  }
+
+  /**
+   * THE GM DRAGS PARTY LOOT ONTO A CHARACTER'S OWN SHEET (3.711.0). That
+   * used to create a copy (the default drop) and leave the party's. It is
+   * now the same validated withdrawal as the Give button: the item moves.
+   * Onto someone outside the party, the GM is asked first (the override).
+   */
+  static async distributeByDrag(item, actor) {
+    const party = item?.parent;
+    if (!party || party.type !== PARTY_TYPE || !actor) return null;
+    return runOnce(TRGPartySheet.#running, `${party.uuid}:transfer`, async () => {
+      let override = false;
+      if (!isPartyMember(party, actor)) {
+        const ok = await DialogV2.confirm({
+          window: { title: "Outside the Party" },
+          content: `<p>${escape(actor.name)} is not in ${escape(party.name)}. Give ${escape(item.name)} to them anyway?</p>`,
+          rejectClose: false
+        });
+        if (!ok) return null;
+        override = true;
+      }
+      const quantity = await TRGPartySheet.#chooseQuantity(item.name, quantityOf(item), `Give to ${actor.name}`);
+      if (!quantity) return null;
+      return requestTransfer({
+        kind: TRANSFER_KINDS.WITHDRAW, partyUuid: party.uuid, itemUuid: item.uuid,
+        quantity, destUuid: actor.uuid, override, origin: "drag"
+      });
+    });
+  }
+
+  /** Open a party item's own sheet, where this user may see it. */
+  static async openLootItem(event, target) {
+    event.preventDefault();
+    const id = target.closest("[data-item-id]")?.dataset?.itemId;
+    const item = id ? this.actor.items.get(id) : null;
+    if (!item) return;
+    if (!game.user.isGM && item.testUserPermission?.(game.user, "OBSERVER") !== true) {
+      ui.notifications?.warn("You cannot open that item.");
+      return;
+    }
+    item.sheet?.render(true);
+  }
+
+  /**
+   * The GM marks an unfinished transfer as checked (Stage 4). Nothing is
+   * moved: the GM has looked at both inventories and put them right by hand.
+   */
+  static async resolveTransfer(event, target) {
+    event.preventDefault();
+    if (!game.user.isGM) return;
+    const id = target.closest("[data-transfer-id]")?.dataset?.transferId;
+    if (!id) return;
+    const ok = await DialogV2.confirm({
+      window: { title: "Unfinished Transfer" },
+      content: "<p>Mark this transfer as checked? Nothing is moved: do this once both inventories are right.</p>",
+      rejectClose: false
+    });
+    if (!ok) return;
+    await this.actor.update({ [`flags.${SYSTEM_ID}.${TRANSFER_JOURNAL_FLAG}`]: journalFinish(readJournal(this.actor), id) });
   }
 
   static async editImage(event, target) {
@@ -841,6 +1121,7 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       return;
     }
     if (input?.dataset?.customXp !== undefined) return;
+    if (input?.dataset?.inventorySearch !== undefined || input?.dataset?.inventoryType !== undefined) return;
     return super._onChangeForm(formConfig, event);
   }
 
@@ -849,57 +1130,132 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   /* ---------------------------------------------------------------- */
 
   /**
-   * Who receives it.
+   * WHO RECEIVES IT (3.711.0, Stage 4). The party's members this user owns
+   * (the GM: all of them). A player with one such character is not asked.
+   * The GM may pick someone outside the party from a separate, labelled
+   * group: that is the explicit override, and it says so on the card.
    *
-   * A player with exactly one owned character is not asked — the answer
-   * is not in doubt, and a dialog whose only purpose is to be dismissed
-   * is friction. Anyone with a choice makes it.
+   * @returns {Promise<{actor: object, override: boolean}|null>}
    */
-  static async #chooseDestination() {
-    const owned = game.actors
-      .filter((a) => ["character", "npc"].includes(a.type) && a.isOwner)
+  async #chooseDestination(title) {
+    const isGM = game.user.isGM === true;
+    const members = (await this.#participants()).actors
+      .filter((a) => HOLDER_TYPES.includes(a.type) && (isGM || a.isOwner))
       .sort((a, b) => a.name.localeCompare(b.name));
-
-    if (!owned.length) {
-      ui.notifications?.warn("You do not own a character to give this to.");
+    const outside = isGM
+      ? game.actors.filter((a) => HOLDER_TYPES.includes(a.type) && !isPartyMember(this.actor, a)).sort((a, b) => a.name.localeCompare(b.name))
+      : [];
+    if (!members.length && !outside.length) {
+      ui.notifications?.warn(isGM ? "There is no one to give this to." : `You have no character in ${this.actor.name}.`);
       return null;
     }
-    if (owned.length === 1) return owned[0];
+    if (!isGM && members.length === 1) return { actor: members[0], override: false };
 
-    const options = owned
-      .map((a) => `<option value="${a.uuid}">${a.name}</option>`).join("");
-    const uuid = await DialogV2.wait({
-      window: { title: "Give To", icon: "fa-solid fa-hand-holding" },
+    const option = (a, override) => `<option value="${a.uuid}" data-override="${override}">${escape(a.name)}</option>`;
+    const options = members.map((a) => option(a, false)).join("")
+      + (outside.length ? `<optgroup label="Outside the party (GM)">${outside.map((a) => option(a, true)).join("")}</optgroup>` : "");
+    const picked = await DialogV2.wait({
+      window: { title, icon: "fa-solid fa-hand-holding" },
       classes: ["trg-prime"],
-      position: { width: 340 },
+      position: { width: 360 },
       content: `<div class="trg-prime trg-check-dialog">
-        <div class="form-group stacked"><label>Which character takes this?</label>
+        <div class="form-group stacked"><label>Which character receives it?</label>
         <select name="dest">${options}</select></div></div>`,
       buttons: [
         {
-          action: "confirm", label: "Take", icon: "fa-solid fa-check", default: true,
-          callback: (e, button) => button.form.elements.dest.value
+          action: "confirm", label: "Choose", icon: "fa-solid fa-check", default: true,
+          callback: (e, button) => {
+            const select = button.form.elements.dest;
+            return { uuid: select.value, override: select.selectedOptions[0]?.dataset.override === "true" };
+          }
         },
         { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark" }
       ],
       rejectClose: false
     });
-    if (!uuid || uuid === "cancel") return null;
-    return fromUuid(uuid);
+    if (!picked?.uuid) return null;
+    const actor = await fromUuid(picked.uuid).catch(() => null);
+    return actor ? { actor, override: picked.override && isGM } : null;
   }
 
-  static async #chooseQuantity(name, max) {
+  /** One of the party's members this user may act for (the GM: any). */
+  async #chooseMember(title, question) {
+    const isGM = game.user.isGM === true;
+    const members = (await this.#participants()).actors
+      .filter((a) => HOLDER_TYPES.includes(a.type) && (isGM || a.isOwner))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    if (!members.length) {
+      ui.notifications?.warn(`You have no character in ${this.actor.name}.`);
+      return null;
+    }
+    if (members.length === 1) return members[0];
+    const uuid = await DialogV2.wait({
+      window: { title, icon: "fa-solid fa-user" },
+      classes: ["trg-prime"],
+      position: { width: 340 },
+      content: `<div class="trg-prime trg-check-dialog"><div class="form-group stacked"><label>${question}</label>
+        <select name="who">${members.map((a) => `<option value="${a.uuid}">${escape(a.name)}</option>`).join("")}</select></div></div>`,
+      buttons: [
+        { action: "confirm", label: "Choose", icon: "fa-solid fa-check", default: true, callback: (e, button) => button.form.elements.who.value },
+        { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark" }
+      ],
+      rejectClose: false
+    });
+    if (!uuid || uuid === "cancel") return null;
+    return members.find((a) => a.uuid === uuid) ?? null;
+  }
+
+  /** Which item to deposit, from the members this user may act for. */
+  async #chooseDepositItem() {
+    const isGM = game.user.isGM === true;
+    const members = (await this.#participants()).actors
+      .filter((a) => HOLDER_TYPES.includes(a.type) && (isGM || a.isOwner))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    if (!members.length) {
+      ui.notifications?.warn(`You have no character in ${this.actor.name}.`);
+      return null;
+    }
+    const groups = members.map((a) => {
+      const items = Array.from(a.items ?? []).filter((i) => isLootItem(i) && quantityOf(i) > 0 && !transferRestriction(i))
+        .sort((x, y) => x.name.localeCompare(y.name));
+      return { actor: a, items };
+    }).filter((g) => g.items.length);
+    if (!groups.length) {
+      ui.notifications?.warn("None of your characters carries anything the party inventory holds.");
+      return null;
+    }
+    const options = groups.map((g) => `<optgroup label="${escape(g.actor.name)}">${g.items.map((i) =>
+      `<option value="${i.uuid}">${escape(i.name)}${quantityOf(i) > 1 ? ` (${quantityOf(i)})` : ""}${i.system?.equipped ? " — equipped" : ""}</option>`).join("")}</optgroup>`).join("");
+    const uuid = await DialogV2.wait({
+      window: { title: "Deposit Item", icon: "fa-solid fa-box-archive" },
+      classes: ["trg-prime"],
+      position: { width: 380 },
+      content: `<div class="trg-prime trg-check-dialog"><div class="form-group stacked"><label>Which item goes into ${escape(this.actor.name)}'s inventory?</label>
+        <select name="item">${options}</select></div>
+        <p class="hint">It moves: the character no longer carries it.</p></div>`,
+      buttons: [
+        { action: "confirm", label: "Choose", icon: "fa-solid fa-check", default: true, callback: (e, button) => button.form.elements.item.value },
+        { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark" }
+      ],
+      rejectClose: false
+    });
+    if (!uuid || uuid === "cancel") return null;
+    return groups.flatMap((g) => g.items).find((i) => i.uuid === uuid) ?? null;
+  }
+
+  static async #chooseQuantity(name, max, verb = "Take") {
+    if (max <= 1) return max;
     const value = await DialogV2.wait({
-      window: { title: `Take ${name}`, icon: "fa-solid fa-hashtag" },
+      window: { title: `${verb}: ${name}`, icon: "fa-solid fa-hashtag" },
       classes: ["trg-prime"],
       position: { width: 320 },
       content: `<div class="trg-prime trg-check-dialog">
-        <p class="hint">The party has ${max}.</p>
+        <p class="hint">There ${max === 1 ? "is" : "are"} ${max}.</p>
         <div class="form-group"><label>How many?</label>
-        <input type="number" name="qty" value="${max}" min="1" max="${max}"></div></div>`,
+        <input type="number" name="qty" value="${max}" min="1" max="${max}" step="1"></div></div>`,
       buttons: [
         {
-          action: "confirm", label: "Take", icon: "fa-solid fa-check", default: true,
+          action: "confirm", label: verb.split(":")[0].split(" ")[0], icon: "fa-solid fa-check", default: true,
           callback: (e, button) => Number(button.form.elements.qty.value) || 0
         },
         { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark" }
@@ -907,21 +1263,23 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       rejectClose: false
     });
     if (!value || value === "cancel") return 0;
-    return Math.max(0, Math.min(max, Math.floor(Number(value) || 0)));
+    // NOT CLAMPED. A number above what is there is passed on and refused
+    // with the reason, rather than quietly turned into "all of it".
+    return Math.max(0, Math.floor(Number(value) || 0));
   }
 
-  static async #chooseCoin(pot) {
+  static async #chooseCoin(pot, { title = "Take Coin", verb = "Take", from = "" } = {}) {
     const rows = COIN_DENOMINATIONS.map((key) => `
-      <div class="form-group"><label>${key.toUpperCase()} <span class="hint">(${pot[key]} available)</span></label>
-      <input type="number" name="${key}" value="0" min="0" max="${pot[key]}"></div>`).join("");
+      <div class="form-group"><label>${key.toUpperCase()} <span class="hint">(${pot[key]} ${from ? `with ${escape(from)}` : "available"})</span></label>
+      <input type="number" name="${key}" value="0" min="0" max="${pot[key]}" step="1"></div>`).join("");
     const result = await DialogV2.wait({
-      window: { title: "Take Coin", icon: "fa-solid fa-coins" },
+      window: { title, icon: "fa-solid fa-coins" },
       classes: ["trg-prime"],
       position: { width: 340 },
       content: `<div class="trg-prime trg-check-dialog">${rows}</div>`,
       buttons: [
         {
-          action: "confirm", label: "Take", icon: "fa-solid fa-check", default: true,
+          action: "confirm", label: verb, icon: "fa-solid fa-check", default: true,
           callback: (e, button) => {
             const out = {};
             for (const key of COIN_DENOMINATIONS) {
@@ -935,8 +1293,72 @@ export class TRGPartySheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       rejectClose: false
     });
     if (!result || result === "cancel") return null;
+    if (coinIsEmpty(result)) {
+      ui.notifications?.warn("No coin was chosen.");
+      return null;
+    }
     return result;
   }
+
+  /**
+   * The Split Coin preview. Every member is ticked to begin with; the
+   * shares and what stays in the treasury are worked out by planCoinSplit,
+   * the same function the GM's client runs, as the ticks change.
+   */
+  static async #chooseSplit(pot, members) {
+    if (!members.length) {
+      ui.notifications?.warn("The party has no members to share coin with.");
+      return null;
+    }
+    const ticks = members.map((a) => `<label class="checkbox"><input type="checkbox" name="r" value="${a.uuid}" data-name="${escape(a.name)}" checked> ${escape(a.name)}</label>`).join("");
+    const preview = (form) => {
+      const chosen = [...form.querySelectorAll('input[name="r"]:checked')].map((i) => ({ uuid: i.value, name: i.dataset.name }));
+      const plan = planCoinSplit({ pot, recipients: chosen });
+      const out = form.querySelector("[data-split-preview]");
+      if (!out) return plan;
+      out.innerHTML = plan.ok
+        ? `<p>Each of the ${chosen.length} receives <strong>${coinLine(plan.share)}</strong>.</p>`
+          + `<p>Shared out: ${coinLine(plan.distributed)}.</p>`
+          + `<p>${coinIsEmpty(plan.remainder) ? "Nothing is left over." : `Stays in the treasury: <strong>${coinLine(plan.remainder)}</strong>.`}</p>`
+        : `<p class="hint">${escape(plan.reason)}.</p>`;
+      const button = form.querySelector('button[data-action="confirm"]');
+      if (button) button.disabled = !plan.ok;
+      return plan;
+    };
+    const result = await DialogV2.wait({
+      window: { title: "Split Coin", icon: "fa-solid fa-scale-balanced" },
+      classes: ["trg-prime"],
+      position: { width: 400 },
+      content: `<div class="trg-prime trg-check-dialog">
+        <p>The treasury holds ${coinLine(pot) || "no coin"}. Each kind of coin is shared on its own; what does not divide stays in the treasury.</p>
+        <div class="form-group stacked"><label>Share among</label>${ticks}</div>
+        <div data-split-preview></div></div>`,
+      render: (event, dialog) => {
+        const form = dialog.element.querySelector("form") ?? dialog.element;
+        form.addEventListener("change", () => preview(form));
+        preview(form);
+      },
+      buttons: [
+        {
+          action: "confirm", label: "Split", icon: "fa-solid fa-check", default: true,
+          callback: (e, button) => {
+            const plan = preview(button.form);
+            if (!plan.ok) return null;
+            return { recipients: plan.allocations.map((a) => a.uuid), share: plan.share };
+          }
+        },
+        { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark" }
+      ],
+      rejectClose: false
+    });
+    if (!result || result === "cancel") return null;
+    return result;
+  }
+}
+
+/** Text going into dialog markup. */
+function escape(text) {
+  return String(text ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
 /**
@@ -952,6 +1374,12 @@ export function registerPartyLootDragGuard() {
     if (data?.type !== "Item" || !data.uuid) return true;
     let source = null;
     try { source = globalThis.fromUuidSync?.(data.uuid, { strict: false }) ?? null; } catch { source = null; }
+    // THE GM'S DRAG IS A MOVE (3.711.0, Stage 4), not Foundry's copy.
+    if (game.user?.isGM === true && source?.parent?.type === PARTY_TYPE
+      && actor?.type !== PARTY_TYPE && HOLDER_TYPES.includes(actor?.type)) {
+      TRGPartySheet.distributeByDrag(source, actor).catch((error) => console.error("TRG Prime | party drag", error));
+      return false;
+    }
     const reason = refusePartyLootDrag({
       sourceParentType: source?.parent?.type,
       targetType: actor?.type,
