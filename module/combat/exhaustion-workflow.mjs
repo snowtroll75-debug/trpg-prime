@@ -305,11 +305,18 @@ export async function rollFatigueRecovery(actor, { postCard = true, subtitle = "
     else await actor.toggleStatusEffect("fatigued", { active: false });
   }
 
+  // WHAT ACTUALLY CHANGED (3.710.3, found live on 3.710.2): a Success with
+  // no Fatigue to lose rolled a step of -1 and the cards printed it ("-1",
+  // "reduces by 1, to 0") although nothing moved. The cards say the change
+  // that landed; `delta` stays the step the save earned.
+  const applied = result - current;
+
   if (postCard) {
     const lines = [];
     if (heldDown) lines.push(`<p style="margin:2px 0">${heldRefusedLine(actor.name, "Fatigued", holdsOn(actor.effects, "fatigued")[0]?.label)} It stays at <strong>${current}</strong>.</p>`);
-    else if (delta < 0) lines.push(`<p style="margin:2px 0">Fatigue reduces by <strong>${-delta}</strong>, to <strong>${next}</strong>.</p>`);
-    else if (delta > 0) lines.push(`<p style="margin:2px 0">Fatigue increases by <strong>${delta}</strong>, to <strong>${next}</strong>.</p>`);
+    else if (applied < 0) lines.push(`<p style="margin:2px 0">Fatigue reduces by <strong>${-applied}</strong>, to <strong>${next}</strong>.</p>`);
+    else if (applied > 0) lines.push(`<p style="margin:2px 0">Fatigue increases by <strong>${applied}</strong>, to <strong>${next}</strong>.</p>`);
+    else if (delta < 0) lines.push('<p style="margin:2px 0">No Fatigue to recover.</p>');
     else lines.push(`<p style="margin:2px 0">Fatigue holds steady at <strong>${next}</strong>.</p>`);
 
     const status = fatigueStatus(result);
@@ -325,5 +332,5 @@ export async function rollFatigueRecovery(actor, { postCard = true, subtitle = "
     });
   }
 
-  return { check, delta: heldDown ? 0 : delta, next: result, ...(heldDown ? { held: true } : {}) };
+  return { check, delta: heldDown ? 0 : delta, from: current, next: result, applied, ...(heldDown ? { held: true } : {}) };
 }

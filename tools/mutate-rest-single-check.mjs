@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * mutate-rest-single-check — mutations against verify-rest-single-check.mjs
- * (3.710.2, one check of each kind for the whole rest).
+ * (3.710.2, one check of each kind for the whole rest; 3.710.3, the
+ * Fatigue line says the change that landed).
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -22,7 +23,14 @@ const MUTATIONS = [
   { name: "the trance is attempted in an unsafe place", file: W, from: "if (safeEnvironment && attemptHealingTrance) {", to: "if (attemptHealingTrance) {", breaks: "D5" },
   { name: "sustaining no longer blocks Power Recovery", file: W, from: "if (attemptPowerRecovery && !isSustaining) {", to: "if (attemptPowerRecovery) {", breaks: "D7" },
   { name: "the card no longer says one check", file: W, from: "`Healing Trance (one check for the rest): ", to: "`Healing Trance: ", breaks: "E1" },
-  { name: "the card's Power Recovery line goes back", file: W, from: "`Power Recovery (one check for the rest): ", to: "`Power Recovery: ", breaks: "E2" }
+  { name: "the card's Power Recovery line goes back", file: W, from: "`Power Recovery (one check for the rest): ", to: "`Power Recovery: ", breaks: "E2" },
+  { name: "the rest card goes back to the rolled step", file: W, from: "const applied = Number(r.applied ?? r.delta ?? 0);", to: "const applied = Number(r.delta ?? 0);", breaks: "F1/F2" },
+  { name: "the rest card drops the no-Fatigue wording", file: W, from: "else if (Number(r.delta) < 0) what = \"no Fatigue to recover\";", to: "", breaks: "F1" },
+  { name: "the rest card loses the from value", file: W, from: "const from = Number(r.from ?? 0);", to: "const from = 0;", breaks: "F4/F6" },
+  { name: "the save stops reporting what it applied", file: E, from: "  const applied = result - current;", to: "  const applied = delta;", breaks: "F3/F7" },
+  { name: "the save stops reporting where it started", file: E, from: "delta: heldDown ? 0 : delta, from: current,", to: "delta: heldDown ? 0 : delta,", breaks: "F3/F4" },
+  { name: "the standalone card drops the no-Fatigue wording", file: E, from: "    else if (delta < 0) lines.push('<p style=\"margin:2px 0\">No Fatigue to recover.</p>');\n", to: "", breaks: "F7" },
+  { name: "the standalone card reports the rolled step on a reduction", file: E, from: "    else if (applied < 0) lines.push(`<p style=\"margin:2px 0\">Fatigue reduces by <strong>${-applied}</strong>", to: "    else if (delta < 0) lines.push(`<p style=\"margin:2px 0\">Fatigue reduces by <strong>${-delta}</strong>", breaks: "F7" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-rest-single-check.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([W, E]);

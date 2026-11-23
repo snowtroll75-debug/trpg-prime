@@ -681,12 +681,18 @@ export async function postRestSummaryCard(summary) {
   for (const r of powerRecoveryRolls) {
     lines.push(summaryLine(`Power Recovery (one check for the rest): ${degreeLabel(r.degree)}${r.bonus > 0 ? ` — <strong>+${r.bonus} PP</strong>` : " — no bonus"}.`));
   }
-  if (fatigueResults.length) {
-    const netFatigue = fatigueResults.reduce((sum, r) => sum + r.delta, 0);
-    const how = fatigueResults.length === 1 ? ` (one check for the rest: ${degreeLabel(fatigueResults[0].check?.outcome?.degree?.key)})` : "";
-    if (netFatigue < 0) lines.push(summaryLine(`Fatigue Recovery${how}: <strong>-${-netFatigue}</strong>.`));
-    else if (netFatigue > 0) lines.push(summaryLine(`Fatigue Recovery${how}: <strong>+${netFatigue}</strong>.`));
-    else lines.push(summaryLine(`Fatigue Recovery${how}: fatigue held steady.`));
+  // THE CHANGE THAT LANDED (3.710.3, found live on 3.710.2): a Success
+  // with no Fatigue printed "-1" although nothing moved. The line now says
+  // where Fatigue went, from what the save actually applied.
+  for (const r of fatigueResults) {
+    const applied = Number(r.applied ?? r.delta ?? 0);
+    const from = Number(r.from ?? 0);
+    let what;
+    if (r.held) what = `Fatigue held at <strong>${from}</strong> (it cannot be lowered)`;
+    else if (applied !== 0) what = `Fatigue <strong>${from} → ${from + applied}</strong>`;
+    else if (Number(r.delta) < 0) what = "no Fatigue to recover";
+    else what = `Fatigue holds steady${from > 0 ? ` at <strong>${from}</strong>` : ""}`;
+    lines.push(summaryLine(`Fatigue Recovery (one check for the rest): ${degreeLabel(r.check?.outcome?.degree?.key)} — ${what}.`));
   }
   if (summary.fatigueCleared) {
     lines.push(summaryLine(`A full night's rest: the remaining <strong>Fatigue ${summary.fatigueCleared}</strong> is cleared.`));

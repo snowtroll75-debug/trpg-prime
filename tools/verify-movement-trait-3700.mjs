@@ -214,7 +214,7 @@ const rm = await mod("magic", "rooted-movement.mjs");
   ok("G3 the schema is stamped at or past both", atLeast(stamp, packGate) && atLeast(stamp, effectGate), stamp);
   const sys = JSON.parse(read("system.json"));
   equal("G4 the version and the download name 3.707.3", [sys.version, sys.download, JSON.parse(read("package.json")).version],
-    ["3.710.2", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.710.2/trg-prime.zip", "3.710.2"]);
+    ["3.710.3", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.710.3/trg-prime.zip", "3.710.3"]);
 }
 
 console.log(`verify-movement-trait-3700: ${checks} checks${failures.length ? ` — ${failures.length} FAILED` : " — all green."}`);

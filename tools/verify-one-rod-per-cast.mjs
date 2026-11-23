@@ -74,7 +74,7 @@ ok("C cast-options still loads", typeof CO.appliedCastOptions === "function");
 
 // Z
 const sys = JSON.parse(read("system.json"));
-equal("Z the version is 3.691.0, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.710.2/")], ["3.710.2", "3.710.2", true]);
+equal("Z the version is 3.691.0, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.710.3/")], ["3.710.3", "3.710.3", true]);
 
 if (failures.length) {
   for (const f of failures) console.log(`  ✗ ${f}`);

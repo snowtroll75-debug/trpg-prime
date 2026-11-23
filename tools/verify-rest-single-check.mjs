@@ -12,6 +12,9 @@
  *      one of each, an unsafe rest heals nothing, sustaining blocks Power
  *      Recovery, the per-hour rest PP and a full night's fatigue clear.
  *   E  The summary card says one check and what it did.
+ *   F  The Fatigue line says the change that landed (3.710.3, found live on
+ *      3.710.2: a Success with no Fatigue printed "-1" though nothing moved),
+ *      on the rest card and on the standalone Fatigue Recovery card.
  * Driven through performRestForActor itself, with TRGCheck.roll counted.
  */
 import fs from "node:fs";
@@ -26,7 +29,8 @@ globalThis.foundry = {
   utils: { mergeObject: (a, b) => ({ ...a, ...b }), setProperty: () => {}, deepClone: (x) => JSON.parse(JSON.stringify(x)), getProperty: () => undefined }
 };
 globalThis.Roll = class { constructor(f) { this.f = f; } async evaluate() { this.total = 10; return this; } };
-globalThis.ChatMessage = { create: async (d) => d, getSpeaker: () => ({}), applyMode: () => {} };
+let posted = [];
+globalThis.ChatMessage = { create: async (d) => { posted.push(d); return d; }, getSpeaker: () => ({}), applyMode: () => {} };
 globalThis.renderTemplate = async () => "<div></div>";
 globalThis.ui = { notifications: { warn: () => {}, info: () => {}, error: () => {} } };
 globalThis.game = { settings: { get: () => false }, combat: null, user: { id: "u", isGM: true }, users: [], messages: { contents: [] }, time: { worldTime: 0 }, actors: [], i18n: { localize: (k) => k, format: (k) => k } };
@@ -35,6 +39,8 @@ globalThis.Hooks = { on: () => 0, once: () => 0, off: () => {}, callAll: () => t
 
 const { TRGCheck } = await import("../module/dice/check.mjs");
 const { performRestForActor } = await import("../module/rest/rest-workflow.mjs");
+const { rollFatigueRecovery } = await import("../module/combat/exhaustion-workflow.mjs");
+const { postRestSummaryCard } = await import("../module/rest/rest-workflow.mjs");
 const { naturalHealingHP, powerRecoveryBonus, restingPPRecovery } = await import("../module/rest/recovery.mjs");
 
 let checks = 0;
@@ -162,13 +168,56 @@ rolls = []; degreeFor = {};
   equal("D10 without a trance, every hour's Natural Healing is still paid", s.hpHealedActual, naturalHealingHP(400, 1) * 8);
 }
 
+
+/* F — the Fatigue line says what landed. */
+const plain = (html) => String(html ?? "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ");
+async function fatigueCard({ fatigued, degree, hours = 8 }) {
+  rolls = []; degreeFor = { "Fatigue Recovery": degree };
+  const { actor, state } = makeActor({ fatigued });
+  const s = await rest(actor, { hours, attemptHealingTrance: false, attemptPowerRecovery: false });
+  posted = [];
+  await postRestSummaryCard(s);
+  const line = plain(posted.at(-1)?.content).match(/Fatigue Recovery[^.]*\./)?.[0] ?? "";
+  return { line, after: state.fatigued, result: s.fatigueResults[0] };
+}
+{
+  const r = await fatigueCard({ fatigued: 0, degree: "success" });
+  ok("F1 a Success with no Fatigue says there was none to recover", /Success — no Fatigue to recover\./.test(r.line), r.line);
+  ok("F2 and prints no -1", !/-1/.test(r.line), r.line);
+  equal("F3 the save reports it applied nothing from 0", [r.result.from, r.result.applied, r.after], [0, 0, 0]);
+}
+{
+  const r = await fatigueCard({ fatigued: 2, degree: "success" });
+  ok("F4 a Success from Fatigued 2 reads 2 → 1", /Success — Fatigue 2 → 1\./.test(r.line), r.line);
+}
+{
+  const r = await fatigueCard({ fatigued: 0, degree: "fumble" });
+  ok("F5 a Fumble from none reads 0 → 1", /Fumble — Fatigue 0 → 1\./.test(r.line), r.line);
+}
+{
+  const r = await fatigueCard({ fatigued: 3, degree: "failure" });
+  ok("F6 a Failure holds steady at its value", /Failure — Fatigue holds steady at 3\./.test(r.line), r.line);
+}
+{
+  rolls = []; degreeFor = { "Fatigue Recovery": "success" };
+  const { actor } = makeActor({ fatigued: 0 });
+  posted = [];
+  await rollFatigueRecovery(actor, { postCard: true });
+  const card = plain(posted.at(-1)?.content);
+  ok("F7 the standalone card says no Fatigue to recover, not \"reduces by 1, to 0\"", /No Fatigue to recover\./.test(card) && !/reduces by/.test(card), card);
+  const { actor: a2 } = makeActor({ fatigued: 2 });
+  posted = [];
+  await rollFatigueRecovery(a2, { postCard: true });
+  ok("F8 and from Fatigued 2 still reads reduces by 1, to 1", /reduces by 1, to 1\./.test(plain(posted.at(-1)?.content)), plain(posted.at(-1)?.content));
+}
+
 /* E — the summary card. */
 const code = fs.readFileSync(path.join(SYSTEM_ROOT, "module", "rest", "rest-workflow.mjs"), "utf8");
 ok("E1 STRUCTURAL: the card names Healing Trance as one check covering every hour", /Healing Trance \(one check for the rest\)/.test(code) && /for every hour/.test(code));
 ok("E2 STRUCTURAL: the card names Power Recovery as one check", /Power Recovery \(one check for the rest\)/.test(code));
 ok("E3 STRUCTURAL: no per-hour check loop is left in the rest", !/for \(let hour = 0; hour < wholeHours; hour\+\+\) \{\s*if \(safeEnvironment\)/.test(code) && !/hour \$\{hour \+ 1\} of rest/.test(code));
 
-const EXPECTED = 26;
+const EXPECTED = 34;
 equal("Z the suite ran every check it is meant to", checks + 1, EXPECTED);
 if (failures.length) { console.log(`verify-rest-single-check: ${checks} checks — ${failures.length} FAILED\n`); for (const f of failures) console.log(`  ✗ ${f}`); process.exitCode = 1; }
 else console.log(`verify-rest-single-check: ${checks} checks — all green.`);
