@@ -2,6 +2,13 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.710.3 — 23 November 2026: the Fatigue line says what changed
+
+Branch `feature/party-sheet-v2-stage3`. Full notes in `release-notes-3.710.3.md`; repair log R-0030.
+
+- **Found live on 3.710.2:** a Success with no Fatigue printed "-1" on the rest card, and "reduces by 1, to 0" on the standalone card. Both cards now say the change that landed, for example "Success — Fatigue 2 → 1" or "Success — no Fatigue to recover".
+- **Harness:** `verify/mutate-rest-single-check` now has 34 checks and 18 mutations.
+
 ## 3.710.2 — 22 November 2026: one check for a whole rest
 
 Branch `feature/party-sheet-v2-stage3`. Full notes in `release-notes-3.710.2.md`; repair log R-0029.

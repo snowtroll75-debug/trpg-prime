@@ -932,3 +932,17 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
 - **Version:** 3.710.2
 - **Branch:** `feature/party-sheet-v2-stage3` (local, not pushed)
 - **Package:** `trg-prime.zip`
+
+## R-0030 — The Fatigue Recovery lines printed the earned step, not the change (3.710.3)
+
+- **Found:** in the 3.710.2 live test, 23 November 2026. Syn and Valmorius 2 had no Fatigue, passed the save, and the rest card read "-1". The standalone card said "reduces by 1, to 0" from 0. Both are older than 3.710.2.
+- **Fix:**
+  - `rollFatigueRecovery` computes `applied = result - current` and returns `from` and `applied` (its `delta` is unchanged). Its card reports `applied`, and reads "No Fatigue to recover." for an earned reduction with nothing to lower.
+  - `postRestSummaryCard` writes one line per result: the degree, then "Fatigue a → b", "no Fatigue to recover", "holds steady at n", or "held at n (it cannot be lowered)".
+- **Requested by:** Graham, "Please fix the fatigue line before moving on."
+- **Testing:**
+  - `verify-rest-single-check` section F: 8 checks, 7 of which fail on 3.710.2.
+  - `mutate-rest-single-check`: 18 of 18 caught.
+  - Sweeps: 400 of 400 verify scripts pass, and the 15 rest-related mutate scripts pass.
+  - `postRestSummaryCard` leaves the callers backlog.
+- **Delivery:** 3.710.3, `feature/party-sheet-v2-stage3`, local and not pushed.

@@ -622,7 +622,6 @@
     "module/ranger.mjs#TERRAIN_MASTERY_RANGE",
     "module/ranger.mjs#TERRAIN_MASTERY_SKILLS",
     "module/rest/rest-workflow.mjs#performRest",
-    "module/rest/rest-workflow.mjs#postRestSummaryCard",
     "module/rogue.mjs#PATTERN_DISRUPTION_ACTIONS",
     "module/rune-actions.mjs#animatedBlocksShieldBlock",
     "module/rune-effects.mjs#NUMERIC_RUNES",
