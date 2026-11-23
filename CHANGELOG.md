@@ -2,6 +2,24 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.712.0 — 23 November 2026: Party Sheet V2, Stage 5
+
+Branch `feature/party-sheet-v2-stage5`. Full notes in `release-notes-3.712.0.md`; final report in `party-sheet-v2-final-report.md`; repair log R-0033.
+
+- **Skills page:** members × the 26 core skills, from the prepared totals; +0, — and ? kept apart; best marked; sort and filter; a click runs the member's own roll.
+- **Group Check (GM):** each member's own check through `TRGCheck`; individual results in the chosen visibility; no invented group rule.
+- **Encounter:**
+  - Import Combat, and an improved Add Selected Tokens, through one import list;
+  - party members left out; defeated and friendly unticked; hidden included;
+  - one creature per unlinked token, a linked actor once, never counted twice;
+  - storage version 2, read from version 1 unchanged;
+  - Clear asks first.
+- **Notes tab:** `system.details.notes` with the v14 editor. The GM edits; players read.
+- **R-0033:**
+  - a change on the sheet writes only that field (a whole-form submit could write stale coin back);
+  - live renders wait for the open editor.
+- **Harness:** `verify/mutate-party-sheet-stage5` (61 / 34), and Stage 1–3 re-anchors where Stage 5 builds what they held back.
+
 ## 3.711.1 — 23 November 2026: Stage 4 live fixes
 
 `feature/party-sheet-v2-stage4`. Full notes in `release-notes-3.711.1.md`; repair log R-0032.

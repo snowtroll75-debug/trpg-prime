@@ -980,3 +980,20 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
   - `mutate-party-sheet-stage4`: four LIVE mutations.
 - **Live (23 Nov 2026):** all four fixes pass, for the GM and the player. See `live-testing-report-3.711.1.md`.
 - **Delivery:** 3.711.1, `feature/party-sheet-v2-stage4`, local and not pushed.
+
+## R-0033 — The party sheet's whole-form submit could write stale values (3.712.0)
+
+- **Found:** building Party Sheet V2 Stage 5, 23 November 2026, by reading the submit path against the live-render deferral.
+- **Defect (older than Stage 5):**
+  - The party sheet submits on change, and a submit sent every named field as the sheet had last drawn it: the five coin balances, the threat, and so on.
+  - Live renders are deferred while a field has focus. So if the treasury changed through a transfer while the GM was editing another field, saving that field wrote the old balances back, and the transfer's coin was undone.
+  - The Notes editor (Stage 5) would have made this routine.
+  - Separately, the deferral didn't recognise the rich-text editor, so a member's update could redraw the sheet over an open editor and lose the typing.
+- **Fix:**
+  - `_processFormData` returns only the changed field on a change event.
+  - `#isBusy` counts an open `prose-mirror` and any contenteditable element as busy.
+  - `whenIdle` waits for focus to leave or for the editor to close, and re-checks before rendering.
+- **Testing:**
+  - `verify-party-sheet-stage5` N4 and N5;
+  - `mutate-party-sheet-stage5`: "the whole form is written on a change" and "a live render replaces the open editor".
+- **Delivery:** 3.712.0, `feature/party-sheet-v2-stage5`, local and not pushed.
