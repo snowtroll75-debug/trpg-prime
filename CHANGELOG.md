@@ -2,6 +2,11 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.712.1 — 23 November 2026: the Group Check summary's DC
+
+- **Group Check summary:** now reads "DC 15, Hard (DC +2): 17", where it used to read "DC 15 (Hard (DC +2))". Found in the 3.712.0 live test, which passed 21 of 22 checks.
+- **Notes:** `release-notes-3.712.1.md`; the live test is in `live-testing-report-3.712.0.md`.
+
 ## 3.712.0 — 23 November 2026: Party Sheet V2, Stage 5
 
 Branch `feature/party-sheet-v2-stage5`. Full notes in `release-notes-3.712.0.md`; final report in `party-sheet-v2-final-report.md`; repair log R-0033.

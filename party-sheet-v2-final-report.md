@@ -1,8 +1,8 @@
 # Party Sheet V2, Stage 5 and final verification report
 
-23 November 2026. TRG Prime **3.711.1 → 3.712.0**. Branch `feature/party-sheet-v2-stage5`, local and not pushed. It builds on the Stage 1–4 branches; `main` is still 3.707.3. Package `trg-prime-3.712.0.zip`.
+23 November 2026. TRG Prime **3.711.1 → 3.712.0 → 3.712.1**. Branch `feature/party-sheet-v2-stage5`, local and not pushed. It builds on the Stage 1–4 branches; `main` is still 3.707.3. Package `trg-prime-3.712.1.zip`.
 
-**Status: built and verified automatically. The live test of 3.712.0 is still to run.** Section 6 lists exactly what is unverified until then. The sheet is **not** claimed to be regression-free beyond what the tests below support.
+**Status: built, verified automatically, and live-tested on 3.712.0 (21 of 22 checks passed).** The one finding, the Group Check summary's DC wording, is fixed in 3.712.1, which passed its automated checks but hasn't been re-tested live. The sheet is **not** claimed to be regression-free beyond what the tests below support.
 
 ## 1. Versions
 
@@ -12,7 +12,7 @@
 | 2. Overview dashboard | 3.709.0, 3.709.1 | yes |
 | 3. Party Actions | 3.710.0 to 3.710.3 (with the rest ruling) | yes |
 | 4. Inventory, transfers, treasury | 3.711.0, 3.711.1 | yes |
-| 5. Skills, Group Check, Encounter, Notes | **3.712.0** | **not yet** |
+| 5. Skills, Group Check, Encounter, Notes | **3.712.0**, 3.712.1 | yes (3.712.0; `live-testing-report-3.712.0.md`) |
 
 The manifest URL is unchanged.
 
@@ -106,7 +106,7 @@ The manifest URL is unchanged.
 
 ## 5. Tests and results
 
-### Automated, at `b77f887` (3.712.0, in clean worktrees)
+### Automated, at `b77f887` (3.712.0, in clean worktrees); 3.712.1 re-run at `a409137`: all 402 verify scripts pass, and the Stage 5 pair is 62 checks / 35 mutations
 
 - **New pair:** `verify-party-sheet-stage5` passes 61 checks. `mutate-party-sheet-stage5` catches all 34 mutations.
 - **Earlier party pairs:**
@@ -127,36 +127,41 @@ The manifest URL is unchanged.
 
 | Area | Covered by |
 |---|---|
-| Character and NPC sheets | the full verify suite (402); live in Stages 1–4. **Not re-run live on 3.712.0.** |
+| Character and NPC sheets | the full verify suite (402); live in Stages 1–4; on 3.712.0, the character sheet's own skill roll from the Party sheet |
 | Party membership | Stage 1 harness, and live in Stages 1–4 |
 | Live member sync | Stage 1 harness (live-sync), live in Stages 1–2; the editor guard is new in Stage 5 (N5) |
 | HP and PP display | Stage 2 harness, live in Stage 2 |
 | Conditions and effects | Stage 2 harness, live in Stage 2 |
-| Skill rolls | Stage 5 K12 and K13; **live pending** |
-| Group Checks | Stage 5 G1–G14; **live pending** |
+| Skill rolls | Stage 5 K12 and K13; live (3.712.0) |
+| Group Checks | Stage 5 G1–G15; live (3.712.0) |
 | Initiative | Stage 2 harness, live in Stage 2 |
 | Rest and Travel | Stage 3 harness and `rest-single-check`, live in 3.710.x |
 | Begin Session | Stage 3 harness and block38, live in Stage 3 |
 | XP and accomplishments | Stage 3 harness and block38, live in Stage 3 |
-| Encounter import | Stage 5 E1–E19; **live pending** |
+| Encounter import | Stage 5 E1–E19; live (3.712.0) |
 | Inventory deposits and withdrawals | Stage 4 harness, live in 3.711.0 and 3.711.1 |
 | Coin transfers | Stage 4 harness, live in 3.711.0 |
 | Multi-GM security | Stage 4 M1–M9, `fixes-3686-2`; live: one GM only (a second GM client can't be run here) |
-| Notes persistence | Stage 5 N1–N5; **live pending** |
+| Notes persistence | Stage 5 N1–N5; live (3.712.0) |
 | Party permissions | Stage 1–4 harnesses (player context), live with PC Tester in Stages 1–4 |
 | Multiple Party actors | Stage 3 harness (Party A and Party B), live in Stage 3 |
 | Existing standalone macros | Stage 3 (`openRestDialog()`, Travel), live in Stage 3 |
-| Six-character and mixed PC/NPC parties | Stage 3 harness (six members, NPCs); **live pending**: the Test world has 5 characters and no NPC; I'll add temporary ones |
+| Six-character and mixed PC/NPC parties | Stage 3 harness (six members, NPCs); live (3.712.0): 5 characters and a temporary NPC |
 
 ## 6. Limitations and remaining live testing
 
-**Unverified until the live test:**
-- the Skills page: values against each sheet, clicking to roll, the filter, sorting and scrolling;
-- Group Check: rolls, the card's visibility (a GM-only roll as seen by a player), and Conviction prompts;
-- Import Combat and Add Selected Tokens with linked, unlinked, defeated, hidden and friendly tokens, and a second import;
-- Notes: editing, saving, reopening, the player's view and secrets;
-- the editor guard (a member update while editing);
-- a six-character mixed party, and two parties.
+**Live-tested on 3.712.0** (see the live report):
+- the Skills page: all 156 cells against the actors, the best value, sort, filter, and a click opening the member's own roll;
+- Group Check: GM-only visibility as the player sees it, and a Conviction prompt;
+- Import Combat and Add Selected Tokens: linked, unlinked, defeated, hidden and friendly tokens, a party member's token, and a second import;
+- Clear, with No and Yes;
+- Notes: editing, saving, reopening, the player's view without secrets, the editor guard and the stale-coin fix;
+- a six-member mixed party, and two parties.
+
+**Still unverified live:**
+- 3.712.1's one change (the summary's DC wording), which the harness covers;
+- a second GM client;
+- Award Encounter XP from the new import. The award path is unchanged and was live-tested in Stage 3.
 
 **Known limits (disclosed, not resolved):**
 - **Not true secrets:** the party's data, notes included, is sent to every player who can see the party. A secret block or any GM-only text is hidden by the sheet, not by Foundry.
@@ -183,6 +188,6 @@ The manifest URL is unchanged.
 
 ## 8. Artefact
 
-- **Package:** `trg-prime-3.712.0.zip`
+- **Package:** `trg-prime-3.712.1.zip`
 - **Branch:** `feature/party-sheet-v2-stage5` (not pushed)
 - **To ship:** merge to `main` and publish the release. Neither is done; both wait for your authorisation.
