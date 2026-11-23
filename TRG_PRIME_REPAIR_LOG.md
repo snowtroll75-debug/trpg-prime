@@ -925,6 +925,7 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
 - `mutate-rest-single-check`: 11 of 11 caught.
 - `mutate-daily-firsts` and `mutate-recovery-companions` re-anchored for indentation only.
 - `tools/uncalled-exports.json`: `performRestForActor` leaves the backlog (505 → 504).
+- **Live (23 Nov 2026):** 8-hour group rest of 5 characters: 10 Conviction prompts (was 49), one per check at most; Fatigue moved once, Power Recovery paid once. Pass. See `live-testing-report-3.710.2.md`.
 
 ### Delivery
 
