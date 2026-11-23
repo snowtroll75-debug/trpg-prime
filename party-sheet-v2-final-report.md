@@ -2,7 +2,7 @@
 
 23 November 2026. TRG Prime **3.711.1 → 3.712.0 → 3.712.1**. Branch `feature/party-sheet-v2-stage5`, local and not pushed. It builds on the Stage 1–4 branches; `main` is still 3.707.3. Package `trg-prime-3.712.1.zip`.
 
-**Status: built, verified automatically, and live-tested on 3.712.0 (21 of 22 checks passed).** The one finding, the Group Check summary's DC wording, is fixed in 3.712.1, which passed its automated checks but hasn't been re-tested live. The sheet is **not** claimed to be regression-free beyond what the tests below support.
+**Status: built, verified automatically, and live-tested.** 3.712.0 passed 21 of 22 live checks. The one finding, the Group Check summary's DC wording, is fixed in 3.712.1, which passed every remaining live check, two connected GMs included. The sheet is **not** claimed to be regression-free beyond what the tests below support.
 
 ## 1. Versions
 
@@ -141,7 +141,7 @@ The manifest URL is unchanged.
 | Encounter import | Stage 5 E1–E19; live (3.712.0) |
 | Inventory deposits and withdrawals | Stage 4 harness, live in 3.711.0 and 3.711.1 |
 | Coin transfers | Stage 4 harness, live in 3.711.0 |
-| Multi-GM security | Stage 4 M1–M9, `fixes-3686-2`; live: one GM only (a second GM client can't be run here) |
+| Multi-GM security | Stage 4 M1–M9, `fixes-3686-2`; live on 3.712.1 with two GMs: relay, simultaneous last-item race, and hand-over |
 | Notes persistence | Stage 5 N1–N5; live (3.712.0) |
 | Party permissions | Stage 1–4 harnesses (player context), live with PC Tester in Stages 1–4 |
 | Multiple Party actors | Stage 3 harness (Party A and Party B), live in Stage 3 |
@@ -158,17 +158,18 @@ The manifest URL is unchanged.
 - Notes: editing, saving, reopening, the player's view without secrets, the editor guard and the stale-coin fix;
 - a six-member mixed party, and two parties.
 
-**Still unverified live:**
-- 3.712.1's one change (the summary's DC wording), which the harness covers;
-- a second GM client;
-- Award Encounter XP from the new import. The award path is unchanged and was live-tested in Stage 3.
+**Checked live on 3.712.1** (`live-testing-report-3.712.1.md`):
+- Award Encounter XP from an imported encounter;
+- the summary's DC wording;
+- **two GMs connected:** the second GM's transfer was relayed to the designated GM and carried out once; both GMs giving the last potion at the same second gave one potion; and after the designated GM left, the other GM's client took over and performed.
+
+**Still unverified live:** a disconnect in the middle of one transfer. It can't be forced reliably here; the harness covers it (Stage 4, F5–F9), and the Unfinished Transfers list was checked live in 3.711.0.
 
 **Known limits (disclosed, not resolved):**
 - **Not true secrets:** the party's data, notes included, is sent to every player who can see the party. A secret block or any GM-only text is hidden by the sheet, not by Foundry.
 - **Specialist skills** are not columns. They differ per character; the matrix shows the 26 core skills.
 - **The Group Check is GM-run.** The GM's client rolls for every member, so Conviction and optional-bonus prompts appear for the GM.
 - **Stage 4's limits stand:** transfers are not atomic across documents, and the recovery is the journal plus undo.
-- **A second GM client** has not been run live at any stage.
 
 ## 7. Code quality audit (§9)
 
