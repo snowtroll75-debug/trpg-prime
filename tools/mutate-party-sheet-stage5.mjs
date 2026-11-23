@@ -46,6 +46,7 @@ const MUTATIONS = [
   { name: "secrets shown to players", file: SH, from: "      secrets: isGM, relativeTo: actor", to: "      secrets: true, relativeTo: actor", breaks: "N2" },
   { name: "the whole form is written on a change", file: SH, from: "    if (!name || !foundry.utils.hasProperty(data, name)) return data;\n    return foundry.utils.expandObject({ [name]: foundry.utils.getProperty(data, name) });", to: "    return data;", breaks: "N4" },
   { name: "a live render replaces the open editor", file: SH, from: "    if (root.querySelector(\"prose-mirror[open], prose-mirror.active\")) return true;\n", to: "", breaks: "N5" },
+  { name: "LIVE: the effective DC is left out", file: K, from: ": ${dc + Number(level.modifier ?? 0)}", to: "", breaks: "G15" },
   { name: "the Skills tab is not declared", file: SH, from: "        { id: \"skills\", icon: \"fa-solid fa-list-check\", label: \"Skills\" },\n", to: "", breaks: "T1" },
   { name: "Group Check is offered to players", file: H, from: "      <button type=\"button\" data-action=\"groupCheck\"", to: "      <button type=\"button\" data-player-ok data-action=\"groupCheck\"", breaks: "T4" }
 ];

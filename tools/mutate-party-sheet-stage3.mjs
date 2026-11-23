@@ -49,8 +49,8 @@ const MUTATIONS = [
   { name: "LIVE: the chooser opens again on a second press (lock only around the award)", file: SHEET, from: "    await runOnce(TRGPartySheet.#running, `${this.actor.uuid}:xp`, async () => {\n      const context = await rewardsContext(this.actor);", to: "    await (async (f) => f())(async () => {\n      const context = await rewardsContext(this.actor);", breaks: "S10" },
   { name: "LIVE: the toolbar award nests the lock and refuses itself", file: SHEET, from: "      return choice ? this.#awardXPNow(choice.xp, choice.reason) : null;", to: "      return choice ? this.#awardXP(choice.xp, choice.reason) : null;", breaks: "S10/S11" },
   /* Z */
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.712.0\"", to: "\"version\": \"3.709.1\"", breaks: "Z1" },
-  { name: "package.json is left behind", file: PJ, from: "\"version\": \"3.712.0\"", to: "\"version\": \"3.709.1\"", breaks: "Z1" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.712.1\"", to: "\"version\": \"3.709.1\"", breaks: "Z1" },
+  { name: "package.json is left behind", file: PJ, from: "\"version\": \"3.712.1\"", to: "\"version\": \"3.709.1\"", breaks: "Z1" }
 ];
 
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-party-sheet-stage3.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }

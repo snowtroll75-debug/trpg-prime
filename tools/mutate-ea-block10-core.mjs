@@ -48,7 +48,7 @@ const MUTATIONS = [
   { name: "H28r the cage drops the lines", file: CC, from: "outcome), ...reactionLines];", to: "outcome)];" },
   { name: "H28 a typed packet passes no amount", file: DW, from: "      amount: Math.max(0, Math.floor(Number(amount) || 0))\n    }));", to: "      amountX: 0\n    }));" },
   { name: "H28 a spell attack passes no amount", file: CW, from: "spellDamageReactions(targetActor, spell, actor, [damageType], dealt)", to: "spellDamageReactions(targetActor, spell, actor, [damageType])" },
-  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.712.0\"", to: "\"version\": \"3.693.0\"" },
+  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.712.1\"", to: "\"version\": \"3.693.0\"" },
   { name: "H29 an opted-in grant is not read", file: IL, from: "(flags.grantedBy?.atItemLevel === true ? flags.grantedBy?.sourceId : null)", to: "null" },
   { name: "H29 every grant is read, opted in or not", file: IL, from: "(flags.grantedBy?.atItemLevel === true ? flags.grantedBy?.sourceId : null)", to: "(flags.grantedBy?.sourceId ?? null)" },
   { name: "H29 the opt-in comes before the rune's record", file: IL, from: "flags[GRANT_FLAG]?.itemId ?? (flags.grantedBy", to: "(flags.grantedBy?.atItemLevel === true ? flags.grantedBy?.sourceId : null) ?? flags[GRANT_FLAG]?.itemId ?? (flags.grantedBy" },

@@ -125,7 +125,9 @@ export function groupCheckSummary(results = [], { dc = null, difficulty = "mediu
   return {
     lines,
     counts: [...counts].map(([label, count]) => ({ label, count })),
-    dcText: dc === null ? "No DC set" : `DC ${dc}${level && difficulty !== "medium" ? ` (${level.label})` : ""}`,
+    // The DC as set, and what each roll was checked against (3.712.1, found
+    // live: "DC 15 (Hard (DC +2))" left the 17 to arithmetic).
+    dcText: dc === null ? "No DC set" : `DC ${dc}${level && difficulty !== "medium" && !level.auto ? `, ${level.label}: ${dc + Number(level.modifier ?? 0)}` : level?.auto ? `, ${level.label}` : ""}`,
     rolled: lines.filter((l) => l.total !== null).length
   };
 }
