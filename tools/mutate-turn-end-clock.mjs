@@ -28,6 +28,13 @@ const MUTATIONS = [
   { name: "S the sweep reads the round after", file: CB, from: "round: context?.round ?? this.round, combatantId: combatant.id })) {", to: "round: this.round + 1, combatantId: combatant.id })) {" },
   { name: "R the condition writer drops it", file: EA, from: "  if (endsAtTurnEndOf?.of) updates[`flags.${SYSTEM_ID}.${TURN_END_FLAG}`] = { of: String(endsAtTurnEndOf.of), castTurn: String(endsAtTurnEndOf.castTurn ?? \"\") };", to: "" },
   { name: "R the relay does not carry it", file: TRW, from: "\"endsAtTurnStartOf\", \"endsAtTurnEndOf\"]) {", to: "\"endsAtTurnStartOf\"]) {" },
+  { name: "F no turn clock is a local rule", file: ED, from: "  if (end && typeof end.of === \"string\" && end.of) return true;", to: "  if (false) return true;" },
+  { name: "F the start-of-turn clock is not", file: ED, from: "  return typeof start === \"string\" && start.length > 0;", to: "  return false;" },
+  { name: "F a round clock counts too", file: ED, from: "export function keepsOwnTurnClock(flags) {\n", to: "export function keepsOwnTurnClock(flags) {\n  if (flags?.conditionExpiresRound) return true;\n" },
+  { name: "F the helper always toggles", file: EA, from: "  if (!ruled.length) {\n    await actor.toggleStatusEffect(\"flatFooted\", { active: false });", to: "  if (true) {\n    await actor.toggleStatusEffect(\"flatFooted\", { active: false });" },
+  { name: "F the untimed one kept beside a clocked one", file: EA, from: "    if (ruled.includes(effect) || effect.statuses?.size !== 1) continue;", to: "    continue;" },
+  { name: "F the clocked one deleted beside an untimed one", file: EA, from: "    if (ruled.includes(effect) || effect.statuses?.size !== 1) continue;", to: "    if (effect.statuses?.size !== 1) continue;" },
+  { name: "F _onEndTurn back to the blanket toggle", file: CB, from: "    if (actor.hasCondition?.(\"flatFooted\")) await shedFlatFootedAtTurnEnd(actor);", to: "    if (actor.hasCondition?.(\"flatFooted\")) await actor.toggleStatusEffect(\"flatFooted\", { active: false });" },
   { name: "R the GM's client trusts the object whole", file: TR, from: "          ? { of: carried.endsAtTurnEndOf.of, castTurn: String(carried.endsAtTurnEndOf.castTurn ?? \"\") }", to: "          ? carried.endsAtTurnEndOf" }
 ];
 

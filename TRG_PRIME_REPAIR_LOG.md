@@ -997,3 +997,34 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
   - `verify-party-sheet-stage5` N4 and N5;
   - `mutate-party-sheet-stage5`: "the whole form is written on a change" and "a live render replaces the open editor".
 - **Delivery:** 3.712.0, `feature/party-sheet-v2-stage5`, local and not pushed.
+
+## R-0034 — Flat-Footed with its own turn clock was removed at its owner's turn end (3.712.2)
+
+- **Found:** live test of Inner Tempest 1.1.0 in the Test world, 24 November 2026.
+  - An Orc missed the Gymnast on the Orc's own turn.
+  - Redirection Stance made the Orc flat-footed "until the end of its next turn", stamped `endsAtTurnEndOf {of: Orc, castTurn: this turn}`.
+  - `_onEndTurn` removed it at the end of that same turn.
+- **Ruling:** Graham, 24 November 2026: "The core should apply unless a local rule overrides it."
+- **Source state:**
+  - Branch `fix/core-flatfooted-own-clock`, from `origin/main` at 3.712.1 (`17b7554`), in a separate worktree.
+  - The main checkout's uncommitted pack files were left untouched.
+- **Diagnosis:**
+  - `_onEndTurn` (`module/documents/combat.mjs`) ran `toggleStatusEffect("flatFooted", {active: false})` on any flat-footed creature whose turn was ending.
+  - That came after the turn-end sweep, which correctly passes over the turn the stamp was laid in.
+  - So the blanket removal won over every turn clock.
+- **Fix:**
+  - New `keepsOwnTurnClock(flags)` in `magic/effect-duration.mjs`, true for an `endsAtTurnEndOf` or `endsAtTurnStartOf` stamp.
+  - New `shedFlatFootedAtTurnEnd(actor)` in `combat/effect-application-workflow.mjs`:
+    - no clocked Flat-Footed: the toggle, exactly as before;
+    - otherwise: deletes only the unclocked single-status Flat-Footed effects.
+  - `_onEndTurn` calls the helper in place of the toggle.
+- **Testing:**
+  - `verify-turn-end-clock` F1–F6.
+  - `mutate-turn-end-clock`: seven new mutations, all caught.
+  - The full `verify-*` corpus.
+  - The turn and condition mutation files.
+  - Pillars of Faith's harness, the same on 3.712.1 and 3.712.2.
+  - Inner Tempest 1.1.1's harness.
+- **Live verification:** to follow once the zip is installed; see the Inner Tempest 1.1.1 live report.
+- **Delivery:** 3.712.2, local and not pushed.
+

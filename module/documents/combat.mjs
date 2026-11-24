@@ -32,7 +32,7 @@ import { clearShieldBashLostBonus } from "../combat/shield-bash.mjs";
 import { expireStaleDelay } from "./delay.mjs";
 import { expireStaleReadiedAction } from "../combat/ready.mjs";
 import { decrementPainToleranceSuppressions } from "../combat/pain-tolerance.mjs";
-import { expireTimedConditions } from "../combat/effect-application-workflow.mjs";
+import { expireTimedConditions, shedFlatFootedAtTurnEnd } from "../combat/effect-application-workflow.mjs";
 import { effectExpiredLine } from "../combat/effect-expiry.mjs";
 import { offerZealousBattlecry, settleZealousBattlecry } from "../combat/zealous-battlecry-workflow.mjs";
 import { expireRage } from "../combat/rage-workflow.mjs";
@@ -1664,9 +1664,11 @@ export class TRGCombat extends Combat {
     // (Graham, 13 Aug 2026), so by now there is nothing of its to find.
     // Placed before the bleeds/recurrings early-return below, since this
     // needs to run regardless of either.
-    if (actor.hasCondition?.("flatFooted")) {
-      await actor.toggleStatusEffect("flatFooted", { active: false });
-    }
+    // …UNLESS A LOCAL RULE OVERRIDES IT (3.712.2; Graham, 24 November 2026):
+    // a Flat-Footed stamped with its own turn clock ("until the end of its
+    // next turn") is left to that clock's sweep, above or at a turn start.
+    // The others go as before; a lone untimed one still by the toggle.
+    if (actor.hasCondition?.("flatFooted")) await shedFlatFootedAtTurnEnd(actor);
 
     // Pain Tolerance (Chapter 6): "ignore up to 1 point... until the
     // end of your [current/next] turn" — decremented every time this

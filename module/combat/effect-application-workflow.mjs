@@ -17,7 +17,7 @@ import { RAGE_EFFECT_NAME } from "./rage.mjs";
 import { expiryToWrite } from "./condition-timing.mjs";
 import { frozenByStasis, stasisEffectOf } from "../magic/stasis.mjs";
 import { speaksAtItsOwnEnd } from "./effect-expiry.mjs";
-import { dueAtTurnEnd, turnKey } from "../magic/effect-duration.mjs";
+import { dueAtTurnEnd, keepsOwnTurnClock, turnKey } from "../magic/effect-duration.mjs";
 import { SEERS_VISION_FLAG, recordedRolls } from "../magic/seers-vision.mjs";
 import {
   RESPITE_FLAG, normaliseDelayedRespite, respiteReleasedLine
@@ -717,6 +717,30 @@ function dueAtTurnStart(stamp, { round, turnOfUuid = "" } = {}) {
   if (ends !== undefined && ends !== null && Number(round) >= Number(ends)) return true;
   const of = String(stamp?.endsAtTurnStartOf ?? "");
   return Boolean(of) && Boolean(turnOfUuid) && of === String(turnOfUuid);
+}
+
+/**
+ * Flat-Footed's end-of-turn removal (`_onEndTurn`), from every source other
+ * than Chapter 4 Step 4 — unless a local rule overrides it (3.712.2; Graham,
+ * 24 November 2026). A Flat-Footed carrying its own turn clock is left for
+ * that clock's sweep; the rest go. With none so clocked, the toggle removes
+ * it exactly as it always has.
+ *
+ * @param {Actor} actor
+ * @returns {Promise<number>} how many Flat-Footed effects were kept
+ */
+export async function shedFlatFootedAtTurnEnd(actor) {
+  const held = Array.from(actor?.effects ?? []).filter((e) => !e.disabled && e.statuses?.has?.("flatFooted"));
+  const ruled = held.filter((e) => keepsOwnTurnClock(e.flags?.[SYSTEM_ID]));
+  if (!ruled.length) {
+    await actor.toggleStatusEffect("flatFooted", { active: false });
+    return 0;
+  }
+  for (const effect of held) {
+    if (ruled.includes(effect) || effect.statuses?.size !== 1) continue;
+    await effect.delete();
+  }
+  return ruled.length;
 }
 
 export async function expireTimedConditions(actor, currentRound, { turnOf = null } = {}) {

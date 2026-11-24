@@ -2,6 +2,15 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.712.2 — 24 November 2026: Flat-Footed with its own clock
+
+Branch `fix/core-flatfooted-own-clock`. Full notes in `release-notes-3.712.2.md`; repair log R-0034.
+
+- **Graham's ruling:** the end-of-turn removal of Flat-Footed applies "unless a local rule overrides it".
+- **What changed:** a Flat-Footed carrying its own turn clock (`endsAtTurnEndOf` or `endsAtTurnStartOf`) is now left to that clock. Any other Flat-Footed goes at the end of its owner's turn, as before.
+- **Found live:** Inner Tempest's Redirection Stance.
+- **Harness:** `verify-turn-end-clock` 27, `mutate-turn-end-clock` 22.
+
 ## 3.712.1 — 23 November 2026: the Group Check summary's DC
 
 - **Group Check summary:** now reads "DC 15, Hard (DC +2): 17", where it used to read "DC 15 (Hard (DC +2))". Found in the 3.712.0 live test, which passed 21 of 22 checks.

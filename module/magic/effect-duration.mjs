@@ -187,6 +187,29 @@ export function dueAtTurnEnd(stamp, { turnOfUuid = "", endingTurn = "" } = {}) {
   return String(stamp?.castTurn ?? "") !== String(endingTurn);
 }
 
+/**
+ * Does this Flat-Footed carry a clock of its own rule's — "until the end of
+ * its next turn", "until the start of your next turn" — stamped with whose
+ * turn ends it (3.712.2)? Pure; takes the effect's `flags["trg-prime"]`.
+ *
+ * Graham, 24 November 2026: the core's end-of-turn removal of Flat-Footed
+ * "should apply unless a local rule overrides it". A turn clock is that
+ * local rule: its own sweep (`expireAtTurnEnd`, `expireTimedConditions`)
+ * ends it, and the blanket removal leaves it alone. Found live with
+ * Redirection Stance (Inner Tempest 1.1.0): an attacker made flat-footed
+ * "until the end of its next turn" by a reaction on its own turn lost it as
+ * that same turn ended.
+ *
+ * @param {object|null|undefined} flags
+ * @returns {boolean}
+ */
+export function keepsOwnTurnClock(flags) {
+  const end = flags?.endsAtTurnEndOf;
+  if (end && typeof end.of === "string" && end.of) return true;
+  const start = flags?.endsAtTurnStartOf;
+  return typeof start === "string" && start.length > 0;
+}
+
 /** "Until the end of YOUR next turn" — the caster's (3.707.2). */
 const UNTIL_YOUR_TURN_END = /until the end of your next turn/i;
 

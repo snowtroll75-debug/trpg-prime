@@ -16,6 +16,9 @@
  *   W  every writer that copies the turn-start stamp copies this one
  *   R  conditions carry it, through the GM's relay, as two strings only
  *   K  the pack's spells with that duration
+ *   F  Flat-Footed's end-of-turn removal leaves one with its own turn clock
+ *      (3.712.2; Graham, 24 November 2026: "the core should apply unless a
+ *      local rule overrides it")
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -127,6 +130,51 @@ const OTHER = "Scene.s.Token.orc.Actor.o";
   equal("R3 the GM's client lays two strings and nothing else", seen, [{ of: CASTER, castTurn: "2:c" }, null]);
 }
 
+/* F — driven (3.712.2) */
+{
+  equal("F1 a turn clock is a local rule; a round clock, a bare flag or nothing is not",
+    [D.keepsOwnTurnClock({ endsAtTurnEndOf: { of: OTHER, castTurn: "2:cOrc" } }), D.keepsOwnTurnClock({ endsAtTurnStartOf: CASTER }),
+      D.keepsOwnTurnClock({ conditionExpiresRound: 3 }), D.keepsOwnTurnClock({ endsAtTurnEndOf: { of: "" } }), D.keepsOwnTurnClock({ endsAtTurnStartOf: "" }),
+      D.keepsOwnTurnClock(null), D.keepsOwnTurnClock({ initialFlatFooted: true })],
+    [true, true, false, false, false, false, false]);
+  const E = await mod("combat", "effect-application-workflow.mjs");
+  const orc = (...stamps) => {
+    const log = { toggled: 0, deleted: [] };
+    const effects = stamps.map((stamp, i) => ({
+      id: `f${i}`, uuid: `Actor.orc.ActiveEffect.f${i}`, name: "Flat-Footed", disabled: false, statuses: new Set(["flatFooted"]),
+      flags: { "trg-prime": stamp }, getFlag: (sys, k) => stamp[k],
+      delete: async () => { log.deleted.push(`f${i}`); effects.splice(effects.findIndex((e) => e.id === `f${i}`), 1); }
+    }));
+    const actor = {
+      name: "orc", uuid: OTHER, effects: { [Symbol.iterator]: () => effects[Symbol.iterator](), get: (id) => effects.find((e) => e.id === id) ?? null, find: (f) => effects.find(f) },
+      toggleStatusEffect: async (id, { active }) => { if (id === "flatFooted" && active === false) { log.toggled += 1; effects.length = 0; } }
+    };
+    return { actor, log, effects };
+  };
+  const plain = orc({});
+  const keptPlain = await E.shedFlatFootedAtTurnEnd(plain.actor);
+  ok("F2 an untimed Flat-Footed (a critical hit's) goes at its owner's turn end, by the toggle, as always", keptPlain === 0 && plain.log.toggled === 1 && plain.effects.length === 0);
+  const stamp = { endsAtTurnEndOf: { of: OTHER, castTurn: "2:cOrc" } };
+  const timed = orc(stamp);
+  const keptTimed = await E.shedFlatFootedAtTurnEnd(timed.actor);
+  ok("F3 one with its own turn clock stays: no toggle, nothing deleted", keptTimed === 1 && timed.log.toggled === 0 && timed.effects.length === 1);
+  const both = orc({}, stamp);
+  await E.shedFlatFootedAtTurnEnd(both.actor);
+  equal("F4 with both: the untimed one is deleted, the clocked one kept", { deleted: both.log.deleted, left: both.effects.map((e) => e.id), toggled: both.log.toggled }, { deleted: ["f0"], left: ["f1"], toggled: 0 });
+  const redirected = orc(stamp);
+  const sameTurn = await E.expireAtTurnEnd(redirected.actor, { turnOf: { uuid: OTHER }, round: 2, combatantId: "cOrc" });
+  await E.shedFlatFootedAtTurnEnd(redirected.actor);
+  const nextTurn = await E.expireAtTurnEnd(redirected.actor, { turnOf: { uuid: OTHER }, round: 3, combatantId: "cOrc" });
+  ok("F5 laid on the orc's own turn 'until the end of its next turn': it outlasts that turn and ends as the next one ends",
+    sameTurn.length === 0 && nextTurn.length === 1 && redirected.effects.length === 0, JSON.stringify({ sameTurn, nextTurn }));
+  const CB = read("module", "documents", "combat.mjs");
+  const end = CB.slice(CB.indexOf("  async _onEndTurn(combatant, context) {"));
+  ok("F6 _onEndTurn sheds Flat-Footed through the helper, after the turn-end sweep, and toggles it nowhere else there",
+    /if \(actor\.hasCondition\?\.\("flatFooted"\)\) await shedFlatFootedAtTurnEnd\(actor\);/.test(end)
+    && end.indexOf("expireAtTurnEnd(subject") < end.indexOf("await shedFlatFootedAtTurnEnd(actor)")
+    && !/toggleStatusEffect\("flatFooted", \{ active: false \}\)/.test(end.slice(0, end.indexOf("\n  async ", 10))));
+}
+
 /* K */
 {
   const { ClassicLevel } = await import("classic-level");
@@ -141,7 +189,7 @@ const OTHER = "Scene.s.Token.orc.Actor.o";
   equal("K1 the three spells with this duration all read it", marked.sort(), ["Enchanting Utterance", "Seer’s Vision", "Shifting Step"]);
 }
 
-const EXPECTED = 21;
+const EXPECTED = 27;
 checks += 1;
 if (checks !== EXPECTED) failures.push(`Z the suite ran ${checks} checks, expected ${EXPECTED}`);
 if (failures.length) {
