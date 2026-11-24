@@ -1974,7 +1974,7 @@
       74px;                   /* controls */
   }
 
-  /* The Wizard's Spellbook item's own contents list (3.230.4): no cast
+  /* The Spellbook item's own contents list (3.230.4; the Wizard's Spellbook until 3.712.3): no cast
      actions and no controls column — this is a browse/open list, not
      something you cast or delete from here. */
   .trg-prime .book-spell-header,

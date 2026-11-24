@@ -742,7 +742,8 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     // so no extra gating is needed here.
     context.memorisation = memorisationContext(actor);
     // The Wizard's own restricted, growing Spell Book moved onto the
-    // Wizard's Spellbook gear item's own sheet (3.230.3) — see
+    // Spellbook gear item's own sheet (3.230.3; named the Wizard's
+    // Spellbook until 3.712.3) — see
     // module/sheets/item-sheet.mjs's isSpellbookContainer block. The
     // Magic tab keeps only the daily Memorisation card above.
     context.sizeChoices = Object.fromEntries(

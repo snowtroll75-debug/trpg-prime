@@ -1028,3 +1028,27 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
 - **Live verification:** passed on 24 November 2026, Test world, with 3.712.2 installed (Inner Tempest `docs/LIVE_TESTING_REPORT_1.1.1.md`, tests 1–4). A Skeleton missed on its own turn; the player's Redirection Stance made it flat-footed; it kept Flat-Footed past that turn's end and lost it as its next turn ended. Pinnacle of Motion's clocked Flat-Footed ended at the end of the Gymnast's turn (tests 5 and 8).
 - **Delivery:** 3.712.2, local and not pushed.
 
+## R-0035 — The Wizard's Spellbook renamed Spellbook (3.712.3)
+
+- **Requested:** Graham, 24 November 2026. The Archmage and the Archivist keep spell books too, so the core item is no longer only the Wizard's.
+- **Source state:** branch `fix/core-spellbook-rename`, from `origin/main` at 3.712.2 (`b0f08d8`).
+- **What links to the name:**
+  - the gear item itself;
+  - the Wizard class's `grantedGear`, which is resolved by name;
+  - the `grantedBy.requested` stamp on every owned copy;
+  - the `grantedGear` on every owned Wizard class copy;
+  - the sheet text.
+  - The spell book machinery reads the `spellbookContainer` flag, not the name.
+- **Risk found:** if only the pack were renamed, the next grant pass on an existing Wizard would ask for "Spellbook". It would find neither a held item nor a stamp by that name, and would grant a second book.
+- **Fix:**
+  - Three declared data fixes: the name, the description and the Wizard's grant.
+  - `migrateSpellbookRename`, which changes old values only and covers actors, unlinked tokens and world items.
+  - The schema stamp is raised to 3.712.3.
+  - `apply-data-fixes` gains `formerName`.
+- **Testing:**
+  - `verify-spellbook-rename` 26 and `mutate-spellbook-rename` 13.
+  - The full `verify-*` corpus.
+  - The schema-gate, pack-repair, migration-safety and class mutation files.
+- **Live verification:** not yet done.
+- **Delivery:** 3.712.3, branch pushed, not merged to `main`.
+

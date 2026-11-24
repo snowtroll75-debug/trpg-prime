@@ -81,7 +81,7 @@ ok("C the lookup reads the cast's own rule (Chapter 10), not a copy of it",
 ok("C the release check and its fumble both use the lookup", (src.match(/await spellTraditionFor\(actor, spellName\)/g) ?? []).length === 2);
 
 const sys = JSON.parse(read("system.json"));
-equal("Z the version is 3.691.0", [sys.version, JSON.parse(read("package.json")).version], ["3.712.2", "3.712.2"]);
+equal("Z the version is 3.691.0", [sys.version, JSON.parse(read("package.json")).version], ["3.712.3", "3.712.3"]);
 
 if (failures.length) { for (const f of failures) console.log(`  ✗ ${f}`); console.log(`verify-fixes-3688-1: ${failures.length} failure(s) of ${checks}`); process.exit(1); }
 console.log(`verify-fixes-3688-1: all ${checks} checks pass`);

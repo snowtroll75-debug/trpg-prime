@@ -6,6 +6,7 @@ import { deletionValue } from "./deletion.mjs";
 import { grantedInnateTakesFocus, withFocusTrait } from "./combat/refocus.mjs";
 import { SPEED_KEYS, pooledSpeedValue } from "./combat/speed-pool.mjs";
 import { contentPack } from "./content-packs.mjs";
+import { spellbookRenameUpdate } from "./data/spellbook-rename.mjs";
 const SYSTEM_ID = "trg-prime";
 const WORLD_SCHEMA_SETTING = "worldSchemaVersion";
 
@@ -91,7 +92,8 @@ const WORLD_SCHEMA_SETTING = "worldSchemaVersion";
 // 3.705.1: both passes re-gated for Graham's revised Lunge (its text, notes).
 // 3.707.0: the pack-copy pass re-gated for Stone Shield's shield.
 // 3.707.1: and again for its one foe.
-export const TRG_SCHEMA_VERSION = "3.707.1";
+// 3.712.3: the Wizard's Spellbook renamed Spellbook on owned copies (Graham).
+export const TRG_SCHEMA_VERSION = "3.712.3";
 
 /**
  * Register the hidden world setting used to determine whether a migration is
@@ -260,6 +262,9 @@ export async function checkWorldMigration() {
     }
     if (result.stalePending?.length) {
       alsoDid.push(`${result.stalePending.reduce((n, r) => n + r.removed, 0)} queued modifier(s) removed that a dedicated rule already applies or that repeated one already queued (${result.stalePending.map((r) => `${r.owner}: ${r.removed}`).join(", ")})`);
+    }
+    if (result.spellbookRenamed?.length) {
+      alsoDid.push(`${result.spellbookRenamed.length} owned item(s) updated for the Wizard's Spellbook's rename to Spellbook (${result.spellbookRenamed.map((r) => `${r.owner}: ${r.item}`).join(", ")})`);
     }
     if (result.bakedDefences?.length) {
       alsoDid.push(`${result.bakedDefences.length} stored defence list(s) cleaned of copies their effects already grant (${result.bakedDefences.map((r) => `${r.owner}: ${r.list}`).join(", ")})`);
@@ -893,6 +898,14 @@ export async function migrateWorldData(fromVersion = "") {
   const bakedDefences = (await runIf("3.666.4", "creature-type and effect entries baked into stored resistances, immunities and weaknesses",
     () => migrateBakedDefenceLists(actors, tokenActors))) ?? [];
   result.bakedDefences = bakedDefences;
+
+  // 3.712.3 — THE WIZARD'S SPELLBOOK IS THE SPELLBOOK (Graham, 24 Nov 2026).
+  // The book, its grant stamp and the Wizard class copy's grantedGear move
+  // together, or the next grant pass hands every Wizard a second book. See
+  // data/spellbook-rename.mjs and migrateSpellbookRename.
+  const spellbookRenamed = (await runIf("3.712.3", "the Wizard's Spellbook renamed Spellbook on owned copies",
+    () => migrateSpellbookRename([...actors, ...tokenActors], Array.from(game.items ?? [])))) ?? [];
+  result.spellbookRenamed = spellbookRenamed;
 
   const actorUpdates = buildUpdates(actors);
 
@@ -2121,6 +2134,51 @@ async function migrateStalePackCopies(actors = [], worldItems = []) {
   return { repaired, kept };
 }
 
+
+/**
+ * Rename owned and world copies of the Wizard's Spellbook (3.712.3).
+ *
+ * Old-value matched through `spellbookRenameUpdate`: only the exact old
+ * name, grant stamp, description and class grant entry change, so a GM's
+ * own renamed book is left alone and a second run touches nothing.
+ *
+ * @param {Actor[]} actors
+ * @param {Item[]} worldItems
+ * @returns {Promise<Array<{owner: string, item: string, fields: string[]}>>}
+ */
+async function migrateSpellbookRename(actors = [], worldItems = []) {
+  const report = [];
+  const sourceOf = (item) => item?._source ?? item;
+
+  for (const item of worldItems) {
+    const update = spellbookRenameUpdate(sourceOf(item));
+    if (!update) continue;
+    try {
+      await item.update(update);
+      report.push({ owner: "(world)", item: item.name, fields: Object.keys(update) });
+    } catch (error) {
+      console.error(`TRG Prime | Spellbook rename failed for world item "${item.name}"`, error);
+    }
+  }
+
+  for (const actor of actors) {
+    const updates = [];
+    for (const item of Array.from(actor.items ?? [])) {
+      const update = spellbookRenameUpdate(sourceOf(item));
+      if (!update) continue;
+      updates.push({ _id: item.id, ...update });
+      report.push({ owner: actor.name, item: item.name, fields: Object.keys(update) });
+    }
+    if (!updates.length) continue;
+    try {
+      await actor.updateEmbeddedDocuments("Item", updates);
+    } catch (error) {
+      console.error(`TRG Prime | Spellbook rename failed for "${actor.name}"`, error);
+    }
+  }
+
+  return report;
+}
 
 /**
  * Give back the stored-delta grants whose field lost them.

@@ -2,6 +2,14 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.712.3 — 24 November 2026: the Wizard's Spellbook is now the Spellbook
+
+Branch `fix/core-spellbook-rename`. Full notes in `release-notes-3.712.3.md`; repair log R-0035.
+
+- **Renamed:** the core gear item is now "Spellbook". The Wizard's `grantedGear` and the item's description follow it.
+- **Migration:** owned copies are renamed, together with their grant stamp and the Wizard class copy's grant, so a re-run of grants gives nobody a second book. Only old values are changed. The schema stamp is now 3.712.3.
+- **Harness:** `verify-spellbook-rename` 26, `mutate-spellbook-rename` 13.
+
 ## 3.712.2 — 24 November 2026: Flat-Footed with its own clock
 
 Branch `fix/core-flatfooted-own-clock`. Full notes in `release-notes-3.712.2.md`; repair log R-0034.

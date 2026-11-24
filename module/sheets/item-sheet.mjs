@@ -240,8 +240,8 @@ export class TRGItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         plural: (this.item.flags?.["trg-prime"]?.[RUNESTONE_TRAITS_FLAG] ?? []).length > 1
       }
       : null;
-    // A gear item that carries the growing Spell Book itself (currently
-    // only the Wizard's Spellbook, granted free through GRANT_FIELDS.class
+    // A gear item that carries the growing Spell Book itself (the core's
+    // Spellbook, granted free through GRANT_FIELDS.class
     // — see grants-workflow.mjs) renders its own slot ladder here rather
     // than on the Magic tab: the book is what the rules say holds the
     // spells, so this is where a player actually looks to grow it.

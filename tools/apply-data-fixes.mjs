@@ -109,7 +109,15 @@ for (const [packName, packFixes] of byPack) {
     const effectDocsByItem = new Map();
     for await (const [key, value] of db.iterator()) {
       if (key.startsWith("!items!") && !key.slice(7).includes("!")) {
-        for (const fix of packFixes) if (value?.name === fix.name) found.set(fix.id, { key, id: key.slice(7), value });
+        // A RENAME STAYS REPLAYABLE (3.712.3). A fix that renames its own
+        // item names the NEW name and records the old one as `formerName`,
+        // so the first run finds it by the old name and every replay by the
+        // new — otherwise a rename would report "no item named" for ever.
+        for (const fix of packFixes) {
+          if (value?.name === fix.name || (fix.formerName && value?.name === fix.formerName)) {
+            found.set(fix.id, { key, id: key.slice(7), value });
+          }
+        }
       } else if (key.startsWith("!items.effects!")) {
         const itemId = key.slice("!items.effects!".length).split(".")[0];
         if (!effectNamesByItem.has(itemId)) effectNamesByItem.set(itemId, new Set());

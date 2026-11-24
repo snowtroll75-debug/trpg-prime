@@ -1174,7 +1174,7 @@ Status: **mechanism + check** (a route and a named verify file), **mechanism** (
 | gear | Whistle (`DX1aAp5WB9GKSomK`) | — | Signal 1 mile (outdoors) or 500 ft. | — | check | REVIEW | **D** Mundane gear, food, lodging or container: no rolled effect. |
 | gear | Wine (bottle) (`evABHFFbpgOObg0t`) | — | More alcohol | — | check | REVIEW | **D** Mundane gear, food, lodging or container: no rolled effect. |
 | gear | Winter (`pfykltbC5QIx9qnj`) | — | Thick clothing designed to be worn in cold weather conditions. | data, code | check | mechanism + check |  |
-| gear | Wizard's Spellbook (`6useCNgleUx3BiUw`) | — | Granted for free the moment a character takes the Wizard class. | engine | — | mechanism |  |
+| gear | Spellbook (`6useCNgleUx3BiUw`; the Wizard's Spellbook until 3.712.3) | — | Granted for free the moment a character takes a class that keeps a spell book (the Wizard). | engine | — | mechanism |  |
 | gear | Wrist Sheath (`zWROB2CyUHhGQNzM`) | — | 1 AP to drop item into hand | data | check | mechanism + check |  |
 | gear | Wrist Sheath (Spring) (`2k2zlKIu99TBR46c`) | — | 0 AP to drop item into hand | data | check | mechanism + check |  |
 | heritages | Afele (`n2Hiyk3dbsDWFroB`) | Chapter 2 | Often known as the Archaic, you are a guardian of knowledge and a keeper of the greatest secrets of your race. | data, grants | — | mechanism |  |

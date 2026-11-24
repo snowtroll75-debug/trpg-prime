@@ -502,8 +502,9 @@ export const GRANT_FIELDS = Object.freeze({
     // nothing else that uses this field is affected.
     { field: "grantedFeats", pack: "feats", levelled: true },
     { field: "classAbilities", pack: "abilities", levelled: true },
-    // A class's own free starting gear — currently only the Wizard's
-    // Spell Book (Chapter 3 x Chapter 6). Not levelled: it arrives the
+    // A class's own free starting gear — the Wizard's Spellbook (Chapter 3
+    // x Chapter 6; the gear item is named "Spellbook" from 3.712.3, since
+    // other classes keep a spell book too). Not levelled: it arrives the
     // moment the class does, the same as a background's grantedFeats.
     { field: "grantedGear", pack: "gear" },
     // A CLASS MAY GRANT A SPELL OUTRIGHT (3.563.0). Pillars of Faith's

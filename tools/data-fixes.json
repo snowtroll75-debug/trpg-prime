@@ -14949,6 +14949,41 @@
       "declaredAt": "2026-11-21",
       "systemVersion": "3.707.1",
       "reason": "Graham, 21 Nov 2026, asked whether a cast from the sheet with several enemies targeted should ward against all of them or one: \"Yes it should\" (be limited to one). The ward row declares `foes: 1`; the cast refuses any other number of targeted enemies before anything is spent (magic/ward.mjs's `wardFoeRefusal`)."
+    },
+    {
+      "id": "spellbook-rename-name",
+      "pack": "gear",
+      "name": "Spellbook",
+      "formerName": "Wizard's Spellbook",
+      "path": "name",
+      "from": "Wizard's Spellbook",
+      "to": "Spellbook",
+      "reason": "Graham, 24 Nov 2026: other classes now use a spell book (Archmage, Archivist), so the core item is no longer the Wizard's alone and is renamed Spellbook.",
+      "declaredAt": "2026-11-24",
+      "systemVersion": "3.712.3"
+    },
+    {
+      "id": "spellbook-rename-description",
+      "pack": "gear",
+      "name": "Spellbook",
+      "formerName": "Wizard's Spellbook",
+      "path": "system.description",
+      "from": "Granted for free the moment a character takes the Wizard class. Open this item's own sheet to see the book grow — six PP 2 arcane spells at 1st level, two more every level after — and to add spells to it as slots open up. Being in the book isn't the same as knowing it for the day: memorise from it at daily preparation (the Magic tab's Memorisation card) before a spell in it can actually be cast.",
+      "to": "Granted for free the moment a character takes a class that keeps a spell book, such as the Wizard. Open this item's own sheet to see the book grow — for a Wizard, six PP 2 arcane spells at 1st level and two more every level after — and to add spells to it as slots open up. Being in the book isn't the same as knowing it for the day: memorise from it at daily preparation (the Magic tab's Memorisation card) before a spell in it can actually be cast.",
+      "reason": "The description named the Wizard as the only class that grants it.",
+      "declaredAt": "2026-11-24",
+      "systemVersion": "3.712.3"
+    },
+    {
+      "id": "spellbook-rename-wizard-grant",
+      "pack": "classes",
+      "name": "Wizard",
+      "path": "system.grantedGear",
+      "from": "Wizard's Spellbook",
+      "to": "Spellbook",
+      "reason": "grantedGear is resolved by NAME from the gear pack; left on the old name, a new Wizard would be granted nothing and the card would report it unresolved.",
+      "declaredAt": "2026-11-24",
+      "systemVersion": "3.712.3"
     }
   ]
 }

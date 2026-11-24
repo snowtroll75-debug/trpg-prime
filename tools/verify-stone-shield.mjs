@@ -123,7 +123,15 @@ const WANT = [{
     ["stale", "stale", "stale", "current"]);
   const MIG = read("module", "migration.mjs");
   ok("B7 the pack-copy pass is re-gated so a world is offered it", /const packCopies = \(await runIf\("3\.707\.1", "stale owned copies/.test(MIG)
-    && /export const TRG_SCHEMA_VERSION = "3\.707\.1";/.test(MIG));
+    // The stamp at 3.707.1 OR LATER (3.712.3 raised it for the Spellbook
+    // rename): a later stamp still offers this pass to a world before it.
+    && (() => {
+      const stamp = MIG.match(/export const TRG_SCHEMA_VERSION = "(\d+)\.(\d+)\.(\d+)";/)?.slice(1).map(Number);
+      if (!stamp) return false;
+      const want = [3, 707, 1];
+      for (let i = 0; i < 3; i++) if (stamp[i] !== want[i]) return stamp[i] > want[i];
+      return true;
+    })());
 }
 
 /* C — the applier -------------------------------------------------------- */
