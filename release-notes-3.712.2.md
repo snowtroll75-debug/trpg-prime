@@ -30,3 +30,11 @@
   - **Inner Tempest 1.1.1:** every block green, apart from mutate-block8's one known survivor.
   - **Eldritch Arts:** its GitHub repository holds no harness, so it was not run.
 - **Version pins:** re-pinned to 3.712.2 in 69 harness files, as usual.
+
+## Live
+
+Verified on 24 November 2026 in the Test world, with a GM and a player client connected:
+- A Skeleton missed on its own turn, and the player's Redirection Stance made it flat-footed. It kept Flat-Footed past the end of that turn and lost it at the end of its next.
+- Untimed and Pinnacle-clocked Flat-Footed ended where expected.
+
+See Inner Tempest's `docs/LIVE_TESTING_REPORT_1.1.1.md`.

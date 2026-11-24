@@ -1025,6 +1025,6 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
   - The turn and condition mutation files.
   - Pillars of Faith's harness, the same on 3.712.1 and 3.712.2.
   - Inner Tempest 1.1.1's harness.
-- **Live verification:** to follow once the zip is installed; see the Inner Tempest 1.1.1 live report.
+- **Live verification:** passed on 24 November 2026, Test world, with 3.712.2 installed (Inner Tempest `docs/LIVE_TESTING_REPORT_1.1.1.md`, tests 1–4). A Skeleton missed on its own turn; the player's Redirection Stance made it flat-footed; it kept Flat-Footed past that turn's end and lost it as its next turn ended. Pinnacle of Motion's clocked Flat-Footed ended at the end of the Gymnast's turn (tests 5 and 8).
 - **Delivery:** 3.712.2, local and not pushed.
 
