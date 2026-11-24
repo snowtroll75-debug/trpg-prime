@@ -285,8 +285,8 @@ const speedOf = (a) => Number(a.system?.combat?.movement?.land?.total ?? 0);
 /* ------------------------------------------------------------ Z. version */
 {
   const sys = JSON.parse(read("system.json"));
-  equal("Z1 the version is 3.712.3 (3.709.1 or later), the download names it, and package.json agrees",
-    [sys.version, sys.download.includes("/v3.712.3/"), JSON.parse(read("package.json")).version], ["3.712.3", true, "3.712.3"]);
+  equal("Z1 the version is 3.712.4 (3.709.1 or later), the download names it, and package.json agrees",
+    [sys.version, sys.download.includes("/v3.712.4/"), JSON.parse(read("package.json")).version], ["3.712.4", true, "3.712.4"]);
 }
 
 if (failures.length) {

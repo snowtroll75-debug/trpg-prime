@@ -2,6 +2,14 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.712.4 — 24 November 2026: one Spellbook for every book caster
+
+Full notes in `release-notes-3.712.4.md`; repair log R-0036.
+
+- **Migration widened** and the schema stamp moved to 3.712.4. An owned Prayer Book becomes the Spellbook, and the Archivist's class copy grants it. An Archmage's or Spellblade's class copy gains the grant if its own is blank.
+- **Pairs with** Eldritch Arts 0.17.3 and Pillars of Faith 0.13.3.
+- **Harness:** `verify-spellbook-rename` 34, `mutate-spellbook-rename` 19.
+
 ## 3.712.3 — 24 November 2026: the Wizard's Spellbook is now the Spellbook
 
 Branch `fix/core-spellbook-rename`. Full notes in `release-notes-3.712.3.md`; repair log R-0035.

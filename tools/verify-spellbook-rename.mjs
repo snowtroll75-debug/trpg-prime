@@ -27,6 +27,7 @@ import {
   SPELLBOOK_NEW_NAME,
   SPELLBOOK_OLD_DESCRIPTION,
   SPELLBOOK_OLD_NAME,
+  PRAYER_BOOK_OLD_DESCRIPTION,
   renamedGrantList,
   spellbookRenameUpdate
 } from "../module/data/spellbook-rename.mjs";
@@ -101,15 +102,42 @@ eq("B6 an old Wizard class copy has its grant moved",
   { "system.grantedGear": SPELLBOOK_NEW_NAME });
 eq("B7 other entries in a grant list are kept, in order",
   renamedGrantList("Lantern, Wizard's Spellbook, Ink Pen"), "Lantern, Spellbook, Ink Pen");
-eq("B8 a grant list without the old book is not touched", renamedGrantList("Prayer Book"), null);
+eq("B8 a grant list without a former book is not touched", renamedGrantList("Lantern, Ink Pen"), null);
 const migrated = { ...oldBook, name: SPELLBOOK_NEW_NAME, system: { description: SPELLBOOK_NEW_DESCRIPTION },
   flags: { "trg-prime": { grantedBy: { requested: SPELLBOOK_NEW_NAME } } } };
 eq("B9 a migrated book needs nothing (idempotent)", spellbookRenameUpdate(migrated), null);
 eq("B10 a migrated class copy needs nothing",
   spellbookRenameUpdate({ type: "class", name: "Wizard", system: { grantedGear: "Spellbook" }, flags: {} }), null);
-eq("B11 Pillars of Faith's Prayer Book is not touched",
-  spellbookRenameUpdate({ type: "gear", name: "Prayer Book", system: { spellbookContainer: true },
-    flags: { "trg-prime": { grantedBy: { requested: "Prayer Book" } } } }), null);
+
+/* D — one book for every book caster (3.712.4) */
+const prayer = {
+  type: "gear", name: "Prayer Book",
+  system: { description: PRAYER_BOOK_OLD_DESCRIPTION, spellbookContainer: true },
+  flags: { "trg-prime": { grantedBy: { sourceId: "cls2", sourceName: "Archivist", requested: "Prayer Book" } } }
+};
+eq("D1 an owned Prayer Book becomes the Spellbook: name, description and stamp", spellbookRenameUpdate(prayer), {
+  name: SPELLBOOK_NEW_NAME,
+  "system.description": SPELLBOOK_NEW_DESCRIPTION,
+  "flags.trg-prime.grantedBy.requested": SPELLBOOK_NEW_NAME
+});
+eq("D2 a gear item merely called Prayer Book, not a spell book, is left alone",
+  spellbookRenameUpdate({ type: "gear", name: "Prayer Book", system: { spellbookContainer: false }, flags: {} }), null);
+eq("D3 an owned Archivist class copy grants the Spellbook instead of the Prayer Book",
+  spellbookRenameUpdate({ type: "class", name: "Archivist", system: { grantedGear: "Prayer Book", memorisationStyle: "book" }, flags: {} }),
+  { "system.grantedGear": SPELLBOOK_NEW_NAME });
+for (const name of ["Archmage", "Spellblade"]) {
+  eq(`D4 an owned ${name} class copy that granted no book gains the Spellbook`,
+    spellbookRenameUpdate({ type: "class", name, system: { grantedGear: "", memorisationStyle: "book" }, flags: {} }),
+    { "system.grantedGear": SPELLBOOK_NEW_NAME });
+}
+eq("D5 an Archmage copy a GM gave other gear keeps it",
+  spellbookRenameUpdate({ type: "class", name: "Archmage", system: { grantedGear: "Ley Crystal", memorisationStyle: "book" }, flags: {} }), null);
+eq("D6 a class that is not a book caster gains nothing",
+  spellbookRenameUpdate({ type: "class", name: "Sorcerer", system: { grantedGear: "", memorisationStyle: "repertoire" }, flags: {} }), null);
+eq("D7 the Liturgist's Liturgical Book is a different book and is not touched",
+  spellbookRenameUpdate({ type: "gear", name: "Liturgical Book", system: { spellbookContainer: true },
+    flags: { "trg-prime": { grantedBy: { requested: "Liturgical Book" } } } }), null);
+eq("D8 two former books in one list leave one Spellbook", renamedGrantList("Wizard's Spellbook, Prayer Book"), "Spellbook");
 
 /* C — the wiring */
 const read = (rel) => fs.readFileSync(path.join(SYSTEM_ROOT, rel), "utf8");

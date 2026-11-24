@@ -93,7 +93,9 @@ const WORLD_SCHEMA_SETTING = "worldSchemaVersion";
 // 3.707.0: the pack-copy pass re-gated for Stone Shield's shield.
 // 3.707.1: and again for its one foe.
 // 3.712.3: the Wizard's Spellbook renamed Spellbook on owned copies (Graham).
-export const TRG_SCHEMA_VERSION = "3.712.3";
+// 3.712.4: re-gated for one Spellbook for every book caster (the Prayer Book,
+// the Archmage and the Spellblade).
+export const TRG_SCHEMA_VERSION = "3.712.4";
 
 /**
  * Register the hidden world setting used to determine whether a migration is
@@ -264,7 +266,7 @@ export async function checkWorldMigration() {
       alsoDid.push(`${result.stalePending.reduce((n, r) => n + r.removed, 0)} queued modifier(s) removed that a dedicated rule already applies or that repeated one already queued (${result.stalePending.map((r) => `${r.owner}: ${r.removed}`).join(", ")})`);
     }
     if (result.spellbookRenamed?.length) {
-      alsoDid.push(`${result.spellbookRenamed.length} owned item(s) updated for the Wizard's Spellbook's rename to Spellbook (${result.spellbookRenamed.map((r) => `${r.owner}: ${r.item}`).join(", ")})`);
+      alsoDid.push(`${result.spellbookRenamed.length} owned item(s) moved onto the one Spellbook (the Wizard's Spellbook and the Prayer Book renamed, and the Archmage and Spellblade given the grant) (${result.spellbookRenamed.map((r) => `${r.owner}: ${r.item}`).join(", ")})`);
     }
     if (result.bakedDefences?.length) {
       alsoDid.push(`${result.bakedDefences.length} stored defence list(s) cleaned of copies their effects already grant (${result.bakedDefences.map((r) => `${r.owner}: ${r.list}`).join(", ")})`);
@@ -900,10 +902,13 @@ export async function migrateWorldData(fromVersion = "") {
   result.bakedDefences = bakedDefences;
 
   // 3.712.3 — THE WIZARD'S SPELLBOOK IS THE SPELLBOOK (Graham, 24 Nov 2026).
+  // RE-GATED TO 3.712.4: one Spellbook for every book caster — an owned Prayer
+  // Book becomes it, and an owned Archmage or Spellblade class copy gains the
+  // grant. Safe to re-run on a world that ran 3.712.3: old-value matched.
   // The book, its grant stamp and the Wizard class copy's grantedGear move
   // together, or the next grant pass hands every Wizard a second book. See
   // data/spellbook-rename.mjs and migrateSpellbookRename.
-  const spellbookRenamed = (await runIf("3.712.3", "the Wizard's Spellbook renamed Spellbook on owned copies",
+  const spellbookRenamed = (await runIf("3.712.4", "the Wizard's Spellbook renamed Spellbook on owned copies",
     () => migrateSpellbookRename([...actors, ...tokenActors], Array.from(game.items ?? [])))) ?? [];
   result.spellbookRenamed = spellbookRenamed;
 

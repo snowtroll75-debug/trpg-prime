@@ -1049,6 +1049,23 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
   - `verify-spellbook-rename` 26 and `mutate-spellbook-rename` 13.
   - The full `verify-*` corpus.
   - The schema-gate, pack-repair, migration-safety and class mutation files.
-- **Live verification:** not yet done.
+- **Live verification:** see R-0036.
 - **Delivery:** 3.712.3, branch pushed, not merged to `main`.
+
+## R-0036 — One Spellbook for every book caster (3.712.4)
+
+- **Ruling:** Graham, 24 November 2026: the Archmage and the Archivist receive the free Spellbook as well ("keeping it to one item makes things much easier in the long run"). He added the Spellblade. Existing Prayer Books are converted, and the compendium entry stays.
+- **Modules:**
+  - Eldritch Arts 0.17.3 (Archmage and Spellblade `grantedGear: "Spellbook"`).
+  - Pillars of Faith 0.13.3, patched from the installed 0.13.1 package. Graham's latest zip held no source tree.
+- **Core:** `spellbookRenameUpdate` now also covers:
+  - the owned Prayer Book (a spell book container only);
+  - Archivist class copies ("Prayer Book" → "Spellbook");
+  - blank Archmage and Spellblade book-style class copies (gain "Spellbook").
+  - The pass is re-gated to 3.712.4, with the schema stamp at 3.712.4.
+- **Testing:**
+  - `verify-spellbook-rename` 34 and `mutate-spellbook-rename` 19.
+  - The full `verify-*` corpus.
+  - Eldritch Arts' suite: 29 of 30 pass. `verify-block10` was already failing.
+- **Delivery:** 3.712.4, branch `fix/core-spellbook-rename`.
 
