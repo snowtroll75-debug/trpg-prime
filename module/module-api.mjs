@@ -343,6 +343,17 @@ function emptyRegistry() {
     investPrepares: new Map(),
     investRefusals: new Map(),
     /**
+     * ELDRITCH ARTS 0.18.0 (3.713.0), the Artificer's seams.
+     *   weaponEnhancements    key → fn(weapon, actor): one weapon's own temporary
+     *                         attack, damage, secondary packets and reload change
+     *                         (C-EA11-1). See weapon-enhancements.mjs.
+     *   craftingWorkModifiers key → fn(ctx): the ranks and the item value a Create
+     *                         project's TIME is read from (C-EA11-2). See
+     *                         crafting-feats.mjs `craftingTimeModifiers`.
+     */
+    weaponEnhancements: new Map(),
+    craftingWorkModifiers: new Map(),
+    /**
      * ELDRITCH ARTS BLOCK 6, GROUP A (3.684.0; G1–G4, the metamagic family).
      *   metamagic             key → normalised spec: a module's metamagic in
      *                         the Warp? dialog beside the core's table. See
@@ -2133,6 +2144,49 @@ export function registerInvestRefusal(key, fn, moduleId = null) {
 export function registeredInvestCosts() { return Array.from(registry.investCosts.values()); }
 export function registeredInvestPrepares() { return Array.from(registry.investPrepares.values()); }
 export function registeredInvestRefusals() { return Array.from(registry.investRefusals.values()); }
+
+/**
+ * A WEAPON'S TEMPORARY ENHANCEMENT (3.713.0; Eldritch Arts 0.18.0, C-EA11-1).
+ * `fn(weapon, actor)` → null, or `{ label, attack, attackType, damage,
+ * damageType, packets: [{dice, type}], reloadReduction }` (or a list of them):
+ * Modular Design's +1 on one weapon, Overclocked Weaponry's Plasma Edge,
+ * Gyroscopic Repeater and Impact Amplifier. Asked at the attack's rows, the
+ * damage formula, the secondary-damage loop and the reload cost. See
+ * weapon-enhancements.mjs.
+ */
+export function registerWeaponEnhancement(key, fn, moduleId = null) {
+  const k = registryKey(key);
+  if (!k || typeof fn !== "function") { problem(`registerWeaponEnhancement: "${key}" needs a key and a fn(weapon, actor) function`); return false; }
+  registry.weaponEnhancements.set(k, fn);
+  noteContributor(moduleId);
+  return true;
+}
+
+export function registeredWeaponEnhancements() {
+  return Array.from(registry.weaponEnhancements?.entries?.() ?? []).map(([key, fn]) => ({ key, fn }));
+}
+
+/**
+ * HOW LONG A CREATE PROJECT TAKES (3.713.0; Eldritch Arts 0.18.0, C-EA11-2).
+ * Tinkerer Precision: "treat your Crafting skill as 2 ranks higher when
+ * determining creation time … reduce the raw materials cost used to determine
+ * how long the item takes by 25% (not the actual cost)". `fn({ actor,
+ * featNames, project, ranks })` → null or `{ label, ranks, valueFactor }`:
+ * `ranks` added to the ranks a day's work is priced at, `valueFactor` (0–1]
+ * applied to the value the project must reach. Neither touches the check, the
+ * DC or the gold paid. The lowest factor and every rank addition apply.
+ */
+export function registerCraftingWorkModifier(key, fn, moduleId = null) {
+  const k = registryKey(key);
+  if (!k || typeof fn !== "function") { problem(`registerCraftingWorkModifier: "${key}" needs a key and a fn(ctx) function`); return false; }
+  registry.craftingWorkModifiers.set(k, fn);
+  noteContributor(moduleId);
+  return true;
+}
+
+export function registeredCraftingWorkModifiers() {
+  return Array.from(registry.craftingWorkModifiers?.entries?.() ?? []).map(([key, fn]) => ({ key, fn }));
+}
 
 /**
  * A STEP BEFORE A PENDING CAST'S INTERRUPTION SETTLES (3.684.0; Eldritch Arts

@@ -273,9 +273,20 @@ async function applyDegree(actor, project, { degreeKey, margin, ranks }) {
   // project card; the DC itself is added where the check is rolled, from
   // the same function, so the two cannot disagree.
   project.featlessHerbDC = featlessHerbDC({ itemTypeKey: project.itemTypeKey, featNames });
+  // A SOURCEBOOK'S CRAFTING-TIME MODIFIERS (3.713.0; Eldritch Arts 0.18.0,
+  // C-EA11-2): Tinkerer Precision's +2 ranks for time and its 25% off the value
+  // the project must reach. Read every day, like the two feats above, so a feat
+  // taken mid-project applies from the next day. The check and the materials
+  // cost are not touched.
+  const [{ craftingTimeModifiers, timeValueFor }, { registeredCraftingWorkModifiers }] = await Promise.all([
+    import("./crafting-feats.mjs"), import("./module-api.mjs")]);
+  const timeMods = craftingTimeModifiers({ actor, featNames, project, ranks }, registeredCraftingWorkModifiers());
   const { perDay, outcome } = createPerDay(
-    degreeKey, mods.ranks, project.itemLevel, margin, { workMultiplier: mods.multiplier }
+    degreeKey, mods.ranks + timeMods.ranks, project.itemLevel, margin, { workMultiplier: mods.multiplier }
   );
+  project.timeRanks = timeMods.ranks;
+  project.timeValue = timeValueFor(project.itemValue, timeMods.valueFactor);
+  project.timeLabels = timeMods.labels;
   project.artisan = mods.artisan;
   project.masterful = mods.masterful;
   project.effectiveRanks = mods.ranks;
@@ -300,7 +311,9 @@ async function applyDegree(actor, project, { degreeKey, margin, ranks }) {
     // Success/Partial accrue this day's work; Failure is a wasted day (0).
     project.progress += perDay;
     project.daysWorked += 1;
-    project.status = completionOf(project.progress, project.itemValue) ? "complete" : "progressing";
+    // THE TIME VALUE, NOT THE COST (3.713.0, C-EA11-2): equal to itemValue
+    // unless a sourcebook's time modifier lowered it.
+    project.status = completionOf(project.progress, project.timeValue ?? project.itemValue) ? "complete" : "progressing";
   }
   await setProject(actor, project);
   return project;
@@ -353,7 +366,7 @@ export async function workAnotherDay(actor) {
   } else if (project.perDay > 0) {
     project.progress += project.perDay;
     project.daysWorked += 1;
-    if (completionOf(project.progress, project.itemValue)) project.status = "complete";
+    if (completionOf(project.progress, project.timeValue ?? project.itemValue)) project.status = "complete";
   } else {
     // Last check was a Failure (0/day): a plain day of work makes no progress.
     ui.notifications?.info?.("That last check made no progress — make another Create check to try again.");
@@ -387,7 +400,12 @@ export async function openCreateManager(actor) {
     return;
   }
 
-  const pct = p.itemValue > 0 ? Math.min(100, Math.floor((p.progress / p.itemValue) * 100)) : 0;
+  // THE VALUE TIME IS READ FROM (3.713.0, C-EA11-2): the cost unless a
+  // sourcebook's time modifier lowered it — the materials still cost itemValue.
+  const target = Number.isFinite(Number(p.timeValue)) ? Number(p.timeValue) : p.itemValue;
+  const timeNote = Array.isArray(p.timeLabels) && p.timeLabels.length
+    ? ` · time read at ${p.timeRanks ? `+${p.timeRanks} ranks and ` : ""}${target} of ${p.itemValue} gp (${esc(p.timeLabels.join(", "))}; the materials still cost ${p.itemValue} gp)` : "";
+  const pct = target > 0 ? Math.min(100, Math.floor((p.progress / target) * 100)) : 0;
   let statusLine;
   if (p.status === "complete") statusLine = `<strong style="color:#2a7">Complete — ${esc(p.itemName)} is finished.</strong>`;
   else if (p.status === "failed" && p.ruined) statusLine = `<strong style="color:#b00">Ruined — failed by 10 or more, and the herb and its materials are lost.</strong>`;
@@ -397,8 +415,8 @@ export async function openCreateManager(actor) {
 
   const content = `<div class="trg-prime trg-check-dialog">
     <p style="margin:0 0 2px"><strong>${esc(actor.name)}</strong> — crafting <strong>${esc(p.itemName)}</strong> (${esc(p.itemTypeLabel)}, level ${p.itemLevel}${p.isConsumable ? `, batch ${p.batchQty}` : ""})</p>
-    <p class="hint" style="font-size:.82em;margin:0">${esc(p.skillLabel)}, ${p.ranks} ranks${p.specialty ? ` · ${esc(p.specialty)}` : ""}${p.artisan ? ` (+${ACCOMPLISHED_ARTISAN_RANKS} Accomplished Artisan)` : ""}${p.masterful ? " · work doubled (Masterful Crafter)" : ""}${p.inventingFormula ? " · inventing a formula (DC +5)" : ""}${p.featlessHerbDC ? ` · Very Hard without Alchemical Crafting (DC +${p.featlessHerbDC})` : ""}${batchDCNote(p)}. Progress = ranks × level × success modifier per day.</p>
-    <p style="margin:6px 0 0">Progress: <strong>${p.progress} / ${p.itemValue} gp</strong> (${pct}%) · Days worked: <strong>${p.daysWorked}</strong></p>
+    <p class="hint" style="font-size:.82em;margin:0">${esc(p.skillLabel)}, ${p.ranks} ranks${p.specialty ? ` · ${esc(p.specialty)}` : ""}${p.artisan ? ` (+${ACCOMPLISHED_ARTISAN_RANKS} Accomplished Artisan)` : ""}${p.masterful ? " · work doubled (Masterful Crafter)" : ""}${p.inventingFormula ? " · inventing a formula (DC +5)" : ""}${p.featlessHerbDC ? ` · Very Hard without Alchemical Crafting (DC +${p.featlessHerbDC})` : ""}${batchDCNote(p)}${timeNote}. Progress = ranks × level × success modifier per day.</p>
+    <p style="margin:6px 0 0">Progress: <strong>${p.progress} / ${target} gp</strong> (${pct}%) · Days worked: <strong>${p.daysWorked}</strong></p>
     <p style="margin:4px 0 0">${statusLine}</p>
   </div>`;
 

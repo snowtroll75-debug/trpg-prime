@@ -220,6 +220,8 @@ import { OPPOSED_AURA_FLAG, opposedAuraAttackBonus } from "../magic/opposed-aura
 import { actorHandle, resolveActorHandle } from "../actor-handle.mjs";
 import { lungeScopeFor } from "./lunge-scope.mjs";
 import { healsFromDamage } from "../creature-ability-rules.mjs";
+// A WEAPON'S TEMPORARY ENHANCEMENTS (3.713.0; Eldritch Arts 0.18.0, C-EA11-1).
+import { weaponEnhancementsFor } from "../weapon-enhancements.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -598,6 +600,8 @@ export function weaponManeuverModifiers(actor, weapon) {
   if (finesseBonus) rows.push({ label: `Finesse (Dexterity) — ${weapon.name}`, value: finesseBonus, type: "untyped" });
   const weaponBonus = Number(weaponData.attackBonus ?? 0);
   if (weaponBonus) rows.push({ label: weapon.name, value: weaponBonus, type: "item" });
+  // A WEAPON'S TEMPORARY ENHANCEMENTS (3.713.0, C-EA11-1): Modular Design's +1.
+  for (const row of weaponEnhancementsFor(weapon, actor).attackRows) rows.push(row);
   const runes = runeBonusesFor(weapon);
   if (runes.strikeAttack) {
     rows.push({ label: `${weapon.name} (Ancient Echoes)`, value: runes.strikeAttack, type: runes.strikeType || "luck" });
@@ -1819,6 +1823,10 @@ export async function rollWeaponAttack(actor, weapon, {
   if (weaponBonus) {
     modifiers.push({ label: weapon.name, value: weaponBonus, type: "item" });
   }
+  // A WEAPON'S TEMPORARY ENHANCEMENTS (3.713.0; Eldritch Arts 0.18.0,
+  // C-EA11-1): Modular Design's item bonus on THIS weapon. Typed item, so the
+  // check's own stacking keeps the higher of it and the weapon's bonus above.
+  for (const row of weaponEnhancementsFor(weapon, actor).attackRows) modifiers.push(row);
 
   // AND WHAT THE ROUND ITSELF ADDS (3.513.0). Pushed beside the weapon's
   // own bonus and carrying the same `item` type on purpose: a +1 Magic
@@ -6152,6 +6160,17 @@ async function resolveWeaponDamageInScope(
     Math.max(riderDamageBonus(ammoCoat, coatNow), riderDamageBonus(oilCoatOf(weapon), coatNow)),
     Math.max(weaponItemDamage, Math.max(0, ammoDamageMod) + ammoPotencyDamage));
   if (coatItemDamage) formula += ` + ${coatItemDamage}`;
+  // A WEAPON'S TEMPORARY ENHANCEMENTS (3.713.0; Eldritch Arts 0.18.0,
+  // C-EA11-1). An ITEM bonus to damage (Modular Design's "+1 to damage")
+  // adds only what it beats every other item bonus on this strike by — the
+  // weapon's quality and potency, the round's and the coat's — as R3 rules for
+  // those. An untyped one (Impact Amplifier's "base damage +1") always adds.
+  const enhancement = weaponEnhancementsFor(weapon, actor);
+  const enhancementItemDamage = itemDamageExcess(enhancement.itemDamage,
+    Math.max(weaponItemDamage, Math.max(0, ammoDamageMod) + ammoPotencyDamage,
+      riderDamageBonus(ammoCoat, coatNow), riderDamageBonus(oilCoatOf(weapon), coatNow)));
+  if (enhancementItemDamage) formula += ` + ${enhancementItemDamage}`;
+  if (enhancement.flatDamage) formula += ` + ${enhancement.flatDamage}`;
   // BANE (3.618.0, Graham's R12): "an additional 2d4 damage when attacking
   // creatures of the selected type" — added to the strike itself, against a
   // creature carrying the chosen kind as a trait.
@@ -6789,6 +6808,9 @@ async function resolveWeaponDamageInScope(
     // a packet like a Flaming rune's, on the weapon's coat or the round's.
     const unguentPackets = [...riderPackets(oilCoatOf(weapon), coatNow), ...riderPackets(ammoCoat, coatNow)]
       .map((packet) => ({ ...packet, mundane: true }));
+    // A WEAPON'S TEMPORARY ENHANCEMENT'S PACKETS (3.713.0, C-EA11-1): Plasma
+    // Edge's 1d4 acid, fire or electricity, resolved as a Flaming rune's is.
+    const enhancementPackets = weaponEnhancementsFor(weapon, actor).packets;
     // WHAT A GATED RIDER ASKS (3.625.0): the target's kind, whether this
     // blow was a critical, and the target's hit points BEFORE the damage.
     const riderCtx = {
@@ -6816,7 +6838,7 @@ async function resolveWeaponDamageInScope(
     // NO SECONDARY PACKET ON A FLAT REPLACEMENT (3.685.0, H10): "only the 6d6".
     for (const rune of replacingFlat ? [] : [
       // BANE IS IN THE STRIKE ITSELF (above); everything else is a packet.
-      ...strikeRunes.filter((r) => !r.addsToStrike), ...strikeRiderPackets(actor, weapon, riderCtx), ...areaPackets, ...typedExtras, ...unguentPackets
+      ...strikeRunes.filter((r) => !r.addsToStrike), ...strikeRiderPackets(actor, weapon, riderCtx), ...areaPackets, ...typedExtras, ...unguentPackets, ...enhancementPackets
     ]) {
       if (rune.conditional && (!rune.resolved || !rune.applies)) {
         lines.push(line(`<em>${runeDamageLine(rune, 0)}</em>`));

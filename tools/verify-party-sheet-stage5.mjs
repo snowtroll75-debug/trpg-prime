@@ -97,7 +97,7 @@ const SKILLSRC = strip(read("module", "party-skills.mjs"));
   const failing = await PK.rollGroupCheck(PK.planGroupCheck({ skill: "stealth", members: [a, b] }), { roll: async (cfg) => { if (cfg.actor === a) throw new Error("x"); return { outcome: { total: 3, degree: null } }; }, post: async () => {}, partyName: "P" });
   equal("G10 a roll that fails is named, and the others still roll", failing.results.map((r) => r.skipped ?? r.total), ["the roll failed", 3]);
   equal("G11 without a DC there are totals and no degrees", PK.groupCheckSummary([{ name: "A", total: 12, degree: null }], { dc: null }).dcText, "No DC set");
-  equal("G15 the DC as set and what each roll was checked against (3.712.4, found live)", [PK.groupCheckSummary([], { dc: 15, difficulty: "hard" }).dcText, PK.groupCheckSummary([], { dc: 15 }).dcText, PK.groupCheckSummary([], { dc: 15, difficulty: "veryEasy" }).dcText], ["DC 15, Hard (DC +2): 17", "DC 15", "DC 15, Very easy (DC -5): 10"]);
+  equal("G15 the DC as set and what each roll was checked against (3.713.0, found live)", [PK.groupCheckSummary([], { dc: 15, difficulty: "hard" }).dcText, PK.groupCheckSummary([], { dc: 15 }).dcText, PK.groupCheckSummary([], { dc: 15, difficulty: "veryEasy" }).dcText], ["DC 15, Hard (DC +2): 17", "DC 15", "DC 15, Very easy (DC -5): 10"]);
   ok("G12 the sheet's Group Check: the GM only, one at a time, the participants, and TRGCheck.roll", /static async groupCheck\(event\) \{\s*event\.preventDefault\(\);\s*if \(!game\.user\.isGM\) return;\s*await runOnce\(TRGPartySheet\.#running, `\$\{this\.actor\.uuid\}:groupCheck`/.test(SHEET)
     && /roll: \(config\) => TRGCheck\.roll\(config\)/.test(SHEET) && /const members = \(await this\.#participants\(\)\)\.actors;/.test(SHEET));
   ok("G13 the dialog offers the existing difficulty ladder and the chat visibilities", /difficultyOptions\(\)/.test(SHEET) && /CONFIG\.ChatMessage\?\.modes/.test(SHEET) && PK.difficultyOptions().length === 9);
@@ -181,8 +181,8 @@ const SKILLSRC = strip(read("module", "party-skills.mjs"));
 /* ------------------------------------------------------------ Z. version */
 {
   const sys = JSON.parse(read("system.json"));
-  equal("Z1 the version is 3.712.4, the download names it, and package.json agrees",
-    [sys.version, sys.download.includes("/v3.712.4/"), JSON.parse(read("package.json")).version], ["3.712.4", true, "3.712.4"]);
+  equal("Z1 the version is 3.713.0, the download names it, and package.json agrees",
+    [sys.version, sys.download.includes("/v3.713.0/"), JSON.parse(read("package.json")).version], ["3.713.0", true, "3.713.0"]);
 }
 
 if (failures.length) {

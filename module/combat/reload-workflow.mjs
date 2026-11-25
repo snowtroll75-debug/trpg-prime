@@ -75,12 +75,18 @@ export async function reloadWeapon(actor, weapon) {
   const quickReloadFeat = Array.from(actor.items ?? []).some(
     (i) => i.type === "feat" && String(i.name).trim().toLowerCase() === "quick reload"
   ) ? 1 : 0;
-  const effectiveLoad = Math.max(0, loadValue - quickReloadFeat);
+  // A WEAPON'S TEMPORARY ENHANCEMENT (3.713.0; Eldritch Arts 0.18.0,
+  // C-EA11-1): Gyroscopic Repeater's "Reduces reload AP by 1", on this weapon
+  // only, after Quick Reload. Never below 0.
+  const { weaponEnhancementsFor, enhancedLoad } = await import("../weapon-enhancements.mjs");
+  const enhancement = weaponEnhancementsFor(weapon, actor);
+  const effectiveLoad = enhancedLoad(Math.max(0, loadValue - quickReloadFeat), enhancement.reloadReduction);
+  const reloadLabels = enhancement.reloadReduction ? enhancement.labels : [];
   if (effectiveLoad === 0) {
     await weapon.update({ "system.reloadProgress": 0, "system.loaded": true });
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor }),
-      content: `<p><strong>${weapon.name}</strong> reloaded for free (Quick Reload).</p>`
+      content: `<p><strong>${weapon.name}</strong> reloaded for free (${[...(quickReloadFeat ? ["Quick Reload"] : []), ...reloadLabels].join(", ") || "Quick Reload"}).</p>`
     });
     return { loaded: true };
   }

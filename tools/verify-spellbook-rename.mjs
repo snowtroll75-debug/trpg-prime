@@ -109,7 +109,7 @@ eq("B9 a migrated book needs nothing (idempotent)", spellbookRenameUpdate(migrat
 eq("B10 a migrated class copy needs nothing",
   spellbookRenameUpdate({ type: "class", name: "Wizard", system: { grantedGear: "Spellbook" }, flags: {} }), null);
 
-/* D — one book for every book caster (3.712.4) */
+/* D — one book for every book caster (3.713.0) */
 const prayer = {
   type: "gear", name: "Prayer Book",
   system: { description: PRAYER_BOOK_OLD_DESCRIPTION, spellbookContainer: true },

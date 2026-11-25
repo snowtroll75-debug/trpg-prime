@@ -31,7 +31,7 @@ const MUTATIONS = [
   { file: RULE, name: "M6 the grant list loses its other entries",
     from: 'return changed ? out.join(",") : null;', to: 'return changed ? SPELLBOOK_NEW_NAME : null;' },
   { file: MIGRATION, name: "M7 the pass is gated below the schema stamp",
-    from: 'runIf("3.712.4", "the Wizard\'s Spellbook renamed', to: 'runIf("3.712.3", "the Wizard\'s Spellbook renamed' },
+    from: 'runIf("3.713.0", "the Wizard\'s Spellbook renamed', to: 'runIf("3.712.3", "the Wizard\'s Spellbook renamed' },
   { file: RULE, name: "M11 the Prayer Book is not converted",
     from: 'item.name === PRAYER_BOOK_NAME && item.system?.spellbookContainer === true', to: 'false' },
   { file: RULE, name: "M12 any gear called Prayer Book is converted, container or not",

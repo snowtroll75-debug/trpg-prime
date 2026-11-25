@@ -194,7 +194,7 @@ const AW = read("module", "combat", "action-workflow.mjs");
 {
   const sys = JSON.parse(read("system.json"));
   equal("G1 the version and the download name 3.707.3", [sys.version, sys.download, JSON.parse(read("package.json")).version],
-    ["3.712.4", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.712.4/trg-prime.zip", "3.712.4"]);
+    ["3.713.0", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.713.0/trg-prime.zip", "3.713.0"]);
 }
 
 console.log(`verify-armour-change-3703: ${checks - failures.length}/${checks} checks passed`);

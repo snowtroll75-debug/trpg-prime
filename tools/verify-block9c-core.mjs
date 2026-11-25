@@ -283,8 +283,8 @@ ok("H26 the helpers reach it", ["armHold", "heldSpellsIn", "releaseHeldSpell", "
 
 /* ================================================================== Z */
 const sys = JSON.parse(read("system.json"));
-equal("Z1 the version is 3.690.0, and the download names it", [sys.version, sys.download], ["3.712.4", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.712.4/trg-prime.zip"]);
-equal("Z2 package.json agrees", JSON.parse(read("package.json")).version, "3.712.4");
+equal("Z1 the version is 3.690.0, and the download names it", [sys.version, sys.download], ["3.713.0", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.713.0/trg-prime.zip"]);
+equal("Z2 package.json agrees", JSON.parse(read("package.json")).version, "3.713.0");
 
 if (failures.length) { for (const f of failures) console.log(`  ✗ ${f}`); console.log(`verify-block9c-core: ${failures.length} failure(s) of ${checks}`); process.exit(1); }
 console.log(`verify-block9c-core: all ${checks} checks pass`);

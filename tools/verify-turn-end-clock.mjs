@@ -17,7 +17,7 @@
  *   R  conditions carry it, through the GM's relay, as two strings only
  *   K  the pack's spells with that duration
  *   F  Flat-Footed's end-of-turn removal leaves one with its own turn clock
- *      (3.712.4; Graham, 24 November 2026: "the core should apply unless a
+ *      (3.713.0; Graham, 24 November 2026: "the core should apply unless a
  *      local rule overrides it")
  */
 import fs from "node:fs";
@@ -130,7 +130,7 @@ const OTHER = "Scene.s.Token.orc.Actor.o";
   equal("R3 the GM's client lays two strings and nothing else", seen, [{ of: CASTER, castTurn: "2:c" }, null]);
 }
 
-/* F — driven (3.712.4) */
+/* F — driven (3.713.0) */
 {
   equal("F1 a turn clock is a local rule; a round clock, a bare flag or nothing is not",
     [D.keepsOwnTurnClock({ endsAtTurnEndOf: { of: OTHER, castTurn: "2:cOrc" } }), D.keepsOwnTurnClock({ endsAtTurnStartOf: CASTER }),

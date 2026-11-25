@@ -58,6 +58,7 @@ import {
   registerCastPrelude,
   registerDyingRecoveryModifier,
   registerFumbleModifier, registerResonanceModifier, registerChargedItemRule, registerPendingCastStep,
+  registerWeaponEnhancement, registerCraftingWorkModifier,
   registerChargedKind, registerOneInvestedTraits,
   registerInvestCost, registerInvestPrepare, registerInvestRefusal,
   registerUnconsciousOffer, registerFeatEligibility, registerExtraUses,
@@ -226,6 +227,9 @@ export function buildModuleApi() {
     // registration — see registerCastReaction and helpers.storeForeignSpell.
     registerFumbleModifier: (key, modify, moduleId) => registerFumbleModifier(key, modify, moduleId),
     registerResonanceModifier: (key, spec, moduleId) => registerResonanceModifier(key, spec, moduleId),
+    // ELDRITCH ARTS 0.18.0 (3.713.0): the Artificer's seams, C-EA11-1 and C-EA11-2.
+    registerWeaponEnhancement: (key, fn, moduleId) => registerWeaponEnhancement(key, fn, moduleId),
+    registerCraftingWorkModifier: (key, fn, moduleId) => registerCraftingWorkModifier(key, fn, moduleId),
     registerChargedItemRule: (key, spec, moduleId) => registerChargedItemRule(key, spec, moduleId),
     // ELDRITCH ARTS BLOCK 9c (3.690.0): a kind of charged item (H23, the Orb)
     // and a trait with one invested item at a time (H25, ORB). In module-api.mjs.

@@ -304,3 +304,55 @@ export function inventedFormulaMaterials(itemValue) {
   const value = Math.max(0, Number(itemValue) || 0);
   return Math.floor(value / 2);
 }
+
+/* ------------------------------------------------------------------ */
+/* A sourcebook's crafting-time modifiers (3.713.0, C-EA11-2)          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * WHAT A SOURCEBOOK CHANGES ABOUT HOW LONG A PROJECT TAKES (3.713.0; Eldritch
+ * Arts 0.18.0, C-EA11-2). Tinkerer Precision: "treat your Crafting skill as 2
+ * ranks higher when determining creation time … reduce the raw materials cost
+ * used to determine how long the item takes by 25% (not the actual cost)".
+ *
+ * TIME ONLY. The ranks returned here are those a day's WORK is priced at
+ * (`createPerDay`), never the check's ranks or its DC; the factor scales the
+ * value the project must REACH (`completionOf`), never `itemValue` itself,
+ * which is still what the materials cost. Each provider answers `{ label,
+ * ranks, valueFactor }` or null: every `ranks` is added; the lowest
+ * `valueFactor` in (0, 1] applies, once — two providers cannot compound it.
+ *
+ * @param {object} ctx { actor, featNames, project, ranks }
+ * @param {Array<{key: string, fn: Function}>} providers
+ * @returns {{ranks: number, valueFactor: number, labels: string[]}}
+ */
+export function craftingTimeModifiers(ctx = {}, providers = []) {
+  let ranks = 0;
+  let valueFactor = 1;
+  const labels = [];
+  for (const { key, fn } of providers ?? []) {
+    let got;
+    try {
+      got = fn(ctx);
+    } catch (err) {
+      console.error(`TRG Prime | crafting work modifier "${key}" failed`, err);
+      continue;
+    }
+    if (!got || typeof got !== "object") continue;
+    const r = Math.max(0, Math.trunc(Number(got.ranks) || 0));
+    const f = Number(got.valueFactor);
+    const factor = Number.isFinite(f) && f > 0 && f <= 1 ? f : 1;
+    if (!r && factor === 1) continue;
+    ranks += r;
+    valueFactor = Math.min(valueFactor, factor);
+    labels.push(String(got.label ?? key).trim() || key);
+  }
+  return { ranks, valueFactor, labels };
+}
+
+/** The value a project's progress must reach: `itemValue` × the factor, rounded up. */
+export function timeValueFor(itemValue, valueFactor = 1) {
+  const v = Math.max(0, Number(itemValue) || 0);
+  const f = Number(valueFactor);
+  return Math.ceil(v * (Number.isFinite(f) && f > 0 && f <= 1 ? f : 1));
+}

@@ -26,7 +26,7 @@ const MUTATIONS = [
   { name: "an item's spell takes every row", file: SDC, from: "      if (itemCast === true && row?.itemCasts !== true) continue;\n", to: "" },
   { name: "innateOnly ignored", file: SDC, from: "      if (row?.innateOnly === true && innate !== true) continue;\n", to: "" },
   { name: "the attack pool drops the declared rows", file: CW, from: "      .concat(Array.isArray(declaredAttackRows) ? declaredAttackRows : []), {});", to: "      , {});" },
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.712.4\"", to: "\"version\": \"3.694.0\"" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.713.0\"", to: "\"version\": \"3.694.0\"" }
 ];
 
 const verify = path.join(SYSTEM_ROOT, "tools", "verify-fixes-3695-0.mjs");
