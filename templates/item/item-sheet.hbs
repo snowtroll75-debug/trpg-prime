@@ -457,6 +457,10 @@
               data-tooltip="Add a spell to the book — six PP 2 picks at 1st, two more every level after">
               <i class="fa-solid fa-book-medical"></i> Add to Book
             </button>
+            <button type="button" class="gold-button" data-action="addFreeSpellToBook"
+              data-tooltip="Add a spell for free, with the GM's approval. It takes no slot and is counted under Free spells.">
+              <i class="fa-solid fa-gift"></i> Free Spell
+            </button>
           </div>
           {{/if}}
           {{/if}}
@@ -476,8 +480,8 @@
             <output data-tooltip="What a slot may be: the owner's tradition; PP 2 while the opening batch is open, then anything they can actually cast.">{{spellBook.tradition}}</output>
           </label>
           <label>
-            <span></span>
-            <output></output>
+            <span>Free spells</span>
+            <output data-tooltip="Spells added for free with the GM's approval. They are in the book but take no slot.">{{spellBook.free}}</output>
           </label>
         </div>
         {{#if spellBookSpells.length}}
@@ -511,7 +515,7 @@
         <div class="item-row book-spell-row" data-spell-id="{{spell.id}}" data-tradition="{{spell.tradition}}" data-pp="{{spell.ppCost}}">
           <button type="button" class="item-name" data-action="openBookSpell" data-tooltip="Open this spell — memorising it for the day happens from the Magic tab's Memorisation card, not here.">
             <img src="{{spell.img}}" alt="">
-            <span><strong>{{spell.name}}</strong></span>
+            <span><strong>{{spell.name}}</strong>{{#if spell.free}} <em class="book-spell-free" data-tooltip="Added for free with the GM's approval: takes no slot.">(free)</em>{{/if}}</span>
           </button>
           <span>{{spell.tradition}}</span>
           <span>{{spell.ppCost}}</span>

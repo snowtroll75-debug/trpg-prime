@@ -26,6 +26,7 @@ import { classItemOf } from "../class-progression.mjs";
 import { pickFromPack } from "../picker-workflow.mjs";
 import { alreadyKnownSpell, knownSpellKeys } from "./repertoire.mjs";
 import {
+  spellBookFreeSpells,
   spellBookLadderSpells,
   spellBookPickEligible,
   spellBookState
@@ -72,6 +73,8 @@ export function spellBookContext(actor) {
   return {
     ...state,
     firstPicks,
+    // The GM-approved free spells (3.714.0), tallied apart from the slots.
+    free: spellBookFreeSpells(actor).length,
     tradition: String(actor.system?.magic?.tradition ?? "")
   };
 }

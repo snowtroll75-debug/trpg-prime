@@ -186,7 +186,10 @@
     "module/party-live-sync.mjs#PARTY_SYNC_EVENTS": "Harness seam (3.708.0): the hook events the live Party sheet listens to, exported so the harness can assert each one is installed once and removed with the last sheet.",
     "module/party-live-sync.mjs#owningActor": "Harness seam (3.708.0): which actor an item or effect change belongs to; its live caller is PartyLiveSync.handle in the same file.",
     "module/party-actions.mjs#PARTY_TOOLBAR_ACTIONS": "Harness seam (3.710.0, Party Sheet V2 Stage 3): the toolbar's ordered action list, Group Check reserved and not drawn. Its live caller is toolbarFor() in the same file; exported so verify-party-sheet-stage3 can pin the reservation.",
-    "module/party-actions.mjs#xpSources": "Harness seam (3.710.0): the Award XP sources, the encounter plus the five Chapter 12 accomplishments. Its live caller is chooseXPAward() in the same file."
+    "module/party-actions.mjs#xpSources": "Harness seam (3.710.0): the Award XP sources, the encounter plus the five Chapter 12 accomplishments. Its live caller is chooseXPAward() in the same file.",
+    "module/magic/spellbook-free-workflow.mjs#FREE_SPELL_SOURCE_NAME": "The Spellbook's Free Spell (3.714.0): used inside its own module, and exported so verify-spellbook-free can drive it directly; openFreeSpellPick, the button's handler, is what calls it.",
+    "module/magic/spellbook-free-workflow.mjs#freeSpellFlags": "The Spellbook's Free Spell (3.714.0): used inside its own module, and exported so verify-spellbook-free can drive it directly; openFreeSpellPick, the button's handler, is what calls it.",
+    "module/magic/spellbook-free-workflow.mjs#freeSpellQuestion": "The Spellbook's Free Spell (3.714.0): used inside its own module, and exported so verify-spellbook-free can drive it directly; openFreeSpellPick, the button's handler, is what calls it."
   },
   "orphans": [
     "module/afflictions.mjs#STAGE_DELTA",

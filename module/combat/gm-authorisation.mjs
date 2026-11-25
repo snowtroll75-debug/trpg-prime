@@ -32,14 +32,24 @@ function esc(text) {
   return String(text ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]));
 }
 
-async function askHere({ who, what, userName, requestId = null }) {
+/*
+ * OTHER QUESTIONS (3.714.0). The same ask-and-wait carries any yes/no the
+ * table needs from its GM — first the Spellbook's free spell. A caller may
+ * pass its own `title` and `question` (plain text, escaped here); without
+ * them the dialog is the off-turn strike's, word for word.
+ */
+async function askHere({ who, what, userName, requestId = null, title = null, question = null }) {
   const DialogV2 = foundry.applications?.api?.DialogV2;
   if (!DialogV2) return false;
+  const by = userName ? ` (asked by ${esc(userName)})` : "";
+  const content = question
+    ? `<p><strong>${esc(who)}</strong>${by}: ${esc(question)}</p><p>Allow it?</p>`
+    : `<p><strong>${esc(who)}</strong> wants to make ${esc(what)} outside their turn${by}.</p>`
+      + "<p>It costs no AP. Allow it?</p>";
   const answer = await DialogV2.confirm({
     render: (_event, dialog) => { if (requestId) openAsks.set(requestId, { dialog, closedByOther: false }); },
-    window: { title: "Off-Turn Strike — GM Authorisation" },
-    content: `<p><strong>${esc(who)}</strong> wants to make ${esc(what)} outside their turn${userName ? ` (asked by ${esc(userName)})` : ""}.</p>`
-      + "<p>It costs no AP. Allow it?</p>",
+    window: { title: title ? String(title) : "Off-Turn Strike — GM Authorisation" },
+    content,
     rejectClose: false
   });
   return Boolean(answer);
@@ -52,11 +62,13 @@ async function askHere({ who, what, userName, requestId = null }) {
  * @param {string} what e.g. "a Strike with Longsword against the Orc"
  * @returns {Promise<boolean>} true only on the GM's yes
  */
-export async function requestGMAuthorisation(actor, what) {
+export async function requestGMAuthorisation(actor, what, { title = null, question = null, label = null } = {}) {
   const who = actor?.name ?? "A creature";
-  if (game.user?.isGM) return askHere({ who, what });
+  // What the asker's notices call it: "off-turn strike" unless told.
+  const thing = label ?? "off-turn strike";
+  if (game.user?.isGM) return askHere({ who, what, title, question });
   if (!game.users?.activeGM) {
-    ui.notifications?.warn(`${who}'s off-turn strike needs the GM's authorisation, and no GM is connected.`);
+    ui.notifications?.warn(`${who}'s ${thing} needs the GM's authorisation, and no GM is connected.`);
     return false;
   }
   const requestId = foundry.utils.randomID();
@@ -68,11 +80,11 @@ export async function requestGMAuthorisation(actor, what) {
       resolve(null);
     }, WAIT_MS);
   });
-  ui.notifications?.info(`Asking the GM to authorise ${who}'s off-turn strike…`);
-  game.socket.emit(SOCKET, { action: ASK, requestId, userId: game.user.id, userName: game.user.name, who, what });
+  ui.notifications?.info(`Asking the GM to authorise ${who}'s ${thing}…`);
+  game.socket.emit(SOCKET, { action: ASK, requestId, userId: game.user.id, userName: game.user.name, who, what, title, question });
   const allowed = await reply;
-  if (allowed === null) ui.notifications?.warn(`The GM did not answer — ${who}'s off-turn strike does not happen.`);
-  else if (!allowed) ui.notifications?.warn(`The GM did not authorise ${who}'s off-turn strike.`);
+  if (allowed === null) ui.notifications?.warn(`The GM did not answer — ${who}'s ${thing} does not happen.`);
+  else if (!allowed) ui.notifications?.warn(`The GM did not authorise ${who}'s ${thing}.`);
   return allowed === true;
 }
 
@@ -95,7 +107,10 @@ export function registerGMAuthorisation() {
     if (data?.action !== ASK || !isActiveGMAccount()) return;
     let allowed = false;
     try {
-      allowed = await askHere({ who: data.who, what: data.what, userName: data.userName, requestId: data.requestId });
+      allowed = await askHere({
+        who: data.who, what: data.what, userName: data.userName, requestId: data.requestId,
+        title: data.title ?? null, question: data.question ?? null
+      });
     } catch (error) {
       console.error("TRG Prime | GM authorisation", error);
     }

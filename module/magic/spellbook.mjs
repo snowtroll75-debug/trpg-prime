@@ -111,8 +111,29 @@ export function spellBookCantrips(actor) {
  */
 export function spellBookLadderSpells(actor) {
   return spellBookSpells(actor).filter(
-    (item) => !Boolean(item.flags?.[SYSTEM_ID]?.learnedExtra)
+    (item) => !Boolean(item.flags?.[SYSTEM_ID]?.learnedExtra) && !isFreeBookSpell(item)
   );
+}
+
+/**
+ * A FREE SPELL, ADDED WITH THE GM'S SAY-SO (3.714.0; Graham, 25 November
+ * 2026): "an additional button [on] the spellbook that allows a PC (with GM
+ * approval) to add a spell for free. These free spells would be tallied
+ * separately to the slots filled box."
+ *
+ * Flagged `freeBookSpell` beside `spellBookPick`, so it reads, lists and
+ * memorises exactly like any other book spell, and kept OUT of the ladder
+ * (`spellBookLadderSpells`): a spell the GM gives away must not use up a
+ * slot the level schedule owes. Counted on its own instead.
+ */
+export function isFreeBookSpell(item) {
+  return Boolean(item?.flags?.[SYSTEM_ID]?.freeBookSpell);
+}
+
+/** The book's free spells, the GM-approved additions (cantrips excluded,
+ * as `spellBookSpells` excludes them). */
+export function spellBookFreeSpells(actor) {
+  return spellBookSpells(actor).filter(isFreeBookSpell);
 }
 
 /**

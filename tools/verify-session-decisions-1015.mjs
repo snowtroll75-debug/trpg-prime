@@ -48,7 +48,9 @@ ok("D2a an off-turn swing that is neither a reaction nor paid for asks the GM, a
 ok("D2b ...and costs no AP", /\} else if \(!isReaction && !apPaid && !offTurnFree\) \{\n    await spendActionPoints\(actor, "1"/.test(src.at)
   && /\) && !isReaction && !apPaid && !offTurnFree;/.test(src.at));
 ok("D2c a player's ask waits for the GM's answer; none connected is a no",
-  /if \(game\.user\?\.isGM\) return askHere\(\{ who, what \}\);/.test(src.gm) && /if \(!game\.users\?\.activeGM\) \{/.test(src.gm)
+  // RE-PINNED 3.714.0: the ask may carry its own title and question (the
+  // Spellbook's Free Spell); a GM's own press is still asked on their screen.
+  /if \(game\.user\?\.isGM\) return askHere\(\{ who, what(?:, title, question)? \}\);/.test(src.gm) && /if \(!game\.users\?\.activeGM\) \{/.test(src.gm)
   && /return allowed === true;/.test(src.gm));
 // RE-PINNED 3.686.2: any tab of the active GM account answers (a question, not a write).
 ok("D2d only the active GM (any of its tabs) answers, and only the asker hears", /if \(data\?\.action !== ASK \|\| !isActiveGMAccount\(\)\) return;/.test(src.gm) && /if \(data\.userId !== game\.user\?\.id\) return;/.test(src.gm));

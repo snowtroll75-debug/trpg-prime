@@ -2,6 +2,14 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.714.0 — 25 November 2026: the Spellbook's Free Spell button
+
+Full notes in `release-notes-3.714.0.md`.
+
+- **Free Spell:** a new button on the Spellbook adds a spell for free with the GM's approval. Free spells are counted under their own **Free spells** box and take no slot.
+- **GM authorisation** now carries any yes/no question. The off-turn strike's wording is unchanged.
+- **Harness:** `verify-spellbook-free` 30, `mutate-spellbook-free` 15.
+
 ## 3.713.1 — 25 November 2026: a spell of several traditions is cast in its caster's
 
 Branch `feature/ea-block11-seams`. Full notes in `release-notes-3.713.1.md`. Not published.

@@ -14,7 +14,8 @@ import { eventRunesFor, eventUsesRemaining } from "../rune-events.mjs";
 import { frequencyFor, spellEffectRunesOf } from "../rune-spell-effect.mjs";
 import { useRuneAction } from "../rune-actions-workflow.mjs";
 import { openSpellBookPick, spellBookContext } from "../magic/spellbook-workflow.mjs";
-import { spellBookSpells } from "../magic/spellbook.mjs";
+import { isFreeBookSpell, spellBookSpells } from "../magic/spellbook.mjs";
+import { openFreeSpellPick } from "../magic/spellbook-free-workflow.mjs";
 import { spellListFilterOptions, wireSpellListFilters } from "./list-filters.mjs";
 import { itemRequiredHands } from "../held-items.mjs";
 
@@ -113,6 +114,7 @@ export class TRGItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       customiseItem: TRGItemSheet.customiseItem,
       useRuneAction: TRGItemSheet.useRuneAction,
       addToSpellBook: TRGItemSheet.addToSpellBook,
+      addFreeSpellToBook: TRGItemSheet.addFreeSpellToBook,
       openBookSpell: TRGItemSheet.openBookSpell
     }
   };
@@ -268,7 +270,9 @@ export class TRGItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
               img: spell.img,
               tradition: spell.system?.tradition ?? "",
               ppCost: spell.system?.ppCost ?? 0,
-              prepared: Boolean(spell.system?.prepared)
+              prepared: Boolean(spell.system?.prepared),
+              // A GM-approved free spell (3.714.0), marked on its row.
+              free: isFreeBookSpell(spell)
             }))
             .sort((a, b) => a.name.localeCompare(b.name))
         : [];
@@ -562,6 +566,20 @@ export class TRGItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       return null;
     }
     return openSpellBookPick(actor);
+  }
+
+  /**
+   * Free Spell (3.714.0; Graham): a spell added for free with the GM's
+   * approval, tallied under Free spells rather than Slots filled. See
+   * magic/spellbook-free-workflow.mjs.
+   */
+  static async addFreeSpellToBook() {
+    const actor = this.item.actor;
+    if (!actor) {
+      ui.notifications.warn("Add this book to a character's inventory first — it has nothing to grow on its own.");
+      return null;
+    }
+    return openFreeSpellPick(actor);
   }
 
   /**
