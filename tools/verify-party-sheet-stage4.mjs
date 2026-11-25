@@ -536,7 +536,7 @@ const conserved = (label) => equal(`${label} — conservation: every item and ev
 {
   const sys = JSON.parse(read("system.json"));
   equal("Z1 the version is 3.713.0, the download names it, and package.json agrees",
-    [sys.version, sys.download.includes("/v3.714.1/"), JSON.parse(read("package.json")).version], ["3.714.1", true, "3.714.1"]);
+    [sys.version, sys.download.includes("/v3.715.0/"), JSON.parse(read("package.json")).version], ["3.715.0", true, "3.715.0"]);
 }
 
 if (failures.length) {

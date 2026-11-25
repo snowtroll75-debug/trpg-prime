@@ -24,6 +24,7 @@
 
 import { classItemOf } from "../class-progression.mjs";
 import { pickFromPack } from "../picker-workflow.mjs";
+import { PICKER_FACETS } from "../picker-filters.mjs";
 import { alreadyKnownSpell, knownSpellKeys } from "./repertoire.mjs";
 import {
   spellBookFreeSpells,
@@ -161,6 +162,20 @@ function describeFilter(actor, { firstPick }) {
     : `any ${kind} of PP ${cap} or less (your castable maximum)`;
 }
 
+/**
+ * How many spells one Add to Book may take (3.715.0): every slot owed, or,
+ * while the opening batch is open, what is left of that batch — its picks
+ * are held to PP 2, so the later slots wait for the next press. Never
+ * below 1 while anything is owed; 0 when nothing is.
+ */
+export function spellBookPickLimit({ remaining = 0, firstPicksOutstanding = false, firstPicks = 0, owned = 0 } = {}) {
+  const owed = Math.max(0, Math.floor(Number(remaining) || 0));
+  if (!owed) return 0;
+  if (!firstPicksOutstanding) return owed;
+  const batchLeft = Math.floor(Number(firstPicks) || 0) - Math.floor(Number(owned) || 0);
+  return Math.max(1, Math.min(owed, batchLeft));
+}
+
 /** "two more arrive", or the class's own number (3.680.0, D4b). */
 function perLevelWords(actor) {
   const n = bookSlotsPerLevel(actor.system?.progression?.classMagic);
@@ -183,32 +198,48 @@ export async function openSpellBookPick(actor) {
     return null;
   }
   const firstPick = context.firstPicksOutstanding;
+  // SEVERAL AT ONCE (3.715.0; Graham: "select more than one spell at a
+  // time"), up to the slots owed. While the opening batch is open the cap is
+  // what is left of THAT batch: its picks are PP 2 only, so a 3rd-level
+  // Wizard owed six opening picks and four later ones picks the six here,
+  // then opens the browser again for the four at the castable maximum.
+  const maxPicks = spellBookPickLimit(context);
   const picked = await pickFromPack("spells", {
-    title: `Spell book slot ${context.owned + 1} of ${context.allowed} — ${describeFilter(actor, { firstPick })}`,
+    title: `Spell book: ${maxPicks === 1 ? "slot" : `up to ${maxPicks} slots`} (${context.owned} of ${context.allowed} filled) — ${describeFilter(actor, { firstPick })}`,
     fields: ["system.tradition", "system.ppCost", "system.specialist"],
     filter: eligibilityFor(actor, { firstPick }),
+    // School and PP menus (3.715.0; Graham: "a filter by school option and
+    // filter by PP"), beside the Sourcebook menu every picker has.
+    facets: PICKER_FACETS.spellbook,
+    multiple: true,
+    maxPicks,
     emptyMessage: "No spells in the pack match this slot's restrictions — spells already in your book are not listed."
   });
-  if (!picked) return null;
+  if (!picked?.picks?.length) return null;
 
   const pack = contentPack("spells");
-  const document = await pack?.getDocument(picked.itemId);
-  if (!document) return null;
-  const data = packItemData(document);
-  data.flags = {
-    ...data.flags,
-    [SYSTEM_ID]: {
-      ...data.flags?.[SYSTEM_ID],
-      spellBookPick: true,
-      grantedBy: {
-        sourceId: classItem.id,
-        sourceName: classItem.name,
-        requested: document.name
+  const datas = [];
+  for (const { itemId } of picked.picks.slice(0, maxPicks)) {
+    const document = await pack?.getDocument(itemId);
+    if (!document) continue;
+    const data = packItemData(document);
+    data.flags = {
+      ...data.flags,
+      [SYSTEM_ID]: {
+        ...data.flags?.[SYSTEM_ID],
+        spellBookPick: true,
+        grantedBy: {
+          sourceId: classItem.id,
+          sourceName: classItem.name,
+          requested: document.name
+        }
       }
-    }
-  };
-  const [created] = await actor.createEmbeddedDocuments("Item", [data]);
-  if (!created) return null;
+    };
+    datas.push(data);
+  }
+  if (!datas.length) return null;
+  const createdAll = await actor.createEmbeddedDocuments("Item", datas);
+  if (!createdAll?.length) return null;
 
   /*
    * SPELL AVAILABILITY (3.583.0; page 235, Graham's R11: "Warning").
@@ -222,17 +253,20 @@ export async function openSpellBookPick(actor) {
    * Every Core spell is Common by default, so nothing in the shipped
    * pack says anything; only a supplement that marks its spells speaks.
    */
-  const availability = availabilityWarning(created);
+  const warnings = createdAll
+    .map((created) => ({ created, availability: availabilityWarning(created) }))
+    .filter((row) => row.availability.warn);
   const after = spellBookContext(actor);
+  const names = createdAll.map((created) => `<strong>${created.name}</strong>`).join(", ");
   await postCard(actor, "Spell Book", [
-    line(`<strong>${created.name}</strong> added to your spell book (${describeFilter(actor, { firstPick })}).`),
-    ...(availability.warn ? [line(`<strong>Check with your GM:</strong> ${availability.said}`)] : []),
+    line(`${names} added to your spell book (${describeFilter(actor, { firstPick })}).`),
+    ...warnings.map((row) => line(`<strong>Check with your GM about ${row.created.name}:</strong> ${row.availability.said}`)),
     line("<em>Being in the book isn't the same as knowing it today — memorise it at daily preparation before you can cast it.</em>"),
     line(
       after.remaining
-        ? `<em>${after.remaining} slot${after.remaining === 1 ? "" : "s"} still open — add again from the Magic tab.</em>`
+        ? `<em>${after.remaining} slot${after.remaining === 1 ? "" : "s"} still open — add again from the Spellbook.</em>`
         : `<em>All ${after.allowed} slots filled — ${perLevelWords(actor)} at your next level.</em>`
     )
   ]);
-  return created;
+  return createdAll;
 }

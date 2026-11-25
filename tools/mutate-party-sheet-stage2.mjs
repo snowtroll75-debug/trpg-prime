@@ -74,8 +74,8 @@ const MUTATIONS = [
   { name: "LIVE: the sheet does not pass the maximum", file: SHEET, from: "      key, value: member.system?.resources?.[key]?.value, max: member.system?.resources?.[key]?.max,", to: "      key, value: member.system?.resources?.[key]?.value,", breaks: "L10" },
   /* I, Z */
   { name: "the member panel scrolls sideways", file: CSS, from: ".trg-prime .party-member-body {\n  display: flex;\n  flex-wrap: wrap;", to: ".trg-prime .party-member-body {\n  display: flex;\n  flex-wrap: nowrap;", breaks: "I2" },
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.714.1\"", to: "\"version\": \"3.708.1\"", breaks: "Z1" },
-  { name: "package.json is left behind", file: PJ, from: "\"version\": \"3.714.1\"", to: "\"version\": \"3.708.1\"", breaks: "Z1" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.715.0\"", to: "\"version\": \"3.708.1\"", breaks: "Z1" },
+  { name: "package.json is left behind", file: PJ, from: "\"version\": \"3.715.0\"", to: "\"version\": \"3.708.1\"", breaks: "Z1" }
 ];
 
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-party-sheet-stage2.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }

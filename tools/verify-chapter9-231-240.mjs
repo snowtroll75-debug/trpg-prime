@@ -271,10 +271,14 @@ ok("G7 and the warning cites the page",
    * "fix" working code. What it should ask is that the warning is a
    * CARD LINE and the picked spell is still handed back.
    */
+  // RE-PINNED 3.715.0: Add to Book takes several spells at once, so the
+  // warning is one line per spell that carries one, and every pick goes
+  // through (`createdAll`), the warnings only telling the table.
   ok("G8 the warning is a line on the card",
-    /availability\.warn \? \[line\(/.test(wf));
+    /\.filter\(\(row\) => row\.availability\.warn\);/.test(wf)
+    && /\.\.\.warnings\.map\(\(row\) => line\(/.test(wf));
   ok("G8b and the pick still goes through",
-    /await postCard\(actor, "Spell Book"[\s\S]*?\n  return created;/.test(wf),
+    /await postCard\(actor, "Spell Book"[\s\S]*?\n  return createdAll;/.test(wf),
     "the page hands this question to the table twice in four sentences");
 }
 

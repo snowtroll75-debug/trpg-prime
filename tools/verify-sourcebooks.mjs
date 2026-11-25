@@ -87,7 +87,7 @@ ok("E5 a grant prefers its own book", /preferPackage: sourcePackageOf\(sourceIte
 ok("E7 a picker whose defaults together show nothing opens the Sourcebook menu on All instead (3.628.1)", /if \(apply\(\) === 0\) \{\s*const books = facetSelects\.find\(\(select\) => select\.dataset\.facet === "sourcebook"\);\s*if \(books\?\.value\) \{ books\.value = ""; apply\(\); \}/.test(pw) && /return shown;\s*\};/.test(pw));
 
 equal("B5 the menu takes its books from the whole pack, so the gates cannot hide it (3.628.2)", facet.valuesFrom, "all");
-ok("E8 the picker builds a valuesFrom-all facet's options from the full index, its rows from the gated entries", /const source = facet\.valuesFrom === "all" \? fullIndex : entries;\s*const values = Array\.from\(new Set\(\s*source\.map\(/.test(pw));
+ok("E8 the picker builds a valuesFrom-all facet's options from the full index, its rows from the gated entries", /const source = facet\.valuesFrom === "all" \? fullIndex : entries;\s*const values = (?:sortFacetValues\(facet, )?Array\.from\(new Set\(\s*source\.map\(/.test(pw));
 
 const EXPECTED = 26;
 equal("Z the suite ran every check it is meant to", checks + 1, EXPECTED);

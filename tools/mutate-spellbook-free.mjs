@@ -24,7 +24,7 @@ const MUTATIONS = [
   { file: FREE, name: "M3 the free flag is not set", from: "    freeBookSpell: true,\n", to: "" },
   { file: FREE, name: "M4 the GM's no is ignored", from: "  if (!approved) return null;\n", to: "" },
   { file: FREE, name: "M5 the browser drops every rule", from: "filter: eligibilityFor(actor, { firstPick: false, anyPP: true }),", to: "filter: () => true," },
-  { file: FREE, name: "M6 the GM is not told it is free", from: "    + \"for free. It takes no slot, time, gold or check, and is counted under Free spells.\";", to: "    + \".\";" },
+  { file: FREE, name: "M6 the GM is not told it is free", from: "    + `for free. ${several ? \"They take\" : \"It takes\"} no slot, time, gold or check,", to: "    + `. ${several ? \"They take\" : \"It takes\"} a slot, time, gold or check," },
   { file: AUTH, name: "M7 the ask's own title is dropped", from: "window: { title: title ? String(title) : \"Off-Turn Strike — GM Authorisation\" },", to: "window: { title: \"Off-Turn Strike — GM Authorisation\" }," },
   { file: AUTH, name: "M8 the question does not cross the socket", from: "userName: game.user.name, who, what, title, question });", to: "userName: game.user.name, who, what });" },
   { file: AUTH, name: "M9 the strike's dialog loses its AP line", from: "      + \"<p>It costs no AP. Allow it?</p>\";", to: "      + \"<p>Allow it?</p>\";" },

@@ -2,6 +2,14 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.715.0 — 25 November 2026: the Spellbook's browsers filter by school and PP, and take several spells at once
+
+Full notes in `release-notes-3.715.0.md`.
+
+- **Menus:** Add to Book and Free Spell get School and PP menus. PP now sorts in number order on every picker.
+- **Several at once:** both browsers take several spells at once. Add to Book is capped at the slots owed, holding the opening batch to PP 2. Free Spell asks the GM once for the whole selection.
+- **Harness:** `verify-spellbook-picker` 32, `mutate-spellbook-picker` 13.
+
 ## 3.714.1 — 25 November 2026: Free Spell at any PP, and a Learned box
 
 Full notes in `release-notes-3.714.1.md`.

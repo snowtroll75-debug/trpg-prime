@@ -3,7 +3,7 @@ import { applyAllGrants, GRANT_FIELDS } from "./grants-workflow.mjs";
 import { deductCurrency, packItemData} from "./items.mjs";
 import { promptCustomiseItem } from "./item-customize-workflow.mjs";
 import { computeFullCustomisation, pickerDisplayPrice } from "./item-quality.mjs";
-import { escapeAttribute, facetOptionsHtml } from "./picker-filters.mjs";
+import { escapeAttribute, facetOptionsHtml, sortFacetValues } from "./picker-filters.mjs";
 import { prerequisiteNameKey } from "./prerequisites.mjs";
 import { contentPack } from "./content-packs.mjs";
 import { withSourcebookFacet } from "./sourcebooks.mjs";
@@ -135,7 +135,16 @@ function splitPicked(value) {
 
 export async function pickFromPack(
   packName,
-  { filter, fields, title = "Select", emptyMessage, purchasable = false, facets: slotFacets = [] } = {}
+  {
+    filter, fields, title = "Select", emptyMessage, purchasable = false, facets: slotFacets = [],
+    // SEVERAL AT ONCE (3.715.0; Graham, 25 November 2026: "I would like the
+    // character to be able to select more than one spell at a time"). With
+    // `multiple`, every row is a checkbox and the result is
+    // `{ picks: [{ packName, itemId }, ...], action }` instead of one pick.
+    // `maxPicks` caps how many may be ticked (a book with three slots owed
+    // takes three); a tick past it is undone and says why.
+    multiple = false, maxPicks = Infinity
+  } = {}
 ) {
   // THE SOURCEBOOK MENU ON EVERY PICKER (3.628.0; Graham, 7 Oct 2026): added
   // here, where every list a character picks from passes, rather than at
@@ -170,7 +179,7 @@ export async function pickFromPack(
         .join("");
       return `
         <label class="trg-picker-row" data-name="${entry.name.toLowerCase()}" data-price="${price ?? 0}"${facetData}>
-          <input type="radio" name="picked" value="${entry._pack}|${entry._id}">
+          <input type="${multiple ? "checkbox" : "radio"}" name="picked" value="${entry._pack}|${entry._id}">
           <img src="${entry.img}" alt="" width="24" height="24">
           <span>${entry.name}</span>
           ${priceLabel}
@@ -191,9 +200,9 @@ export async function pickFromPack(
       // the menu is there whenever the list spans books, and choosing one
       // with nothing for this character says "0 of 4 shown".
       const source = facet.valuesFrom === "all" ? fullIndex : entries;
-      const values = Array.from(new Set(
+      const values = sortFacetValues(facet, Array.from(new Set(
         source.map((entry) => String(facet.read(entry) ?? "").trim()).filter(Boolean)
-      )).sort((a, b) => a.localeCompare(b));
+      )));
       if (values.length < 2) return "";
       // A facet may open on one of its own values rather than on "All".
       // The class slot uses this: an NPC's picker opens on creature
@@ -209,17 +218,24 @@ export async function pickFromPack(
     .filter(Boolean)
     .join("");
 
+  // ONE answer shape per mode: a single pick, or every ticked row.
+  const answer = (button, action) => {
+    const form = button.form ?? button.closest?.("form");
+    if (multiple) {
+      const picks = Array.from(form?.querySelectorAll('input[name="picked"]:checked') ?? [])
+        .map((input) => splitPicked(input.value));
+      return picks.length ? { picks, action } : null;
+    }
+    const checked = form?.querySelector('input[name="picked"]:checked');
+    return checked ? { ...splitPicked(checked.value), action } : null;
+  };
   const buttons = [
     {
       action: "add",
-      label: purchasable ? "Add (Free)" : "Add",
+      label: purchasable ? "Add (Free)" : (multiple ? "Add Selected" : "Add"),
       icon: "fa-solid fa-check",
       default: !purchasable,
-      callback: (event, button) => {
-        const form = button.form ?? button.closest?.("form");
-        const checked = form?.querySelector('input[name="picked"]:checked');
-        return checked ? { ...splitPicked(checked.value), action: "add" } : null;
-      }
+      callback: (event, button) => answer(button, "add")
     }
   ];
   if (purchasable) {
@@ -228,11 +244,7 @@ export async function pickFromPack(
       label: "Buy",
       icon: "fa-solid fa-coins",
       default: true,
-      callback: (event, button) => {
-        const form = button.form ?? button.closest?.("form");
-        const checked = form?.querySelector('input[name="picked"]:checked');
-        return checked ? { ...splitPicked(checked.value), action: "buy" } : null;
-      }
+      callback: (event, button) => answer(button, "buy")
     });
   }
   buttons.push({ action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark" });
@@ -285,12 +297,19 @@ export async function pickFromPack(
       // A filter that hides everything should say so, rather than
       // showing an empty box that reads as a broken dialog.
       if (countLabel) {
-        countLabel.textContent = shown === rowEls.length
+        const listed = shown === rowEls.length
           ? `${shown} item${shown === 1 ? "" : "s"}`
           : `${shown} of ${rowEls.length} shown`;
+        countLabel.textContent = multiple ? `${listed} · ${selectedLine()}` : listed;
       }
       return shown;
     };
+    // How many are ticked, against the cap. Ticks survive filtering: a row
+    // hidden by a menu stays ticked and is still added.
+    function selectedLine() {
+      const n = root.querySelectorAll('input[name="picked"]:checked').length;
+      return Number.isFinite(maxPicks) ? `${n} of ${maxPicks} selected` : `${n} selected`;
+    }
 
     search.addEventListener("input", apply);
     facetSelects.forEach((select) => select.addEventListener("change", apply));
@@ -304,7 +323,23 @@ export async function pickFromPack(
       if (books?.value) { books.value = ""; apply(); }
     }
 
-    rowEls.forEach((row) => {
+    if (multiple) {
+      rowEls.forEach((row) => {
+        const box = row.querySelector("input");
+        box?.addEventListener("change", () => {
+          if (box.checked && Number.isFinite(maxPicks)
+            && root.querySelectorAll('input[name="picked"]:checked').length > maxPicks) {
+            box.checked = false;
+            ui.notifications?.warn(`You can select up to ${maxPicks} here.`);
+          }
+          apply();
+        });
+      });
+    }
+
+    // Double-click adds at once — a single pick only; with checkboxes it
+    // would add one row and drop the rest of the selection.
+    if (!multiple) rowEls.forEach((row) => {
       row.addEventListener("dblclick", () => {
         row.querySelector("input").checked = true;
         const defaultAction = purchasable ? "buy" : "add";

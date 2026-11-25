@@ -19,6 +19,7 @@ import { registeredFeatPickBonuses, registeredClassNames, registeredArchetypeNam
 import { contentPacksFor } from "./content-packs.mjs";
 import { actorSenses } from "./senses.mjs";
 import { resolveCasterStyle } from "./magic/caster-style.mjs";
+import { SPELL_SCHOOLS } from "./data/spell-tables.mjs";
 
 /**
  * Classes a feat's prerequisites BAR it to.
@@ -299,7 +300,18 @@ export const PICKER_FACETS = Object.freeze({
   spell: [
     { key: "tradition", label: "Tradition", fields: ["system.tradition"],
       read: (entry) => entry.system?.tradition },
-    { key: "pp", label: "PP", fields: ["system.ppCost"],
+    { key: "pp", label: "PP", fields: ["system.ppCost"], numeric: true,
+      read: (entry) => entry.system?.ppCost }
+  ],
+  // THE SPELLBOOK'S BROWSERS (3.715.0; Graham, 25 November 2026: "I would
+  // [like] a filter by school option and filter by PP"). Add to Book and
+  // Free Spell. No tradition menu: both browsers are already held to the
+  // owner's tradition rule, and a spell's tradition string ("arcane,
+  // verdant") would make a menu of combinations rather than traditions.
+  spellbook: [
+    { key: "school", label: "School", fields: ["system.traits"],
+      read: (entry) => spellSchoolOf(entry) },
+    { key: "pp", label: "PP", fields: ["system.ppCost"], numeric: true,
       read: (entry) => entry.system?.ppCost }
   ],
   // Which half of the class list to show. `defaultValue` is set per
@@ -1185,6 +1197,28 @@ export function escapeAttribute(value) {
  * A default naming a value that is not on offer falls back to "All"
  * rather than preselecting nothing and showing an empty list.
  */
+/**
+ * A spell's school (Chapter 9's eight), read off its traits, where every
+ * spell carries it ("Fire, Invocation"). "" for a spell naming none, so the
+ * School menu simply doesn't list it under any school.
+ */
+export function spellSchoolOf(entry) {
+  const traits = String(entry?.system?.traits ?? "").split(",").map((t) => t.trim().toLowerCase());
+  return SPELL_SCHOOLS.find((school) => traits.includes(school.toLowerCase())) ?? "";
+}
+
+/**
+ * A facet's menu values in order. Text sorts as text; a facet marked
+ * `numeric` (the PP menus) sorts as numbers, so PP 10 comes after PP 9
+ * rather than after PP 1 (3.715.0).
+ */
+export function sortFacetValues(facet, values = []) {
+  const list = [...values];
+  return facet?.numeric
+    ? list.sort((a, b) => (Number(a) - Number(b)) || String(a).localeCompare(String(b)))
+    : list.sort((a, b) => String(a).localeCompare(String(b)));
+}
+
 export function facetOptionsHtml(facet, values = []) {
   const preset = values.includes(String(facet?.defaultValue ?? "")) ? String(facet.defaultValue) : "";
   const option = (v, label) =>

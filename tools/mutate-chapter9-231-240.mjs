@@ -147,7 +147,8 @@ const MUTATIONS = [
     from: "    said: `${name} is ${tier} — page 235: a spell from supplemental material is `",
     to: "    said: `${name} is ${tier}. A spell from supplemental material is `", breaks: "G7" },
   { file: BOOK, name: "G THE DEFECT: the pick says nothing about availability",
-    from: "    ...(availability.warn ? [line(`<strong>Check with your GM:</strong> ${availability.said}`)] : []),",
+    // RE-ANCHORED 3.715.0: one warning line per spell that carries one.
+    from: "    ...warnings.map((row) => line(`<strong>Check with your GM about ${row.created.name}:</strong> ${row.availability.said}`)),",
     to: "", breaks: "G8" },
 
   /* ── H: the daily study ────────────────────────────────────────── */
