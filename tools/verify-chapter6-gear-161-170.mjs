@@ -309,7 +309,8 @@ eq("B2d an extra of the shot's own type stays in the formula",
     ammunitionFormulaExtra({ extraDamage: "2", extraDamageType: "piercing" }, "piercing")], [0, " + 2"]);
 ok("B2e the packets join the secondary-damage loop",
   // 3.617.0: the unguents' packets follow them in the same loop.
-  /\.\.\.areaPackets, \.\.\.typedExtras(?:, \.\.\.unguentPackets)?\s*\]\)/.test(attackSrc)
+  // 3.713.0 (C-EA11-1): a weapon's temporary enhancement packets follow those.
+  /\.\.\.areaPackets, \.\.\.typedExtras(?:, \.\.\.unguentPackets(?:, \.\.\.enhancementPackets)?)?\s*\]\)/.test(attackSrc)
   && /formula \+= ammunitionFormulaExtra\(ammo, effectiveDamageType\);/.test(attackSrc)
   && !/formula \+= ` \+ \$\{ammoDamage\.extraDamage\}`/.test(attackSrc));
 ok("B2f the neighbours are named for the splash",
