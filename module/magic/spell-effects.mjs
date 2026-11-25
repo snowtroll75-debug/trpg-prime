@@ -4170,7 +4170,7 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             type: "save",
             saveSource: spell.name,
             traits: spell.system?.traits ?? "",
-            traditions: spellSaveTraditions(target, spell.system ?? {}, highMagicCast(caster, spell.system ?? {})),
+            traditions: spellSaveTraditions(target, spell.system ?? {}, highMagicCast(caster, spell.system ?? {}), caster),
             sourceUuid: caster?.uuid ?? "",
             subject: spec.save,
             dc: Number(saveDC),

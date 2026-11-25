@@ -63,7 +63,31 @@ equal("B9 both completion tests read the time value", (create.match(/completionO
 ok("B10 the project's value — what the materials cost — is never rewritten", !/project\.itemValue\s*=/.test(create));
 
 /* C */
-equal("C1 the system is 3.713.0", JSON.parse(src("system.json")).version, "3.713.0");
+equal("C1 the system is 3.713.1", JSON.parse(src("system.json")).version, "3.713.1");
+
+/* D — 3.713.1: a spell of several traditions is cast in its caster's (Graham's ruling, Eldritch Arts A11-16) */
+{
+  const HM = await import("../module/magic/high-magic.mjs");
+  const caster = (t) => ({ system: { magic: { tradition: t } } });
+  const told = (spell, c) => HM.spellSaveTraditions({ items: [], effects: [] }, { tradition: spell }, { highMagic: false }, c);
+  equal("D1 a multi-tradition spell narrows to the caster's tradition", [
+    told("arcane, divinity, ethereal, verdant", caster("ethereal")),
+    told("arcane, divinity, ethereal, verdant", caster("verdant")),
+    told("Arcane, Divinity", caster("divine"))
+  ], ["ethereal", "verdant", "divinity"]);
+  equal("D2 unchanged: one tradition, no caster, or a caster outside the list", [
+    told("divinity", caster("arcane")),
+    told("arcane, divinity", null),
+    told("divinity, verdant", caster("arcane")),
+    told("arcane, divinity", caster(""))
+  ], ["divinity", "arcane, divinity", "divinity, verdant", "arcane, divinity"]);
+  equal("D3 the save is told it on an ordinary cast; High Magic still tells every tradition", [
+    HM.spellSaveTraditions({ items: [], effects: [] }, { tradition: "arcane, divinity, ethereal, verdant" }, { highMagic: false }, caster("ethereal")),
+    HM.spellSaveTraditions({ items: [], effects: [] }, { tradition: "arcane, divinity, ethereal, verdant" }, { highMagic: false })
+  ], ["ethereal", "arcane, divinity, ethereal, verdant"]);
+  ok("D4 both spell saves pass the caster", /spellSaveTraditions\(target, spell\.system \?\? \{\}, saveHighMagic, actor\)/.test(src("module", "magic", "cast-workflow.mjs"))
+    && /spellSaveTraditions\(target, spell\.system \?\? \{\}, highMagicCast\(caster, spell\.system \?\? \{\}\), caster\)/.test(src("module", "magic", "spell-effects.mjs")));
+}
 
 if (failures.length) {
   console.error(`verify-ea11-seams: ${failures.length} of ${checks} failed:`);

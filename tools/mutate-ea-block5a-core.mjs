@@ -48,7 +48,9 @@ const MUTATIONS = [
   { name: "a spell-only offer is asked before a Strike", file: DOF, from: "against === \"weapon\" || against === \"spell\" ? { against } : true", to: "against === \"weapon\" ? { against } : true", breaks: "D5/D6" },
   // H — Q58/Q59
   { name: "THE RULING: a High Magic cast is only its own tradition", file: HM, from: "  if (!forbiddenSparesHighMagic(target)) return ALL_TRADITIONS;", to: "  if (!forbiddenSparesHighMagic(target)) return spellData?.tradition ?? \"\";", breaks: "H2/H4" },
-  { name: "an ordinary cast is every tradition", file: HM, from: "  if (!cast?.highMagic) return spellData?.tradition ?? \"\";", to: "  if (!cast) return spellData?.tradition ?? \"\";", breaks: "H1" },
+  { name: "an ordinary cast is every tradition", file: HM, from: "  if (!cast?.highMagic) return castTraditions(spellData?.tradition ?? \"\", caster);", to: "  if (!cast) return castTraditions(spellData?.tradition ?? \"\", caster);", breaks: "H1" },
+  // 3.713.1 (Graham's ruling, EA A11-16): a spell of several traditions in its caster's.
+  { name: "a multi-tradition spell keeps every tradition again", file: HM, from: "  return matched.length ? matched.join(\", \") : String(spellTradition ?? \"\");", to: "  return String(spellTradition ?? \"\");", breaks: "H14" },
   { name: "Unbound is not spared the -2", file: HM, from: "  return traditionList(ALL_TRADITIONS).filter((t) => !forbidden.has(t)).join(\", \");", to: "  return ALL_TRADITIONS;", breaks: "H3/H5" },
   { name: "Unbound is told no tradition (its tick-box asks)", file: HM, from: "  return traditionList(ALL_TRADITIONS).filter((t) => !forbidden.has(t)).join(\", \");", to: "  return \"\";", breaks: "H3/H5" },
   { name: "a disabled effect spares", file: HM, from: ".some((effect) => effect && !effect.disabled && effect.flags", to: ".some((effect) => effect && effect.flags", breaks: "H6" },
@@ -59,8 +61,8 @@ const MUTATIONS = [
   { name: "the caller's word is ignored", file: BS, from: "typeof highMagic === \"boolean\" ? highMagic : highMagicCast(caster, spellData).highMagic", to: "highMagicCast(caster, spellData).highMagic", breaks: "H8/H14" },
   { name: "High Magic is not read off the caster", file: BS, from: "typeof highMagic === \"boolean\" ? highMagic : highMagicCast(caster, spellData).highMagic", to: "typeof highMagic === \"boolean\" ? highMagic : false", breaks: "H10/H14" },
   { name: "the tradition clause is not told", file: BS, from: "  const byTradition = traditionSaveRequired(target, spellData, castIsHighMagic);", to: "  const byTradition = traditionSaveRequired(target, spellData);", breaks: "H8/H14" },
-  { name: "THE GAP: the spell save reads only the spell's tradition", file: CW, from: "      traditions: spellSaveTraditions(target, spell.system ?? {}, saveHighMagic),", to: "      traditions: spell.system?.tradition ?? \"\",", breaks: "H11" },
-  { name: "the follow-up save reads only the spell's tradition", file: SEF, from: "            traditions: spellSaveTraditions(target, spell.system ?? {}, highMagicCast(caster, spell.system ?? {})),", to: "            traditions: spell.system?.tradition ?? \"\",", breaks: "H12" },
+  { name: "THE GAP: the spell save reads only the spell's tradition", file: CW, from: "      traditions: spellSaveTraditions(target, spell.system ?? {}, saveHighMagic, actor),", to: "      traditions: spell.system?.tradition ?? \"\",", breaks: "H11" },
+  { name: "the follow-up save reads only the spell's tradition", file: SEF, from: "            traditions: spellSaveTraditions(target, spell.system ?? {}, highMagicCast(caster, spell.system ?? {}), caster),", to: "            traditions: spell.system?.tradition ?? \"\",", breaks: "H12" },
   { name: "Visage Of Horror does not record High Magic", file: SEF, from: "? { horrorHighMagic: true } : {}", to: "? {} : {}", breaks: "H13" },
   { name: "Sanctuary's opponent ignores it", file: SG, from: "{ highMagic: ward.getFlag(SYSTEM_ID, \"sanctuaryHighMagic\") === true }", to: "{ highMagic: false }", breaks: "H13" }
 ];

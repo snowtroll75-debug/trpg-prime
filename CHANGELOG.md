@@ -2,6 +2,13 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.713.1 — 25 November 2026: a spell of several traditions is cast in its caster's
+
+Branch `feature/ea-block11-seams`. Full notes in `release-notes-3.713.1.md`. Not published.
+
+- **Graham's ruling (Eldritch Arts A11-16):** a target's save against a spell of several traditions is told only the caster's own, when it is one of them. Forbidden Magic, the Ascendan's beneficial-magic save and modules' tradition-scoped reactions follow. Single-tradition spells, castless sources and High Magic are unchanged.
+- **Harness:** `verify-ea11-seams` 30, `verify-ea-block5a-core` 67 (H14), `mutate-ea-block5a-core` 48. The full 404-file verify sweep is green. A stale `mutate-spellbook-rename` anchor is restored.
+
 ## 3.713.0 — 25 November 2026: two seams for the Artificer
 
 Branch `feature/ea-block11-seams`. Full notes in `release-notes-3.713.0.md`. Not published.

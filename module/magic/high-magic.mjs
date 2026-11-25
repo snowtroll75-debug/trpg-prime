@@ -250,6 +250,31 @@ export function forbiddenSparesHighMagic(actor) {
 }
 
 /**
+ * A SPELL OF SEVERAL TRADITIONS IS CAST IN ITS CASTER'S (3.713.1; Graham's
+ * ruling, 25 Nov 2026, Eldritch Arts A11-16): "the spell should match the
+ * caster's tradition when multi-realm is present. So a Brawn spell (three
+ * traditions) cast on an Ascendan by an ethereal caster would not be subject
+ * to Forbidden Magic. The same spell cast by a verdant would be."
+ *
+ * The spell's listed traditions narrowed to the caster's own
+ * (`system.magic.tradition`) when it is one of them. Otherwise unchanged: a
+ * spell of one tradition, no caster (a scroll, a trap, an unknown source), or
+ * a caster whose tradition the spell does not list — an item or a granted
+ * spell — keeps every listed tradition, exactly as before 3.713.1.
+ *
+ * @param {string} spellTradition the spell's `system.tradition`
+ * @param {Actor|null} caster
+ * @returns {string}
+ */
+function castTraditions(spellTradition, caster = null) {
+  const listed = traditionList(spellTradition);
+  if (listed.length < 2 || !caster) return String(spellTradition ?? "");
+  const own = traditionList(caster?.system?.magic?.tradition ?? "");
+  const matched = listed.filter((t) => own.includes(t));
+  return matched.length ? matched.join(", ") : String(spellTradition ?? "");
+}
+
+/**
  * The traditions a target's save against this cast is told (the
  * conditionals' `traditions` axis).
  *
@@ -263,10 +288,12 @@ export function forbiddenSparesHighMagic(actor) {
  * @param {Actor} target who rolls the save
  * @param {object} spellData the spell's `system`
  * @param {{highMagic?: boolean}} [cast] `highMagicCast(caster, spellData)`
+ * @param {Actor|null} [caster] who cast it: an ordinary cast of a spell of
+ *   several traditions is told only the caster's (3.713.1, castTraditions)
  * @returns {string}
  */
-export function spellSaveTraditions(target, spellData, cast = {}) {
-  if (!cast?.highMagic) return spellData?.tradition ?? "";
+export function spellSaveTraditions(target, spellData, cast = {}, caster = null) {
+  if (!cast?.highMagic) return castTraditions(spellData?.tradition ?? "", caster);
   if (!forbiddenSparesHighMagic(target)) return ALL_TRADITIONS;
   const forbidden = new Set([...forbiddenTraditionsOf(target), ...beneficialSaveTraditionsOf(target)].map((f) => f.tradition));
   return traditionList(ALL_TRADITIONS).filter((t) => !forbidden.has(t)).join(", ");

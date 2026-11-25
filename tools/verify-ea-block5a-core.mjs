@@ -255,10 +255,15 @@ equal("H6 what spares: an item or effect's flag; not a disabled effect, nor a sw
 }
 ok("H11 the spell save is told the cast's traditions through the rule, the cast read once",
   /const saveHighMagic = highMagicCast\(actor, spellData \?\? \{\}\);/.test(src.cast)
-  && /traditions: spellSaveTraditions\(target, spell\.system \?\? \{\}, saveHighMagic\),/.test(src.cast)
+  && /traditions: spellSaveTraditions\(target, spell\.system \?\? \{\}, saveHighMagic(?:, actor)?\),/.test(src.cast) // 3.713.1 adds the caster
   && !/^\s*traditions: spell\.system\?\.tradition \?\? "",\n\s*\/\/ AND WHO IS CASTING IT/m.test(src.cast));
 ok("H12 …and a spell's follow-up save the same way",
-  /traditions: spellSaveTraditions\(target, spell\.system \?\? \{\}, highMagicCast\(caster, spell\.system \?\? \{\}\)\),/.test(src.effects));
+  /traditions: spellSaveTraditions\(target, spell\.system \?\? \{\}, highMagicCast\(caster, spell\.system \?\? \{\}\)(?:, caster)?\),/.test(src.effects)); // 3.713.1 adds the caster
+// 3.713.1 (Graham's ruling, Eldritch Arts A11-16): a spell of several traditions is told only its caster's.
+equal("H14 an ordinary cast of a multi-tradition spell: the caster's tradition, else every listed one",
+  [hm.spellSaveTraditions({ items: [], effects: [] }, { tradition: "arcane, divinity, ethereal, verdant" }, { highMagic: false }, { system: { magic: { tradition: "ethereal" } } }),
+   hm.spellSaveTraditions({ items: [], effects: [] }, { tradition: "divinity, verdant" }, { highMagic: false }, { system: { magic: { tradition: "arcane" } } })],
+  ["ethereal", "divinity, verdant"]);
 ok("H13 a ward cast with High Magic says so, and its opponents' saves read it (Sanctuary, Visage Of Horror)",
   /\{ sanctuaryHighMagic: true \}/.test(src.effects) && /\{ horrorHighMagic: true \}/.test(src.effects)
   && /\{ highMagic: ward\.getFlag\(SYSTEM_ID, "sanctuaryHighMagic"\) === true \}/.test(src.sanct) && /\{ highMagic: ward\.getFlag\(SYSTEM_ID, "horrorHighMagic"\) === true \}/.test(src.sanct));

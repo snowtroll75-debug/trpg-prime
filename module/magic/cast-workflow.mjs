@@ -8334,7 +8334,8 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
       // suffer penalties for High Magic (as it combines all magic)"), except
       // at a target High Magic spares (Q59, Unbound). Before, a High Magic
       // cast of an arcane spell escaped the -2. See magic/high-magic.mjs.
-      traditions: spellSaveTraditions(target, spell.system ?? {}, saveHighMagic),
+      // …AND A SPELL OF SEVERAL TRADITIONS IN ITS CASTER'S (3.713.1).
+      traditions: spellSaveTraditions(target, spell.system ?? {}, saveHighMagic, actor),
       // AND WHO IS CASTING IT (3.321.1). Thengar: "+1 racial bonus to your
       // DB and Saving Throws against the attacks of creatures of the
       // Undead Type." 3.321.0 built the `sourceTypes` axis and fed it from
