@@ -121,6 +121,13 @@ Listen with `Hooks.on(name, payload => …)`. Each is fired with `Hooks.callAll`
 | `trgPrimeTurnEnded` | 1 |
 | `trgPrimeWeaponFumble` | 1 |
 
+## Added in 3.713.0
+
+| Function | Arguments | What it does |
+|---|---|---|
+| `registerWeaponEnhancement` | `key, fn, moduleId = null` | One weapon's temporary enhancement (Eldritch Arts 0.18.0, C-EA11-1): `fn(weapon, actor)` → `{ label, attack, attackType, damage, damageType, packets, reloadReduction }` or null. See `module/weapon-enhancements.mjs`. |
+| `registerCraftingWorkModifier` | `key, fn, moduleId = null` | A Create project's time (C-EA11-2): `fn({ actor, featNames, project, ranks })` → `{ label, ranks, valueFactor }` or null. Time only; never the check, the DC or the cost. |
+
 ## Added in 3.697.0
 
 No module-facing function changed. Additions inside the core that a module may rely on:

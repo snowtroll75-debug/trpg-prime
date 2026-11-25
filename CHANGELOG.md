@@ -2,6 +2,15 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.713.0 — 25 November 2026: two seams for the Artificer
+
+Branch `feature/ea-block11-seams`. Full notes in `release-notes-3.713.0.md`. Not published.
+
+- **`registerWeaponEnhancement`** (C-EA11-1): one weapon's temporary attack row, damage, secondary packets and reload reduction.
+- **`registerCraftingWorkModifier`** (C-EA11-2): the ranks and value a Create project's *time* is read from. The cost, check and DC are unchanged.
+- **Pairs with** Eldritch Arts 0.18.0 (the Feat Additions). Inner Tempest and Pillars of Faith run unchanged.
+- **Harness:** `verify-ea11-seams` 26; `verify-chapter6-gear-161-170` B2e extended.
+
 ## 3.712.4 — 24 November 2026: one Spellbook for every book caster
 
 Full notes in `release-notes-3.712.4.md`; repair log R-0036.
