@@ -1067,5 +1067,6 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
   - `verify-spellbook-rename` 34 and `mutate-spellbook-rename` 19.
   - The full `verify-*` corpus.
   - Eldritch Arts' suite: 29 of 30 pass. `verify-block10` was already failing.
+- **Live verification:** passed in the Test world on 25 November 2026 (`live-testing-report-3.712.4.md`).
 - **Delivery:** 3.712.4, branch `fix/core-spellbook-rename`.
 
