@@ -2,6 +2,14 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.714.1 — 25 November 2026: Free Spell at any PP, and a Learned box
+
+Full notes in `release-notes-3.714.1.md`.
+
+- **Free Spell** keeps the tradition rule but offers spells at any PP.
+- **Learned box:** Learn a Spell's additions get a box of their own, and their rows are marked "(learned)".
+- **Harness:** `verify-spellbook-free` 38, `mutate-spellbook-free` 21.
+
 ## 3.714.0 — 25 November 2026: the Spellbook's Free Spell button
 
 Full notes in `release-notes-3.714.0.md`.

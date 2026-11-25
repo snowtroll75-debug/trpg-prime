@@ -19,11 +19,11 @@ const TPL = at("templates", "item", "item-sheet.hbs");
 const CHECK = at("tools", "verify-spellbook-free.mjs");
 
 const MUTATIONS = [
-  { file: BOOK, name: "M1 a free spell eats a ladder slot", from: " && !isFreeBookSpell(item)\n", to: "\n" },
+  { file: BOOK, name: "M1 a free spell eats a ladder slot", from: "(item) => !Boolean(item.flags?.[SYSTEM_ID]?.learnedExtra) && !isFreeBookSpell(item)", to: "(item) => !Boolean(item.flags?.[SYSTEM_ID]?.learnedExtra)" },
   { file: BOOK, name: "M2 Free spells counts every book spell", from: "return spellBookSpells(actor).filter(isFreeBookSpell);", to: "return spellBookSpells(actor);" },
   { file: FREE, name: "M3 the free flag is not set", from: "    freeBookSpell: true,\n", to: "" },
   { file: FREE, name: "M4 the GM's no is ignored", from: "  if (!approved) return null;\n", to: "" },
-  { file: FREE, name: "M5 the browser drops the castable cap", from: "filter: eligibilityFor(actor, { firstPick: false }),", to: "filter: () => true," },
+  { file: FREE, name: "M5 the browser drops every rule", from: "filter: eligibilityFor(actor, { firstPick: false, anyPP: true }),", to: "filter: () => true," },
   { file: FREE, name: "M6 the GM is not told it is free", from: "    + \"for free. It takes no slot, time, gold or check, and is counted under Free spells.\";", to: "    + \".\";" },
   { file: AUTH, name: "M7 the ask's own title is dropped", from: "window: { title: title ? String(title) : \"Off-Turn Strike — GM Authorisation\" },", to: "window: { title: \"Off-Turn Strike — GM Authorisation\" }," },
   { file: AUTH, name: "M8 the question does not cross the socket", from: "userName: game.user.name, who, what, title, question });", to: "userName: game.user.name, who, what });" },
@@ -33,6 +33,12 @@ const MUTATIONS = [
   { file: SHEET, name: "M12 the action is not registered", from: "      addFreeSpellToBook: TRGItemSheet.addFreeSpellToBook,\n", to: "" },
   { file: SHEET, name: "M13 the row is never marked free", from: "free: isFreeBookSpell(spell)", to: "free: false" },
   { file: TPL, name: "M14 the Free spells box is blank", from: "{{spellBook.free}}", to: "" },
+  { file: FREE, name: "M16 the PP cap is not lifted", from: "filter: eligibilityFor(actor, { firstPick: false, anyPP: true }),", to: "filter: eligibilityFor(actor, { firstPick: false })," },
+  { file: WF, name: "M17 anyPP drops the tradition rule too", from: "    pickAllowed(pickRule, entry.system?.tradition) &&\n    spellBookPickEligible(", to: "    (anyPP || pickAllowed(pickRule, entry.system?.tradition)) &&\n    spellBookPickEligible(" },
+  { file: BOOK, name: "M18 Learned counts the free spells too", from: "Boolean(item.flags?.[SYSTEM_ID]?.learnedExtra) && !isFreeBookSpell(item)\n  );\n}\n\n/** The book's free", to: "Boolean(item.flags?.[SYSTEM_ID]?.learnedExtra)\n  );\n}\n\n/** The book's free" },
+  { file: WF, name: "M19 the context carries no learned count", from: "    learned: spellBookLearnedSpells(actor).length,\n", to: "" },
+  { file: TPL, name: "M20 the Learned box is blank", from: "{{spellBook.learned}}", to: "" },
+  { file: SHEET, name: "M21 a learned row is never marked", from: "learned: Boolean(spell.flags?.[\"trg-prime\"]?.learnedExtra) && !isFreeBookSpell(spell)", to: "learned: false" },
   { file: TPL, name: "M15 the button is gone", from: "data-action=\"addFreeSpellToBook\"", to: "data-action=\"addFreeSpellToBookX\"" }
 ];
 

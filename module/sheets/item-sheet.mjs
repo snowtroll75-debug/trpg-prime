@@ -272,7 +272,9 @@ export class TRGItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
               ppCost: spell.system?.ppCost ?? 0,
               prepared: Boolean(spell.system?.prepared),
               // A GM-approved free spell (3.714.0), marked on its row.
-              free: isFreeBookSpell(spell)
+              free: isFreeBookSpell(spell),
+              // A Learn a Spell addition (3.714.1), marked on its row too.
+              learned: Boolean(spell.flags?.["trg-prime"]?.learnedExtra) && !isFreeBookSpell(spell)
             }))
             .sort((a, b) => a.name.localeCompare(b.name))
         : [];

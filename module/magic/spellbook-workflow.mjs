@@ -27,6 +27,7 @@ import { pickFromPack } from "../picker-workflow.mjs";
 import { alreadyKnownSpell, knownSpellKeys } from "./repertoire.mjs";
 import {
   spellBookFreeSpells,
+  spellBookLearnedSpells,
   spellBookLadderSpells,
   spellBookPickEligible,
   spellBookState
@@ -75,6 +76,8 @@ export function spellBookContext(actor) {
     firstPicks,
     // The GM-approved free spells (3.714.0), tallied apart from the slots.
     free: spellBookFreeSpells(actor).length,
+    // Learn a Spell's additions (3.714.1; Graham: "a box of their own").
+    learned: spellBookLearnedSpells(actor).length,
     tradition: String(actor.system?.magic?.tradition ?? "")
   };
 }
@@ -114,7 +117,13 @@ export function ownedEntryIds(actor) {
   return knownSpellKeys(actor?.items ?? []);
 }
 
-export function eligibilityFor(actor, { firstPick }) {
+/*
+ * NO PP CAP (3.714.1; Graham, 25 November 2026, for the Free Spell: "Keep
+ * tradition rules but allow higher PP spells"). `anyPP` drops only the
+ * castable-maximum test; the tradition rule, the specialist exclusion and
+ * "nothing already on the sheet" all still apply.
+ */
+export function eligibilityFor(actor, { firstPick, anyPP = false }) {
   const tradition = String(actor.system?.magic?.tradition ?? "");
   // ARCADIAN CASTER / TRUE CASTER (Creature Codex; 3.631.0): the creature
   // may learn from more traditions than its own — "any" (True Caster), or
@@ -136,7 +145,7 @@ export function eligibilityFor(actor, { firstPick }) {
         ppCost: entry.system?.ppCost,
         specialist: entry.system?.specialist
       },
-      { tradition: "", firstPick, casterLevel }
+      { tradition: "", firstPick: firstPick && !anyPP, casterLevel: anyPP ? Number.MAX_SAFE_INTEGER - 1 : casterLevel }
     );
 }
 

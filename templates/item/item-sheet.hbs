@@ -466,7 +466,7 @@
           {{/if}}
         </div>
         {{#if spellBook}}
-        <div class="field-grid four-column">
+        <div class="field-grid five-column">
           <label>
             <span>Slots filled</span>
             <output data-tooltip="Spells in the book against the schedule.">{{spellBook.owned}} / {{spellBook.allowed}}</output>
@@ -482,6 +482,10 @@
           <label>
             <span>Free spells</span>
             <output data-tooltip="Spells added for free with the GM's approval. They are in the book but take no slot.">{{spellBook.free}}</output>
+          </label>
+          <label>
+            <span>Learned</span>
+            <output data-tooltip="Spells learned through Learn a Spell (time, gold and a check). They are in the book but take no slot.">{{spellBook.learned}}</output>
           </label>
         </div>
         {{#if spellBookSpells.length}}
@@ -515,7 +519,7 @@
         <div class="item-row book-spell-row" data-spell-id="{{spell.id}}" data-tradition="{{spell.tradition}}" data-pp="{{spell.ppCost}}">
           <button type="button" class="item-name" data-action="openBookSpell" data-tooltip="Open this spell — memorising it for the day happens from the Magic tab's Memorisation card, not here.">
             <img src="{{spell.img}}" alt="">
-            <span><strong>{{spell.name}}</strong>{{#if spell.free}} <em class="book-spell-free" data-tooltip="Added for free with the GM's approval: takes no slot.">(free)</em>{{/if}}</span>
+            <span><strong>{{spell.name}}</strong>{{#if spell.free}} <em class="book-spell-free" data-tooltip="Added for free with the GM's approval: takes no slot.">(free)</em>{{/if}}{{#if spell.learned}} <em class="book-spell-learned" data-tooltip="Learned through Learn a Spell: takes no slot.">(learned)</em>{{/if}}</span>
           </button>
           <span>{{spell.tradition}}</span>
           <span>{{spell.ppCost}}</span>

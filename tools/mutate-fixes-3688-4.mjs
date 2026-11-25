@@ -14,8 +14,8 @@ const MUTATIONS = [
   { name: "the guard warns but rolls on", file: CW, from: "Record each one's result, or lower the count.`\n    );\n    return null;", to: "Record each one's result, or lower the count.`\n    );" },
   { name: "the DC reads the raw box again", file: CW, from: "    differentTraditionSecondaryCasters: diffTradition,", to: "    differentTraditionSecondaryCasters: Number(result.diffTradition || 0)," },
   { name: "the count trimmed silently instead", file: CW, from: "  const diffTradition = Math.max(0, Math.floor(Number(result.diffTradition) || 0));", to: "  const diffTradition = Math.min(degrees.length, Math.max(0, Math.floor(Number(result.diffTradition) || 0)));" },
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.714.0\"", to: "\"version\": \"3.688.3\"" },
-  { name: "the download names the last release", file: SJ, from: "releases/download/v3.714.0/trg-prime.zip", to: "releases/download/v3.688.3/trg-prime.zip" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.714.1\"", to: "\"version\": \"3.688.3\"" },
+  { name: "the download names the last release", file: SJ, from: "releases/download/v3.714.1/trg-prime.zip", to: "releases/download/v3.688.3/trg-prime.zip" }
 ];
 
 const verify = path.join(SYSTEM_ROOT, "tools", "verify-fixes-3688-4.mjs");

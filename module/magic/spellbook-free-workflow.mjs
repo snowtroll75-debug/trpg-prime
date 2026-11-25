@@ -5,12 +5,12 @@
  * spellbook that allows a PC (with GM approval) to add a spell for free.
  * These free spells would be tallied separately to the slots filled box."
  *
- *   1. The owner picks a spell. The browser offers what the book could
- *      take in a later slot: the owner's tradition rule (all traditions
- *      for an Archmage), PP no higher than they can cast, not a specialist
- *      spell, and nothing already on the sheet. That is the same filter
- *      Add to Book uses once the opening batch is filled
- *      (`eligibilityFor(actor, { firstPick: false })`).
+ *   1. The owner picks a spell. The browser offers the owner's tradition
+ *      rule (all traditions for an Archmage), no specialist spell, and
+ *      nothing already on the sheet — at ANY PP (3.714.1; Graham: "Keep
+ *      tradition rules but allow higher PP spells"), since the GM approves
+ *      each one. Add to Book's own filter with its PP cap lifted
+ *      (`eligibilityFor(actor, { firstPick: false, anyPP: true })`).
  *   2. The GM is asked. A player's press goes to the acting GM through
  *      the core's GM-authorisation socket and waits for the yes (no GM
  *      connected, or no answer in two minutes: refused, and it says so).
@@ -74,11 +74,10 @@ export async function openFreeSpellPick(actor) {
     ui.notifications.warn("Spell book: this character's class doesn't keep one.");
     return null;
   }
-  const cap = Number(actor.system?.magic?.casterLevelValue ?? 0) + 1;
   const picked = await pickFromPack("spells", {
-    title: `Free spell for ${actor.name}'s Spellbook (needs the GM's approval): PP ${cap} or less, not already known`,
+    title: `Free spell for ${actor.name}'s Spellbook (needs the GM's approval): any PP, not already known`,
     fields: ["system.tradition", "system.ppCost", "system.specialist"],
-    filter: eligibilityFor(actor, { firstPick: false }),
+    filter: eligibilityFor(actor, { firstPick: false, anyPP: true }),
     emptyMessage: "No spells in the pack can go in this book: spells already on the sheet are not listed."
   });
   if (!picked) return null;

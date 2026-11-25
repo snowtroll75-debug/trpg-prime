@@ -67,6 +67,10 @@ eq("A2 the free spell is off the ladder (Slots filled counts the slot picks only
 eq("A3 Free spells counts the GM-approved one, not a Learn a Spell addition or a cantrip",
   book.spellBookFreeSpells(actor).map((s) => s.name), ["Fly"]);
 eq("A4 isFreeBookSpell reads the flag", [book.isFreeBookSpell(actor.items[2]), book.isFreeBookSpell(actor.items[0])], [true, false]);
+eq("A6 Learned counts the Learn a Spell addition only (3.714.1, its own box)",
+  book.spellBookLearnedSpells(actor).map((s) => s.name), ["Fireball"]);
+eq("A7 a spell flagged both ways counts as free, not learned",
+  book.spellBookLearnedSpells({ items: [spell("Haste", { freeBookSpell: true, learnedExtra: true })] }).length, 0);
 const state = book.spellBookState({ level: 1, firstPicks: 6, owned: book.spellBookLadderSpells(actor).length });
 eq("A5 ...so a free spell leaves a slot owed", [state.owned, state.remaining], [2, 4]);
 
@@ -126,8 +130,21 @@ const askAt = fw.indexOf("await requestGMAuthorisation(");
 const createAt = fw.indexOf("createEmbeddedDocuments");
 ok("D9 the GM is asked BEFORE anything is created", askAt > 0 && createAt > askAt);
 ok("D10 ...and a no stops it", /if \(!approved\) return null;/.test(fw.slice(askAt, createAt)));
-ok("D11 the browser is Add to Book's later-slot filter", /filter: eligibilityFor\(actor, \{ firstPick: false \}\)/.test(fw));
+ok("D11 the browser is Add to Book's later-slot filter with the PP cap lifted (3.714.1)", /filter: eligibilityFor\(actor, \{ firstPick: false, anyPP: true \}\)/.test(fw));
+ok("D11b ...anyPP lifts only the cap: tradition rule and already-known tests stay",
+  /export function eligibilityFor\(actor, \{ firstPick, anyPP = false \}\)/.test(wf)
+  && /firstPick: firstPick && !anyPP, casterLevel: anyPP \? Number\.MAX_SAFE_INTEGER - 1 : casterLevel/.test(wf)
+  && /!alreadyKnownSpell\(owned, entry\) &&\s*\n\s*pickAllowed\(pickRule, entry\.system\?\.tradition\)/.test(wf));
+eq("D11c ...and a PP 9 spell of the tradition passes the lifted cap, a specialist one still does not",
+  [book.spellBookPickEligible({ tradition: "arcane", ppCost: 9 }, { casterLevel: Number.MAX_SAFE_INTEGER - 1 }),
+   book.spellBookPickEligible({ tradition: "arcane", ppCost: 9, specialist: true }, { casterLevel: Number.MAX_SAFE_INTEGER - 1 }),
+   book.spellBookPickEligible({ tradition: "arcane", ppCost: 9 }, { casterLevel: 1 })], [true, false, false]);
 ok("D12 the spell is created with the free flags", /\[SYSTEM_ID\]: freeSpellFlags\(/.test(fw));
+ok("D13 a Learned box shows Learn a Spell's tally (3.714.1)", /<span>Learned<\/span>[\s\S]{0,250}\{\{spellBook\.learned\}\}/.test(tpl));
+ok("D14 ...the card's five boxes sit in a five-column grid", /<div class="field-grid five-column">\s*<label>\s*<span>Slots filled<\/span>/.test(tpl));
+ok("D15 the context carries the learned count", /learned: spellBookLearnedSpells\(actor\)\.length/.test(wf));
+ok("D16 a learned spell's row is marked", /learned: Boolean\(spell\.flags\?\.\["trg-prime"\]\?\.learnedExtra\) && !isFreeBookSpell\(spell\)/.test(sheet)
+  && /\{\{#if spell\.learned\}\}[\s\S]{0,140}\(learned\)/.test(tpl));
 
 if (failures.length) {
   process.stderr.write(`verify-spellbook-free: FAILED ${failures.length} of ${checks}\n`);

@@ -130,6 +130,18 @@ export function isFreeBookSpell(item) {
   return Boolean(item?.flags?.[SYSTEM_ID]?.freeBookSpell);
 }
 
+/**
+ * The spells learned through Learn a Spell (`learnedExtra`), counted in a
+ * box of their own (3.714.1; Graham, 25 November 2026). Off the ladder
+ * already (see `spellBookLadderSpells`); a free spell is never one of
+ * these, since the free path does not set `learnedExtra`.
+ */
+export function spellBookLearnedSpells(actor) {
+  return spellBookSpells(actor).filter(
+    (item) => Boolean(item.flags?.[SYSTEM_ID]?.learnedExtra) && !isFreeBookSpell(item)
+  );
+}
+
 /** The book's free spells, the GM-approved additions (cantrips excluded,
  * as `spellBookSpells` excludes them). */
 export function spellBookFreeSpells(actor) {
