@@ -1090,6 +1090,7 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
   - `verify-skill-tumble` 48 and `mutate-skill-tumble` 35.
   - `verify-chapter7-combat-191-200` O9 re-pointed; `mutate-agile-display` one anchor moved.
   - The full `verify-*` corpus.
-- **Readings asked:** the exemption covers the Tumbled enemy only; the failure's reactions are read from the current square; Offensive Momentum's own movement still provokes from the Tumbled enemy.
+- **Readings confirmed:** Graham, 26 November 2026: the exemption covers the Tumbled enemy only, and the failure's reactions are read from the current square ("as you have written them are correct"). Offensive Momentum is unchanged.
+- **Live verification:** passed in the Test world on 26 November 2026, from both the GM's and the player's clients, with Inner Tempest's Pinnacle of Motion (`live-testing-report-3.715.1.md`).
 - **Delivery:** 3.715.1, branch `fix/skill-tumble`.
 
