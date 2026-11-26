@@ -2,6 +2,15 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.715.1 — 26 November 2026: Tumble gives its Stride, asks for its enemy, and fails properly
+
+Full notes in `release-notes-3.715.1.md`.
+
+- **Pick the enemy:** Tumble asks which enemy, either past it or through its space (+2 DC). The DC is that enemy's Fortitude DC or Acrobatics DC, whichever is higher.
+- **The Stride:** a passed Tumble arms its Stride at no further AP, with no reaction from that enemy.
+- **A failure** ends the movement and offers reactions as if you had left your square.
+- **Harness:** `verify-skill-tumble` 48, `mutate-skill-tumble` 35.
+
 ## 3.715.0 — 25 November 2026: the Spellbook's browsers filter by school and PP, and take several spells at once
 
 Full notes in `release-notes-3.715.0.md`.

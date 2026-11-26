@@ -351,8 +351,8 @@ function caster(items) {
 
 /* ================================================================== Z */
 equal("Z1 the version is 3.690.0, and the download names it", [sys.version, sys.download],
-  ["3.715.0", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.715.0/trg-prime.zip"]);
-equal("Z2 package.json agrees", JSON.parse(read("package.json")).version, "3.715.0");
+  ["3.715.1", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.715.1/trg-prime.zip"]);
+equal("Z2 package.json agrees", JSON.parse(read("package.json")).version, "3.715.1");
 
 api.resetModuleRegistry();
 if (failures.length) {

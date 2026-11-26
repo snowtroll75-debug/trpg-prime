@@ -1070,3 +1070,26 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
 - **Live verification:** passed in the Test world on 25 November 2026 (`live-testing-report-3.712.4.md`).
 - **Delivery:** 3.712.4, branch `fix/core-spellbook-rename`.
 
+## R-0037 — Tumble gave no Stride, provoked from all, and had no enemy (3.715.1)
+
+- **Reported:** Graham, 26 November 2026, after Wednesday's game: "the Tumble action on the Acrobatics skill. This is not working." Confirmed symptoms: the move after it cost extra AP; it still provoked Attacks of Opportunity; the DC was wrong or had no target.
+- **Source state:** branch `fix/skill-tumble`, from `feature/spellbook-free-spells` at 3.715.0 (`090e06c`), the version installed live. The Tumble files on the live install matched it exactly.
+- **Rule:** Acrobatics, Tumble (Core 3.7 text; 3.8 not re-checked): 1 AP, a Stride as part of the action, past one enemy's threatened area or through its space without provoking; Acrobatics against its Fortitude DC or Acrobatics DC, whichever is higher, +2 through its space; a failure ends the movement and triggers reactions as if leaving the starting square.
+- **Root causes:**
+  - the outcome only set the `tumbledThrough` passage marker, so the action's 1 AP bought no movement;
+  - nothing exempted the Tumbled enemy from the movement AoO;
+  - no step chose the enemy, and the space's +2 was never applied;
+  - failure and fumble only cleared the marker.
+- **Fix:**
+  - `combat/tumble.mjs` (rules, pure) and `combat/tumble-workflow.mjs` (the chooser, the leg, the failure's reactions);
+  - `resolveAction` asks for the enemy before the target is read and adds the +2; `tumbleSetup` travels in the outcome context (live, pending and resumed);
+  - a pass arms a land-Speed compound leg, free of AP, `nextAction`, provoking except from `exemptReactorTokenIds`; `movementReactors` and `detectMovementAoO` honour the exemption;
+  - a failure calls the new `detectDepartureAoO` (the stationary reactors, offered as a movement provoke);
+  - the lapse notice says "move" for a non-Step leg.
+- **Testing:**
+  - `verify-skill-tumble` 48 and `mutate-skill-tumble` 35.
+  - `verify-chapter7-combat-191-200` O9 re-pointed; `mutate-agile-display` one anchor moved.
+  - The full `verify-*` corpus.
+- **Readings asked:** the exemption covers the Tumbled enemy only; the failure's reactions are read from the current square; Offensive Momentum's own movement still provokes from the Tumbled enemy.
+- **Delivery:** 3.715.1, branch `fix/skill-tumble`.
+

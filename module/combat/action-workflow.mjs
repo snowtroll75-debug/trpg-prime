@@ -123,6 +123,7 @@ import {
 } from "./rage-workflow.mjs";
 import { spendTemporaryHP } from "./temporary-hp.mjs";
 import { armedHeaderCost, isArmableMovement } from "./movement.mjs";
+import { TUMBLE_THROUGH, tumbleDCAdjustment, tumbleOutcome, tumbleStrideLine } from "./tumble.mjs";
 import { armMovementAction, armedMovementSummary, clearArmedMovement, lapseNextActionLeg, nextActionLegArmed } from "./movement-workflow.mjs";
 import { recordTraitUsage, traitGate, wordAftermathModifier } from "../traits-workflow.mjs";
 import { applyEscapeRoute } from "./escape.mjs";
@@ -2397,6 +2398,16 @@ export async function resolveAction(actor, action, {
   // A DISPEL AIMED AT A SPELL BEING CAST (3.681.0; Disrupting Magic, found in
   // review) is aimed at that spell, not at whatever the reactor happens to
   // have targeted: no peril's DC, refusal or banked counteract from it.
+  // TUMBLE PAST WHICH ENEMY (3.715.1; Graham, 26 November 2026: the DC was
+  // wrong or had no target). Asked before the target is read, which it then
+  // is: the chosen enemy becomes the user's target. Cancelling spends nothing.
+  let tumbleSetup = null;
+  if (action.key === "tumble") {
+    const { chooseTumbleEnemy } = await import("./tumble-workflow.mjs");
+    const chosen = await chooseTumbleEnemy(actor, { skip: skipDialog(event) });
+    if (chosen?.cancelled) return null;
+    tumbleSetup = chosen?.setup ?? null;
+  }
   const targetActor = presetDispel ? null : firstTargetActor();
   // A MODULE MAY REFUSE AN ATTEMPT (3.630.0) — Pillars of Faith's Perform
   // Last Rites on a corpse whose rites were botched: "You cannot attempt
@@ -3259,6 +3270,13 @@ export async function resolveAction(actor, action, {
   // states the opposite of the intended effect.
   if (action.key === "sniping" && resolved.dc !== null && hasSilentWeaponEquipped(Array.from(actor.items ?? []))) {
     resolved.dc -= 2;
+  }
+
+  // TUMBLE THROUGH ITS SPACE: "The DC is increased by 2 if you are trying to
+  // move through the enemy's space" (3.715.1). Never added before.
+  if (action.key === "tumble" && resolved.dc !== null && tumbleDCAdjustment(tumbleSetup?.through) > 0) {
+    resolved.dc += tumbleDCAdjustment(tumbleSetup.through);
+    defenceDCLines.push(`<em>Through ${tumbleSetup.name ?? "the enemy"}'s space: +${tumbleDCAdjustment(tumbleSetup.through)} DC.</em>`);
   }
 
   // Learn a Spell: the DC comes from the chosen spell's own PP-cost band
@@ -4268,6 +4286,8 @@ export async function resolveAction(actor, action, {
     rechargeSetup,
     gatherHerbsSetup,
     coverTracksCount,
+    // WHICH ENEMY A TUMBLE WAS MADE PAST, and how (3.715.1): plain data.
+    tumbleSetup,
     // ONE ROLL AGAINST SEVERAL (3.669.0): Spirit Roar's own immunity replaces the action's.
     ignoreActionImmunity: Boolean(ignoreActionImmunity),
     // TRAILING COMMA ON PURPOSE: every entry here is mirrored in
@@ -4463,6 +4483,7 @@ async function applyActionOutcome({
     rechargeSetup = null,
     gatherHerbsSetup = null,
     coverTracksCount = null,
+    tumbleSetup = null,
     ignoreActionImmunity = false
   } = ctx ?? {};
   // A DISPEL MODIFIER'S OWN LADDER (3.683.0, C9), read from the stored setup:
@@ -4879,14 +4900,29 @@ async function applyActionOutcome({
       // difficult terrain, a critical as normal movement, and a failure
       // ends the movement, which is what refusing it amounts to here.
       if (action.key === "tumble") {
+        // THE STRIDE, ITS REACTIONS, AND A FAILURE'S (3.715.1; Graham, 26
+        // November 2026, after Wednesday's game: the move cost extra AP and
+        // still provoked). See tumble.mjs for the book's text and what was
+        // wrong. Through a space, a pass also leaves the marker the movement
+        // hook spends on the enemy's squares (page 198, R15).
         const { TUMBLE_FLAG } = await import("./movement-workflow.mjs");
-        if (["critical", "heroic", "success"].includes(degree)) {
-          await actor.setFlag(SYSTEM_ID, TUMBLE_FLAG, degree === "success" ? "difficult" : "normal");
+        const { armTumbleStride, tumbleFailureReactions, tumbleLandSpeed } = await import("./tumble-workflow.mjs");
+        const through = tumbleSetup?.through ?? TUMBLE_THROUGH.space;
+        const plan = tumbleOutcome(degree, through);
+        if (plan.passage) await actor.setFlag(SYSTEM_ID, TUMBLE_FLAG, plan.passage);
+        else if (actor.getFlag?.(SYSTEM_ID, TUMBLE_FLAG)) await actor.unsetFlag(SYSTEM_ID, TUMBLE_FLAG);
+        if (plan.armStride && await armTumbleStride(actor, tumbleSetup)) {
+          lines.push(line(tumbleStrideLine({
+            speedFeet: tumbleLandSpeed(actor), enemyName: tumbleSetup?.name ?? "", through, passage: plan.passage
+          })));
+        } else if (plan.passage) {
           lines.push(line(
             "<em>You may now move through an unwilling creature's space — "
-            + `its squares count as ${degree === "success" ? "difficult terrain" : "normal movement"}.</em>`));
-        } else if (actor.getFlag?.(SYSTEM_ID, TUMBLE_FLAG)) {
-          await actor.unsetFlag(SYSTEM_ID, TUMBLE_FLAG);
+            + `its squares count as ${plan.passage === "difficult" ? "difficult terrain" : "normal movement"}.</em>`));
+        }
+        if (plan.failureReactions && game.combat?.started) {
+          lines.push(line("<em>Your movement ends: enemies threatening your square may react as if you had left it.</em>"));
+          void tumbleFailureReactions(actor).catch(() => {});
         }
       }
 
@@ -6081,6 +6117,7 @@ function pendingOutcomeContext(actor, action, ctx) {
     rechargeSetup: ctx.rechargeSetup ?? null,
     gatherHerbsSetup: ctx.gatherHerbsSetup ?? null,
     coverTracksCount: ctx.coverTracksCount ?? null,
+    tumbleSetup: ctx.tumbleSetup ?? null,
     ignoreActionImmunity: Boolean(ctx.ignoreActionImmunity),
     treatWoundsExtraDC: Number(ctx.treatWoundsExtraDC ?? 0),
     treatWoundsExtraTargets: Number(ctx.treatWoundsExtraTargets ?? 0),
@@ -6146,6 +6183,7 @@ async function restoreOutcomeContext(stored) {
       rechargeSetup: stored?.rechargeSetup ?? null,
       gatherHerbsSetup: stored?.gatherHerbsSetup ?? null,
       coverTracksCount: stored?.coverTracksCount ?? null,
+      tumbleSetup: stored?.tumbleSetup ?? null,
       ignoreActionImmunity: Boolean(stored?.ignoreActionImmunity),
       treatWoundsExtraDC: Number(stored?.treatWoundsExtraDC ?? 0),
       treatWoundsExtraTargets: Number(stored?.treatWoundsExtraTargets ?? 0),

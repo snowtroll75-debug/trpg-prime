@@ -708,8 +708,10 @@ eq("O5 a passed Tumble reads its own degree", [
   ok("O8 the Tumble marker is spent, and cleared each turn",
     /void mover\.unsetFlag\(SYSTEM_ID, TUMBLE_FLAG\);/.test(w)
     && /MOVED_FLAG, ARMED_FLAG, TUMBLE_FLAG/.test(w));
+  // RE-POINTED AT 3.715.1: the degree is read by `tumbleOutcome` (tumble.mjs,
+  // driven in verify-skill-tumble); the action sets the marker it names.
   ok("O9 the Tumble action leaves one",
-    /if \(action\.key === "tumble"\) \{[\s\S]{0,400}setFlag\(SYSTEM_ID, TUMBLE_FLAG, degree === "success" \? "difficult" : "normal"\)/
+    /if \(action\.key === "tumble"\) \{[\s\S]{0,900}const plan = tumbleOutcome\(degree, through\);\s*if \(plan\.passage\) await actor\.setFlag\(SYSTEM_ID, TUMBLE_FLAG, plan\.passage\);/
       .test(code("module", "combat", "action-workflow.mjs")));
 }
 

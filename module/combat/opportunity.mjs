@@ -231,13 +231,18 @@ export { feetFromPointToToken };
  * move but cannot react — see `blockedReactor` for why the second list
  * matters.
  */
-export function movementReactors(moverToken, movement) {
+export function movementReactors(moverToken, movement, { exemptTokenIds = [] } = {}) {
   const centres = pathSquareCentres(moverToken, movement);
   if (centres.length < 2) return { reactors: [], blocked: [] };
   const departed = centres.slice(0, -1); // every square left behind
   const reactors = [];
   const blocked = [];
+  // AN ENEMY THE MOVE IS FREE OF (3.715.1; Tumble: "move through an enemy's
+  // threatened area ... without provoking a reaction"): the one the check
+  // beat. Every other enemy reacts as before.
+  const exempt = new Set((exemptTokenIds ?? []).map(String));
   for (const enemy of hostileTokens(moverToken)) {
+    if (exempt.has(String(enemy?.id))) continue;
     // LUNGING STANCE THREATENS AS FAR AS A LUNGE (3.706.0).
     const reach = opportunityReachOf(enemy);
     const departedFeet = departed.map((p) => feetFromPointToToken(p, enemy));
@@ -560,13 +565,30 @@ export async function useAttackOfOpportunity(actor) {
 /* -------------------------------------------- */
 
 /** Movement provoke: called from the movement hook for a provoking move. */
-export async function detectMovementAoO(tokenDocument, movement) {
+export async function detectMovementAoO(tokenDocument, movement, { exemptTokenIds = [] } = {}) {
   try {
     const moverToken = tokenDocument?.object ?? activeToken(tokenDocument?.actor);
     if (!moverToken) return;
-    await offerAttacksOfOpportunity(moverToken, movementReactors(moverToken, movement), "movement");
+    await offerAttacksOfOpportunity(moverToken, movementReactors(moverToken, movement, { exemptTokenIds }), "movement");
   } catch (_e) {
     /* detection is best-effort — never disturb the move */
+  }
+}
+
+/**
+ * AS IF LEAVING THE SQUARE YOU STAND IN (3.715.1; a failed Tumble: "you
+ * trigger reactions as if you had moved out of the square you started in").
+ * No token moves, so the movement path cannot say who threatens; the square
+ * itself does: every enemy whose reach covers it, offered as a movement
+ * provoke.
+ */
+export async function detectDepartureAoO(actor) {
+  try {
+    const moverToken = activeToken(actor);
+    if (!moverToken) return;
+    await offerAttacksOfOpportunity(moverToken, stationaryReactors(moverToken), "movement");
+  } catch (_e) {
+    /* detection is best-effort */
   }
 }
 

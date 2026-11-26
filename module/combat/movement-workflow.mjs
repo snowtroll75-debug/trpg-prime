@@ -212,7 +212,9 @@ export async function lapseNextActionLeg(actor, { apNow = null, reaction = false
   else await forgetLapsedLeg(actor);
   // Only while it is still the leg: an action armed meanwhile (a Step) stays.
   if (actor.getFlag?.(SYSTEM_ID, ARMED_FLAG) === COMPOUND_LEG_KEY) await clearArmedMovement(actor);
-  globalThis.ui?.notifications?.info?.(`${leg.label || "The free Step"}: the free Step is removed — it had to be ${actor?.name ?? "the character"}'s next action.`);
+  // A STEP SAYS STEP; TUMBLE'S STRIDE SAYS MOVE (3.715.1).
+  const freeWhat = String(leg?.countsAs ?? "").trim().toLowerCase() === "step" ? "Step" : "move";
+  globalThis.ui?.notifications?.info?.(`${leg.label || "The free Step"}: the free ${freeWhat} is removed — it had to be ${actor?.name ?? "the character"}'s next action.`);
   return true;
 }
 
@@ -448,6 +450,11 @@ async function maybeOfferMovementAoO(tokenDocument, movement, armedKey) {
     const config = armedKey === COMPOUND_LEG_KEY
       ? { provokesReactions: tokenDocument.actor?.getFlag?.(SYSTEM_ID, COMPOUND_LEG_KEY)?.provokes !== false }
       : armedKey ? ARMED_MOVEMENT_ACTIONS[armedKey] : null;
+    // A LEG FREE OF ONE ENEMY (3.715.1; Tumble's Stride): read before
+    // anything awaits, while the leg is still on the actor.
+    const exemptTokenIds = armedKey === COMPOUND_LEG_KEY
+      ? (tokenDocument.actor?.getFlag?.(SYSTEM_ID, COMPOUND_LEG_KEY)?.exemptReactorTokenIds ?? [])
+      : [];
     // ASKED, NOT RE-DERIVED (3.363.0). This line was a verbatim copy of
   // `moveActionProvokes`, which was tested by the harness and called by
   // nothing — two places holding one rule, with the tested one inert.
@@ -500,7 +507,7 @@ async function maybeOfferMovementAoO(tokenDocument, movement, armedKey) {
       armedKey, config?.provokesReactions, avoided, moverImmune);
     if (!provokes) return;
     import("./opportunity.mjs")
-      .then((m) => m.detectMovementAoO(tokenDocument, movement))
+      .then((m) => m.detectMovementAoO(tokenDocument, movement, { exemptTokenIds }))
       .catch(() => {});
   } catch (_e) {
     /* detection is best-effort */

@@ -47,7 +47,7 @@ const MUTATIONS = [
   { name: "an AP write at the armed pool lapses it", file: AD, from: "  return Number.isFinite(at) && Number(apNow) < at;", to: "  return Number.isFinite(at) && Number(apNow) <= at;", breaks: "N1/N4" },
   { name: "the lapse leaves the leg armed", file: MW, from: "  if (actor.getFlag?.(SYSTEM_ID, ARMED_FLAG) === COMPOUND_LEG_KEY) await clearArmedMovement(actor);\n", to: "", breaks: "N2/N3" },
   { name: "the lapse keeps the leg's flag", file: MW, from: "  await actor.unsetFlag(SYSTEM_ID, COMPOUND_LEG_KEY);\n  // KEPT FOR A REFUND", to: "  // KEPT FOR A REFUND", breaks: "N2" },
-  { name: "the lapse says nothing", file: MW, from: "  globalThis.ui?.notifications?.info?.(`${leg.label || \"The free Step\"}: the free Step is removed", to: "  void (`${leg.label || \"The free Step\"}: the free Step is removed", breaks: "N2" },
+  { name: "the lapse says nothing", file: MW, from: "  globalThis.ui?.notifications?.info?.(`${leg.label || \"The free Step\"}: the free ${freeWhat} is removed", to: "  void (`${leg.label || \"The free Step\"}: the free ${freeWhat} is removed", breaks: "N2" },
   { name: "the hook takes any user's write", file: MW, from: "  if (userId !== undefined && userId !== globalThis.game?.user?.id) return;\n", to: "", breaks: "N4" },
   { name: "the hook misses a flat AP write", file: MW, from: "  const ap = changes?.[\"system.resources.ap.value\"] ?? foundry.utils", to: "  const ap = foundry.utils", breaks: "N4" },
   { name: "the hook is not registered", file: MW, from: "  Hooks.on(\"updateActor\", onApWriteLapse);\n", to: "", breaks: "N9" },
