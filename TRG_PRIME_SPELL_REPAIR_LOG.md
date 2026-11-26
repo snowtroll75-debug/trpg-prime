@@ -52,16 +52,21 @@ The baseline went from **4,112** failing cases to **8**. Each is explained:
 - **Healer's Grace** (warp 0 ×2): "an additional 1 PP (max +4)" is ambiguous.
 - **Sonic Bolt** (warp 1): the model's error; the engine's two-step ladder is right.
 
-## Live retest (pending 3.716.0 in the Test world)
+## Live retest of 3.716.0 (26 November 2026): 14 of 14 passed
 
-The plan, in the release notes:
-- Reach at 45 ft, from both seats;
-- Temporal ×1 on Mage Armour (the clock reads 12 hours), and the offer's ceiling of 1;
-- Extend + Temporal refused;
-- Distant on Mage Armour, onto an ally;
-- Shield Of Faith's own touch warp beside Distant, refused;
-- Component Mastery lifting the pouch gate;
-- Widen's template;
-- a heightened buff's counteract opening at maximum PP;
-- Lingering Performance after a lapse;
-- the save rolled on the GM's client.
+GM and Player sessions at once (`live-testing-report-3.716.0.md`; data in `tools/spell-matrix/data/live-3.716.0.json`).
+
+- **Range and area:** Reach at 45 ft from both seats, and Widen's 40-ft template.
+- **Duration:** Temporal ×1 reads 12 hours on the clock, with an offer ceiling of 1. Extend + Temporal was refused with nothing spent.
+- **Distant and U8:** Distant moved Mage Armour onto the ally. Invisibility's own touch warp beside Distant was refused (U8).
+- **Components:** Component Mastery lifted the pouch gate; without it the gate held.
+- **Counteract:** a heightened buff's counteract opened at the caster's maximum castable PP.
+- **Saves:** they were rolled on the GM's client (U11).
+- **Lingering Performance:** it lingered Cha + 1 rounds after the lapse, then ended.
+- **Forbiddance:** its uncapped count box.
+
+**Two defects in the lingering case**, both fixed in 3.716.1 (R-0039):
+- a double delete when it ended (the turn and world clocks both swept it);
+- a turn card that called it a lapse.
+
+3.716.1's own live check (case 13 again) is pending installation.

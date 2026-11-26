@@ -153,8 +153,8 @@ const MUTATIONS = [
     // substring, so the anchor matched twice and went ANCHOR x2. Carried
     // with the line above it, which belongs to this sweep alone.
     name: "X3 a duration running out is reported as a dismissal",
-    from: "    if (!elapsed) continue;\n    await endActiveSpell(actor, entry.id, { dismissed: false });",
-    to: "    if (!elapsed) continue;\n    await endActiveSpell(actor, entry.id);",
+    from: "    const gone = await endActiveSpell(actor, entry.id, { dismissed: false });",
+    to: "    const gone = await endActiveSpell(actor, entry.id);",
     breaks: "X2 — Delayed Respite's card would say \"released early\" of a clock"
   },
   {

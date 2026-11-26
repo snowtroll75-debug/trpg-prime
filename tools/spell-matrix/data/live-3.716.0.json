@@ -1,0 +1,35 @@
+{
+  "run": "2026-11-26, afternoon UK",
+  "core": "3.716.0",
+  "foundry": "14.367",
+  "world": "Test",
+  "sessions": {
+    "GM": "Testing Dude, http://localhost:30000, Chrome",
+    "Player": "PC Tester, http://127.0.0.1:30000, Chrome (second origin, simultaneous)"
+  },
+  "fixtures": {
+    "caster": "ZZ SM Wizard: level 10, caster level 10 (cap 11 PP), every core Metamagic feat; owned by PC Tester",
+    "bard": "ZZ SM Bard: level 10, caster level 5, Inspire Courage, Lingering Performance (+ Echoing), Charisma 2 for case 13, Heighten Spell added for case 12",
+    "ally": "ZZ SM Ally: npc 5 ft from the Wizard, owned by PC Tester",
+    "targets": "ZZ SM Foe Near (30 ft) and ZZ SM Foe Far (45 ft): npc, 30 HP, GM only",
+    "scene": "ZZ SM Live 3716 (throwaway; Caves re-activated after)",
+    "dice": "DiceTerm.roll fixed per die size on each client (GM d20 18; player 9 or 15)"
+  },
+  "cases": [
+    { "id": 1, "user": "Player", "spell": "Word Of Biting", "picks": ["Reach"], "target": "Foe Far 45 ft", "expected": "cast at 45 ft; 4 PP; save on the GM", "actual": "4 PP; Casting DC 16; Save DC 18; save die 18 (GM); HP 30->27", "result": "Pass" },
+    { "id": 2, "user": "GM", "spell": "Word Of Biting", "picks": ["Reach"], "target": "Foe Far", "expected": "as 1", "actual": "4 PP; HP 27->24", "result": "Pass" },
+    { "id": 3, "user": "Player", "spell": "Word Of Biting", "picks": [], "target": "Foe Near", "expected": "save die is the GM's (U11)", "actual": "cast d20 9 (player); save d20 18 (GM); Success 18 vs 16; 3 sonic; HP 30->27", "result": "Pass" },
+    { "id": 4, "user": "Player", "spell": "Mage Armour", "picks": ["Temporal x1"], "expected": "3 PP; 1 hour -> 12 hours", "actual": "3 PP; spellEffectEnd - worldTime = 43200", "result": "Pass" },
+    { "id": 5, "user": "Player", "spell": "Mage Armour", "picks": [], "expected": "Temporal max 1", "actual": "max=1", "result": "Pass" },
+    { "id": 6, "user": "Player", "spell": "Mage Armour", "picks": ["Extend", "Temporal x1"], "expected": "Not Cast, nothing spent", "actual": "Not Cast; Nothing was spent; 0 PP", "result": "Pass" },
+    { "id": 7, "user": "Player", "spell": "Mage Armour", "picks": ["Distant"], "target": "Ally", "expected": "effect on the Ally only", "actual": "effect on the Ally, not the Wizard; 10 PP (Distant 6 on Ethereal; Partial + Variable Success 2)", "result": "Pass" },
+    { "id": 8, "user": "Player", "spell": "Invisibility", "picks": ["warp-0 (touch)", "Distant"], "expected": "Not Cast (U8)", "actual": "Not Cast: Distant Spell cannot be taken with the spell's own range warp; Nothing was spent", "result": "Pass" },
+    { "id": 9, "user": "Player", "spell": "Invisibility", "picks": ["Component Mastery material>verbal"], "pouch": false, "expected": "cast without a pouch", "actual": "cast; 'the material component becomes verbal'; Invisible; 4 PP (critical)", "result": "Pass" },
+    { "id": 10, "user": "Player", "spell": "Invisibility", "picks": [], "pouch": false, "expected": "refused with the pouch warning", "actual": "warning 'no Material Component Pouch equipped'; 0 PP; no effect", "result": "Pass" },
+    { "id": 11, "user": "Player", "spell": "Chill Storm", "picks": ["Widen"], "pouch": true, "expected": "20-ft radius -> 40", "actual": "banner '40 ft radius'; card 'area measurements doubled'; 8 PP; pouch 100->99", "result": "Pass" },
+    { "id": 12, "user": "GM", "spell": "Mage Armour / Inspire Courage, then Soothing Words", "picks": ["Heighten"], "expected": "counteract dialog opens at the caster's max castable PP", "actual": "Mage Armour stamped counteractAs 11 (3 PP spent); Inspire Courage (Specialist, level 10) stamped 10 (2 PP spent); Counteract Check opened at 10", "result": "Pass" },
+    { "id": 13, "user": "Player cast, GM turns", "spell": "Inspire Courage", "picks": ["Lingering Performance"], "expected": "lingers Cha rounds after the Sustain lapses", "actual": "lapsed round 3, lingered to round 6, effects off all three at round 6", "result": "Pass", "defects": ["D1: server 'ActiveEffect does not exist' at the end (both clocks swept the entry)", "D2: turn card said 'lapses (not sustained)' when it began to linger"], "fixedIn": "3.716.1" },
+    { "id": 14, "user": "Both", "spell": "Forbiddance", "picks": [], "expected": "radius warp is a count box with no max", "actual": "number input min 0, no max, on both clients; closing cast nothing", "result": "Pass" }
+  ],
+  "cleanup": "combat, ZZ SM actors and scene deleted; 67 test-user messages after index 296 deleted; Caves active; worldTime 96; paused; dice restored"
+}

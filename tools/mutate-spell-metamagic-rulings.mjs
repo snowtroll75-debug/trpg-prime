@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** mutate-spell-metamagic-rulings — the mutation half of verify-spell-metamagic-rulings. NEW at 3.716.0. */
+/** mutate-spell-metamagic-rulings — the mutation half of verify-spell-metamagic-rulings. NEW at 3.716.0; E and N at 3.716.1. */
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -10,7 +10,7 @@ const m = (...p) => path.join(SYSTEM_ROOT, "module", ...p);
 const MM = m("magic", "metamagic.mjs"), CW = m("magic", "cast-workflow.mjs"), CP = m("magic", "cast-power.mjs");
 const AS = m("magic", "active-spells.mjs"), SW = m("magic", "spell-warp.mjs"), WA = m("magic", "warp-area.mjs");
 const TR = m("combat", "target-relay.mjs"), TW = m("combat", "target-relay-workflow.mjs"), TRW = m("trait-rules-workflow.mjs");
-const CG = m("magic", "component-gate.mjs");
+const CG = m("magic", "component-gate.mjs"), CB = m("documents", "combat.mjs");
 const MUTATIONS = [
   // R1 — Temporal Extension's ladder (U1)
   { name: "the ladder stops at Hours", file: MM, from: "  { unit: \"12-hour\", seconds: 43200 }\n", to: "", breaks: "R1a/R1c" },
@@ -74,6 +74,15 @@ const MUTATIONS = [
   { name: "a relayed effect is not stamped", file: TW, from: "  stampCastPower(data);\n  if (!needsRelay(target)) {", to: "  if (!needsRelay(target)) {", breaks: "W16" },
   { name: "a new composition ends a lingering one", file: TRW, from: " && !e.lingering), isComposition, newCastId);", to: "), isComposition, newCastId);", breaks: "W19" },
   { name: "the old composition never lingers", file: TRW, from: "    if (await lingerOnEnd(caster, id, ", to: "    if (false && await lingerOnEnd(caster, id, ", breaks: "W19" },
+  // E — one ending at a time (3.716.1)
+  { name: "two clocks may end one entry together", file: AS, from: "  if (ENDING.has(key)) return null;\n", to: "", breaks: "E1" },
+  { name: "the claim is never let go", file: AS, from: "  } finally {\n    ENDING.delete(key);\n  }", to: "  } finally {\n  }", breaks: "E2" },
+  { name: "one claim holds up every entry", file: AS, from: "  return `${actor?.uuid ?? actor?.id ?? \"\"}|${id}`;", to: "  return `${actor?.uuid ?? actor?.id ?? \"\"}`;", breaks: "E3" },
+  { name: "the sweep reports what the other clock ended", file: AS, from: "    if (gone) ended.push(entry.name);", to: "    ended.push(entry.name);", breaks: "E4" },
+  // N — lingering is not lapsing
+  { name: "a lingering performance is called a lapse", file: AS, from: "  const ended = lapsed.filter((e) => !nowLingering.has(e.id)).map((e) => e.name);", to: "  const ended = lapsed.map((e) => e.name);", breaks: "N1" },
+  { name: "its rounds are lost", file: AS, from: "rounds: Math.max(0, Math.trunc(Number(e.linger?.rounds) || 0)) }));", to: "rounds: 0 }));", breaks: "N2" },
+  { name: "the turn card says nothing of it", file: CB, from: "    for (const { name, rounds } of lapsed.lingered ?? []) {", to: "    for (const { name, rounds } of []) {", breaks: "N3" },
   { name: "the quiet gate still warns", file: CG, from: "const warn = (message) => { if (!quiet) ui.notifications.warn(message); };", to: "const warn = (message) => { ui.notifications.warn(message); };", breaks: "W20" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-spell-metamagic-rulings.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }

@@ -297,14 +297,10 @@ export function buildMetamagicOptions({
     // now lasts an ADDITIONAL ROUND, and you may have TWO lingering
     // performances running at any one time."
     //
-    // WHAT THIS FEAT CAN HONESTLY DO IS SAY THE NUMBER. Lingering
-    // Performance itself is a note — nothing in this system tracks a
-    // composition still ringing after the bard stops — so its extension is
-    // a note too, and pretending otherwise would be the dishonest kind of
-    // automation `verify-feat-note-honesty` exists to catch. What changes
-    // is that the note now COMPUTES the round count from this character's
-    // Charisma and their feats, rather than telling the table to work out
-    // "Cha rounds" and remember a caveat.
+    // THE NUMBER IS COMPUTED from this character's Charisma and their
+    // feats, rather than telling the table to work out "Cha rounds". Until
+    // 3.716.0 that number was all this option did; since Graham's U10 the
+    // cast is registered to linger for it (active-spells.mjs, lingerOnEnd).
     const limits = lingeringPerformanceLimits(featNames);
     const rounds = lingeringRounds(charisma, featNames);
     options.push({

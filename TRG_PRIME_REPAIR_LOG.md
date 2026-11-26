@@ -1133,5 +1133,27 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
   - The census checks moved with the data, each with its reason, and the version and schema anchors were re-pinned. Four mutation files that still anchored on a schema of 3.707.1 (and so already failed at 3.715.1) were re-pinned too.
   - The full sweep: all 813 files of `tools/verify.mjs` were run. This release's four faults are fixed; one pre-existing gap is recorded (`verify-ea11-seams` is unpaired).
 - **Readings for Graham:** the Hours step (12 hours, or the "2 hours" of the Shield of Faith example); counts carried up the ladder; damage under U8; the four note-only feats; and the unstructured Geas, Pass Without Trace and Unshakable "(arcane only)".
-- **Live verification:** pending. 3.716.0 needs installing in the Test world.
+- **Live verification:** passed in the Test world on 26 November 2026, from the GM's and the player's clients at once: 14 of 14 cases (`live-testing-report-3.716.0.md`, `tools/spell-matrix/data/live-3.716.0.json`). Case 13 also found R-0039.
 - **Delivery:** 3.716.0, branch `fix/spell-metamagic-rulings`.
+
+## R-0039 — A lingering performance was ended twice, and called a lapse (3.716.1)
+
+- **Reported:** the 3.716.0 live retest, case 13 (26 November 2026).
+  - When the performance ended, the server logged `ActiveEffect "…" does not exist!` twice.
+  - At the round it began to linger, the turn card said "lapses (not sustained)".
+- **Source state:** branch `fix/spell-metamagic-rulings` at 3.716.0 (`c14b27f`), the version installed in the Test world.
+- **Root cause:**
+  - **The error:** `sweepActiveSpellExpiry` runs from `TRGCombat._onStartTurn` and from the `updateWorldTime` hook. A new round fires both, and each read the entry before the other removed it. Found by wrapping the deletes live: two calls, the same ids, one stack through each clock. The race predates 3.716.0. A lingering entry, with both `endsAtWorldTime` and `endsOnRound`, meets it every time.
+  - **The card:** `sweepSustainedLapses` returned every lapsed name, including those `lingerOnEnd` had kept.
+- **Fix:**
+  - `active-spells.mjs`:
+    - `endActiveSpell` claims `actor|id` in a module set before its first await. A second caller gets `null`, and the claim is released in `finally`.
+    - `sweepActiveSpellExpiry` reports only what it ended.
+    - `sweepSustainedLapses` returns the spells that ended, plus `.lingered` (`{name, rounds}`).
+  - `combat.mjs`: the card's lingering line.
+- **Testing:**
+  - `verify-spell-metamagic-rulings`: E1–E4 (two concurrent ends end once; the claim is released; different entries are not held up; "fades" is said once between the two sweeps) and N1–N3. 99 checks.
+  - `mutate-spell-metamagic-rulings`: 7 new mutations, 61 in all, every one caught.
+  - Every verify and mutate file that pins the version, or touches the changed lines, was re-run.
+- **Live verification:** pending. 3.716.1 needs installing, and then case 13 needs repeating.
+- **Delivery:** 3.716.1, branch `fix/spell-metamagic-rulings`.

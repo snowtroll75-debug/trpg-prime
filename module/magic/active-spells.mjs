@@ -492,6 +492,30 @@ export async function registerActiveSpell(actor, { id, name, pp = 0, lock = null
  * they are not one and can say so.
  */
 export async function endActiveSpell(actor, id, { dismissed = true } = {}) {
+  // ONE ENDING AT A TIME (3.716.1, the 3.716.0 live retest). The turn
+  // clock (TRGCombat._onStartTurn) and the world clock (updateWorldTime)
+  // both sweep `ends`, and a new round moves both at once: each read the
+  // entry before the other had removed it, and the second delete of the
+  // same effects threw "ActiveEffect … does not exist!" on the server. A
+  // lingering performance, which wears both stamps, ended this way every
+  // time. Claimed before the first await, so the second caller sees it.
+  const key = endingKey(actor, id);
+  if (ENDING.has(key)) return null;
+  ENDING.add(key);
+  try {
+    return await endActiveSpellNow(actor, id, { dismissed });
+  } finally {
+    ENDING.delete(key);
+  }
+}
+
+/** The entries being ended right now, as "actor uuid|entry id". */
+const ENDING = new Set();
+function endingKey(actor, id) {
+  return `${actor?.uuid ?? actor?.id ?? ""}|${id}`;
+}
+
+async function endActiveSpellNow(actor, id, { dismissed }) {
   const entries = getActiveSpells(actor);
   const entry = entries.find((e) => e.id === id);
   if (!entry) return null;
@@ -579,8 +603,9 @@ export async function sweepActiveSpellExpiry(actor, { worldTime = null, round = 
     const elapsed = endsHaveElapsed(entry?.ends, { worldTime, round })
       || emanationHasElapsed(entry?.emanation, { worldTime, round });
     if (!elapsed) continue;
-    await endActiveSpell(actor, entry.id, { dismissed: false });
-    ended.push(entry.name);
+    // SAID ONCE (3.716.1): the other clock may have ended it a moment ago.
+    const gone = await endActiveSpell(actor, entry.id, { dismissed: false });
+    if (gone) ended.push(entry.name);
   }
   return ended;
 }
@@ -736,7 +761,16 @@ export async function sweepSustainedLapses(actor, currentRound) {
     if (await lingerOnEnd(actor, entry.id, { worldTime: globalThis.game?.time?.worldTime ?? null, round: currentRound ?? null })) continue;
     await endActiveSpell(actor, entry.id);
   }
-  return lapsed.map((e) => e.name);
+  // LINGERING IS NOT LAPSING (3.716.1). The turn card said "Inspire Courage
+  // lapses (not sustained)" for a performance that had just begun to
+  // linger, and then nothing when it really ended. The names returned are
+  // the spells that ENDED; those that now linger ride along as `lingered`
+  // ({name, rounds}) for the card to say so.
+  const nowLingering = new Set(getActiveSpells(actor).filter((e) => e?.lingering).map((e) => e.id));
+  const ended = lapsed.filter((e) => !nowLingering.has(e.id)).map((e) => e.name);
+  ended.lingered = lapsed.filter((e) => nowLingering.has(e.id))
+    .map((e) => ({ name: e.name, rounds: Math.max(0, Math.trunc(Number(e.linger?.rounds) || 0)) }));
+  return ended;
 }
 
 /**

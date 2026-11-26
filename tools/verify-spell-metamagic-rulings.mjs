@@ -180,6 +180,61 @@ ok("C7 the hook is registered on preCreateActiveEffect", hooks.some(([n]) => n =
 }
 
 /* ================================================================== */
+/* E — one ending at a time (3.716.1, found live on 3.716.0)           */
+/* ================================================================== */
+{
+  // Both clocks sweep `ends` at a round change. The flag write yields, as
+  // a real one does, so a second caller that is not refused reads the
+  // entry the first has not yet removed.
+  let writes = 0;
+  const store = { list: [{ id: "e1", name: "Inspire Courage", targets: [] }] };
+  const actor = {
+    uuid: "Actor.bard", isOwner: true, effects: [], items: [],
+    getFlag: () => store.list,
+    setFlag: async (_s, _k, v) => { writes += 1; await new Promise((r) => setTimeout(r, 5)); store.list = v; },
+    deleteEmbeddedDocuments: async () => []
+  };
+  const [first, second] = await Promise.all([
+    AS.endActiveSpell(actor, "e1", { dismissed: false }),
+    AS.endActiveSpell(actor, "e1", { dismissed: false })
+  ]);
+  ok("E1 two clocks ending one entry at once end it once", writes === 1 && first?.id === "e1" && second === null);
+  ok("E2a a later call finds nothing to end", (await AS.endActiveSpell(actor, "e1")) === null && writes === 1);
+  store.list = [{ id: "e1", name: "Inspire Courage", targets: [] }];
+  ok("E2 and the claim is let go: the same id registered again ends again", (await AS.endActiveSpell(actor, "e1"))?.id === "e1");
+  store.list = [{ id: "e2", name: "Bless", targets: [] }, { id: "e3", name: "Heroism", targets: [] }];
+  const both = await Promise.all([AS.endActiveSpell(actor, "e2"), AS.endActiveSpell(actor, "e3")]);
+  equal("E3 a different entry is not held up by the first", both.map((e) => e?.id ?? null), ["e2", "e3"]);
+
+  // The sweep reports only what IT ended.
+  const swept = { list: [{ id: "s1", name: "Inspire Courage", targets: [], ends: { endsAtWorldTime: 10, endsOnRound: null } }] };
+  const sweeper = { ...actor, getFlag: () => swept.list, setFlag: async (_s, _k, v) => { await new Promise((r) => setTimeout(r, 5)); swept.list = v; } };
+  const [turn, clock] = await Promise.all([
+    AS.sweepActiveSpellExpiry(sweeper, { worldTime: 12 }),
+    AS.sweepActiveSpellExpiry(sweeper, { worldTime: 12 })
+  ]);
+  equal("E4 the turn clock and the world clock say \"fades\" once between them", [...turn, ...clock], ["Inspire Courage"]);
+}
+
+/* ================================================================== */
+/* N — a lingering performance is not reported as a lapse (3.716.1)    */
+/* ================================================================== */
+{
+  const store = { list: [
+    { id: "p1", name: "Inspire Courage", sustained: true, sustainType: "duration", castRound: 1, targets: [], linger: { rounds: 3, concurrent: 1 } },
+    { id: "p2", name: "Bless", sustained: true, sustainType: "duration", castRound: 1, targets: [] }
+  ] };
+  const actor = { uuid: "Actor.bard2", isOwner: true, effects: [], items: [],
+    getFlag: () => store.list, setFlag: async (_s, _k, v) => { store.list = v; }, deleteEmbeddedDocuments: async () => [] };
+  const out = await AS.sweepSustainedLapses(actor, 3);
+  equal("N1 the spell that ended is named as lapsed; the performance is not", [...out], ["Bless"]);
+  equal("N2 it rides along as lingering, with its rounds", out.lingered, [{ name: "Inspire Courage", rounds: 3 }]);
+}
+const combatSrc = fs.readFileSync(path.join(SYSTEM_ROOT, "module", "documents", "combat.mjs"), "utf8");
+ok("N3 the turn card says it lingers", /for \(const \{ name, rounds \} of lapsed\.lingered \?\? \[\]\)/.test(combatSrc)
+  && /lingers — the performance has stopped/.test(combatSrc));
+
+/* ================================================================== */
 /* P — the warp ceilings (RC8, U9, U12)                                */
 /* ================================================================== */
 equal("P1 an uncapped area growth is repeatable (Forbiddance, U9)", WA.areaGrowthMaxTimes({ areaGrowth: 10 }, "20-foot radius"), Infinity);

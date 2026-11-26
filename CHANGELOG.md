@@ -2,6 +2,14 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.716.1 — 26 November 2026: A lingering performance ends cleanly, and says it lingers
+
+Full notes in `release-notes-3.716.1.md`. Found by the 3.716.0 live retest, in which all 14 cases passed.
+
+- **No server error** when a lingering performance ends. The turn clock and the world clock no longer both end the same spell.
+- **The turn card** says a performance lingers, and for how many rounds, instead of calling it a lapse.
+- **Harness:** `verify-spell-metamagic-rulings` 99, `mutate-spell-metamagic-rulings` 61.
+
 ## 3.716.0 — 26 November 2026: Metamagic does what it charges for
 
 Full notes in `release-notes-3.716.0.md`. Graham's spell-matrix rulings U1–U12.

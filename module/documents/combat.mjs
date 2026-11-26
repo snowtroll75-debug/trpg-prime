@@ -989,6 +989,12 @@ export class TRGCombat extends Combat {
     for (const name of lapsed) {
       lines.push(TRGCombat.#chatLine(`<strong>${name}</strong> lapses (not sustained).`));
     }
+    // A LINGERING PERFORMANCE (U10, 3.716.1) is not a lapse: the bard has
+    // stopped, and the composition carries on for its rounds.
+    for (const { name, rounds } of lapsed.lingered ?? []) {
+      lines.push(TRGCombat.#chatLine(`<strong>${name}</strong> lingers — the performance has stopped, `
+        + `and it carries on for ${rounds} round${rounds === 1 ? "" : "s"} (Lingering Performance).`));
+    }
 
     // AN EMANATION ON ITS OWN CLOCK (3.430.0). The sweep above ends
     // "Sustained"-word spells only, and Protective Ward is not one: its
