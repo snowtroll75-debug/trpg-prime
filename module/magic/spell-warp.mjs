@@ -114,6 +114,13 @@ export function warpMaxTimes(warp, areaText = "", casterLevel = null) {
   if (m.suppressBump && m.suppressMax) {
     return Math.max(1, suppressBumpMaxTimes(m.suppressMax));
   }
+  // A FAST-HEALING CEILING IS A TOTAL (26 Nov 2026, the spell matrix's RC8):
+  // Unliving Vitality's "increases by 1 (max 10)" from its printed fast
+  // healing 5 is five purchases. Without `healingRateFrom` the chooser sold
+  // them without limit and the cap threw the excess away after it was paid.
+  if (m.healingRateBump && m.healingRateMax && m.healingRateFrom !== undefined) {
+    return Math.max(1, Math.ceil((Number(m.healingRateMax) - Number(m.healingRateFrom)) / Number(m.healingRateBump)));
+  }
   if (m.areaGrowth) return areaGrowthMaxTimes(m, areaText);
   // A CONDITION'S CEILING IS A TOTAL (3.611.0) — "increase the level of
   // fatigue by 1 (max 5)" grows a condition the spell already gives at 1,
@@ -462,6 +469,10 @@ function emptyWarpMods() {
     resaveModifier: 0,
     healingRateBump: 0,
     healingRateMax: 0,
+    // THE FAST HEALING THE SPELL STARTS AT (3.716.0), so `warpMaxTimes` can
+    // count the purchases to `healingRateMax`. Carried, not applied: the
+    // row's own value is the start.
+    healingRateFrom: 0,
     // HOW MANY, NAMED AS A TOTAL (3.520.0). `extraTargets` above is an
     // INCREMENT — "an additional creature" — and twelve warps in the
     // pack name a TOTAL instead: "target up to 10 targets", "target up
@@ -766,6 +777,7 @@ export function aggregateWarpSelection(warps, form) {
     // THE CAP IS A STATE, not a purchase: buying the option twice does
     // not raise the printed ceiling, it only spends more against it.
     if (m.healingRateMax) mods.healingRateMax = Math.max(mods.healingRateMax, Number(m.healingRateMax) || 0);
+    if (m.healingRateFrom !== undefined) mods.healingRateFrom = Math.max(mods.healingRateFrom, Number(m.healingRateFrom) || 0);
     if (m.qualityTier) {
       const order = ["expert", "master", "legendary"];
       const asked = String(m.qualityTier).trim().toLowerCase();
@@ -1052,6 +1064,7 @@ export function mergeWarpSelections(first, second) {
       resaveModifier: Number(a.mods?.resaveModifier ?? 0) + Number(b.mods?.resaveModifier ?? 0),
       healingRateBump: Number(a.mods?.healingRateBump ?? 0) + Number(b.mods?.healingRateBump ?? 0),
       healingRateMax: Math.max(Number(a.mods?.healingRateMax ?? 0), Number(b.mods?.healingRateMax ?? 0)),
+      healingRateFrom: Math.max(Number(a.mods?.healingRateFrom ?? 0), Number(b.mods?.healingRateFrom ?? 0)),
       traitPicks: Number(a.mods?.traitPicks ?? 0) + Number(b.mods?.traitPicks ?? 0),
       // AN AFTER-THE-CHECK PURCHASE ADDS TO ONE MADE BEFORE (3.608.0) — two
       // steps bought in two halves are two steps.

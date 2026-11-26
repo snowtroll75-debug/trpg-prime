@@ -8,6 +8,9 @@
  * disagree one of them is wrong and a person has to look. A model written by
  * reading the engine would agree with the engine's mistakes.
  *
+ * Graham's rulings of 26 Nov 2026 (U1-U12, TRG_PRIME_SPELL_UNRESOLVED.md)
+ * are applied here as the book: each is cited "U<n>".
+ *
  * Every rule cites its source. "Core 3.7" line numbers are in
  * tools/source/rulebook-core-3.7.txt. Where the book is silent or ambiguous
  * the answer is UNRESOLVED, never a guess; the reports list those.
@@ -41,6 +44,8 @@ export const isCantrip = (spell) => Number(spell.ppCost) === 0 && !spell.innate;
  */
 export function bookWarpMax(warp) {
   const t = String(warp.text ?? "");
+  // U12: Shape Of The Wyrm's extra natural attack, once.
+  if (/gain an additional natural attack \(available to your type\)/i.test(t)) return { max: 1, why: "U12: once" };
   if (/(only|cannot)\b[^.]*\b(once|more than once)|may (only )?be (taken|selected|applied) once|not be (taken|selected) more than once/i.test(t))
     return { max: 1, why: "text prohibits repeats" };
   const cap = t.match(/\(max(?:imum)?(?: of)? ([+]?\d+)/i);
@@ -79,10 +84,12 @@ export function warpNature(warp) {
 /* ── Metamagic feats, from their text (feats pack, Core 3.7 Chapter 5) ── */
 
 const has = (s, re) => re.test(String(s ?? ""));
-const limitedDuration = (d) => {
+const sustainedSpell = (s) => Boolean(s.sustained) || /sustain/i.test(String(s.duration ?? ""));
+const limitedDuration = (d, sustained = false) => {
   const t = String(d ?? "").trim().toLowerCase();
   if (!t) return "no";                                     // instantaneous
   if (/unlimited|permanent/.test(t)) return "no";
+  if (sustained || /sustain/.test(t)) return "no";         // U5: continues regardless
   if (/varies|see (below|text)|until|sustained|discharged|tribute|or more/.test(t)) return "unresolved";
   return "yes";
 };
@@ -95,14 +102,21 @@ export const selfOnly = (s) => {
   const r = String(s.range ?? "").trim().toLowerCase(), t = String(s.targets ?? "").trim().toLowerCase();
   return (!r || r === "self" || r === "personal") && (!t || /^(you|self|yourself)$/.test(t)) && !String(s.area ?? "").trim();
 };
-/** Temporal Extension's ladder: Rounds → Minutes → 10-Minute → Hours → Half-Days. */
-export function temporalRung(duration) {
-  const t = String(duration ?? "").toLowerCase();
-  if (/10[- ]minute/.test(t)) return 2;
-  if (/\bround/.test(t)) return 0;
-  if (/\bminute/.test(t)) return 1;
-  if (/\bhour/.test(t)) return /\b(8|12) hours/.test(t) ? null : 3;
-  return null;                                             // days, weeks, untils: off the ladder
+/**
+ * Temporal Extension's ladder (U1): Rounds -> Minutes -> 10 minutes -> Hours ->
+ * 12 hours. "10 minutes" is the 10-minute rung (Shield of Faith: one step is 1
+ * hour); a multiple of 12 hours is the top rung. Sustained (U5), days,
+ * "until", rolled: off the ladder.
+ */
+export function temporalRung(duration, sustained = false) {
+  const t = String(duration ?? "").trim().toLowerCase();
+  if (!t || sustained || /sustain|until|varies|\dd\d|\d+\s*d\s*\d/.test(t)) return null;
+  const m = t.match(/(\d+)\s*(round|minute|min|hour|hr)s?\b/);
+  if (!m) return null;
+  const n = Number(m[1]);
+  if (m[2] === "round") return 0;
+  if (m[2].startsWith("min")) return n % 10 === 0 ? 2 : 1;
+  return n % 12 === 0 ? 4 : 3;
 }
 
 /**
@@ -116,8 +130,18 @@ export const METAMAGIC = {
   "aligned spell": { id: "aligned", castTime: true, cost: (s, n) => n, max: () => 2,
     // "Requirement Divine Caster only"
     eligible: (s, c) => (/divinity/i.test(c.tradition) ? "eligible" : "ineligible") },
+  // "change a component type" (U10: automated): FROM one the spell has TO one
+  // it has not; the generator takes the first such change.
   "component mastery": { id: "componentMastery", castTime: true, cost: (s, n) => 2 * n, max: () => 1,
-    eligible: (s) => (Object.values(s.components ?? {}).some(Boolean) ? "eligible" : "ineligible") },
+    select: (s) => {
+      const K = ["verbal", "somatic", "material"], c = s.components ?? {};
+      for (const f of K) for (const t of K) if (c[f] && !c[t]) return `${f}>${t}`;
+      return null;
+    },
+    eligible: (s) => {
+      const K = ["verbal", "somatic", "material"], c = s.components ?? {};
+      return K.some((f) => c[f]) && K.some((t) => !c[t]) ? "eligible" : "ineligible";
+    } },
   "distant spell": { id: "distant", castTime: true, cost: (s, n, c) => (/ethereal/i.test(c.tradition) ? 6 : 4) * n, max: () => 1,
     // "Change a spell that only affects you to a range of touch"
     eligible: (s) => (selfOnly(s) ? "eligible" : "ineligible") },
@@ -131,11 +155,10 @@ export const METAMAGIC = {
     eligible: (s) => (String(s.baseDamage ?? "").trim() ? "eligible" : "ineligible") },
   "extend spell": { id: "extend", castTime: true, cost: (s, n) => 2 * n, max: () => 1,
     // "A spell must have a limited duration"
-    eligible: (s) => ({ yes: "eligible", no: "ineligible", unresolved: "unresolved" })[limitedDuration(s.duration)] },
+    eligible: (s) => ({ yes: "eligible", no: "ineligible", unresolved: "unresolved" })[limitedDuration(s.duration, sustainedSpell(s))] },
   "heighten spell": { id: "heighten", castTime: true, cost: (s, n) => 2 * n, max: () => 1,
-    // "harder to dispel (and potentially resist)": the Save DC part needs a save;
-    // the dispel part applies to any spell. The book does not say which gates it.
-    eligible: (s) => (String(s.defence ?? "").trim() ? "eligible" : "unresolved") },
+    // U3: every spell — "it should also affect dispel and counteract".
+    eligible: () => "eligible" },
   "imposing will": { id: "imposingWill", castTime: true, cost: () => 2, max: () => 1, select: "animal",
     eligible: (s) => (has(s.traits, /\bmental\b/i) ? "eligible" : "ineligible") },
   "intensified spell": { id: "intensify", castTime: true, cost: (s, n) => 4 * n, max: () => 1,
@@ -149,7 +172,7 @@ export const METAMAGIC = {
     eligible: (s) => {
       const r = String(s.range ?? "").trim().toLowerCase();
       if (!r || /^(self|touch)$/.test(r)) return "ineligible";
-      return /\d/.test(r) ? "eligible" : "unresolved";       // planetary, unlimited, varies
+      return /\d/.test(r) ? "eligible" : "ineligible";       // U7: only a numeric range
     } },
   "selective spell": { id: "selective", castTime: true, cost: (s, n) => n, max: () => Infinity,
     // "+1 PP per target", no printed ceiling: the cast cap is the ceiling
@@ -162,20 +185,16 @@ export const METAMAGIC = {
   "still spell": { id: "still", castTime: true, cost: (s, n) => 2 * n, max: () => 1,
     eligible: (s) => (s.components?.somatic ? "eligible" : "ineligible") },
   "temporal extension": { id: "temporal", castTime: true, cost: (s, n) => Math.ceil(s.ppCost / 2) * n,
-    max: (s) => { const r = temporalRung(s.duration); return r === null ? 0 : 4 - r; },
+    max: (s) => { const r = temporalRung(s.duration, sustainedSpell(s)); return r === null ? 0 : 4 - r; },
+    // U1/U5: on the ladder, with a step left; anything off it is not stepped.
     eligible: (s) => {
-      const r = temporalRung(s.duration);
-      if (r === null) return String(s.duration ?? "").trim() ? "unresolved" : "ineligible";
-      return r < 4 ? "eligible" : "ineligible";
+      const r = temporalRung(s.duration, sustainedSpell(s));
+      return r !== null && r < 4 ? "eligible" : "ineligible";
     } },
   "widen spell": { id: "widen", castTime: true, cost: (s, n) => 4 * n, max: () => 1,
     // "a burst, emanation, or spread-shaped spell"; "radius" is not named
-    eligible: (s) => {
-      const a = String(s.area ?? "");
-      if (/burst|emanation|spread|\(b\)/i.test(a)) return "eligible";
-      if (/radius/i.test(a)) return "unresolved";
-      return "ineligible";
-    } },
+    // U4: a radius counts.
+    eligible: (s) => (/burst|emanation|spread|radius|\(b\)/i.test(String(s.area ?? "")) ? "eligible" : "ineligible") },
   // Acting during or after the roll, or outside the cast: live tests only.
   "component savant": { id: "componentSavant", castTime: false },
   "conductive healing": { id: "conductiveHealing", castTime: false },
@@ -198,19 +217,29 @@ export function pairRuling(a, b) {
   const isDur = (o) => o.kind === "warp" && o.dimension === "duration";
   if (ids.includes("temporal") && (ids.includes("extend") || isDur(a) || isDur(b)))
     return { legal: false, why: "Temporal Extension does not stack with other duration modifiers" };
-  const dimOf = { extend: "duration", temporal: "duration", reach: "range", widen: "area", empower: "damage", intensify: "damage" };
+  // U8: refused, for the dimensions Graham's question named (duration, range,
+  // area). Damage (Empower/Intensified beside a "+1d6 damage" warp) was not
+  // asked and stays open.
+  const dimOf = { extend: "duration", temporal: "duration", reach: "range", distant: "range", widen: "area", empower: "damage", intensify: "damage" };
   const [w, m] = a.kind === "warp" ? [a, b] : [b, a];
-  if (w.kind === "warp" && m.kind === "mm" && dimOf[m.id] && dimOf[m.id] === w.dimension)
-    return { legal: "unresolved", why: `a spell warp of the same dimension (${w.dimension}) overrides the generic option (l.20042)` };
+  if (w.kind === "warp" && m.kind === "mm" && dimOf[m.id] && dimOf[m.id] === w.dimension) {
+    if (w.dimension === "damage") return { legal: "unresolved", why: "a damage warp beside Empower/Intensified: U8 asked about duration, range and area only" };
+    return { legal: false, why: `U8: the spell's own ${w.dimension} warp overrides ${m.feat} (refused)` };
+  }
   return { legal: true };
 }
 
 /** A warp's dimension, from its text, for the override rule above. */
-export function warpDimension(warp) {
+export function warpDimension(warp, spell = {}) {
+  // ONLY A WARP THAT CHANGES THE DIMENSION (26 Nov 2026): "fast healing 5 for
+  // duration" or "targets within range" name the word and change nothing.
   const t = String(warp.text ?? "").toLowerCase();
-  if (/\bduration\b|lasts? /.test(t)) return "duration";
-  if (/\brange\b/.test(t)) return "range";
-  if (/\b(area|radius|burst|emanation|cone|line)\b/.test(t)) return "area";
+  if (/(increase|extend|change)s? (the )?duration|duration (becomes|increases|changes|is|lasts)|lasts? (for|until|up to)|(has|have) a duration of|unlimited duration|duration to /.test(t)) return "duration";
+  if (!/attacks gain a range/.test(t) && /range (becomes|increases|changes|is|to)|range of the spell increases|(increase|change)s? the range|(gains?|has) a range|range of touch|range to touch/.test(t)) return "range";
+  // A SELF-ONLY SPELL'S "target an ally within 30 feet" gives it a range;
+  // "affects all allies within 30 feet" gives it an area.
+  if (selfOnly(spell) && /target (an?|one|another)\b[^.]*within \d+\s*(feet|ft)/.test(t)) return "range";
+  if (/(increase|change)s? the (area|radius|size of the area)|(area|radius) (becomes|increases|changes)|an area of/.test(t)) return "area";
   if (/\bdamage\b/.test(t)) return "damage";
   return "other";
 }

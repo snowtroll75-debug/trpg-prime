@@ -17,6 +17,70 @@
 import { addDice } from "./caster-level-mods.mjs";
 import { lingeringPerformanceLimits, lingeringRounds } from "../combat/grant-feats.mjs";
 import { metamagicRodApplies } from "../rod-powers.mjs";
+import { castOnSelfOnly } from "./self-rows.mjs";
+
+/*
+ * GRAHAM'S RULINGS OF 26 NOVEMBER 2026 (the spell-matrix audit, U1-U12), the
+ * ones this file carries:
+ *
+ *   U1  Temporal Extension's ladder is Rounds -> Minutes -> 10 minutes ->
+ *       Hours -> 12 hours, a step per category, half the base PP (rounded up)
+ *       a step. 1 round: one step 1 minute, two 10 minutes, three 1 hour,
+ *       four 12 hours. The step must reach the effect's clock, not the card.
+ *   U2  Distant Spell: only spells that affect the caster.
+ *   U3  Heighten Spell: every spell — it also makes dispel and counteract
+ *       harder, so a spell with no save still takes it.
+ *   U4  Widen Spell: a radius counts.
+ *   U5  Extend and Temporal do not touch a SUSTAINED duration: it continues
+ *       regardless.
+ *   U7  Reach Spell: offered only for a numeric range.
+ *   U8  A metamagic beside the spell's own warp of the same kind is REFUSED
+ *       ("specific warping options always override the generic").
+ *   U10 Component Mastery and Lingering Performance are automated.
+ * Plus the audit's plain faults: Extend offered on unlimited durations (RC5),
+ * Split offered on a non-attack spell (RC6), and Selective/Split held to 6/4
+ * purchases the feats never print (RC7) — the cast cap is their ceiling.
+ */
+
+/** The categories Temporal Extension steps through (U1), with their length. */
+const TEMPORAL_LADDER = Object.freeze([
+  { unit: "round", seconds: 6 },
+  { unit: "minute", seconds: 60 },
+  { unit: "10-minute", seconds: 600 },
+  { unit: "hour", seconds: 3600 },
+  { unit: "12-hour", seconds: 43200 }
+]);
+
+/** Is this duration sustained (U5)? The flag or the printed word. */
+export function isSustainedDuration(spellData = {}) {
+  return Boolean(spellData?.sustained) || /sustain/i.test(String(spellData?.duration ?? ""));
+}
+
+/**
+ * Where a printed duration sits on Temporal Extension's ladder, and how many
+ * of that category it is: "3 rounds" {rung 0, count 3}; "10 minutes" is ONE
+ * 10-minute interval {rung 2, count 1} (Graham's Shield of Faith: 10 minutes
+ * steps to 1 hour); "5 minutes" {rung 1, count 5}; "24 hours" two 12-hour
+ * intervals {rung 4, count 2}. Null for anything off the ladder: instantaneous,
+ * sustained, a day, "until …", varies, a rolled duration.
+ */
+export function temporalRung(duration, { sustained = false } = {}) {
+  const t = String(duration ?? "").trim().toLowerCase();
+  if (!t || sustained || /sustain|\d+\s*d\s*\d+|until|varies|see text|permanent|unlimited|instant/.test(t)) return null;
+  const m = t.match(/(\d+)\s*(rounds?|minutes?|mins?|hours?|hrs?)\b/);
+  if (!m) return null;
+  const n = Number(m[1]);
+  if (!(n > 0)) return null;
+  if (/^r/.test(m[2])) return { rung: 0, count: n };
+  if (/^m/.test(m[2])) return n % 10 === 0 ? { rung: 2, count: n / 10 } : { rung: 1, count: n };
+  return n % 12 === 0 ? { rung: 4, count: n / 12 } : { rung: 3, count: n };
+}
+
+/** The steps Temporal Extension can still take from this duration (0 off the ladder). */
+function temporalStepsLeft(duration, opts = {}) {
+  const at = temporalRung(duration, opts);
+  return at ? TEMPORAL_LADDER.length - 1 - at.rung : 0;
+}
 
 /**
  * Imposing Will (Chapter 5, table supplied by Graham 2 Aug 2026): the PP
@@ -116,18 +180,39 @@ export function buildMetamagicOptions({
       note: (times) => `affects only targets with ${times > 1 ? "two chosen alignment traits" : "one chosen alignment trait"} (chaos/evil/good/order)`
     });
   }
+  /*
+   * COMPONENT MASTERY, AUTOMATED (U10): "you may Warp the spell to change a
+   * component type." A choice of FROM (one the spell has) and TO (one it has
+   * not), +2 PP. The cast's component gate is then judged on the changed set,
+   * after this dialog — Graham: a material spell blocked for want of a pouch
+   * "cannot be ruled at the table as the system would block the spell".
+   */
   if (has("component mastery") && Object.values(components).some(Boolean)) {
-    options.push({
-      id: "componentMastery", label: "Component Mastery — change one component type",
-      ppCost: 2, max: 1,
-      note: () => "one component type is changed for this cast (state which at the table)"
-    });
+    const KINDS = ["verbal", "somatic", "material"];
+    const from = Object.keys(components).filter((k) => components[k] && KINDS.includes(k));
+    const choices = [];
+    for (const f of from) for (const t of KINDS) {
+      if (t === f || components[t]) continue;
+      choices.push({ value: `${f}>${t}`, ppCost: 2, label: `${f[0].toUpperCase()}${f.slice(1)} becomes ${t} (+2 PP)` });
+    }
+    if (choices.length) {
+      options.push({
+        id: "componentMastery", label: "Component Mastery — change one component type",
+        ppCost: 0, max: 1, kind: "select", select: "componentSwap", choices,
+        note: (times, value) => { const [f, t] = String(value).split(">"); return `the ${f} component becomes ${t} for this cast (Component Mastery)`; }
+      });
+    }
   }
-  if (has("distant spell") && /^self$/i.test(range)) {
+  // DISTANT SPELL: "a spell that only affects you" (U2) — the pack's self
+  // spells print no Range, no Targets and no Area (`castOnSelfOnly`). Until
+  // 26 Nov 2026 this asked for a range of "self", which no spell prints, so
+  // the feat was never offered. It moves the self rows onto the touched
+  // creature exactly as Invisibility's own touch warp does.
+  if (has("distant spell") && castOnSelfOnly(spellData)) {
     options.push({
       id: "distant", label: `Distant Spell — self-only becomes touch${isEthereal ? " (+6 PP, Ethereal)" : ""}`,
-      ppCost: isEthereal ? 6 : 4, max: 1,
-      note: () => "range becomes touch"
+      ppCost: isEthereal ? 6 : 4, max: 1, kind: "distant",
+      note: () => "range becomes touch: the spell affects the creature you touch (Distant)"
     });
   }
   if (has("economic spell") && basePP > 1) {
@@ -182,7 +267,9 @@ export function buildMetamagicOptions({
       note: () => `+1d${term.faces} damage (Intensified)`
     });
   }
-  if (has("extend spell") && duration) {
+  // "A spell must have a limited duration": not an unlimited or permanent one
+  // (RC5), and not a sustained one, which continues regardless (U5).
+  if (has("extend spell") && duration && !/unlimited|permanent/i.test(duration) && !isSustainedDuration(spellData)) {
     options.push({
       id: "extend", label: "Extend Spell — duration doubled",
       ppCost: 2, max: 1,
@@ -190,12 +277,19 @@ export function buildMetamagicOptions({
       note: () => "duration doubled (Extended)"
     });
   }
-  if (has("heighten spell") && spellData.defence) {
+  // EVERY SPELL (U3): "more difficult to dispel (and potentially resist)".
+  // With a save, the Save DC reads the maximum PP; with or without one, a
+  // counteract against the cast's effects does (`cast-power.mjs`).
+  if (has("heighten spell")) {
     options.push({
-      id: "heighten", label: "Heighten Spell — Save DC as if cast at your maximum PP",
+      id: "heighten", label: spellData.defence
+        ? "Heighten Spell — Save DC, dispel and counteract as if cast at your maximum PP"
+        : "Heighten Spell — dispel and counteract as if cast at your maximum PP",
       ppCost: 2, max: 1,
       kind: "heighten",
-      note: () => "Save DC treated as your maximum castable PP (Heightened)"
+      note: () => spellData.defence
+        ? "Save DC, dispel and counteract treated as your maximum castable PP (Heightened)"
+        : "dispel and counteract treated as your maximum castable PP (Heightened)"
     });
   }
   if (has("lingering performance") && /composition/i.test(traits)) {
@@ -217,6 +311,9 @@ export function buildMetamagicOptions({
       id: "lingering",
       label: `Lingering Performance — lingers ${rounds} round${rounds === 1 ? "" : "s"} after you stop`,
       ppCost: 2, max: 1,
+      // AUTOMATED (U10): the cast is registered to linger rather than end
+      // when it lapses or another composition replaces it (active-spells.mjs).
+      kind: "lingering", lingerRounds: rounds, lingerConcurrent: limits.concurrent,
       note: () => `lingers for ${rounds} rounds after you cease performing`
         + (limits.extraRounds ? ` (Cha ${Math.max(0, Math.floor(Number(charisma) || 0))} +${limits.extraRounds} Echoing Performance)` : " (your Charisma)")
         + `; you may have ${limits.concurrent === 1 ? "one lingering performance" : `${limits.concurrent} lingering performances`} running at a time`
@@ -230,17 +327,19 @@ export function buildMetamagicOptions({
       note: () => "cast AP reduced by 1 (Quickened)"
     });
   }
-  if (has("reach spell") && range && !/^(self|touch)$/i.test(range)) {
+  // ONLY A NUMERIC RANGE (U7). The cast doubles it before its range check.
+  if (has("reach spell") && /\d/.test(range) && !/^(self|touch)$/i.test(range)) {
     options.push({
       id: "reach", label: `Reach Spell — range doubled (${range} ×2)`,
-      ppCost: 2, max: 1,
-      note: () => `range doubled to ${range} ×2 (Reach)`
+      ppCost: 2, max: 1, kind: "reach",
+      note: () => `range doubled (${range} ×2, Reach)`
     });
   }
   if (has("selective spell") && area) {
     options.push({
       id: "selective", label: "Selective Spell — exclude chosen targets (+1 PP each)",
-      ppCost: 1, max: 6,
+      // "+1 PP per target", no printed ceiling: the cast cap is the ceiling (RC7).
+      ppCost: 1, max: Math.max(1, Math.floor(Number(casterLevel) || 0) + 1),
       note: (times) => `${times} chosen creature${times > 1 ? "s are" : " is"} excluded from the effect (you must be aware of them)`
     });
   }
@@ -252,11 +351,13 @@ export function buildMetamagicOptions({
       note: () => "cast without the verbal component (Silent)"
     });
   }
-  // Split Spell applies to spell ATTACKS (damage, no save defence).
-  if (has("split spell") && damageFormula && !spellData.defence) {
+  // Split Spell applies to ATTACK spells ("your attack spell … Spell Attack
+  // check"): the category, not "damage and no save", which offered it on
+  // Shatter (RC6). No printed ceiling: the cast cap is the ceiling (RC7).
+  if (has("split spell") && damageFormula && String(spellData.category ?? "") === "attack") {
     options.push({
       id: "split", label: "Split Spell — extra targets, damage die stepped down each (+4 PP each)",
-      ppCost: 4, max: 4,
+      ppCost: 4, max: Math.max(1, Math.floor((Math.floor(Number(casterLevel) || 0) + 1) / 4)),
       note: (times) => `attack compared against ${times + 1} targets; damage die stepped down ${times} step${times > 1 ? "s" : ""}; one attack for MAP`
     });
   }
@@ -268,18 +369,23 @@ export function buildMetamagicOptions({
       note: () => "cast without the somatic component (Stilled)"
     });
   }
-  if (has("temporal extension") && duration) {
+  // ON THE LADDER, AND ONLY AS FAR AS IT GOES (U1): from Hours one step is
+  // left, from 12 hours none, and a day, an "until" or a sustained duration
+  // (U5) is not on it at all. It used to offer four steps from anywhere.
+  const temporalLeft = temporalStepsLeft(duration, { sustained: isSustainedDuration(spellData) });
+  if (has("temporal extension") && temporalLeft > 0) {
     options.push({
-      id: "temporal", label: `Temporal Extension — duration category up (+${Math.ceil(basePP / 2)} PP per step)`,
-      ppCost: Math.ceil(basePP / 2), max: 4,
+      id: "temporal", label: `Temporal Extension — duration category up (+${Math.ceil(basePP / 2)} PP per step, up to ${temporalLeft})`,
+      ppCost: Math.ceil(basePP / 2), max: temporalLeft,
       kind: "temporal",
-      note: (times) => `duration stepped up ${times} categor${times > 1 ? "ies" : "y"} (Rounds→Minutes→10-Minute Intervals→Hours→Half-Days); doesn't stack with other duration modifiers`
+      note: (times) => `duration stepped up ${times} categor${times > 1 ? "ies" : "y"} to ${temporalDurationText(duration, times)?.split(" (")[0] ?? "?"} (Rounds → Minutes → 10 minutes → Hours → 12 hours)`
     });
   }
+  // A RADIUS COUNTS (U4). The cast grows the area by its first distance.
   if (has("widen spell") && /burst|emanation|spread|radius/i.test(area)) {
     options.push({
       id: "widen", label: "Widen Spell — area measurements +100%",
-      ppCost: 4, max: 1,
+      ppCost: 4, max: 1, kind: "widen",
       note: () => `area measurements doubled (${area} ×2, Widened)`
     });
   }
@@ -345,6 +451,10 @@ export function aggregateMetamagicSelection(options, form, { damageFormula = "",
     ppSpent: 0, ppDelta: 0, dcDelta: 0, apDelta: 0,
     componentsOff: [], extend: false, temporalSteps: 0,
     heightenSave: false, elementalType: null, extraDamageDice: "",
+    // THE OPTIONS THAT CHANGE WHAT THE CAST REACHES (26 Nov 2026): Reach's
+    // and Widen's ×2, Distant's touch, Component Mastery's change, and
+    // Lingering Performance's rounds. The cast reads each (cast-workflow).
+    rangeFactor: 1, areaFactor: 1, distant: false, componentSwap: null, linger: null,
     notes: [],
     // WHAT THE RODS PAY (3.616.0, R12), deducted from each rod after the
     // cast. A rod Extend beside the feat's is one Extend: the duration
@@ -365,6 +475,10 @@ export function aggregateMetamagicSelection(options, form, { damageFormula = "",
       const chosen = (o.choices ?? []).find((c) => c.value === value);
       if (!chosen) continue;
       agg.ppSpent += chosen.ppCost;
+      if (o.select === "componentSwap") {
+        const [from, to] = value.split(">");
+        agg.componentSwap = { from, to };
+      }
       agg.notes.push(`+${chosen.ppCost} PP: ${o.note(1, value)}`);
       continue;
     }
@@ -393,6 +507,18 @@ export function aggregateMetamagicSelection(options, form, { damageFormula = "",
         break;
       case "heighten":
         agg.heightenSave = true;
+        break;
+      case "reach":
+        agg.rangeFactor = 2;
+        break;
+      case "widen":
+        agg.areaFactor = 2;
+        break;
+      case "distant":
+        agg.distant = true;
+        break;
+      case "lingering":
+        agg.linger = { rounds: Math.max(0, Math.trunc(Number(o.lingerRounds) || 0)), concurrent: Math.max(1, Math.trunc(Number(o.lingerConcurrent) || 1)) };
         break;
       case "elemental":
         agg.elementalType = o.elementalType;
@@ -423,14 +549,49 @@ export function emptyMetamagic() {
   return aggregateMetamagicSelection([], {});
 }
 
-/** Step a duration text up N categories (Temporal Extension's ladder). */
-export function temporalDurationText(duration, steps) {
-  if (!steps) return null;
-  const LADDER = ["round", "minute", "10-minute interval", "hour", "half-day interval"];
-  const current = String(duration ?? "").toLowerCase();
-  let index = LADDER.findIndex((step) => current.includes(step.split("-")[0]));
-  if (current.includes("10-minute") || current.includes("10 minute")) index = 2;
-  if (index < 0) index = 0;
-  const target = LADDER[Math.min(LADDER.length - 1, index + steps)];
-  return `${duration} — stepped up ${steps} categor${steps > 1 ? "ies" : "y"} to ${target}s (Temporal Extension)`;
+/**
+ * Step a duration up N categories (Temporal Extension, U1), WRITTEN SO THE
+ * EFFECT CLOCK READS IT: the stepped duration comes first, because
+ * `parseSpellDuration` reads the first number and unit. Until 26 Nov 2026
+ * this returned "1 hour — stepped up 1 category to half-day intervals", the
+ * clock read "1 hour", and Mage Armour still ended after an hour.
+ * "1 round" +3 -> "1 hour (1 round, stepped up 3 categories — Temporal Extension)".
+ * Null when the duration is off the ladder or the steps run past its top.
+ */
+export function temporalDurationText(duration, steps, opts = {}) {
+  const n = Math.max(0, Math.trunc(Number(steps) || 0));
+  if (!n) return null;
+  const at = temporalRung(duration, opts);
+  if (!at || at.rung + n > TEMPORAL_LADDER.length - 1) return null;
+  const rung = at.rung + n;
+  const words = [
+    (c) => `${c} round${c === 1 ? "" : "s"}`,
+    (c) => `${c} minute${c === 1 ? "" : "s"}`,
+    (c) => `${c * 10} minutes`,
+    (c) => `${c} hour${c === 1 ? "" : "s"}`,
+    (c) => `${c * 12} hours`
+  ];
+  return `${words[rung](at.count)} (${String(duration).trim()}, stepped up ${n} categor${n > 1 ? "ies" : "y"} — Temporal Extension)`;
+}
+
+/**
+ * What a metamagic cannot be taken beside (U8, and Temporal's "does not stack
+ * with other duration modifiers"). `spellWarpMods` are the SPELL's own warps
+ * only, as `aggregateWarpSelection` built them, before any metamagic or a
+ * caster-level step is folded in. Returns the reasons; empty means allowed.
+ */
+export function metamagicWarpConflicts(agg = {}, spellWarpMods = {}) {
+  const out = [];
+  const duration = Boolean(agg.extend) || Number(agg.temporalSteps) > 0;
+  if (agg.extend && Number(agg.temporalSteps) > 0)
+    out.push("Extend Spell and Temporal Extension do not stack (Temporal Extension \"does not stack with other duration modifiers\")");
+  if (duration && String(spellWarpMods?.durationText ?? "").trim())
+    out.push(`${agg.extend ? "Extend Spell" : "Temporal Extension"} cannot be taken with the spell's own duration warp — the specific option overrides the generic`);
+  if (Number(agg.rangeFactor) > 1 && String(spellWarpMods?.rangeOverride ?? "").trim())
+    out.push("Reach Spell cannot be taken with the spell's own range warp — the specific option overrides the generic");
+  if (agg.distant && String(spellWarpMods?.rangeOverride ?? "").trim())
+    out.push("Distant Spell cannot be taken with the spell's own range warp — the specific option overrides the generic");
+  if (Number(agg.areaFactor) > 1 && (Number(spellWarpMods?.areaGrowth) > 0 || String(spellWarpMods?.areaOverride ?? "").trim()))
+    out.push("Widen Spell cannot be taken with the spell's own area warp — the specific option overrides the generic");
+  return out;
 }

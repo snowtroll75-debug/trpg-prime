@@ -109,7 +109,8 @@ export const PLAN = {
       { kind: "healingRate", target: "targets", rate: "fastHealing", value: 5, label: "Unliving Vitality" }
     ],
     warps: [
-      { ppCost: 1, text: "The fast healing increases by 1 (max 10)", mods: { healingRateBump: 1, healingRateMax: 10 } }
+      // `healingRateFrom` added at 3.716.0 (the spell matrix): five purchases, not unlimited.
+      { ppCost: 1, text: "The fast healing increases by 1 (max 10)", mods: { healingRateBump: 1, healingRateMax: 10, healingRateFrom: 5 } }
     ]
   },
 

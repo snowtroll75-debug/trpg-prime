@@ -57,8 +57,10 @@ const MUTATIONS = [
     name: "W5 thorns fire before the blow resolves",
     // RE-ANCHORED AT 3.465.0 with the loop's third source, and at 3.576.0
     // with its fourth (the rounds' and improvised weapons' typed extras), and
-    // at 3.617.0 with its fifth (the unguents' secondary damage).
-    from: "      ...strikeRunes.filter((r) => !r.addsToStrike), ...strikeRiderPackets(actor, weapon, riderCtx), ...areaPackets, ...typedExtras, ...unguentPackets\n    ]) {",
+    // at 3.617.0 with its fifth (the unguents' secondary damage), and at
+    // 3.716.0 with its sixth (`enhancementPackets`, which an earlier release
+    // added without re-anchoring this: the anchor was missing at 3.715.1).
+    from: "      ...strikeRunes.filter((r) => !r.addsToStrike), ...strikeRiderPackets(actor, weapon, riderCtx), ...areaPackets, ...typedExtras, ...unguentPackets, ...enhancementPackets\n    ]) {",
     to: "    ]) { if (true) break;",
     breaks: "A2/E3 — the reader can no longer see the rune loop, so the ordering claim is not vacuous"
   },

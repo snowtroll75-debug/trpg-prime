@@ -423,7 +423,7 @@ export async function setActiveSpells(actor, entries) {
  * Register a newly-cast spell that keeps running (sustained and/or PP-locked).
  * Returns the entry (its id is the castId stamped on the spell's effects).
  */
-export async function registerActiveSpell(actor, { id, name, pp = 0, lock = null, sustained = false, sustainType = null, castRound = null, targets = [], dismissible = false, singleCasting = false, ends = null, castingDC = 0, sustainChoices = [] }) {
+export async function registerActiveSpell(actor, { id, name, pp = 0, lock = null, sustained = false, sustainType = null, castRound = null, targets = [], dismissible = false, singleCasting = false, ends = null, castingDC = 0, sustainChoices = [], linger = null }) {
   const entry = {
     id,
     name,
@@ -467,7 +467,13 @@ export async function registerActiveSpell(actor, { id, name, pp = 0, lock = null
     // deleted between the cast and the glance at the panel — and the
     // reason a row is on the list is a fact about the CASTING.
     singleCasting: Boolean(singleCasting),
-    ends: ends ?? null
+    ends: ends ?? null,
+    // LINGERING PERFORMANCE (U10, 26 Nov 2026): { rounds, concurrent } when
+    // the cast took it. The entry lingers rather than ends (`lingerOnEnd`).
+    linger: linger && Number(linger.rounds) > 0
+      ? { rounds: Math.trunc(Number(linger.rounds)), concurrent: Math.max(1, Math.trunc(Number(linger.concurrent) || 1)) }
+      : null,
+    lingering: false
   };
   const entries = getActiveSpells(actor);
   entries.push(entry);
@@ -647,6 +653,74 @@ export async function setSpellSustainer(actor, id, sustainer = null) {
   return entry;
 }
 
+/*
+ * LINGERING PERFORMANCE, AUTOMATED (Graham's U10, 26 Nov 2026).
+ *
+ * "When casting a spell with the composition trait you can choose to allow
+ * it to continue for several rounds after you have ceased performing. The
+ * number of rounds the spell's effects linger is equal to your Cha. Be aware
+ * that a lingering performance does not end if you use another composition
+ * spell, although you may only have one lingering performance running at
+ * any one time." Echoing Performance: an extra round, and two at a time.
+ *
+ * Until now the feat was a card note: the composition ended the moment its
+ * Sustain lapsed or another composition began. Those are exactly the two
+ * moments "ceasing to perform" happens, so both now hand the entry to
+ * `lingerOnEnd` instead: it stops being sustained (nothing is owed, PP may
+ * recover), keeps its emanation, and is stamped to end Cha rounds from now,
+ * which `sweepActiveSpellExpiry` then honours. A Dismiss still ends it
+ * outright: dismissing is a choice to end the spell, not to stop playing.
+ */
+
+/**
+ * The entry as it lingers, or null when it cannot (no Lingering Performance,
+ * or already lingering). Pure.
+ */
+function lingeringEntry(entry, { worldTime = null, round = null } = {}) {
+  const rounds = Math.trunc(Number(entry?.linger?.rounds) || 0);
+  if (!(rounds > 0) || entry?.lingering) return null;
+  const ends = {
+    endsAtWorldTime: worldTime === null ? null : Number(worldTime) + rounds * 6,
+    endsOnRound: round === null ? null : Number(round) + rounds
+  };
+  return {
+    ...entry,
+    sustained: false,
+    lingering: true,
+    ends,
+    ...(entry.emanation ? { emanation: { ...entry.emanation, ends } } : {})
+  };
+}
+
+/**
+ * Which lingering entries must end so that `keepId` may linger within the
+ * caster's limit (one, or two with Echoing Performance): the OLDEST go first.
+ * Pure.
+ */
+function lingeringOverLimit(entries = [], keepId = "", concurrent = 1) {
+  const lingering = Array.from(entries ?? []).filter((e) => e?.lingering && e.id !== keepId);
+  const room = Math.max(0, Math.trunc(Number(concurrent) || 1) - 1);
+  return lingering.slice(0, Math.max(0, lingering.length - room)).map((e) => e.id);
+}
+
+/**
+ * Let a lapsing or replaced composition linger. Returns true when it now
+ * lingers, false when it should end as before (the caller ends it).
+ */
+export async function lingerOnEnd(actor, id, now = {}) {
+  const entries = getActiveSpells(actor);
+  const index = entries.findIndex((e) => e.id === id);
+  if (index < 0) return false;
+  const next = lingeringEntry(entries[index], now);
+  if (!next) return false;
+  entries[index] = next;
+  await setActiveSpells(actor, entries);
+  for (const older of lingeringOverLimit(entries, id, next.linger.concurrent)) {
+    await endActiveSpell(actor, older, { dismissed: false });
+  }
+  return true;
+}
+
 /**
  * Turn-start sweep: end sustained "Sustained"-word spells that weren't sustained
  * in time. Returns the names of what lapsed. "(S)" spells are left untouched.
@@ -657,7 +731,11 @@ export async function sweepSustainedLapses(actor, currentRound) {
   const resolve = (uuid) => { try { return globalThis.fromUuidSync?.(uuid) ?? null; } catch { return null; } };
   const lapsed = entries.filter((e) => sustainedLapses(e, currentRound)
     || (e?.sustained && sustainerOf(e) && sustainerLapses(e, resolve(sustainerOf(e).uuid))));
-  for (const entry of lapsed) await endActiveSpell(actor, entry.id);
+  for (const entry of lapsed) {
+    // A LINGERING PERFORMANCE LINGERS instead (U10) — the bard has ceased performing.
+    if (await lingerOnEnd(actor, entry.id, { worldTime: globalThis.game?.time?.worldTime ?? null, round: currentRound ?? null })) continue;
+    await endActiveSpell(actor, entry.id);
+  }
   return lapsed.map((e) => e.name);
 }
 

@@ -99,13 +99,14 @@ function optionsFor(s, caster) {
   (s.warps ?? []).forEach((w, i) => {
     const bm = R.bookWarpMax(w);
     opts.push({ kind: "warp", id: `warp-${i}`, index: i, ppCost: Number(w.ppCost) || 0, bookMax: bm.max, why: bm.why,
-      dimension: R.warpDimension(w), nature: R.warpNature(w), structured: Boolean(w.mods && Object.keys(w.mods).length), text: w.text });
+      dimension: R.warpDimension(w, s), nature: R.warpNature(w), structured: Boolean(w.mods && Object.keys(w.mods).length), text: w.text });
   });
   const mm = [];
   for (const [name, m] of Object.entries(R.METAMAGIC)) {
     if (!m.castTime) continue;
     const e = m.eligible(s, caster);
-    mm.push({ kind: "mm", id: m.id, feat: name, eligibility: e, ppOf: (n) => m.cost(s, n, caster), bookMax: m.max(s, caster), select: m.select });
+    mm.push({ kind: "mm", id: m.id, feat: name, eligibility: e, ppOf: (n) => m.cost(s, n, caster), bookMax: m.max(s, caster),
+      select: typeof m.select === "function" ? m.select(s) : m.select });
   }
   return { warps: opts, mm };
 }

@@ -144,7 +144,10 @@ export function areaGrowthMaxTimes(mods, areaText) {
   const growth = Math.max(0, Math.trunc(Number(mods?.areaGrowth) || 0));
   if (!growth) return 1;
   const cap = Number(mods?.areaMax);
-  if (!Number.isFinite(cap) || cap <= 0) return 1;
+  // NO PRINTED CEILING, NO CEILING (26 Nov 2026; Graham's U9: "a unique
+  // option that adds a value" may be taken again and again). Forbiddance's
+  // "Increase the radius by 10-feet" was sold once; the cast cap is its limit.
+  if (!Number.isFinite(cap) || cap <= 0) return Infinity;
   const match = String(areaText ?? "").match(FIRST_DISTANCE);
   if (!match) return 1;
   const from = Number(match[1]);

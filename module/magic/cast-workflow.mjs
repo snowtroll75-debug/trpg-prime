@@ -987,6 +987,10 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
   // reader for a spell they already bought.
   // A POTION ASKS FOR NO COMPONENTS (3.617.0, B7 of block 37): it was
   // gated on its spell's somatic hand, when drinking takes the item's own.
+  const componentGateCanWait = !drunkPotion && !isItemCast && !carried && !isInnate && (() => {
+    const feats = Array.from(actor.items ?? []).filter((i) => i.type === "feat").map((i) => String(i.name).trim().toLowerCase());
+    return feats.includes("component mastery") || (feats.includes("still spell") && Boolean(spellData.components?.somatic));
+  })();
   const componentsOK = drunkPotion
     ? true
     : isItemCast
@@ -997,8 +1001,14 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
     : carried && !isInnate
     ? componentGate(actor, { ...spellData, components: { ...(spellData.components ?? {}), somatic: false } }, spell.name)
     // A PREPARED SIGIL'S SYMBOL NEEDS NO HAND (3.684.0, G25; Q123).
-    : (isInnate || componentGate(actor, spellData, spell.name, { symbolPrepared: Boolean(sigil) }));
-  if (!componentsOK) return null;
+    : (isInnate || componentGate(actor, spellData, spell.name, { symbolPrepared: Boolean(sigil), quiet: componentGateCanWait }));
+  // HELD, NOT REFUSED, WHEN A METAMAGIC COULD CHANGE THE ANSWER (U10, 26 Nov
+  // 2026). Component Mastery changes a component's type; Still Spell drops
+  // the somatic one. Both are chosen in the Warp dialog below, so refusing
+  // here refused the very cast the feat exists to allow. The gate is judged
+  // again, on the cast's own components, once the dialog is answered.
+  const componentGateDeferred = !componentsOK && componentGateCanWait;
+  if (!componentsOK && !componentGateDeferred) return null;
 
   /*
    * SPEAKING UNDERWATER COSTS EVERYTHING (page 202, R3).
@@ -2034,6 +2044,29 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
   const warpMods = warp.mods;
 
   /*
+   * A METAMAGIC BESIDE THE SPELL'S OWN WARP OF THE SAME KIND IS REFUSED
+   * (Graham's U8, 26 Nov 2026: "specific warping options always override the
+   * generic"), and Extend beside Temporal Extension, which "does not stack
+   * with other duration modifiers". Read from `warp.mods` HERE, before the
+   * caster-level step and the metamagic are folded in below, so only the
+   * spell's own warps count. Until now both were taken, both charged, and the
+   * second silently dropped. Nothing is spent at this line.
+   */
+  {
+    const { metamagicWarpConflicts } = await import("./metamagic.mjs");
+    const conflicts = metamagicWarpConflicts(mm, warpMods);
+    if (conflicts.length) {
+      ui.notifications.warn(`${spell.name}: ${conflicts[0]}.`);
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor }),
+        content: `<div class="trg-prime trg-card"><header class="trg-card-header"><h3>${spell.name} — Not Cast</h3></header>`
+          + conflicts.map((c) => `<p>${c}.</p>`).join("") + `<p><em>Nothing was spent.</em></p></div>`
+      });
+      return null;
+    }
+  }
+
+  /*
    * THE EXTRA ACTIONS LAND IN THE WARP CHANNEL (3.501.0).
    *
    * `areaGrowth` is the mod `warp-area.mjs` already reads, so a spell
@@ -2065,7 +2098,50 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
     warpMods.durationText = `${spellData.duration} ×2 (Extended)`;
   }
   if (mm.temporalSteps && !warpMods.durationText) {
-    warpMods.durationText = temporalDurationText(spellData.duration, mm.temporalSteps);
+    // THE STEPPED DURATION FIRST, so the effect clock reads it (U1).
+    const { isSustainedDuration } = await import("./metamagic.mjs");
+    const stepped = temporalDurationText(spellData.duration, mm.temporalSteps, { sustained: isSustainedDuration(spellData) });
+    if (stepped) warpMods.durationText = stepped;
+  }
+  /*
+   * REACH, WIDEN AND DISTANT CHANGE THE CAST, NOT ONLY ITS CARD (26 Nov 2026;
+   * found by the spell matrix, confirmed live on 3.715.1: a Reach-warped Word
+   * Of Biting was refused at 45 ft, "beyond … range of 30 feet"). They write
+   * the channels the range check, the template and the self rows already
+   * read — the same ones a spell's own warp writes — through the module
+   * fold's own arithmetic, so a ×2 here and Spell Surge's ×1.5 cannot
+   * disagree about rounding. A spell warp of the same kind was refused above.
+   */
+  /*
+   * THE HELD COMPONENT GATE, JUDGED ON THE CAST'S OWN COMPONENTS (U10).
+   * Silent and Still drop one; Component Mastery changes one into another.
+   * The pouch spending far below reads the same changes.
+   */
+  if (componentGateDeferred) {
+    let castComponents = { ...(spellData.components ?? {}) };
+    for (const off of mm.componentsOff) if (castComponents[off]) castComponents[off] = false;
+    if (mm.componentSwap?.from && castComponents[mm.componentSwap.from]) {
+      castComponents = { ...castComponents, [mm.componentSwap.from]: false, [mm.componentSwap.to]: true };
+    }
+    if (!componentGate(actor, { ...spellData, components: castComponents }, spell.name, { symbolPrepared: Boolean(sigil) })) return null;
+  }
+  if (mm.rangeFactor > 1 || mm.areaFactor > 1 || mm.distant) {
+    const { scaledRangeText, scaledAreaGrowth } = await import("./module-metamagic.mjs");
+    if (mm.rangeFactor > 1 && !warpMods.rangeOverride) {
+      const to = scaledRangeText(effRange, mm.rangeFactor);
+      if (to) warpMods.rangeOverride = to;
+    }
+    if (mm.areaFactor > 1 && !warpMods.areaOverride) {
+      const grow = scaledAreaGrowth(effArea, mm.areaFactor);
+      if (grow) warpMods.areaGrowth = (Number(warpMods.areaGrowth) || 0) + grow;
+    }
+    // Distant: "change a spell that only affects you to a range of touch" —
+    // Invisibility's own touch warp's two mods, so the self rows move to the
+    // creature touched (selfRowRecipients).
+    if (mm.distant) {
+      warpMods.rangeOverride = "touch";
+      warpMods.retargetSelfRows = true;
+    }
   }
   // AND THE MODULE'S (3.684.0, G1): its mods as a warp's, its typed Save DC
   // rows, ×1.5 of a parseable range, duration or area, a die step, an added
@@ -4225,6 +4301,11 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
       effectiveComponents = { ...effectiveComponents, [off]: false };
     }
   }
+  // Component Mastery's change (U10): a material component changed away
+  // spends no pouch; one changed TO material does.
+  if (mm.componentSwap?.from && effectiveComponents[mm.componentSwap.from]) {
+    effectiveComponents = { ...effectiveComponents, [mm.componentSwap.from]: false, [mm.componentSwap.to]: true };
+  }
   if (componentSwap?.from && componentSwap?.to && effectiveComponents[componentSwap.from]) {
     effectiveComponents = {
       ...effectiveComponents,
@@ -4871,6 +4952,17 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
    * first thing the cast places.
    */
   const castId = foundry.utils.randomID();
+  // THE PP THIS CAST'S EFFECTS ARE COUNTERACTED AT (U3, 26 Nov 2026): the
+  // maximum castable when heightened (or a cantrip), else the PP cast. Its
+  // effects are stamped from this note as they are laid (cast-power.mjs).
+  {
+    const { castCounteractPP, noteCastPower } = await import("./cast-power.mjs");
+    noteCastPower(castId, castCounteractPP({
+      totalPP, cap, cantrip: isCantrip,
+      // The Save DC's own test, below, reads the same two facts.
+      heightened: highMagicHeightens(actor, Boolean(mm.heightenSave) || carried?.heighten === true)
+    }));
+  }
 
   let placedArea = null;
   // A wall that would form through a creature (3.610.1): its notes are not printed.
@@ -6221,6 +6313,8 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
         id: castId,
         name: spell.name,
         pp: ppSpent,
+        // LINGERING PERFORMANCE (U10): it lingers rather than ends.
+        linger: mm.linger ?? null,
         lock,
         dismissible,
         // CARRIED SO AN INTERRUPTION CAN ASK FOR IT (3.585.0). `dc` is
@@ -8306,8 +8400,13 @@ async function resolveSpellSave(actor, spell, { saveDC, clMods, warpMods, lines,
     const altSkillKey = String(spellData.saveAlternative ?? "").trim();
     const altSkill = altSkillKey ? target.system?.skills?.[altSkillKey] : null;
     const altBetter = altSkill && Number(altSkill.total ?? -Infinity) > Number(save?.total ?? 0);
-    const check = await TRGCheck.roll({
-      actor: target,
+    // ON THE GM'S CLIENT WHEN THIS CLIENT DOES NOT OWN THE CREATURE (Graham's
+    // U11, 26 Nov 2026): a player's spell on the GM's NPC used to roll the
+    // NPC's save with the player's dice. `rollSaveFor` relays it and returns
+    // the outcome this function reads (degree, margin, total) — nothing else
+    // below reads the check.
+    const { rollSaveFor } = await import("../combat/target-relay-workflow.mjs");
+    const check = await rollSaveFor(target, {
       label: altBetter ? `${target.name} — ${altSkill.label ?? altSkillKey} (instead of ${saveName})` : `${target.name} — ${saveName} Save`,
       subtitle: `vs ${spell.name} — DC ${saveDC}`,
       type: "save",

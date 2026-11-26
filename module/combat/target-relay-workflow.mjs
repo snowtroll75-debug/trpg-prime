@@ -206,6 +206,10 @@ async function createRefreshing(target, data) {
 export async function createEffectsOn(target, effects, applyDirect) {
   const data = Array.isArray(effects) ? effects : [effects];
   if (!data.length) return [];
+  // THE CAST'S COUNTERACT PP, STAMPED HERE ON THE CASTER'S CLIENT (U3): the
+  // GM's client, which creates a relayed effect, never saw the cast.
+  const { stampCastPower } = await import("../magic/cast-power.mjs");
+  stampCastPower(data);
   if (!needsRelay(target)) {
     if (applyDirect) return applyDirect();
     return createRefreshing(target, data);
@@ -219,6 +223,45 @@ export async function createEffectsOn(target, effects, applyDirect) {
     `${data.length === 1 ? "An effect" : `${data.length} effects`} could not be applied`
   );
   return [];
+}
+
+/** A save rolled on this client, as the creature. */
+async function rollSaveHere(target, params) {
+  const { TRGCheck } = await import("../dice/check.mjs");
+  return TRGCheck.roll({ ...params, actor: target });
+}
+
+/** What a caller reads of a save: its outcome, as plain data. */
+function saveOutcomeOf(check) {
+  const o = check?.outcome;
+  if (!o) return null;
+  return {
+    outcome: {
+      total: Number(o.total ?? 0),
+      margin: o.margin ?? null,
+      degree: o.degree ? { key: o.degree.key, label: o.degree.label, success: Boolean(o.degree.success) } : null
+    }
+  };
+}
+
+/**
+ * A SPELL'S SAVE, ROLLED WHERE THE CREATURE IS OWNED (26 Nov 2026; Graham's
+ * U11). On a client that owns the creature (the GM's always does) it is
+ * rolled here, as before, and the check itself returned. Otherwise the GM's
+ * client rolls it and this returns `{ outcome }` — the only part of the check
+ * `resolveSpellSave` reads. With no GM to answer, it is rolled here rather
+ * than leave the spell unresolved, and the card says so.
+ */
+export async function rollSaveFor(target, params = {}) {
+  if (!target || !needsRelay(target) || game.user?.isGM) return rollSaveHere(target, params);
+  // NO GM CONNECTED, NO RELAY: rolled here at once rather than after the
+  // relay's timeout, once per creature saving (a player alone at the table).
+  if (!game.users?.activeGM) return rollSaveHere(target, params);
+  const plain = JSON.parse(JSON.stringify({ ...params, actor: undefined }));
+  const reply = await ask(RELAY_ACTIONS.SAVE, target, { params: plain });
+  if (reply.ok && reply.result?.outcome) return reply.result;
+  ui.notifications?.warn?.(`${target.name}'s save could not be rolled on the GM's client (${reply.reason ?? "no answer"}); rolled here instead.`);
+  return rollSaveHere(target, params);
 }
 
 /**
@@ -533,6 +576,8 @@ async function liveDeps() {
       const { enterDyingAt } = await import("./dying-workflow.mjs");
       return enterDyingAt(target, finalHP, options);
     },
+    // A SAVE ROLLED AS THE GM'S CREATURE (U11): the outcome, as plain data.
+    rollSave: async (target, params) => saveOutcomeOf(await rollSaveHere(target, params)),
     // `direct` STOPS THE RELAY RECURSING — the GM already owns the target.
     consumeOneAttack: async (target, event) => consumeOneAttackEffects(target, event, { direct: true }),
     // AN ACTION AT A TOTAL, ON THE GM'S CLIENT (3.692.0). `direct` stops the

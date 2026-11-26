@@ -29,7 +29,7 @@ import path from "node:path";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
 import * as R from "./rules-model.mjs";
-import { buildMetamagicOptions, aggregateMetamagicSelection } from "../../module/magic/metamagic.mjs";
+import { buildMetamagicOptions, aggregateMetamagicSelection, metamagicWarpConflicts } from "../../module/magic/metamagic.mjs";
 import { aggregateWarpSelection, warpMaxTimes, warpScalesWithRepeats, WARP_UNLIMITED } from "../../module/magic/spell-warp.mjs";
 import { castingDC, maxPPPerCast, specialistMaxPP } from "../../module/magic/casting.mjs";
 
@@ -102,9 +102,10 @@ for (const s of inventory) {
         if (m.id === "temporal" && o.max !== bookMax)
           find("DEFECT", "MM-MAX", s.name, `Temporal Extension: engine allows ${o.max} step(s) from "${sys.duration}", ladder allows ${bookMax}`);
         // NOTE-ONLY: what the aggregate does with it
-        const agg = aggregateMetamagicSelection([o], { [`mm-${o.id}`]: o.kind === "select" ? "animal" : 1 },
+        const agg = aggregateMetamagicSelection([o], { [`mm-${o.id}`]: o.kind === "select" ? (o.choices?.[0]?.value ?? "") : 1 },
           { damageFormula: String(sys.damage?.formula ?? ""), baseDamage: String(sys.baseDamage ?? "") });
-        const mechanical = agg.ppDelta || agg.dcDelta || agg.apDelta || agg.componentsOff.length || agg.extend || agg.temporalSteps || agg.heightenSave || agg.elementalType || agg.extraDamageDice;
+        const mechanical = agg.ppDelta || agg.dcDelta || agg.apDelta || agg.componentsOff.length || agg.extend || agg.temporalSteps || agg.heightenSave || agg.elementalType || agg.extraDamageDice
+          || agg.rangeFactor > 1 || agg.areaFactor > 1 || agg.distant || agg.componentSwap || agg.linger;
         if (!mechanical) find("NOTE-ONLY", "MM-NOTE-ONLY", "(all)", `${name}: charges ${o.kind === "select" ? "its choice's" : `+${o.ppCost}`} PP and sets no mechanical field (aggregate default branch)`);
       }
     }
@@ -154,7 +155,10 @@ for await (const line of rl) {
   const total = engineTotal(base, warp.ppSpent, mm.ppSpent, mm.ppDelta, cantrip);
   const cap = sys.specialist ? specialistMaxPP(c.caster.level) : maxPPPerCast(c.caster.casterLevel);
   const dc = castingDC(total - mm.ppDelta) + mm.dcDelta;   // Economic: DC from the unlowered PP, +2 per PP lowered
-  const engineAllows = !notOffered.length && total <= cap && c.picks.every((p) => {
+  // U8 (26 Nov 2026): the cast refuses a metamagic beside the spell's own warp
+  // of the same kind, and Extend beside Temporal, before anything is spent.
+  const refusedPair = metamagicWarpConflicts(mm, warp.mods).length > 0;
+  const engineAllows = !notOffered.length && !refusedPair && total <= cap && c.picks.every((p) => {
     if (p.kind === "warp") { const w = (sys.warps ?? [])[p.index]; return p.times <= warpMaxTimes(w, String(sys.area ?? ""), c.caster.casterLevel); }
     const o = offered.find((x) => x.id === p.id); return o && (o.kind === "select" || p.times <= o.max);
   });
@@ -172,7 +176,7 @@ for await (const line of rl) {
       const w = c.picks.find((p) => p.kind === "warp" && p.times > warpMaxTimes((sys.warps ?? [])[p.index], String(sys.area ?? ""), c.caster.casterLevel));
       if (w && !warpScalesWithRepeats((sys.warps ?? [])[w.index])) { interp++; results.write(JSON.stringify({ id: c.id, legal: c.legal, pass: null, interpretation: "WARP-CHECKBOX" }) + "\n"); continue; }
       if (c.picks.some((p) => p.id === "selective" || p.id === "split")) { interp++; results.write(JSON.stringify({ id: c.id, legal: c.legal, pass: null, interpretation: "MM-ARBITRARY-CAP" }) + "\n"); continue; }
-      diffs.push(`engine refuses a legal cast (${notOffered.length ? `not offered: ${notOffered}` : total > cap ? "over cap" : "repeat cap"})`);
+      diffs.push(`engine refuses a legal cast (${notOffered.length ? `not offered: ${notOffered}` : refusedPair ? `refused pair: ${metamagicWarpConflicts(mm, warp.mods)[0]}` : total > cap ? "over cap" : "repeat cap"})`);
     }
   } else if (c.legal === false) {
     stats.compared++;
@@ -190,7 +194,9 @@ for await (const line of rl) {
     if (code === "LEGAL-REFUSED" && c.picks.every((p) => p.kind !== "warp" || /\bmax/i.test((sys.warps ?? [])[p.index]?.text ?? ""))) { cls = "REVIEW"; code = "WARP-CEILING-PARSE"; }
     find(cls, code, c.spell, `${c.config}: ${c.picks.map((p) => `${p.id}×${p.times}`).join(" + ") || "base"} — ${diffs.join("; ")}`, { caseId: c.id });
   } else if (c.legal !== "unresolved") stats.agree++;
-  results.write(JSON.stringify({ id: c.id, legal: c.legal, engine: { total, cap, dc, allows: engineAllows }, pass: c.legal === "unresolved" ? null : !diffs.length, diffs }) + "\n");
+  // A REVIEW ROW IS NOT A FAIL: the model's parser, not the engine, is in doubt.
+  const reviewOnly = diffs.length && c.picks.every((p) => p.kind !== "warp" || /\bmax/i.test((sys.warps ?? [])[p.index]?.text ?? "")) && diffs[0].includes("repeat cap");
+  results.write(JSON.stringify({ id: c.id, legal: c.legal, engine: { total, cap, dc, allows: engineAllows }, pass: c.legal === "unresolved" || reviewOnly ? null : !diffs.length, diffs }) + "\n");
 }
 await new Promise((r) => results.end(r));
 

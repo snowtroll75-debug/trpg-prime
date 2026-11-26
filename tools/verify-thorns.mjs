@@ -221,7 +221,7 @@ ok("E7 the attack path measures and passes the melee distance",
 const castBody = bodyOf(cast, "async function castSpellResolved(");
 ok("F1 castSpell's body was found and reaches its real code",
   // RE-ANCHORED AT 3.684.0 (G25): the ordinary cast's gate is told of a Prepared Sigil.
-  castBody.length > 0 && castBody.includes("componentGate(actor, spellData, spell.name, { symbolPrepared: Boolean(sigil) })"));
+  castBody.length > 0 && castBody.includes("componentGate(actor, spellData, spell.name, { symbolPrepared: Boolean(sigil), quiet: componentGateCanWait })"));
 ok("F2 casting intensifies the thorns",
   has(castBody, "intensifyThorns(actor, spell)"));
 // AFTER THE CAST HAS SUCCEEDED. A failed cast sharpens nothing, and the

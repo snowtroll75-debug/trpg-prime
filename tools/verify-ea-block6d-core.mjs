@@ -669,7 +669,7 @@ ok("H7b the free warp asks the rule", /\.filter\(\(\{ scoped \}\) => freeWarpSch
   ok("H10 (Q124) the sigil's −1 AP joins Quicken's in every cast-time sum and the early pool test, never below 1",
     (src.cast.match(/totalCastTime\(warpedCastAP, \{ apDelta: mm\.apDelta \+ sigilAP \}\)/g) ?? []).length === 3 && /const sigilAP = sigil \? -1 : 0;/.test(src.cast)
     && /castTimeApCost\(sigil \? totalCastTime\(effCastAPWithScale, \{ apDelta: -1 \}\) : effCastAPWithScale\)/.test(src.cast)
-    && /componentGate\(actor, spellData, spell\.name, \{ symbolPrepared: Boolean\(sigil\) \}\)/.test(src.cast));
+    && /componentGate\(actor, spellData, spell\.name, \{ symbolPrepared: Boolean\(sigil\)(, quiet: componentGateCanWait)? \}\)/.test(src.cast));
 }
 {
   const ci = [{ type: "feat", name: "Combat Inscription", flags: { "trg-prime": { runemage: { defensiveIncrease: 0, roomNote: "a hand-sized space suffices (Combat Inscription)" } } } }];

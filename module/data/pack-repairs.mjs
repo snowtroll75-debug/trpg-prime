@@ -1837,11 +1837,16 @@ export const PACK_REPAIRS = Object.freeze([
     reason: "\"1 willing undead creature\" — it reached the living too."
   },
   {
+    // AMENDED AT 3.716.0 (the spell matrix): `to` gained `healingRateFrom`, and
+    // 3.613.0's `to` became an `alsoFrom`. One entry per field (E4).
     id: "unliving-vitality-warps-3613", pack: "spells", name: "Unliving Vitality",
     field: "warps", since: "3.613.0",
     from: [{"ppCost":1,"text":"The fast healing increases by 1 (max 10)","mods":{"bonusValue":1,"bonusMax":10}}],
-    to: [{"ppCost":1,"text":"The fast healing increases by 1 (max 10)","mods":{"healingRateBump":1,"healingRateMax":10}}],
-    reason: "The warp raised a bonus the spell does not have; it raises the fast healing now (max 10)."
+    // 3.613.0 to 3.715.1's row: the fast healing, sold without a count.
+    alsoFrom: [[{"ppCost":1,"text":"The fast healing increases by 1 (max 10)","mods":{"healingRateBump":1,"healingRateMax":10}}]],
+    to: [{"ppCost":1,"text":"The fast healing increases by 1 (max 10)","mods":{"healingRateBump":1,"healingRateMax":10,"healingRateFrom":5}}],
+    reason: "The warp raised a bonus the spell does not have; it raises the fast healing now (max 10). "
+      + "3.716.0 (the spell matrix): \"(max 10)\" from fast healing 5 is five purchases; an owned copy sold them without limit, the excess paid for and discarded."
   },
   {
     id: "veiled-secret-effects-3613", pack: "spells", name: "Veiled Secret",
@@ -2615,6 +2620,51 @@ export const PACK_REPAIRS = Object.freeze([
     ],
     reason: "An owned Stone Shield had the +4 and a note: a miss by 4 struck nothing, the shield had no Hits, "
       + "and nothing ended the spell. A pre-3.406.0 copy still gave +4 against every attacker."
+  },
+  /* THE SPELL MATRIX'S WARP CEILINGS (3.716.0; 26 Nov 2026, RC8 and Graham's
+   * U12). Written by tools/declare-spell-matrix-fixes.mjs; the `from` side is
+   * 3.715.1's pack. */
+  {
+    id: "shape-of-the-wyrm-attack-once", pack: "spells", name: "Shape Of The Wyrm",
+    field: "warps", since: "3.716.0",
+    from: [{"ppCost": 1, "text": "increase the duration to 10 minutes", "mods": {"durationText": "10 minutes"}}, {"ppCost": 1, "text": "your natural attacks gain 1d6 secondary damage of your forms type", "mods": {}}, {"ppCost": 1, "text": "gain an additional natural attack (available to your type)", "mods": {"extraFormAttacks": 1}}, {"ppCost": 1, "text": "add a wyrm trait (see Appendix, max 3)", "mods": {"traitPicks": 1}}, {"ppCost": 2, "text": "gain the ability to cast any one arcane spell of 8 PP or less as an innate spell with the focus trait", "mods": {}}, {"ppCost": 2, "text": "increases the PP of the innate spell by 2", "mods": {}}, {"ppCost": 2, "text": "you may increase or decrease the size of the form by one step", "mods": {"sizeSteps": 1}}, {"ppCost": 4, "text": "you may increase or decrease the size of the form by two steps", "mods": {"sizeSteps": 2}}],
+    to: [{"ppCost": 1, "text": "increase the duration to 10 minutes", "mods": {"durationText": "10 minutes"}}, {"ppCost": 1, "text": "your natural attacks gain 1d6 secondary damage of your forms type", "mods": {}}, {"ppCost": 1, "text": "gain an additional natural attack (available to your type)", "mods": {"extraFormAttacks": 1, "once": true}}, {"ppCost": 1, "text": "add a wyrm trait (see Appendix, max 3)", "mods": {"traitPicks": 1}}, {"ppCost": 2, "text": "gain the ability to cast any one arcane spell of 8 PP or less as an innate spell with the focus trait", "mods": {}}, {"ppCost": 2, "text": "increases the PP of the innate spell by 2", "mods": {}}, {"ppCost": 2, "text": "you may increase or decrease the size of the form by one step", "mods": {"sizeSteps": 1}}, {"ppCost": 4, "text": "you may increase or decrease the size of the form by two steps", "mods": {"sizeSteps": 2}}],
+    reason: "Graham, 26 Nov 2026 (U12): the extra natural attack may be taken only once. An owned copy sold two."
+  },
+  {
+    id: "rapid-repair-ceiling", pack: "spells", name: "Rapid Repair",
+    field: "warps", since: "3.716.0",
+    from: [{"ppCost": 1, "text": "increase the fast healing by 1 (max 5)", "mods": {"healingRateBump": 1, "healingRateMax": 5}}],
+    to: [{"ppCost": 1, "text": "increase the fast healing by 1 (max 5)", "mods": {"healingRateBump": 1, "healingRateMax": 5, "healingRateFrom": 1}}],
+    reason: "\"(max 5)\" from fast healing 1: four purchases. An owned copy sold them without limit, the excess paid for and discarded."
+  },
+  {
+    id: "true-seeing-touch-warp", pack: "spells", name: "True Seeing",
+    field: "warps", since: "3.716.0",
+    from: [{"ppCost": 2, "text": "you may target another creature and the range becomes touch", "mods": {}}],
+    to: [{"ppCost": 2, "text": "you may target another creature and the range becomes touch", "mods": {"rangeOverride": "touch", "retargetSelfRows": true}}],
+    reason: "Its warp \"you may target another creature and the range becomes touch\" carried no mods: charged, and the caster saw truly, not the creature touched. Now Invisibility's touch warp."
+  },
+  {
+    id: "unshakable-touch-warp", pack: "spells", name: "Unshakable",
+    field: "warps", since: "3.716.0",
+    from: [{"ppCost": 2, "text": "the spell has a duration of 10 minutes", "mods": {"durationText": "10 minutes"}}, {"ppCost": 4, "text": "the spell gains a range of touch (arcane only)", "mods": {}}],
+    to: [{"ppCost": 2, "text": "the spell has a duration of 10 minutes", "mods": {"durationText": "10 minutes"}}, {"ppCost": 4, "text": "the spell gains a range of touch (arcane only)", "mods": {"rangeOverride": "touch", "retargetSelfRows": true}}],
+    reason: "Its warp \"the spell gains a range of touch\" carried no mods: charged, and only the caster was made unshakable. Now Invisibility's touch warp."
+  },
+  {
+    id: "gravity-weapon-bonus-once", pack: "spells", name: "Gravity Weapon",
+    field: "warps", since: "3.716.0",
+    from: [{"ppCost": 1, "text": "You can affect two weapons", "mods": {"weapons": 2}}, {"ppCost": 4, "text": "You increase the damage by an additional +2 (max +4)", "mods": {"weaponDamageBonus": 2}}],
+    to: [{"ppCost": 1, "text": "You can affect two weapons", "mods": {"weapons": 2}}, {"ppCost": 4, "text": "You increase the damage by an additional +2 (max +4)", "mods": {"weaponDamageBonus": 2, "once": true}}],
+    reason: "\"+2 (max +4)\" on a weapon the spell already gives +2: one purchase. An owned copy sold them without limit."
+  },
+  {
+    id: "magic-stone-bonus-once", pack: "spells", name: "Magic Stone",
+    field: "warps", since: "3.716.0",
+    from: [{"ppCost": 2, "text": "increase the bonus to +2", "mods": {"bonusValue": 1, "bonusMax": 2}}],
+    to: [{"ppCost": 2, "text": "increase the bonus to +2", "mods": {"bonusValue": 1, "bonusMax": 2, "once": true}}],
+    reason: "\"Increase the bonus to +2\" from +1 is one purchase. An owned copy sold two."
   },
 ]);
 

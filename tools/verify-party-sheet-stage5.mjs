@@ -182,7 +182,7 @@ const SKILLSRC = strip(read("module", "party-skills.mjs"));
 {
   const sys = JSON.parse(read("system.json"));
   equal("Z1 the version is 3.713.0, the download names it, and package.json agrees",
-    [sys.version, sys.download.includes("/v3.715.1/"), JSON.parse(read("package.json")).version], ["3.715.1", true, "3.715.1"]);
+    [sys.version, sys.download.includes("/v3.716.0/"), JSON.parse(read("package.json")).version], ["3.716.0", true, "3.716.0"]);
 }
 
 if (failures.length) {

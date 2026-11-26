@@ -145,7 +145,12 @@ const migration = read("module/migration.mjs");
 const schema = migration.match(/export const TRG_SCHEMA_VERSION = "([^"]+)"/)?.[1];
 const gate = migration.match(/runIf\("([^"]+)", "the Wizard's Spellbook renamed Spellbook on owned copies"/)?.[1];
 ok("C1 the migration pass is registered", Boolean(gate));
-eq("C2 ...gated at the schema stamp, so every older world is offered it", gate, schema);
+// AT 3.712.4, AND NEVER AHEAD OF THE SCHEMA (3.716.0 raised the stamp for a
+// newer pass): a world below 3.712.4 is offered it, and the stamp a world is
+// given after migrating is at or past it.
+const vnum = (v) => String(v ?? "").split(".").map(Number);
+const notAfter = (a, b) => { const x = vnum(a), y = vnum(b); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] < y[i]; return true; };
+eq("C2 ...gated at 3.712.4, at or below the schema stamp, so every older world is offered it", [gate, notAfter(gate, schema)], ["3.712.4", true]);
 ok("C3 ...over actors, unlinked tokens and world items",
   /migrateSpellbookRename\(\[\.\.\.actors, \.\.\.tokenActors\], Array\.from\(game\.items \?\? \[\]\)\)/.test(migration));
 ok("C4 ...and what it changed is reported to the GM", /result\.spellbookRenamed\?\.length/.test(migration));

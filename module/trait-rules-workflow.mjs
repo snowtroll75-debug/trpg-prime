@@ -184,14 +184,18 @@ export function rodUsedThisRound(actor) {
  */
 export async function endPreviousComposition(caster, spell, newCastId = "") {
   if (!hasTrait(spell?.system?.traits ?? "", "composition")) return [];
-  const { endActiveSpell, getActiveSpells } = await import("./magic/active-spells.mjs");
+  const { endActiveSpell, getActiveSpells, lingerOnEnd } = await import("./magic/active-spells.mjs");
   const spells = Array.from(caster?.items ?? []).filter((i) => i.type === "spell");
   const isComposition = (name) => spells.some((s) => s.name === name && hasTrait(s.system?.traits ?? "", "composition"));
   const active = getActiveSpells(caster);
-  const ending = compositionsToEnd(active.filter((e) => e.name !== spell.name || e.id !== newCastId), isComposition, newCastId);
+  // A LINGERING PERFORMANCE "does not end if you use another composition
+  // spell" (U10, 26 Nov 2026): one already lingering is left to its clock,
+  // and one that took the feat begins to linger rather than end.
+  const ending = compositionsToEnd(active.filter((e) => (e.name !== spell.name || e.id !== newCastId) && !e.lingering), isComposition, newCastId);
   const names = [];
   for (const id of ending) {
     const entry = active.find((e) => e.id === id);
+    if (await lingerOnEnd(caster, id, { worldTime: globalThis.game?.time?.worldTime ?? null, round: globalThis.game?.combat?.started ? globalThis.game.combat.round : null })) continue;
     await endActiveSpell(caster, id, { dismissed: true });
     if (entry?.name) names.push(entry.name);
   }

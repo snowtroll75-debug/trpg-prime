@@ -578,7 +578,7 @@ ok("K5 a spell with no rider rows at all is not gated",
 // is asked with Prepared Sigil's `symbolPrepared`, so its call is matched whole.
 const castBody = bodyOf(cast, "async function castSpellResolved(");
 ok("K6 castSpell's body was found and reaches its real code",
-  castBody.length > 0 && castBody.includes("componentGate(actor, spellData, spell.name, { symbolPrepared: Boolean(sigil) })"),
+  castBody.length > 0 && castBody.includes("componentGate(actor, spellData, spell.name, { symbolPrepared: Boolean(sigil), quiet: componentGateCanWait })"),
   "a body that cannot see the component gate is not castSpell's body");
 ok("K7 the cast asks the weapon gate",
   has(castBody, "weaponRiderGate(actor, spellData, spell.name)"),
@@ -598,9 +598,9 @@ ok("K8b and asks it BEFORE the Power Points are debited",
   before(castBody, "weaponRiderGate(actor, spellData, spell.name)", "ppPool - casterPPSpent"),
   "a gate below the debit is the 3.437.0 defect wearing a gate's name");
 ok("K9 and asks it beside the component gate",
-  before(castBody, "componentGate(actor, spellData, spell.name, { symbolPrepared: Boolean(sigil) })", "weaponRiderGate(actor, spellData, spell.name)")
+  before(castBody, "componentGate(actor, spellData, spell.name, { symbolPrepared: Boolean(sigil), quiet: componentGateCanWait })", "weaponRiderGate(actor, spellData, spell.name)")
   && !/ppPool - casterPPSpent/.test(strip(castBody).slice(
-      strip(castBody).indexOf("componentGate(actor, spellData, spell.name, { symbolPrepared: Boolean(sigil) })"),
+      strip(castBody).indexOf("componentGate(actor, spellData, spell.name, { symbolPrepared: Boolean(sigil), quiet: componentGateCanWait })"),
       strip(castBody).indexOf("weaponRiderGate(actor, spellData, spell.name)"))),
   "the same question about the same hands, and nothing is spent between the two");
 // TWO GUARDS, TWO CLAIMS. If the applier goes back to saying "is wielding

@@ -1094,3 +1094,44 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
 - **Live verification:** passed in the Test world on 26 November 2026, from both the GM's and the player's clients, with Inner Tempest's Pinnacle of Motion (`live-testing-report-3.715.1.md`).
 - **Delivery:** 3.715.1, branch `fix/skill-tumble`.
 
+## R-0038 — Metamagic charged for what it did not do; Graham's spell-matrix rulings (3.716.0)
+
+- **Reported:** the spell matrix (`tools/spell-matrix`, branch `test/spell-matrix`, 26 November 2026) against 3.715.1. Confirmed live from a GM and a Player client at once:
+  - Temporal Extension left the effect's clock unchanged;
+  - Reach Spell did not double the range;
+  - Distant Spell was never offered.
+- **Rulings:** Graham, 26 November 2026, U1–U12 (TRG_PRIME_SPELL_UNRESOLVED.md).
+- **Source state:** branch `fix/spell-metamagic-rulings`, from `fix/skill-tumble` at 3.715.1 (`c19b6de`), the version installed in the Test world.
+- **Rule:** Core 3.7 Chapter 5 (the Metamagic feats' own text), l.20033–20042 (warping), page 236 (a cantrip counteracts at the PP its caster can cast), and Chapter 8 (counteract, ±2 per PP).
+- **Root causes:**
+  - **Temporal:** `temporalDurationText` put the printed duration first, and `parseSpellDuration` reads the first number. The option's `max` was a constant 4.
+  - **Reach, Widen, Distant, Component Mastery, Lingering Performance:** they fell through `aggregateMetamagicSelection`'s `default:` branch, so they were charged and printed but nothing read them.
+  - **Distant's gate:** it asked for a range of "self", which no spell prints.
+  - **The component gate:** it ran before the Warp dialog, so Component Mastery and Still Spell could never lift it.
+  - **The NPC save:** it was rolled with the caster client's `TRGCheck.roll`.
+  - **The bad gates:** Extend's gate admitted unlimited and sustained durations, Split's tested "damage and no save", and Selective and Split had hard-coded ceilings.
+  - **The ceilings:** `areaGrowthMaxTimes` returned 1 with no `areaMax`; `warpMaxTimes` never read `healingRateMax`; three warps lacked `once`.
+  - **The touch warps:** True Seeing's and Unshakable's carried no mods.
+- **Fix:**
+  - `metamagic.mjs`:
+    - the ladder (`TEMPORAL_LADDER`, `temporalRung`, `temporalStepsLeft`) and a parseable `temporalDurationText`;
+    - the gates per the rulings, and new aggregate fields (`rangeFactor`, `areaFactor`, `distant`, `componentSwap`, `linger`);
+    - `metamagicWarpConflicts` (U8).
+  - `cast-workflow.mjs`:
+    - the U8 refusal right after the spell's warps are aggregated;
+    - Reach and Widen through the module fold's `scaledRangeText` and `scaledAreaGrowth`, Distant as Invisibility's touch warp;
+    - the early component gate quiet and held, then judged on the cast's own components;
+    - `noteCastPower`, `linger` on the registered entry, and the save through `rollSaveFor`.
+  - `cast-power.mjs` (new): each cast's counteract PP, stamped as `counteractAs` before a relay and by a `preCreateActiveEffect` hook.
+  - `active-spells.mjs` and `trait-rules-workflow.mjs`: `lingeringEntry`, `lingeringOverLimit`, `lingerOnEnd`.
+  - `target-relay*.mjs`: `RELAY_ACTIONS.SAVE`, `rollSaveFor` and `saveOutcomeOf`.
+  - `warp-area.mjs` and `spell-warp.mjs`: the uncapped growth, and `healingRateFrom`.
+  - Pack data (`tools/declare-spell-matrix-fixes.mjs`): seven spells, with owned-copy repairs (six new, and Unliving Vitality's 3.613.0 entry amended). The pack-copy pass and the schema are re-gated to 3.716.0.
+- **Testing:**
+  - `verify-spell-metamagic-rulings` 91 checks, and `mutate-spell-metamagic-rulings` with all 54 caught.
+  - The spell matrix's baseline went from 4,112 failing cases to 8, all explained.
+  - The census checks moved with the data, each with its reason, and the version and schema anchors were re-pinned. Four mutation files that still anchored on a schema of 3.707.1 (and so already failed at 3.715.1) were re-pinned too.
+  - The full sweep: all 813 files of `tools/verify.mjs` were run. This release's four faults are fixed; one pre-existing gap is recorded (`verify-ea11-seams` is unpaired).
+- **Readings for Graham:** the Hours step (12 hours, or the "2 hours" of the Shield of Faith example); counts carried up the ladder; damage under U8; the four note-only feats; and the unstructured Geas, Pass Without Trace and Unshakable "(arcane only)".
+- **Live verification:** pending. 3.716.0 needs installing in the Test world.
+- **Delivery:** 3.716.0, branch `fix/spell-metamagic-rulings`.

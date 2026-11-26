@@ -137,6 +137,11 @@ export const RELAY_ACTIONS = Object.freeze({
   // or attack is created on the GM's client, for the GM and the reactors'
   // own players only.
   OFFER_CARD: "target.offerCard",
+  // A SPELL'S SAVE, ROLLED BY THE GM FOR A CREATURE THE CASTER'S USER DOES
+  // NOT OWN (26 Nov 2026; Graham's U11: "this should be rolled on the GM
+  // client"). The payload is the roll's plain parameters; the GM's client
+  // rolls it as the creature and answers with the outcome only.
+  SAVE: "target.save",
   RESULT: "target.result",
   // "I HAVE IT, AND IT MAY TAKE A WHILE" (3.673.0). Sent by the GM's client
   // the moment it takes a request, before carrying it out. A request that
@@ -660,6 +665,15 @@ export async function performRelay(request, deps) {
       const traits = Array.isArray(payload.traits) ? payload.traits.map((t) => String(t)) : [];
       const removed = await deps.counteractEffect(target, String(payload.effectId ?? ""), traits);
       return removed ? { ok: true, result: true } : { ok: false, reason: "that effect is not one this counteract can reach" };
+    }
+    case RELAY_ACTIONS.SAVE: {
+      // THE CREATURE ROLLS, AS A SAVE, AND NOTHING ELSE: the asker names the
+      // roll, never the actor (that is the target this request is about) or
+      // the kind of roll.
+      const params = { ...(payload.params && typeof payload.params === "object" ? payload.params : {}) };
+      delete params.actor;
+      const outcome = await deps.rollSave(target, { ...params, type: "save" });
+      return outcome ? { ok: true, result: outcome } : { ok: false, reason: "the save could not be rolled" };
     }
     case RELAY_ACTIONS.ONE_ATTACK: {
       const event = {

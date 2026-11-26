@@ -82,7 +82,9 @@ function bodyOf(source, head) {
   const save = bodyOf(CAST, "async function resolveSpellSave(");
   ok("A4 the save path drops the immune before anything is rolled",
     save.includes("targets = await dropTemporarilyImmune(spell.name, spellData.effects, targets, lines);")
-    && save.indexOf("dropTemporarilyImmune(") < save.indexOf("TRGCheck.roll("));
+    // The save is rolled through `rollSaveFor` since 3.716.0 (U11: on the GM's
+    // client for a creature the caster's user does not own).
+    && save.indexOf("dropTemporarilyImmune(") < save.indexOf("rollSaveFor(target, {"));
   ok("A5 and returns when nobody is left, rather than asking the empty-target question",
     /if \(!targets\.length && before\) return null;/.test(save));
   ok("A6 a spell with no save is kept off the same way",

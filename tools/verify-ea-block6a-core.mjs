@@ -269,7 +269,7 @@ ok("M24 Q95: a module option's PP are the pool's, never the innate budget's, and
   && castBody.includes("basePP + mmx.basePPAdd + warpPP + metamagicPP + mm.ppDelta - signatureDiscount")
   && castBody.includes("metamagicDelta: mm.dcDelta + mmx.dcDelta,"));
 ok("M25 the answer's effects reach the cast: mods folded after the core's, the check's bias, the traits, the saving step and base PP at the outcome",
-  before(castBody, "temporalDurationText(spellData.duration, mm.temporalSteps);", "foldModuleMetamagicMods(warpMods, mmx,")
+  before(castBody, "temporalDurationText(spellData.duration, mm.temporalSteps,", "foldModuleMetamagicMods(warpMods, mmx,")
   && before(castBody, "castContext.bias = joinedBias(castContext.bias, mmx.checkBias)", "const check = noCheckCantrip")
   && castBody.includes("castContext.traits = withAddedTraits(castContext.traits, mmx.addTraits)")
   && castBody.includes("basePP: basePP + mmx.basePPAdd,") && castBody.includes("savingStep: mmx.savingStep"));

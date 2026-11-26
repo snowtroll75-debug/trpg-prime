@@ -1,5 +1,22 @@
 # TRG Prime spell regression report
 
+## 3.716.0 (branch `fix/spell-metamagic-rulings`)
+
+- **The spell matrix:** the baseline went from 4,112 cases to 8 (see TRG_PRIME_SPELL_REPAIR_LOG.md). `--compare` reports 0 regressions. The warp-only full sweep has 0 PP disagreements.
+- **The project's full sweep:** every one of `tools/verify.mjs`'s 813 files was run, in three stretches, because it takes over three hours. Indices 0–195 ran before the last small edits, so every affected verify file and every touched mutation file was re-run after them, all green.
+- **Found and fixed by the sweep:**
+  - `mutate-ff30-block22`: a line I duplicated made its anchor ambiguous.
+  - `verify-strike-riders` and `verify-thorns`: they anchored on the component-gate call.
+  - `verify-rules-have-callers`: six helpers had been exported only for the harness. They are internal now, and are tested through `lingerOnEnd`, the Temporal option's `max`, and `stampCastPower`.
+- **Already failing at 3.715.1, re-pinned:**
+  - `mutate-thorns` W5 (its loop had gained `enhancementPackets`);
+  - four schema anchors at 3.707.1 (`mutate-dedicated-rows`, `-defence-lists`, `-drive-3622`, `-focus-default`);
+  - three pack-copy gate anchors (`mutate-audit-3698`, `-movement-trait-3700`, `-session-fixes-1022`).
+- **Still structural, and pre-existing:** `verify-ea11-seams` has no `mutate-` file beside it, so the official sweep reports it UNPAIRED.
+- **Companion modules:** their core seams (`foldModuleMetamagicMods`, lent metamagic, `offeredModuleMetamagic`) are unchanged. Their `-core` harnesses (`verify-ea-block*-core`, `verify-ea11-seams`) pass. A live module regression run comes with the live retest.
+
+## 3.715.1 (the first matrix run)
+
 26 November 2026, core 3.715.1, branch `test/spell-matrix`.
 
 ## This session

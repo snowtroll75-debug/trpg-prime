@@ -2,6 +2,16 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.716.0 — 26 November 2026: Metamagic does what it charges for
+
+Full notes in `release-notes-3.716.0.md`. Graham's spell-matrix rulings U1–U12.
+
+- **Temporal Extension** steps the effect's real clock, along Rounds → Minutes → 10 minutes → Hours → 12 hours, and sells only the steps left.
+- **Reach** doubles a numeric range; **Widen** doubles the area; **Distant** moves a self-only spell onto the creature touched; **Heighten** is offered on every spell and counts for counteract.
+- **Same-kind pairs are refused** before anything is spent (U8). **Component Mastery** and **Lingering Performance** are automated. **NPC saves** are rolled on the GM's client.
+- **Warp ceilings:** Forbiddance, Unliving Vitality, Rapid Repair, Gravity Weapon, Magic Stone, and Shape Of The Wyrm (once). **True Seeing** and **Unshakable**'s touch warps now work. Owned copies are repaired.
+- **Harness:** `verify-spell-metamagic-rulings` 91, `mutate-spell-metamagic-rulings` 54. The spell matrix's baseline went from 4,112 to 8.
+
 ## 3.715.1 — 26 November 2026: Tumble gives its Stride, asks for its enemy, and fails properly
 
 Full notes in `release-notes-3.715.1.md`.

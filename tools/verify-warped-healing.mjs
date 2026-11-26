@@ -341,10 +341,14 @@ const warpOf = (s, i) => s?.system?.warps?.[i];
   // sentence written about Darkvision above, which is the point: the
   // survey found one of a pair at 3.587.0 and nobody asked after the
   // other until this block authored its row.
-  ok("F4c AND THE BLANK-BASE OVERRIDES ARE THE EIGHT THE RULING FINISHED",
+  // 8 → 10 AT 3.716.0 (the spell matrix, 26 Nov 2026): True Seeing and
+  // Unshakable, CHECKED as this message asks — both print Invisibility's touch
+  // warp, both carried empty mods (charged, and only the caster was affected),
+  // and both now move their `self` rows onto the creature touched, as Jump does.
+  ok("F4c AND THE BLANK-BASE OVERRIDES ARE THE TEN THE RULING FINISHED",
     JSON.stringify(blankRangeOverrides.slice().sort())
       === JSON.stringify(["Darkvision", "Dimension Door", "Ethereal Jaunt",
-        "Invisibility", "Jump", "Loremasters Edge", "Nightvision", "Shield Of Faith"]),
+        "Invisibility", "Jump", "Loremasters Edge", "Nightvision", "Shield Of Faith", "True Seeing", "Unshakable"]),
     `${JSON.stringify(blankRangeOverrides)} — 1 → 3 at 3.533.0 and 3 → 5 at 3.534.0, `
     + "and this check firing each time is how those were noticed rather than assumed. "
     + "Shield Of Faith (3.531.0) was first; Invisibility's row already targets `targets`; "

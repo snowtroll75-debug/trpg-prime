@@ -692,7 +692,7 @@ const floor5 = (n) => Math.floor(n / 5) * 5;
  * unlimited are not numbers and are left alone (null): "range/duration only
  * when numeric and parseable" (Appendix D, Spell Surge).
  */
-function scaledRangeText(rangeText, factor) {
+export function scaledRangeText(rangeText, factor) {
   const f = Number(factor);
   if (!(f > 0) || f === 1) return null;
   const m = String(rangeText ?? "").match(FEET);
@@ -732,7 +732,7 @@ function scaledDurationText(durationText, factor) {
  * 5 ft (Appendix B's n8: "an area's radius or length is ×1.5 rounded down
  * to 5 ft"). A prose area grows by nothing.
  */
-function scaledAreaGrowth(areaText, factor) {
+export function scaledAreaGrowth(areaText, factor) {
   const f = Number(factor);
   if (!(f > 0) || f === 1) return 0;
   const m = String(areaText ?? "").match(FEET);

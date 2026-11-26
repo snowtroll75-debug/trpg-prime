@@ -86,6 +86,7 @@ import { registerGrantAutorun } from "../module/grant-autorun.mjs";
 import { deletionOperatorAvailable } from "../module/deletion.mjs";
 import { registerOpportunityHooks } from "../module/combat/opportunity.mjs";
 import { registerDeathWatchHooks } from "../module/combat/death-watch-workflow.mjs";
+import { registerCastPowerHooks } from "../module/magic/cast-power.mjs";
 import { registerConditionEventHooks } from "../module/conditions/condition-events-workflow.mjs";
 import { registerTraitRuleHooks } from "../module/trait-rules-workflow.mjs";
 import { registerTurnRecordHooks } from "../module/combat/turn-records.mjs";
@@ -244,6 +245,8 @@ Hooks.once("init", () => {
   // detected provoke into a MAP-exempt reaction strike.
   registerOpportunityHooks();
   registerDeathWatchHooks();
+  // A cast's effects carry the PP they are counteracted at (U3, 26 Nov 2026).
+  registerCastPowerHooks();
   // APPENDIX 2'S MOMENTS (3.621.0, block 39): going Unconscious, waking,
   // Fixated ending, the Frightened save's button.
   registerConditionEventHooks();

@@ -159,7 +159,12 @@ export function hasComponentPouch(actor) {
  *   supplied when the item was made, so only that one is waived.
  * @returns {boolean} false (and warns) to abort; true to proceed
  */
-export function componentGate(actor, spellData, spellName = "This spell", { materialProvided = false, symbolPrepared = false } = {}) {
+export function componentGate(actor, spellData, spellName = "This spell", { materialProvided = false, symbolPrepared = false, quiet = false } = {}) {
+  // QUIET (26 Nov 2026, U10): the cast asks first, before its Warp dialog,
+  // whether the PRINTED components can be met; when a metamagic the caster
+  // owns could change the answer (Component Mastery, Still Spell) a "no" is
+  // held until the dialog has been answered, and only then said.
+  const warn = (message) => { if (!quiet) ui.notifications.warn(message); };
   let components = spellData?.components ?? {};
 
   // Component Savant (Chapter 5 metamagic): a queued one-cast swap replaces
@@ -252,7 +257,7 @@ export function componentGate(actor, spellData, spellName = "This spell", { mate
     !(implementHand && focusSatisfiesHand(handComponents)) &&
     !hasFreeHandAvailable(Array.from(actor?.items ?? []), size)
   ) {
-    ui.notifications.warn(
+    warn(
       handComponents.symbol
         ? `${spellName} is cast with a Symbol component and needs a free hand to draw the rune, but both of your hands are occupied.`
         : `${spellName} has a somatic component and needs a free hand, but both of your hands are occupied.`
@@ -264,7 +269,7 @@ export function componentGate(actor, spellData, spellName = "This spell", { mate
   // scroll of a somatic-and-material spell still fails on the hand it needs.
   // Waiving the material component must not become waiving the gate.
   if (components.material && !materialProvided && !naturalCasting.material && !hasComponentPouch(actor)) {
-    ui.notifications.warn(
+    warn(
       `${spellName} has a material component, but you have no Material Component Pouch equipped (or it's empty).`
     );
     return false;
@@ -273,7 +278,7 @@ export function componentGate(actor, spellData, spellName = "This spell", { mate
   // arcane cast needs one with a use, material component or not. A scroll's
   // material was provided, but the somatic shards were not.
   if (shards?.needsPouch && !hasComponentPouch(actor)) {
-    ui.notifications.warn(
+    warn(
       `${spellName}: ${shards.label}'s metal shards stand in for its components, but you have no Material Component Pouch equipped (or it's empty).`
     );
     return false;

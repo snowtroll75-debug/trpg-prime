@@ -126,8 +126,11 @@ ok("C1 four purchases from ten feet to fifty",
 ok("C2 three from twenty",
   areaGrowthMaxTimes({ areaGrowth: 10, areaMax: 50 }, "20-foot emanation") === 3,
   "Wellspring Of Valour and Ember Of Devotion sell the same option at different counts");
-ok("C3 an uncapped growth is offered once",
-  areaGrowthMaxTimes({ areaGrowth: 10 }, "20-foot radius") === 1);
+// GRAHAM'S U9 (26 Nov 2026): "a unique option that adds a value" may be
+// taken again and again. Forbiddance's "Increase the radius by 10-feet"
+// prints no ceiling, so its cast cap is the only one (it was offered once).
+ok("C3 an uncapped growth is repeatable",
+  areaGrowthMaxTimes({ areaGrowth: 10 }, "20-foot radius") === Infinity);
 ok("C4 an area already at the cap is offered once",
   areaGrowthMaxTimes({ areaGrowth: 10, areaMax: 50 }, "50-foot radius") === 1);
 ok("C5 a non-growth option is offered once",

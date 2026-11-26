@@ -122,7 +122,11 @@ const WANT = [{
     [classifyRepairs({ effects: repair.from }, [repair])[0].state, classifyRepairs({ effects: older.from }, [repair])[0].state, classifyRepairs({ effects: mid.to }, [repair])[0].state, classifyRepairs({ effects: WANT }, [repair])[0].state],
     ["stale", "stale", "stale", "current"]);
   const MIG = read("module", "migration.mjs");
-  ok("B7 the pack-copy pass is re-gated so a world is offered it", /const packCopies = \(await runIf\("3\.707\.1", "stale owned copies/.test(MIG)
+  // THE GATE AT 3.707.1 OR LATER (3.716.0 raised it for the spell matrix's
+  // warp ceilings): a later gate still offers this repair to an older world.
+  const gateAt = MIG.match(/const packCopies = \(await runIf\("(\d+)\.(\d+)\.(\d+)", "stale owned copies/)?.slice(1).map(Number);
+  const atLeast = (v, want) => { if (!v) return false; for (let i = 0; i < 3; i++) if (v[i] !== want[i]) return v[i] > want[i]; return true; };
+  ok("B7 the pack-copy pass is re-gated so a world is offered it", atLeast(gateAt, [3, 707, 1])
     // The stamp at 3.707.1 OR LATER (3.712.3 raised it for the Spellbook
     // rename): a later stamp still offers this pass to a world before it.
     && (() => {
