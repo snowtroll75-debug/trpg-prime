@@ -1,0 +1,32 @@
+{
+ "generated": "2026-11-26T03:06:40.615Z",
+ "core": "3.715.1",
+ "sources": [
+  "trg-prime@3.715.1:692"
+ ],
+ "spells": 692,
+ "cases": 149049,
+ "legal": 49284,
+ "illegal": 88840,
+ "unresolved": 10925,
+ "byConfig": {
+  "base": 1932,
+  "warp": 1984,
+  "warp-over": 1984,
+  "metamagic": 16446,
+  "metamagic-over": 16250,
+  "metamagic-ineligible": 18552,
+  "warp-pair": 1707,
+  "combined": 17493,
+  "metamagic-pair": 68523,
+  "warp-max": 843,
+  "fill-cap": 1051,
+  "metamagic-max": 2284
+ },
+ "fullSpace": {
+  "min": 591,
+  "L10": 121055,
+  "L20": 2977351
+ },
+ "emptyMechanicalWarps": 94
+}

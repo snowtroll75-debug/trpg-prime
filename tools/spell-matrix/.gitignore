@@ -1,0 +1,4 @@
+# Regenerated deterministically from the packs by generate.mjs / verify.mjs.
+data/cases.jsonl
+data/calc-results.jsonl
+data/regression-diff.json

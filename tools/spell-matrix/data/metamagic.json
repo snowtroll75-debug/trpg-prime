@@ -1,0 +1,252 @@
+[
+ {
+  "name": "Echoing Performance",
+  "source": "trg-prime",
+  "id": "0Et8ckco9MdNPzcN",
+  "traits": "Bard, Metamagic",
+  "prerequisites": "",
+  "modelled": true,
+  "castTime": false,
+  "note": ""
+ },
+ {
+  "name": "Variable Success",
+  "source": "trg-prime",
+  "id": "0eb7EzUMmeg3eDua",
+  "traits": "Adept, Metamagic",
+  "prerequisites": "BSB +8",
+  "modelled": true,
+  "castTime": false,
+  "note": ""
+ },
+ {
+  "name": "Lingering Performance",
+  "source": "trg-prime",
+  "id": "1L110GTGjvhnSNZU",
+  "traits": "Bard, Metamagic",
+  "prerequisites": "Perform 4 ranks",
+  "modelled": true,
+  "castTime": true,
+  "note": ""
+ },
+ {
+  "name": "Widen Spell",
+  "source": "trg-prime",
+  "id": "4MAKrLk9TJzNo0oh",
+  "traits": "Adept, Metamagic",
+  "prerequisites": "",
+  "modelled": true,
+  "castTime": true,
+  "note": ""
+ },
+ {
+  "name": "Selective Spell",
+  "source": "trg-prime",
+  "id": "9fF7h03Ly73NyWPc",
+  "traits": "Adept, Metamagic",
+  "prerequisites": "",
+  "modelled": true,
+  "castTime": true,
+  "note": ""
+ },
+ {
+  "name": "Temporal Extension",
+  "source": "trg-prime",
+  "id": "IJ1Tuo39QkzbikMB",
+  "traits": "Adept, Metamagic",
+  "prerequisites": "",
+  "modelled": true,
+  "castTime": true,
+  "note": ""
+ },
+ {
+  "name": "Effortless Spell",
+  "source": "trg-prime",
+  "id": "LPGNx8AJGXNarevi",
+  "traits": "Adept, Metamagic, Open",
+  "prerequisites": "",
+  "modelled": true,
+  "castTime": false,
+  "note": ""
+ },
+ {
+  "name": "Silent Spell",
+  "source": "trg-prime",
+  "id": "MoBiNlQnMBKoAekP",
+  "traits": "Adept, Metamagic",
+  "prerequisites": "",
+  "modelled": true,
+  "castTime": true,
+  "note": ""
+ },
+ {
+  "name": "Component Savant",
+  "source": "trg-prime",
+  "id": "N1sRUhPa1mOegKps",
+  "traits": "Metamagic",
+  "prerequisites": "Level 5",
+  "modelled": true,
+  "castTime": false,
+  "note": ""
+ },
+ {
+  "name": "Reach Spell",
+  "source": "trg-prime",
+  "id": "PYWFJe7q0BGNH7Tf",
+  "traits": "Adept, Metamagic",
+  "prerequisites": "",
+  "modelled": true,
+  "castTime": true,
+  "note": ""
+ },
+ {
+  "name": "Heighten Spell",
+  "source": "trg-prime",
+  "id": "SG9f19VQtSPnM3AO",
+  "traits": "Adept, Metamagic",
+  "prerequisites": "",
+  "modelled": true,
+  "castTime": true,
+  "note": ""
+ },
+ {
+  "name": "Empower Spell",
+  "source": "trg-prime",
+  "id": "SpNSZfwibaBu1ppY",
+  "traits": "Adept, Metamagic",
+  "prerequisites": "",
+  "modelled": true,
+  "castTime": true,
+  "note": ""
+ },
+ {
+  "name": "Extend Spell",
+  "source": "trg-prime",
+  "id": "X1haqE1HVvIkTWbK",
+  "traits": "Adept, Metamagic",
+  "prerequisites": "",
+  "modelled": true,
+  "castTime": true,
+  "note": ""
+ },
+ {
+  "name": "Distant Spell",
+  "source": "trg-prime",
+  "id": "ecNkyQkCrIoozUlh",
+  "traits": "Adept, Metamagic",
+  "prerequisites": "",
+  "modelled": true,
+  "castTime": true,
+  "note": ""
+ },
+ {
+  "name": "Elemental Spell",
+  "source": "trg-prime",
+  "id": "fTHSpoM78Qg57qBR",
+  "traits": "Adept, Metamagic",
+  "prerequisites": "",
+  "modelled": true,
+  "castTime": true,
+  "note": ""
+ },
+ {
+  "name": "Intensified Spell",
+  "source": "trg-prime",
+  "id": "hszGXud8UhSMSzcg",
+  "traits": "Adept, Metamagic",
+  "prerequisites": "",
+  "modelled": true,
+  "castTime": true,
+  "note": ""
+ },
+ {
+  "name": "Aligned Spell",
+  "source": "trg-prime",
+  "id": "imEvas7ed4Z6hdbU",
+  "traits": "Adept, Metamagic, Save",
+  "prerequisites": "",
+  "modelled": true,
+  "castTime": true,
+  "note": ""
+ },
+ {
+  "name": "Conductive Healing",
+  "source": "trg-prime",
+  "id": "la5QYPWDvgLHXkB6",
+  "traits": "Cleric, Metamagic",
+  "prerequisites": "",
+  "modelled": true,
+  "castTime": false,
+  "note": ""
+ },
+ {
+  "name": "Imposing Will",
+  "source": "trg-prime",
+  "id": "leLkwB3aIZmmEykN",
+  "traits": "Adept, Metamagic",
+  "prerequisites": "Cha +2",
+  "modelled": true,
+  "castTime": true,
+  "note": ""
+ },
+ {
+  "name": "Economic Spell",
+  "source": "trg-prime",
+  "id": "m1loT4zLrezTyiqe",
+  "traits": "Adept, Metamagic",
+  "prerequisites": "",
+  "modelled": true,
+  "castTime": true,
+  "note": ""
+ },
+ {
+  "name": "Quicken Spell",
+  "source": "trg-prime",
+  "id": "nOKUrLSMNUaZ89fv",
+  "traits": "Adept, Metamagic, Flourish",
+  "prerequisites": "",
+  "modelled": true,
+  "castTime": true,
+  "note": ""
+ },
+ {
+  "name": "Split Spell",
+  "source": "trg-prime",
+  "id": "op9XTXMHC2GCklEn",
+  "traits": "Adept, Metamagic",
+  "prerequisites": "",
+  "modelled": true,
+  "castTime": true,
+  "note": ""
+ },
+ {
+  "name": "Still Spell",
+  "source": "trg-prime",
+  "id": "tqp0qORtnsk6737l",
+  "traits": "Adept, Metamagic",
+  "prerequisites": "",
+  "modelled": true,
+  "castTime": true,
+  "note": ""
+ },
+ {
+  "name": "Component Mastery",
+  "source": "trg-prime",
+  "id": "tugZdPd0Ikkuhia0",
+  "traits": "Adept, Metamagic",
+  "prerequisites": "",
+  "modelled": true,
+  "castTime": true,
+  "note": ""
+ },
+ {
+  "name": "Warp Manipulation",
+  "source": "trg-prime",
+  "id": "wmGwarQKdYLeGHoA",
+  "traits": "Adept, Metamagic",
+  "prerequisites": "BSB +10",
+  "modelled": true,
+  "castTime": false,
+  "note": ""
+ }
+]
