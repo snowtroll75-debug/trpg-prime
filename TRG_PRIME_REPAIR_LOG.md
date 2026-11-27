@@ -1218,3 +1218,52 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
   - Unshakable's touch warp carried no note, on the pack copy, on an owned copy, or on the card;
   - Imposing Will's line ended with one full stop.
 - **Delivery:** 3.717.1, branch `fix/spell-metamagic-rulings`.
+
+## R-0043 — A player's spell stops partway on somebody else's creature (3.718.0)
+
+- **Reported:** the player-seat sweep of all 692 core spells, 27 November 2026. Graham asked for the core spells to be worked through ("I know at least two that are not working correctly").
+- **Source state:** branch `fix/spell-metamagic-rulings` at 3.717.1 (`e9b79a9`), installed live.
+- **Root cause:** the relay layer covered damage, conditions, effects, heals and saves. A further set of target-side writes went straight to the document:
+  - attitude flags;
+  - conjured items;
+  - `pendingModifiers`, `temporaryImmunity`, `imprisoned`, `cuttingWords`, `spellDrain` and `flatLadderCurse` flags;
+  - granted ability items;
+  - Region behaviours and Wall documents;
+  - stamps on a freshly laid condition's effect;
+  - Stasis's effect;
+  - a forced Step's token move.
+
+  A GM owns everything, so every GM-side test passed. A player's cast threw at the first such write, which lost the Result card after the PP and the save had already gone.
+- **Fix:**
+  - **New module:** `combat/relayed-writes.mjs` writes directly when this client may, and otherwise relays.
+  - **Eight new relay actions** in `target-relay.mjs`, each bounded:
+    - `ATTITUDE`: the asker must own the caster, and the floor must be a real attitude.
+    - `CONJURE_ITEM`: the GM's client re-normalises the spec against the pack allow-list.
+    - `SPELL_FLAG`: an allow-list of six flags, and object values only.
+    - `SPELL_ITEMS`: abilities stamped `spellItem` only.
+    - `REGION_BEHAVIOURS`: `modifyMovementCost` only, on a Region the asker placed.
+    - `EFFECT_STAMP`: five named stamps, and removal only of a spell's own effect.
+    - `FORCED_MOVE`: the asker must own the source, the distance is capped at 120 ft, and the GM's client plans the move.
+    - `SPELL_WALLS`: segments rebuilt from their coordinates and senses, up to 64, on a Region the asker placed.
+  - Bless Water's card no longer blames the compendium for a refused write.
+- **Testing:**
+  - `verify-core-sweep-3718` (96 checks) runs each action through the real router with hostile payloads, and checks every call site.
+  - `mutate-core-sweep-3718`: 44 mutations, all caught.
+  - The full verify battery passed, including `verify-checks-read-source`, along with the full mutate battery.
+  - GM-seat re-casts confirmed the same spells' downstream behaviour.
+- **Live verification:** pending Graham's install.
+- **Delivery:** 3.718.0, branch `fix/spell-core-sweep`.
+
+## R-0044 — Nightvision grants nothing; Conjuration Shield makes its own area save (3.718.0)
+
+- **Reported:** the same sweep. Nightvision's card read "declares a malformed ability grant". Conjuration Shield's cast rolled a Will save for every creature in its radius.
+- **Root causes:**
+  - **Nightvision:** its `grantAbility` row carried `ability: "Nightvision"` and no `uuid`, and `normaliseGrantedAbility` reads only a uuid. `verify-chapter10-291-300` F1b pinned the name, so it checked the vocabulary rather than the behaviour.
+  - **Conjuration Shield:** `category: "save"` and `defence: "Will"`. The page gives that save to "the conjuring caster" of a creature conjured later, inside the area.
+- **Fix:**
+  - **Nightvision:** the row is now the pack's own Nightvision ability, by uuid, and its touch warp is capped at one target, as Darkvision's is.
+  - **Conjuration Shield:** category utility, no defence, and a card note giving the conjurer's save.
+  - The changes were made through `declare-spell-matrix-fixes.mjs`, with five `PACK_REPAIRS` entries, and the schema and pack-copy pass were re-gated to 3.718.0.
+- **Testing:** `verify-core-sweep-3718` J1–J6, including J4, which checks that every `grantAbility` row in the pack normalises. F1b was corrected, and `verify-target-cap` C1 now counts 12.
+- **Live verification:** pending.
+- **Delivery:** 3.718.0, branch `fix/spell-core-sweep`.

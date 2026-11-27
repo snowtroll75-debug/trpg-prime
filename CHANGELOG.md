@@ -2,6 +2,14 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.718.0 — 27 November 2026: What casting every core spell as a player found
+
+Full notes in `release-notes-3.718.0.md`. All 692 core spells were cast from the player's seat (`live-testing-report-3.718.0-core-sweep.md`).
+
+- **Player casting on somebody else's creature:** 34 spells stopped partway (PP spent, no Result card) because one write on the target was refused. Every such write now goes through the GM's client. Eight new bounded relay actions cover charms, conjured items, spell records, granted Speeds and abilities, difficult terrain, condition stamps, forced movement and wall segments.
+- **Nightvision:** it now grants Nightvision (the row named the ability, not its uuid), and its touch warp targets one creature.
+- **Conjuration Shield:** it no longer makes everyone in its radius roll a Will save on casting; the save belongs to a later conjurer (schema 3.718.0).
+
 ## 3.717.1 — 27 November 2026: Three things the 3.717.0 live test found
 
 Full notes in `release-notes-3.717.1.md`. In the 3.717.0 live test, all 16 cases passed (`live-testing-report-3.717.0.md`).
