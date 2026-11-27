@@ -1,0 +1,16 @@
+{
+  "run": "2026-11-27, afternoon UK",
+  "core": "3.717.1",
+  "foundry": "14.367",
+  "world": "Test",
+  "sessions": { "GM": "Testing Dude, http://localhost:30000", "Player": "PC Tester, http://127.0.0.1:30000 (simultaneous)" },
+  "fixtures": "ZZ SM Wizard (level 10, arcane; Imposing Will, Split; Acid Bolt, Command, Unshakable), ZZ SM Ally, GM-only ZZ SM Foe A, Foe B, Zombie (Undead, Mindless), scene ZZ SM Live 37171",
+  "cases": [
+    { "id": "R-D3a", "user": "GM", "check": "the pack's and a fresh owned copy's Unshakable effects", "actual": "[\"defence\"] on both", "result": "Pass" },
+    { "id": "R-D2a", "user": "Player", "spell": "Acid Bolt", "picks": ["Split x1"], "actual": "attack 25 vs DB 10 for both; '(4d4 + 2d4 critical + 4 splash)' on each", "result": "Pass" },
+    { "id": "R-D2b", "user": "GM", "spell": "Acid Bolt", "picks": ["Split x1"], "actual": "'(4d4 + 2d4 critical + 4 splash)' on each", "result": "Pass" },
+    { "id": "R-D1", "user": "Player", "spell": "Command", "picks": ["Imposing Will: undead"], "actual": "'… despite its immunity to the mental trait. Save: …' — one full stop; save rolled on the GM's client, affected", "result": "Pass" },
+    { "id": "R-D3b", "user": "Player", "spell": "Unshakable", "picks": ["warp-1 (touch)"], "target": "Ally", "actual": "10 PP; 'ZZ SM Ally: immunity to stunned (1 minute).' and no 'by hand' note; on the Ally", "result": "Pass" }
+  ],
+  "cleanup": "actors, scene and the session's 16 test-user messages deleted (296 remain); Caves active; world time 96; paused; dice restored"
+}

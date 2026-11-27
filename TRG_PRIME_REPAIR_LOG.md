@@ -1213,5 +1213,8 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
 - **Testing:**
   - `verify-metamagic-targets`: 72 checks. `mutate-metamagic-targets`: 51 mutations, all caught.
   - Every verify file was run except `verify-checks-read-source`, together with every mutate file that pins the version, schema or pack-copy gate, except `mutate-fixes-3685-3b`, whose only anchor here is the version.
-- **Live verification:** pending. 3.717.1 needs installing.
+- **Live verification:** passed on 27 November 2026, on 3.717.1 as installed, from the GM's and the Player's seats (`tools/spell-matrix/data/live-3.717.1.json`):
+  - a split Acid Bolt's critical read "4d4 + 2d4 critical" from both seats;
+  - Unshakable's touch warp carried no note, on the pack copy, on an owned copy, or on the card;
+  - Imposing Will's line ended with one full stop.
 - **Delivery:** 3.717.1, branch `fix/spell-metamagic-rulings`.
