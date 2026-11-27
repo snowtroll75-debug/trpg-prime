@@ -32,6 +32,12 @@
 | O7 | Extend on "until", "varies" and "see text" durations. | "Yes." | Offered. Unchanged. |
 | O8 | Healer's Grace's "(max +4)". | As built. | Four purchases. The rules model now follows the ruling. |
 
+## Graham's ruling of 27 November 2026 (3.717.0 live test)
+
+| # | Question | Answer |
+|---|---|---|
+| Q1 | In the "choose who in the area" dialog, should the caster be ticked by default for a helpful area spell such as Pass Without Trace's area warp? | "Leave them unticked." No change: the caster is unticked by default, as for Missile Storm, and can tick themselves. |
+
 ## The questions as first asked (26 Nov, before the rulings)
 
 | # | Question | Where it bites | Engine today |
