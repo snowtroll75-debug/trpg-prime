@@ -99,7 +99,8 @@ const WORLD_SCHEMA_SETTING = "worldSchemaVersion";
 // 3.717.0: and again for Geas, Pass Without Trace and Unshakable (O5, O6).
 // 3.717.1: and again for Unshakable's stale note.
 // 3.718.0: and again for Nightvision's grant and Conjuration Shield's deferred save.
-export const TRG_SCHEMA_VERSION = "3.718.0";
+// 3.718.1: and again for Size Alteration's equipment (Graham).
+export const TRG_SCHEMA_VERSION = "3.718.1";
 
 /**
  * Register the hidden world setting used to determine whether a migration is
@@ -819,7 +820,8 @@ export async function migrateWorldData(fromVersion = "") {
   // RE-VERSIONED TO 3.717.0: Geas, Pass Without Trace and Unshakable (Graham's O5, O6).
   // RE-VERSIONED TO 3.717.1: Unshakable's stale note (the 3.717.0 live test).
   // RE-VERSIONED TO 3.718.0: Nightvision and Conjuration Shield (the player-seat sweep).
-  const packCopies = (await runIf("3.718.0", "stale owned copies of repaired pack items",
+  // RE-VERSIONED TO 3.718.1: Size Alteration's equipment (Graham, 27 Nov 2026).
+  const packCopies = (await runIf("3.718.1", "stale owned copies of repaired pack items",
     () => migrateStalePackCopies([...actors, ...tokenActors], Array.from(game.items ?? []))))
     ?? { repaired: [], kept: [] };
   result.packCopies = packCopies;

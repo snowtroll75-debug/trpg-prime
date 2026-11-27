@@ -2,6 +2,15 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.718.1 — 27 November 2026: Cure's surge, Size Alteration's weapons, and Darkvision on yourself
+
+Full notes in `release-notes-3.718.1.md`. In the 3.718.0 player-seat re-check, no permission errors remained.
+
+- **Cure (and Inflict), 3 AP:** heals every creature in the 30-foot radius. It no longer asks for "1 willing creature".
+- **Size Alteration:** the target's weapons rise a die step for each size step (Graham), and fall with the reduce warp (schema 3.718.1).
+- **Darkvision and Nightvision on yourself:** they now grant the ability. The caster's own spell of that name no longer counts as already having it.
+- **Question:** Q4, conviction on a player's Secret spell.
+
 ## 3.718.0 — 27 November 2026: What casting every core spell as a player found
 
 Full notes in `release-notes-3.718.0.md`. All 692 core spells were cast from the player's seat (`live-testing-report-3.718.0-core-sweep.md`).

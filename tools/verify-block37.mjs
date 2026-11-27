@@ -127,7 +127,7 @@ async function packRows(pack) {
     && /rageBarsCasting\(actor\) && !drunkPotion/.test(CAST) && /refusal\.blocked && !drunkPotion/.test(CAST)
     && /const componentsOK = drunkPotion/.test(CAST));
   ok("A4b the target picker is skipped for preset targets",
-    CAST.includes("if (spellNeedsTarget(spellData, spell) && !storingNow && !reaction?.presetTargets && !presetTargets) {"));
+    CAST.includes("if (spellNeedsTarget(castShape, spell) && !storingNow && !reaction?.presetTargets && !presetTargets) {"));
   // A1, R2: the builder's level and price.
   ok("A5 R2 — a PP 0 consumable is level 1: 30 gp, a scroll 20 gp",
     consumableLevelFor(0) === 1 && buildConsumable("potion", { spell: { pp: 0 } }).price === 30

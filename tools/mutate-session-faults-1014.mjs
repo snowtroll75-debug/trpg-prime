@@ -23,7 +23,7 @@ const MUTATIONS = [
   { name: "an off-turn strike takes the penalty", file: AT, from: "const baseMap = (isReaction || offTurn) ? 0", to: "const baseMap = isReaction ? 0", breaks: "F4a" },
   { name: "an off-turn strike advances the count", file: AT, from: "if (!isReaction && !mapFrozen && !offTurn) {", to: "if (!isReaction && !mapFrozen) {", breaks: "F4b" },
   { name: "players never see the AoO button", file: OPP, from: "if (!game.user.isGM && !reactorActor?.isOwner) {", to: "if (!game.user.isGM) {", breaks: "F4d" },
-  { name: "the Hand & a Half die is not stepped", file: AT, from: "buildWeaponDamageFormula(handAndAHalfDamage ?? damageOverride ?? weaponData.damage,", to: "buildWeaponDamageFormula(damageOverride ?? weaponData.damage,", breaks: "F5b" },
+  { name: "the Hand & a Half die is not stepped", file: AT, from: "  let strikeBase = handAndAHalfDamage ?? damageOverride ?? weaponData.damage;", to: "  let strikeBase = damageOverride ?? weaponData.damage;", breaks: "F5b" },
   { name: "the chooser puts the fist first", file: ST, from: "[...melee.filter((w) => !w.system?.natural), ...melee.filter((w) => w.system?.natural)]", to: "[...melee]", breaks: "F6a" },
   { name: "a cancelled choice still charges AP", file: AF, from: "  if (chosen === null) return null;\n  if (entry.apCost", to: "  if (entry.apCost", breaks: "F6b" },
   { name: "a readied action is charged again", file: AW, from: "resolveAction(actor, { ...storedAction, apCost: \"0\" }", to: "resolveAction(actor, { ...storedAction }", breaks: "F7a" },

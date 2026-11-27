@@ -338,7 +338,10 @@ ok("P2e Spectral Grasp and Shock Bolt still target a creature",
   const { PACK_REPAIRS } = await import("../module/data/pack-repairs.mjs");
   for (const [name, fields] of Object.entries(plannedFields())) {
     for (const field of fields) {
-      const entry = PACK_REPAIRS.find((r) => r.name === name && r.field === field && r.since === "3.608.0");
+      // 3.718.1 re-dated Size Alteration's effects (Graham: its equipment
+      // grows with it), and the entry carries the 3.608.0 row as `alsoFrom`.
+      const since = name === "Size Alteration" && field === "effects" ? "3.718.1" : "3.608.0";
+      const entry = PACK_REPAIRS.find((r) => r.name === name && r.field === field && r.since === since);
       ok(`P3 ${name}.${field} has a 3.608.0 pack-repair entry`, Boolean(entry));
       ok(`P3b and its \`to\` is the plan`, deepEqual(entry?.to, PLAN[name][field]));
     }

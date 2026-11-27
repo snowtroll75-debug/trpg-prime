@@ -92,7 +92,7 @@ const MUTATIONS = [
   { file: CAST, name: "Guiding Stone adds nothing",
     from: "  const abilityFormula = withDamageAbility(", to: "  const abilityFormula = ((f) => ({ formula: f }))(", breaks: "J9" },
   { file: CAST, name: "an AP mode's target count is ignored",
-    from: "targetCapFor(apMode?.targets ?? spellData?.targets, warp.mods, casterLevel), mm.splitExtra),",
+    from: "targetCapFor(castShape?.targets, warp.mods, casterLevel), mm.splitExtra),",
     to: "targetCapFor(spellData?.targets, warp.mods, casterLevel), mm.splitExtra),", breaks: "J11" },
   { file: ATTACK, name: "a weapon meets full DR under Devastating Might",
     from: "    const dr = penalisedPools.armourDr;",

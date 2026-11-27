@@ -1251,7 +1251,7 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
   - `mutate-core-sweep-3718`: 44 mutations, all caught.
   - The full verify battery passed, including `verify-checks-read-source`, along with the full mutate battery.
   - GM-seat re-casts confirmed the same spells' downstream behaviour.
-- **Live verification:** pending Graham's install.
+- **Live verification:** passed on 27 November 2026, on 3.718.0 as installed, from the player's seat with the GM connected. No permission errors remained, and every write landed on a creature the player does not own. The details are in `release-notes-3.718.1.md`.
 - **Delivery:** 3.718.0, branch `fix/spell-core-sweep`.
 
 ## R-0044 — Nightvision grants nothing; Conjuration Shield makes its own area save (3.718.0)
@@ -1265,5 +1265,32 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
   - **Conjuration Shield:** category utility, no defence, and a card note giving the conjurer's save.
   - The changes were made through `declare-spell-matrix-fixes.mjs`, with five `PACK_REPAIRS` entries, and the schema and pack-copy pass were re-gated to 3.718.0.
 - **Testing:** `verify-core-sweep-3718` J1–J6, including J4, which checks that every `grantAbility` row in the pack normalises. F1b was corrected, and `verify-target-cap` C1 now counts 12.
-- **Live verification:** pending.
+- **Live verification:** passed on 27 November 2026, on 3.718.0.
+  - Conjuration Shield caught eight creatures and rolled no saves.
+  - Nightvision still said "already has" on its caster, which is R-0045.
 - **Delivery:** 3.718.0, branch `fix/spell-core-sweep`.
+
+## R-0045 — Cure's 3 AP surge reaches one creature; Size Alteration leaves the weapons; Darkvision on yourself grants nothing (3.718.1)
+
+- **Reported:**
+  - Graham, 27 November 2026: "Cure. When the 3 AP action of the spell is cast, it states that you may only affect one target when it should affect all creatures (friend or foe) in a 30 foot radius. Size Alteration does not affect the size of the targets weapons (they should increase by one die step)."
+  - The Darkvision fault was found in the 3.718.0 live re-check.
+- **Source state:** branch `fix/spell-core-sweep` at 3.718.0 (`d2b3fbb`), installed live. All three were reproduced from the player's seat:
+  - Cure 3 AP: "Cure targets 1 creature or object; 2 were chosen".
+  - A Large Ranger's Short Sword still rolled d6.
+  - The Wizard's own Nightvision: "already has Nightvision".
+- **Root causes:**
+  - **Cure:** the target gates read `spellData` (the item), not the chosen AP option. Inflict's 3 AP option shares the fault.
+  - **Size Alteration:** the size step changed `identity.size` and nothing told the weapon.
+  - **Darkvision and Nightvision:** `alreadyHasAbility` matched any item by name, including the caster's own spell.
+- **Fix:**
+  - **Cure:** `castShape` in `cast-workflow`.
+  - **Size Alteration:** `equipmentGrows` on the row, `EQUIPMENT_SIZE_FLAG` on the effect, and `strikeBase` stepped in `attack-workflow`, for weapon items only.
+  - **Darkvision and Nightvision:** spells are ignored by `alreadyHasAbility`.
+  - The Size Alteration repair was amended (since 3.718.1), and the schema and pack-copy pass were re-gated.
+- **Testing:**
+  - `verify-fixes-3718-1`: 22 checks. `mutate-fixes-3718-1`: 10 mutations, all caught.
+  - The full verify battery passed.
+  - Every mutate file that touches the cast workflow, the attack workflow, size steps or the version pins passed (224 files).
+- **Live verification:** pending Graham's install.
+- **Delivery:** 3.718.1, branch `fix/spell-core-sweep`.

@@ -192,14 +192,14 @@ const cast = read("module", "magic", "cast-workflow.mjs");
 // creature per level" scales off the same number as max PP per cast —
 // and an ITEM cast off the consumable's level rather than the reader's.
 ok("G1 the gate exists, and knows the caster's level",
-  cast.includes("if (!storingNow && spellNeedsTarget(spellData, spell)) {")
+  cast.includes("if (!storingNow && spellNeedsTarget(castShape, spell)) {")
   // An AP mode may name its own count since 3.611.0 (Death's Defiance).
   // …raised by Split Spell's extra targets since 3.717.0.
-  && cast.includes("targetCapFor(apMode?.targets ?? spellData?.targets, warp.mods, casterLevel)"));
+  && cast.includes("targetCapFor(castShape?.targets, warp.mods, casterLevel)"));
 ok("G1b and refuses out loud", cast.includes("const refusal = overTargetRefusal({")
   && cast.includes("ui.notifications.warn(refusal);"));
 
-const gateAt = cast.indexOf("if (!storingNow && spellNeedsTarget(spellData, spell)) {");
+const gateAt = cast.indexOf("if (!storingNow && spellNeedsTarget(castShape, spell)) {");
 const warpChooser = cast.indexOf("warp = aggregateWarpSelection(warpSpell.system?.warps, form);");
 const checkAt = cast.indexOf("const check = noCheckCantrip");
 const ppAt = cast.indexOf("const outcome = castingOutcome(degree, {");
@@ -226,7 +226,7 @@ ok("G3b and before the PP is taken", gateAt < ppAt, "a refusal must cost nothing
 // G4 THE PICKER SAYS THE NUMBER WHERE IT SURPRISES — Graham's ruling
 // that a picker annotates rather than removes.
 ok("G4 the picker carries the note",
-  cast.includes("targetCapNote(spellData?.targets, {})"));
+  cast.includes("targetCapNote(castShape?.targets, {})"));
 /*
  * G5 THE BOXES ARE STILL NOT DISABLED and no row is hidden: this release
  * must not quietly overturn the 27 August ruling one file over.

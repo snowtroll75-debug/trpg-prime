@@ -6532,12 +6532,20 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
               : sizeStepRefusedLine(target.name, from, steps)));
             break;
           }
-          await createEffectsOn(target, [overrideEffectData({
+          const sizeData = overrideEffectData({
             name: effectName(spell.name, effect.note), spell, changes: [change],
             parsedDuration, castId, registersCast
-          })]);
+          });
+          // ITS EQUIPMENT CHANGES WITH IT (3.718.1, Graham): the row says so,
+          // and the effect carries the signed steps a weapon's die moves by.
+          if (effect.equipmentGrows) {
+            const { EQUIPMENT_SIZE_FLAG } = await import("./size-step.mjs");
+            sizeData.flags[SYSTEM_ID][EQUIPMENT_SIZE_FLAG] = steps;
+          }
+          await createEffectsOn(target, [sizeData]);
           if (castId && target.uuid) affected.add(target.uuid);
-          lines.push(line(sizeStepLine(target.name, from, change.value, steps) + durationText));
+          lines.push(line(sizeStepLine(target.name, from, change.value, steps) + durationText
+            + (effect.equipmentGrows ? ` Its weapons' damage die ${steps > 0 ? "rises" : "falls"} by ${Math.abs(steps)} step${Math.abs(steps) === 1 ? "" : "s"} with it.` : "")));
           break;
         }
         /*

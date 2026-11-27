@@ -159,3 +159,31 @@ export function boundedSizeRefusedLine(name, from, why, spec = {}) {
   }
   return sizeStepRefusedLine(name, from, 1);
 }
+
+/**
+ * THE FLAG A SIZE CHANGE LEAVES WHEN THE CREATURE'S EQUIPMENT CHANGES WITH IT
+ * (3.718.1). Size Alteration: "Its equipment grows with it but returns to
+ * natural size if removed." Graham, 27 November 2026: "Size Alteration does
+ * not affect the size of the targets weapons (they should increase by one die
+ * step)". The effect carries the signed number of steps; a weapon's damage
+ * die moves by the same number (two steps with the +6 PP warp, down with the
+ * reduce warp).
+ */
+export const EQUIPMENT_SIZE_FLAG = "equipmentSizeSteps";
+
+/**
+ * How many die steps a creature's weapons have moved with it, signed: the
+ * sum over its live effects that carry EQUIPMENT_SIZE_FLAG. 0 when none.
+ *
+ * @param {{effects?: Iterable<object>}} actor
+ * @returns {number}
+ */
+export function equipmentSizeSteps(actor) {
+  let total = 0;
+  for (const effect of Array.from(actor?.effects ?? [])) {
+    if (!effect || effect.disabled) continue;
+    const n = Math.trunc(Number(effect.flags?.["trg-prime"]?.[EQUIPMENT_SIZE_FLAG] ?? 0) || 0);
+    total += n;
+  }
+  return total;
+}

@@ -5884,7 +5884,20 @@ async function resolveWeaponDamageInScope(
   }
   // UNSTOPPABLE FORCE (3.659.0; block 28 R8), read where the packets resolve below.
   const unstoppable = (weaponData.attackMode ?? "melee") !== "missile" && ignoresResistanceInMelee(Array.from(actor?.items ?? []));
-  let formula = buildWeaponDamageFormula(handAndAHalfDamage ?? damageOverride ?? weaponData.damage, {
+  /*
+   * A WEAPON THAT GREW WITH ITS WIELDER (3.718.1; Graham, 27 November 2026:
+   * Size Alteration "does not affect the size of the targets weapons (they
+   * should increase by one die step)"). The page: "Its equipment grows with
+   * it". A weapon only — an unarmed or natural attack is not equipment. The
+   * steps are the signed sum the size effects carry; see magic/size-step.mjs.
+   */
+  let strikeBase = handAndAHalfDamage ?? damageOverride ?? weaponData.damage;
+  {
+    const { equipmentSizeSteps } = await import("../magic/size-step.mjs");
+    const grown = weapon?.type === "weapon" && !unarmed?.damage && !isUnarmedAttack(weaponData) ? equipmentSizeSteps(actor) : 0;
+    if (grown) strikeBase = steppedCreatureDamage(strikeBase, grown) ?? strikeBase;
+  }
+  let formula = buildWeaponDamageFormula(strikeBase, {
     bab: Number(system.combat?.bab?.total ?? 0),
     critical,
     criticalDice: (drainDice || guardDice) ? 0 : critDiceKept,

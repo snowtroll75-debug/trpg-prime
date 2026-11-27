@@ -219,10 +219,10 @@ const cast = strip(read("module", "magic", "cast-workflow.mjs"));
 // cares about. What it asserts is that the gate ASKS whether the spell
 // names creatures; a mutation removing the question still breaks it.
 ok("C1 AREA SPELLS NEVER REACH THE PICKER",
-  cast.includes("if (spellNeedsTarget(spellData, spell)"),
+  cast.includes("if (spellNeedsTarget(castShape, spell)"),
   "their template decides who is caught; warning them would be noise");
 ok("C2 and the picker is inside that gate",
-  before(cast, "if (spellNeedsTarget(spellData, spell)", "promptTargetSelection(actor, {"));
+  before(cast, "if (spellNeedsTarget(castShape, spell)", "promptTargetSelection(actor, {"));
 
 /* ================================================================== */
 

@@ -72,7 +72,11 @@ export function normaliseGrantedAbility(raw) {
 export function alreadyHasAbility(items = [], name = "") {
   const wanted = text(name).toLowerCase();
   if (!wanted) return false;
-  return (items ?? []).some((item) => text(item?.name).toLowerCase() === wanted);
+  // A SPELL OF THE SAME NAME IS NOT THE ABILITY (3.718.1; found in the 3.718.0
+  // live re-check). Darkvision and Nightvision are spells that grant abilities
+  // of their own names, so every caster casting either on themselves "already
+  // has" it — the spell on their own sheet matched — and nothing was granted.
+  return (items ?? []).some((item) => item?.type !== "spell" && text(item?.name).toLowerCase() === wanted);
 }
 
 /** The card line, for each of the three things that can happen. */

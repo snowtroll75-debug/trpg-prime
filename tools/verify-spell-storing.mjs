@@ -192,7 +192,7 @@ ok("G2 Spell Storing itself is never stored",
 // chosen at the release; a target picked now has had a round to move.
 ok("G3 NO TARGET PROMPT WHILE STORING",
   // RE-ANCHORED 3.612.0: the line also skips a reaction cast's preset target.
-  cast.includes("if (spellNeedsTarget(spellData, spell) && !storingNow && !reaction?.presetTargets && !presetTargets) {"),
+  cast.includes("if (spellNeedsTarget(castShape, spell) && !storingNow && !reaction?.presetTargets && !presetTargets) {"),
   "the ruling puts the targets at the release");
 // G4 NO SECOND WARP CHOOSER AT RELEASE.
 ok("G4 the chooser is skipped for a released spell",

@@ -260,7 +260,7 @@ ok("I5 no row in the block reads a warp-unlock nobody sells", Object.entries(PLA
   ok("J10 the save damage asks about the bigger die before it rolls",
     cast.indexOf("const upgrade = damageDieUpgrade(effectiveDamage);") > 0
     && cast.indexOf("const upgrade = damageDieUpgrade(effectiveDamage);") < cast.indexOf("const dmgRoll = await new Roll(damageFormula).evaluate();"));
-  ok("J11 an AP mode's own target count is the cap", cast.includes("targetCapFor(apMode?.targets ?? spellData?.targets, warp.mods, casterLevel)"));
+  ok("J11 an AP mode's own target count is the cap", cast.includes("targetCapFor(castShape?.targets, warp.mods, casterLevel)"));
   ok("J12 both damage paths spend a negative DR pool", /drAfterPenalty\(derivedDr, derivedNatural, targetSystem\?\.combat\?\.dr\?\.total\)/.test(damageFlow)
     && /const penalisedPools = drAfterPenalty\(/.test(attack) && /const dr = penalisedPools\.armourDr;/.test(attack));
   ok("J13 Death's Defiance's recovery costs no Fatigued, across the relay too",

@@ -197,7 +197,7 @@ const opt = (spellData, id, more) => opts(spellData, more).find((o) => o.id === 
   ok("W3 Aligned prunes a targeted spell's targets", /const aligned = alignedPartition\(reached, mm\.alignedTraits/.test(cw));
   ok("W4 …and refuses, nothing spent, when nobody is left", /if \(!reached\.length\) \{\s*for \(const miss of passedBy\) ui\.notifications\.warn\([^\n]*\);\s*return null;/.test(cw));
   ok("W5 that gate sits before the target cap", cw.indexOf("WHO THE METAMAGIC LETS IN") > 0 && cw.indexOf("WHO THE METAMAGIC LETS IN") < cw.indexOf("cap: splitTargetCap("));
-  ok("W6 Split raises the target cap", /cap: splitTargetCap\(targetCapFor\(apMode\?\.targets \?\? spellData\?\.targets, warp\.mods, casterLevel\), mm\.splitExtra\)/.test(cw));
+  ok("W6 Split raises the target cap", /cap: splitTargetCap\(targetCapFor\(castShape\?\.targets, warp\.mods, casterLevel\), mm\.splitExtra\)/.test(cw));
   ok("W7 an area lets the paid-for type through", /imposes: mm\.imposingType \? \(a\) => isOfKindForWill\(a\.system, mm\.imposingType\) : null/.test(cw));
   ok("W8 an area keeps only the chosen alignment", /areaAligned = alignedPartition\(areaTargets, mm\.alignedTraits, \(a\) => alignedTraitsOf\(a\.system\)\);\s*areaTargets = areaAligned\.kept;/.test(cw) && /\.\.\.areaImmunity\.skipped, \.\.\.areaAligned\.skipped\]/.test(cw));
   ok("W9 an area asks who Selective excludes", /if \(mm\.selectiveCount > 0 && areaTargets\.length\) \{/.test(cw) && /areaTargets = picked\.kept;/.test(cw));

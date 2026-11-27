@@ -62,7 +62,9 @@ ok("F4d the reactor's own player sees the AoO button", /if \(!game\.user\.isGM &
 const { steppedCreatureDamage } = await import(new URL("../module/creature-attacks.mjs", import.meta.url));
 equal("F5a one size larger: d8 to d10, d10 to d12, 2d6 to 2d8", [steppedCreatureDamage("1d8", 1), steppedCreatureDamage("1d10", 1), steppedCreatureDamage("2d6", 1)], ["1d10", "1d12", "2d8"]);
 ok("F5b the two-handed Hand & a Half grip rolls the stepped die", /const handAndAHalfDamage = usedTwoHanded && heldInTwoHandGrip\(weapon\)\n    \? steppedCreatureDamage\(damageOverride \?\? weaponData\.damage, 1\)/.test(src.at)
-  && /buildWeaponDamageFormula\(handAndAHalfDamage \?\? damageOverride \?\? weaponData\.damage,/.test(src.at));
+  // 3.718.1: through strikeBase, which a grown weapon then steps.
+  && /let strikeBase = handAndAHalfDamage \?\? damageOverride \?\? weaponData\.damage;/.test(src.at)
+  && /buildWeaponDamageFormula\(strikeBase,/.test(src.at));
 
 // F6
 ok("F6a the chooser asks only when two melee attacks are ready, held weapons first", /if \(melee\.length < 2\) return undefined;/.test(src.strike) && /\[\.\.\.melee\.filter\(\(w\) => !w\.system\?\.natural\), \.\.\.melee\.filter\(\(w\) => w\.system\?\.natural\)\]/.test(src.strike));

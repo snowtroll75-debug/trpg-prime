@@ -52,7 +52,7 @@ const MUTATIONS = [
   {
     name: "a spell stops offering its printed targets",
     file: C,
-    from: "        targets: spellData?.targets",
+    from: "        targets: castShape?.targets",
     to: '        targets: ""',
     breaks: "B4 — Healing Earth is generic again"
   },

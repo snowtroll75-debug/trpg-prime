@@ -60,7 +60,8 @@ ok("A6b as does a missing one", targetPromptText({ targets: null }) === DEFAULT_
   // directly against `targetPromptText(`. What this asserts is unchanged:
   // the spell's own printed targets reach the picker.
   ok("B4 a spell offers its own printed targets",
-    /targetPromptText\(\{[\s\S]{0,160}targets: spellData\?\.targets/.test(cast));
+    // 3.718.1: the cast's own shape, so an AP mode's area asks for no count.
+    /targetPromptText\(\{[\s\S]{0,160}targets: castShape\?\.targets/.test(cast));
   ok("B4c and the composed prompt is what the picker is handed",
     /prompt: \[[\s\S]{0,400}\]\.filter\(Boolean\)\.join\(" "\),/.test(cast),
     "the pieces must reach the dialog, not merely be computed");

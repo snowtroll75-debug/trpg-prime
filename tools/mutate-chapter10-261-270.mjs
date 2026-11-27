@@ -179,7 +179,8 @@ const MUTATIONS = [
   { file: GRANT, name: "G: a grant row with no uuid is honoured",
     from: `  if (!uuid) return null;`, to: `  if (false) return null;`, breaks: "G32" },
   { file: GRANT, name: "G: a creature that already has the ability is given a second copy",
-    from: `  return (items ?? []).some((item) => text(item?.name).toLowerCase() === wanted);`,
+    // RE-ANCHORED AT 3.718.1: a spell of the same name is passed over.
+    from: `  return (items ?? []).some((item) => item?.type !== "spell" && text(item?.name).toLowerCase() === wanted);`,
     to: `  return false;`, breaks: "G33" },
   { file: GRANT, name: "G: a missing compendium entry passes silently",
     from: `    return \`<em>\${spellName} names an ability the pack does not hold — nothing applied.</em>\`;`,

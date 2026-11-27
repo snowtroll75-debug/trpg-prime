@@ -1209,6 +1209,21 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
   const effDefence = apMode && Object.prototype.hasOwnProperty.call(apMode, "defence") ? String(apMode.defence ?? "") : null;
   const effArea = apMode ? (apMode.area ?? "") : spellData.area;
   let effEffects = apMode?.effects ?? spellData.effects;
+  /*
+   * THE SHAPE THIS CAST TAKES, FOR THE TARGET GATES (3.718.1).
+   *
+   * Graham, 27 November 2026: Cure's 3 AP mode, "a surge of restorative
+   * energy spreads outward in a 30-foot radius, healing all creatures within
+   * its range", refused a second creature — "you may only affect one". The
+   * mode names an area, but the picker, the target count and the area tests
+   * all read the ITEM's fields, and the item's are the 1 AP form's: no area,
+   * "1 willing creature". Inflict's 3 AP mode was the same. A mode that
+   * names an area replaces the item's printed targets (the mode IS the area);
+   * a mode that names its own count (Death's Defiance) keeps it.
+   */
+  const castShape = apMode
+    ? { ...spellData, range: effRange, area: effArea, targets: apMode.targets ?? (String(effArea ?? "").trim() ? "" : spellData.targets) }
+    : spellData;
   // A NOTE FOR A CAST FROM THE SHEET IS NOT SAID ON A REACTION (3.612.1, G1 of
   // the 3.612.0 drive). Fateful Temptation's and Lucky Break's rows explain
   // where they are really cast from; cast in answer to a save, that card was
@@ -1359,7 +1374,7 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
   // of the ruling is that the targets are chosen at the release, and a
   // target picked now would be a creature that has had a round to move.
   // AN OBJECT'S SPELL ASKS FOR NO CREATURE (3.685.1): see `spellTargetsObject`.
-  if (spellNeedsTarget(spellData, spell) && !storingNow && !reaction?.presetTargets && !presetTargets) {
+  if (spellNeedsTarget(castShape, spell) && !storingNow && !reaction?.presetTargets && !presetTargets) {
     // THE SIDE GATE'S OWN SENTENCE, ONE STEP EARLY (3.443.2). The gate
     // below still decides; this only lets the picker say what it will
     // decide, so a Bard is not offered a bare row for a creature their
@@ -1373,12 +1388,12 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
       prompt: [
         targetPromptText({
           isAttack: spellData?.category === "attack",
-          targets: spellData?.targets
+          targets: castShape?.targets
         }),
         // THE ENFORCED NUMBER, said only where a reader would get a
         // different one from the printed line — "you and up to 5" reads
         // as five and allows six. See magic/target-count.mjs.
-        targetCapNote(spellData?.targets, {})
+        targetCapNote(castShape?.targets, {})
       ].filter(Boolean).join(" "),
       note: dispositionReasonFor(actor, spell)
     });
@@ -1438,7 +1453,7 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
   // would have been uncastable (3.352.0).
   let kindSkipped = [];
   let kindWidened = [];
-  if (spellData.kindGate && !isAreaSpell(spellData)) {
+  if (spellData.kindGate && !isAreaSpell(castShape)) {
     const gate = applyKindGate(actor, spell, spellData);
     if (!gate.allowed) return null;
     kindSkipped = gate.skipped;
@@ -1458,7 +1473,7 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
   // "WHO THE METAMAGIC LETS IN" further down). Asked here, a Mindless undead
   // would have been refused before the caster could pay to reach it.
   const imposingWillDeferred = mayImposeWill(actor, spellData);
-  if (!isAreaSpell(spellData) && spellNeedsTarget(spellData, spell) && !storingNow && !imposingWillDeferred) {
+  if (!isAreaSpell(castShape) && spellNeedsTarget(castShape, spell) && !storingNow && !imposingWillDeferred) {
     const targeted = Array.from(game.user?.targets ?? []).filter((t) => t?.actor);
     if (targeted.length) {
       const { partitionTraitImmune } = await import("./spell-trait-immunity.mjs");
@@ -2572,7 +2587,7 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
    *   - Aligned Spell: a creature with none of the chosen traits is passed by.
    * The kind gate's shape: pruned and named; refused if nobody is left.
    */
-  if (!storingNow && !isAreaSpell(spellData) && spellNeedsTarget(spellData, spell)
+  if (!storingNow && !isAreaSpell(castShape) && spellNeedsTarget(castShape, spell)
     && (imposingWillDeferred || (mm.alignedTraits ?? []).length)) {
     const targeted = Array.from(game.user?.targets ?? []).filter((t) => t?.actor);
     if (targeted.length) {
@@ -2610,7 +2625,7 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
     }
   }
 
-  if (!storingNow && spellNeedsTarget(spellData, spell)) {
+  if (!storingNow && spellNeedsTarget(castShape, spell)) {
     const refusal = overTargetRefusal({
       spellName: spell.name,
       // THE CASTER LEVEL THIS CAST IS ALREADY USING (3.520.0), so a
@@ -2622,7 +2637,7 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
       // Death's Defiance: "1 living creature per action spent to cast this
       // spell", so the 2 AP mode targets two.
       // SPLIT SPELL'S EXTRA TARGETS (3.717.0, O4) raise the cap by what was bought.
-      cap: splitTargetCap(targetCapFor(apMode?.targets ?? spellData?.targets, warp.mods, casterLevel), mm.splitExtra),
+      cap: splitTargetCap(targetCapFor(castShape?.targets, warp.mods, casterLevel), mm.splitExtra),
       chosen: Array.from(game.user?.targets ?? []).length
     });
     if (refusal) {
@@ -4201,7 +4216,7 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
     else if ((reacted.scale ?? 1) !== 1 || reacted.saveBias || reacted.retargetCaster || reacted.turnBack || reacted.exclude?.length) {
       const { applyCastReactionShape } = await import("./cast-reaction-shape-workflow.mjs");
       degreeRemapLines.push(...await applyCastReactionShape({
-        actor, spell, spellData, warpMods, effArea, isArea: isAreaSpell(spellData), reacted
+        actor, spell, spellData, warpMods, effArea, isArea: isAreaSpell(castShape), reacted
       }));
     }
   }
@@ -6043,7 +6058,7 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
     const { rootedMovementChecks } = await import("./rooted-movement-workflow.mjs");
     rooted = await rootedMovementChecks(actor, spell, {
       targeted: Array.from(game.user?.targets ?? []).map((t) => t?.actor).filter(Boolean),
-      isArea: isAreaSpell(spellData)
+      isArea: isAreaSpell(castShape)
     });
     for (const said of rooted.lines) lines.push(line(said));
   }

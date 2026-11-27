@@ -86,7 +86,10 @@ export const PLAN = {
   "Size Alteration": {
     effects: [{
       kind: "sizeStep", target: "targets", label: "Size Alteration",
-      steps: 1, largestAffected: "medium", floor: "tiny", reversible: true
+      steps: 1, largestAffected: "medium", floor: "tiny", reversible: true,
+      // 3.718.1 (Graham, 27 Nov 2026): "Its equipment grows with it" — the
+      // target's weapons rise one die step.
+      equipmentGrows: true
     }],
     warps: [
       { ppCost: 2, text: "reduce the size of a creature (tiny min)", mods: { sizeReverse: true } },

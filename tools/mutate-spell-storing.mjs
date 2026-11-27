@@ -147,8 +147,8 @@ const MUTATIONS = [
     file: CAST,
     name: "G3 TARGETS ARE PICKED AT STORAGE, a round before they are needed",
     // RE-ANCHORED 3.612.0: the line also skips a reaction cast's preset target.
-    from: "  if (spellNeedsTarget(spellData, spell) && !storingNow && !reaction?.presetTargets && !presetTargets) {",
-    to: "  if (spellNeedsTarget(spellData, spell) && !reaction?.presetTargets && !presetTargets) {",
+    from: "  if (spellNeedsTarget(castShape, spell) && !storingNow && !reaction?.presetTargets && !presetTargets) {",
+    to: "  if (spellNeedsTarget(castShape, spell) && !reaction?.presetTargets && !presetTargets) {",
     breaks: "G3 — a target chosen now has had a round to move"
   },
   {

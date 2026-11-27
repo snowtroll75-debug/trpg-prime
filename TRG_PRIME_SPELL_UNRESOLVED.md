@@ -55,7 +55,8 @@
 | U11 | When a **player's** spell targets a GM-owned NPC, the NPC's save is rolled on the player's client and written through the GM. Intended? | all save spells | As described. |
 | U12 | **Shape Of The Wyrm**'s "gain an additional natural attack (available to your type)" prints no ceiling. The engine applies the other Shape spells' "max two". | 1 spell | 2. |
 | Q2 | **False Health's warp** ("+2 PP: increase the ability score multiplier by x1 (max x5)") is charged and does nothing (3.718.0 core sweep). Automate it, as Unshakable's was at O6? | 1 spell (1 of the 220 warps with empty mods) | Charged, not applied. |
-| Q3 | **Which two spells Graham already knew were wrong** ("I know at least two that are not working correctly") — to confirm the 3.718.0 sweep caught them. | — | Asked with 3.718.0. |
+| Q3 | **Which two spells Graham already knew were wrong** — answered 27 Nov 2026: Cure's 3 AP surge and Size Alteration's weapons (both fixed in 3.718.1, R-0045). | — | Answered. |
+| Q4 | **A player's Secret spell** (Doubt and others) waits for the GM to answer the conviction prompt: the casting check is rolled blind, so the prompt is whispered to the GM only. Intended, or should the player be offered conviction blind? | Secret-trait spells | GM answers; the cast then resolves. |
 
 ## Blockers
 

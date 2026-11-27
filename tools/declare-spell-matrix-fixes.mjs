@@ -48,7 +48,8 @@ const FIXES = {
   // 3.718.0 (the player-seat sweep of every core spell). Nightvision's touch
   // warp "targets 1 willing creature", as Darkvision's carries.
   "Nightvision": [{ index: 0, add: { targetCap: 1 } }],
-  "Conjuration Shield": []
+  "Conjuration Shield": [],
+  "Size Alteration": []
 };
 /* A SPELL FIELD BESIDE ITS WARPS (3.717.0): "up to 10 creatures OF YOUR
  * CHOICE within that area" is the area choice Missile Storm and Wits use. */
@@ -66,6 +67,10 @@ const SYSTEM_FIXES = {
   // area's on casting — but the row carried defence "Will", so every creature
   // inside, allies included, rolled a Will save the moment it was cast. Now a
   // warding with nothing rolled at casting, as Rune Of Warding is.
+  // 3.718.1 (Graham, 27 Nov 2026): "Size Alteration does not affect the size
+  // of the targets weapons (they should increase by one die step)". The page:
+  // "Its equipment grows with it". The row now says so.
+  "Size Alteration": { effects: [{ kind: "sizeStep", target: "targets", label: "Size Alteration", steps: 1, largestAffected: "medium", floor: "tiny", reversible: true, equipmentGrows: true }] },
   "Conjuration Shield": {
     category: "utility",
     defence: "",

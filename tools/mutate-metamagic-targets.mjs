@@ -57,12 +57,12 @@ const MUTATIONS = [
   { name: "the stale note stays on owned copies", file: PR, from: `    to: [{"kind":"defence","target":"self","field":"immunity","value":"stunned"}],`, to: `    to: [{"kind":"defence","target":"self","field":"immunity","value":"stunned"},{"kind":"note","text":"x"}],`, breaks: "R4" },
   // R — the owned copies
   { name: "Geas's copies are left stale", file: PR, from: `    id: "geas-warps-3717", pack: "spells", name: "Geas",`, to: `    id: "geas-warps-3717x", pack: "spells", name: "Geas",`, breaks: "R1" },
-  { name: "the pack-copy pass is not re-gated", file: MG, from: `  const packCopies = (await runIf("3.718.0",`, to: `  const packCopies = (await runIf("3.716.0",`, breaks: "R3" },
+  { name: "the pack-copy pass is not re-gated", file: MG, from: `  const packCopies = (await runIf("3.718.1",`, to: `  const packCopies = (await runIf("3.716.0",`, breaks: "R3" },
   // W — the wiring
   { name: "the early gate refuses before Imposing Will is bought", file: CW, from: "&& !storingNow && !imposingWillDeferred) {", to: "&& !storingNow) {", breaks: "W1" },
   { name: "the late gate ignores the type", file: CW, from: "          imposes: mm.imposingType ? (a) => isOfKind(a.system, mm.imposingType) : null\n", to: "", breaks: "W2" },
   { name: "a targeted cast with nobody left goes ahead", file: CW, from: "          for (const miss of passedBy) ui.notifications.warn(`${spell.name}: ${miss.reason}.`);\n          return null;", to: "          for (const miss of passedBy) ui.notifications.warn(`${spell.name}: ${miss.reason}.`);", breaks: "W4" },
-  { name: "Split's cap is the spell's own", file: CW, from: "cap: splitTargetCap(targetCapFor(apMode?.targets ?? spellData?.targets, warp.mods, casterLevel), mm.splitExtra),", to: "cap: targetCapFor(apMode?.targets ?? spellData?.targets, warp.mods, casterLevel),", breaks: "W6" },
+  { name: "Split's cap is the spell's own", file: CW, from: "cap: splitTargetCap(targetCapFor(castShape?.targets, warp.mods, casterLevel), mm.splitExtra),", to: "cap: targetCapFor(castShape?.targets, warp.mods, casterLevel),", breaks: "W6" },
   { name: "an area ignores the type", file: CW, from: "          imposes: mm.imposingType ? (a) => isOfKindForWill(a.system, mm.imposingType) : null\n", to: "", breaks: "W7" },
   { name: "an area ignores the alignment", file: CW, from: "          areaTargets = areaAligned.kept;\n", to: "", breaks: "W8" },
   { name: "Selective is never asked", file: CW, from: "        if (mm.selectiveCount > 0 && areaTargets.length) {", to: "        if (false) {", breaks: "W9" },

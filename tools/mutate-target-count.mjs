@@ -174,7 +174,7 @@ const MUTATIONS = [
   {
     file: CAST,
     name: "G1 THE GATE IS NEVER REACHED",
-    from: "  if (!storingNow && spellNeedsTarget(spellData, spell)) {",
+    from: "  if (!storingNow && spellNeedsTarget(castShape, spell)) {",
     to: "  if (false) {",
     breaks: "G1 — nothing would enforce any of it"
   },
@@ -195,15 +195,15 @@ const MUTATIONS = [
     file: CAST,
     name: "G3 the gate reads the printed cap and ignores the warp",
     // RE-ANCHORED 2 Oct 2026 (3.611.0): an AP mode may name its own count.
-    from: "targetCapFor(apMode?.targets ?? spellData?.targets, warp.mods, casterLevel), mm.splitExtra),",
+    from: "targetCapFor(castShape?.targets, warp.mods, casterLevel), mm.splitExtra),",
     to: "targetCapFor(apMode?.targets ?? spellData?.targets, {}, casterLevel), mm.splitExtra),",
     breaks: "W2 — the warp would buy nothing at the one place it matters"
   },
   {
     file: CAST,
     name: "G4 a stored spell is judged on stale targets",
-    from: "  if (!storingNow && spellNeedsTarget(spellData, spell)) {",
-    to: "  if (spellNeedsTarget(spellData, spell)) {",
+    from: "  if (!storingNow && spellNeedsTarget(castShape, spell)) {",
+    to: "  if (spellNeedsTarget(castShape, spell)) {",
     breaks: "G1 — storage picks no targets, so whatever was aimed at last would refuse it"
   },
   {
@@ -219,7 +219,7 @@ const MUTATIONS = [
   {
     file: CAST,
     name: "G6 the picker stops saying the number",
-    from: "        targetCapNote(spellData?.targets, {})",
+    from: "        targetCapNote(castShape?.targets, {})",
     to: "        null",
     breaks: "G4 — a caster would meet the cap only as a refusal"
   }

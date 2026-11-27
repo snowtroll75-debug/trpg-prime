@@ -480,10 +480,11 @@ export const PACK_REPAIRS = Object.freeze([
   },
   {
     id: "size-alteration-effects-3608", pack: "spells", name: "Size Alteration",
-    field: "effects", since: "3.608.0",
+    field: "effects", since: "3.718.1",
     from: [],
-    to: [{"kind":"sizeStep","target":"targets","label":"Size Alteration","steps":1,"largestAffected":"medium","floor":"tiny","reversible":true}],
-    reason: "`effects: []` on a spell whose whole content is a size step."
+    alsoFrom: [[{"kind":"sizeStep","target":"targets","label":"Size Alteration","steps":1,"largestAffected":"medium","floor":"tiny","reversible":true}]],
+    to: [{"kind":"sizeStep","target":"targets","label":"Size Alteration","steps":1,"largestAffected":"medium","floor":"tiny","reversible":true,"equipmentGrows":true}],
+    reason: "`effects: []` on a spell whose whole content is a size step. Since 3.718.1 the row also declares that \"its equipment grows with it\" (Graham, 27 Nov 2026: the target's weapons rise one die step)."
   },
   {
     id: "size-alteration-warps-3608", pack: "spells", name: "Size Alteration",
