@@ -121,6 +121,13 @@ export function warpMaxTimes(warp, areaText = "", casterLevel = null) {
   if (m.healingRateBump && m.healingRateMax && m.healingRateFrom !== undefined) {
     return Math.max(1, Math.ceil((Number(m.healingRateMax) - Number(m.healingRateFrom)) / Number(m.healingRateBump)));
   }
+  // AN ABILITY MULTIPLIER'S CEILING IS A TOTAL (3.718.2; Graham, 27 Nov 2026:
+  // False Health's "increase the ability score multiplier by x1 (max x5)"
+  // "should increase the multiplier by 1 each time"). From the printed x2,
+  // three purchases reach x5.
+  if (m.abilityMultiplierBump && m.abilityMultiplierMax && m.abilityMultiplierFrom !== undefined) {
+    return Math.max(1, Math.floor((Number(m.abilityMultiplierMax) - Number(m.abilityMultiplierFrom)) / Number(m.abilityMultiplierBump)));
+  }
   if (m.areaGrowth) return areaGrowthMaxTimes(m, areaText);
   // A CONDITION'S CEILING IS A TOTAL (3.611.0) — "increase the level of
   // fatigue by 1 (max 5)" grows a condition the spell already gives at 1,
@@ -477,6 +484,11 @@ function emptyWarpMods() {
     resaveModifier: 0,
     healingRateBump: 0,
     healingRateMax: 0,
+    // FALSE HEALTH'S MULTIPLIER (3.718.2): what the purchases add to the
+    // row's printed "× N" on @castingAbility.
+    abilityMultiplierBump: 0,
+    abilityMultiplierMax: 0,
+    abilityMultiplierFrom: 0,
     // THE FAST HEALING THE SPELL STARTS AT (3.716.0), so `warpMaxTimes` can
     // count the purchases to `healingRateMax`. Carried, not applied: the
     // row's own value is the start.
@@ -784,6 +796,10 @@ export function aggregateWarpSelection(warps, form) {
       if (m[k]) mods[k] += Number(m[k]) * times;
     }
     if (m.healingRateBump) mods.healingRateBump += Number(m.healingRateBump) * times;
+    if (m.abilityMultiplierBump) mods.abilityMultiplierBump += Number(m.abilityMultiplierBump) * times;
+    // The ceiling and the start are states, as the healing rate's are.
+    if (m.abilityMultiplierMax) mods.abilityMultiplierMax = Math.max(mods.abilityMultiplierMax, Number(m.abilityMultiplierMax) || 0);
+    if (m.abilityMultiplierFrom !== undefined) mods.abilityMultiplierFrom = Math.max(mods.abilityMultiplierFrom, Number(m.abilityMultiplierFrom) || 0);
     // THE CAP IS A STATE, not a purchase: buying the option twice does
     // not raise the printed ceiling, it only spends more against it.
     if (m.healingRateMax) mods.healingRateMax = Math.max(mods.healingRateMax, Number(m.healingRateMax) || 0);
@@ -1076,6 +1092,9 @@ export function mergeWarpSelections(first, second) {
       heldUses: Number(a.mods?.heldUses ?? 0) + Number(b.mods?.heldUses ?? 0),
       resaveModifier: Number(a.mods?.resaveModifier ?? 0) + Number(b.mods?.resaveModifier ?? 0),
       healingRateBump: Number(a.mods?.healingRateBump ?? 0) + Number(b.mods?.healingRateBump ?? 0),
+      abilityMultiplierBump: Number(a.mods?.abilityMultiplierBump ?? 0) + Number(b.mods?.abilityMultiplierBump ?? 0),
+      abilityMultiplierMax: Math.max(Number(a.mods?.abilityMultiplierMax ?? 0), Number(b.mods?.abilityMultiplierMax ?? 0)),
+      abilityMultiplierFrom: Math.max(Number(a.mods?.abilityMultiplierFrom ?? 0), Number(b.mods?.abilityMultiplierFrom ?? 0)),
       healingRateMax: Math.max(Number(a.mods?.healingRateMax ?? 0), Number(b.mods?.healingRateMax ?? 0)),
       healingRateFrom: Math.max(Number(a.mods?.healingRateFrom ?? 0), Number(b.mods?.healingRateFrom ?? 0)),
       traitPicks: Number(a.mods?.traitPicks ?? 0) + Number(b.mods?.traitPicks ?? 0),
@@ -1203,4 +1222,20 @@ export function warpedEmanationEffects(effects, warpMods = null) {
     if (effect?.kind !== "bonus") return { ...effect };
     return { ...effect, value: warpedBonusValue(Number(effect.value) || 0, added, cap) };
   });
+}
+
+/**
+ * "@castingAbility * N" with N raised by `bump` (3.718.2, False Health). A
+ * formula without that term is returned unchanged, so a stray purchase
+ * cannot invent a multiplier the row never printed.
+ *
+ * @param {string} formula
+ * @param {number} bump
+ * @returns {string}
+ */
+export function multipliedAbilityFormula(formula, bump = 0) {
+  const text = String(formula ?? "");
+  const add = Math.max(0, Math.trunc(Number(bump) || 0));
+  if (!add) return text;
+  return text.replace(/@castingAbility\s*\*\s*(\d+)/, (_m, n) => `@castingAbility * ${Number(n) + add}`);
 }

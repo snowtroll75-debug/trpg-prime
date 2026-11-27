@@ -2736,6 +2736,14 @@ export const PACK_REPAIRS = Object.freeze([
     to: [{"kind":"note","text":"A creature conjured within the area invokes a Will save against this spell from the conjuring caster (your spell DC). A failed save stops the conjuring spell from working, and its PP are wasted \u2014 rolled by hand when it happens."}],
     reason: "The deferred Will save, said on the card, since it is rolled by hand when a creature is conjured inside."
   },
+  /* GRAHAM, 27 NOV 2026 (3.718.2, Q2): False Health's multiplier warp. */
+  {
+    id: "false-health-warps-3718-2", pack: "spells", name: "False Health",
+    field: "warps", since: "3.718.2",
+    from: [{"ppCost":2,"text":"increase the ability score multiplier by x1 (max x5)","mods":{}}],
+    to: [{"ppCost":2,"text":"increase the ability score multiplier by x1 (max x5)","mods":{"abilityMultiplierBump":1,"abilityMultiplierMax":5,"abilityMultiplierFrom":2}}],
+    reason: "\"Increase the ability score multiplier by x1 (max x5)\" carried no mods: it was charged and changed nothing. Graham: \"it should increase the multiplier by 1 each time\" — x2 to x5, three purchases."
+  },
 ]);
 
 /* ==================================================================== *

@@ -2,13 +2,13 @@
  "stats": {
   "cases": 137435,
   "compared": 135622,
-  "agree": 135144,
-  "disagree": 30,
+  "agree": 135145,
+  "disagree": 31,
   "liveOnly": 1813,
   "sweepSpells": 0,
   "sweepConfigs": 0,
   "sweepDisagree": 0,
-  "interpretationCases": 448,
+  "interpretationCases": 446,
   "regressions": 0,
   "fixedSinceBaseline": 0
  },
@@ -19,7 +19,7 @@
   "REVIEW:WARP-EMPTY-MECHANICAL": 89,
   "REVIEW:WARP-MAX": 17,
   "REVIEW:WARP-DICE": 3,
-  "REVIEW:WARP-CEILING-PARSE": 27,
+  "REVIEW:WARP-CEILING-PARSE": 28,
   "DEFECT:LEGAL-REFUSED": 1
  },
  "findings": [
@@ -2900,6 +2900,13 @@
    "spell": "Ember Of Devotion",
    "detail": "warp-max: warp-0×5 — engine refuses a legal cast (repeat cap)",
    "caseId": "SifdJ1ezTvOGeHvq|L20|warp-0x5"
+  },
+  {
+   "class": "REVIEW",
+   "code": "WARP-CEILING-PARSE",
+   "spell": "False Health",
+   "detail": "warp-max: warp-0×8 — engine refuses a legal cast (repeat cap)",
+   "caseId": "SngyIc9DLvI6Av6c|L20|warp-0x8"
   },
   {
    "class": "REVIEW",

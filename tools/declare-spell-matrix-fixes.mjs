@@ -49,7 +49,11 @@ const FIXES = {
   // warp "targets 1 willing creature", as Darkvision's carries.
   "Nightvision": [{ index: 0, add: { targetCap: 1 } }],
   "Conjuration Shield": [],
-  "Size Alteration": []
+  "Size Alteration": [],
+  // 3.718.2 (Graham, 27 Nov 2026, Q2): False Health's "+2 PP: increase the
+  // ability score multiplier by x1 (max x5)" — "Yes it should increase the
+  // multiplier by 1 each time". From the printed x2: three purchases.
+  "False Health": [{ index: 0, add: { abilityMultiplierBump: 1, abilityMultiplierMax: 5, abilityMultiplierFrom: 2 } }]
 };
 /* A SPELL FIELD BESIDE ITS WARPS (3.717.0): "up to 10 creatures OF YOUR
  * CHOICE within that area" is the area choice Missile Storm and Wits use. */

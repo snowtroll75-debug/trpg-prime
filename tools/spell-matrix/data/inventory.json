@@ -21840,7 +21840,7 @@
     "i": 0,
     "pp": 2,
     "text": "increase the ability score multiplier by x1 (max x5)",
-    "structured": false,
+    "structured": true,
     "nature": "narrative",
     "bookMax": null,
     "textDice": null,

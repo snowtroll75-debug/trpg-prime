@@ -42,7 +42,7 @@ const MUTATIONS = [
   { name: "Q any move- word is a Move", file: RA, from: "if (/\\bmove(?:ment)?\\b/i.test(traitText)) add(\"move\");", to: "if (/\\bmove/i.test(traitText)) add(\"move\");" },
   { name: "P an owned-copy repair dropped", file: PR, from: "    id: \"movement-trait-misty-step\", pack: \"spells\"", to: "    id: \"movement-trait-misty-step\", pack: \"spellsX\"" },
   { name: "N the Storgar note repair dropped", file: PR, from: "    id: \"movement-trait-storgar-rooted-note\", itemType: \"heritage\"", to: "    id: \"movement-trait-storgar-rooted-note\", itemType: \"heritageX\"" },
-  { name: "G the pack-copy pass not re-gated", file: MG, from: "runIf(\"3.718.1\", \"stale owned copies of repaired pack items\"", to: "runIf(\"3.699.0\", \"stale owned copies of repaired pack items\"" },
+  { name: "G the pack-copy pass not re-gated", file: MG, from: "runIf(\"3.718.2\", \"stale owned copies of repaired pack items\"", to: "runIf(\"3.699.0\", \"stale owned copies of repaired pack items\"" },
   { name: "G the effect pass not re-gated", file: MG, from: "runIf(\"3.705.1\", \"declared effect repairs on owned items", to: "runIf(\"3.699.0\", \"declared effect repairs on owned items" }
 ];
 

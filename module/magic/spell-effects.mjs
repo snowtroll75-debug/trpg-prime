@@ -2134,9 +2134,14 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
         case "tempHP": {
           // AND A FLAT WARP (3.611.0) — "increase temporary HP by 1".
           const flatTemp = Math.max(0, Math.trunc(Number(warpMods?.tempHPBonus) || 0));
+          // AND A RAISED ABILITY MULTIPLIER (3.718.2; Graham: False Health's
+          // warp "should increase the multiplier by 1 each time"). The row's
+          // printed "@castingAbility * N" becomes N plus what was bought.
+          const { multipliedAbilityFormula } = await import("./spell-warp.mjs");
+          const rowFormula = multipliedAbilityFormula(effect.formula, warpMods?.abilityMultiplierBump);
           const formula = flatTemp
-            ? `${addDice(effect.formula, warpDice)} + ${flatTemp}`
-            : addDice(effect.formula, warpDice);
+            ? `${addDice(rowFormula, warpDice)} + ${flatTemp}`
+            : addDice(rowFormula, warpDice);
           const amount = await rollAmount(formula, rollData, rolls);
           const pool = await grantTempHP(target, amount);
           lines.push(line(`${target.name}: <strong>${amount}</strong> temporary HP (pool now ${pool})${durationText}.`));

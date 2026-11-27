@@ -2,6 +2,14 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.718.2 — 27 November 2026: False Health's multiplier warp
+
+Full notes in `release-notes-3.718.2.md`. 3.718.1 passed live from the player's seat: Cure's surge, Size Alteration's weapons, and Darkvision on yourself.
+
+- **False Health (Graham, Q2):** "+2 PP: increase the multiplier by x1 (max x5)" is now a count of up to three purchases, ×2 to ×5 (schema 3.718.2).
+- **The migration report:** a spell's repair is checked against spells only, so the Nightvision *ability* is no longer listed as a house-ruled spell.
+- **Q4 answered:** Secret spells stay as they are.
+
 ## 3.718.1 — 27 November 2026: Cure's surge, Size Alteration's weapons, and Darkvision on yourself
 
 Full notes in `release-notes-3.718.1.md`. In the 3.718.0 player-seat re-check, no permission errors remained.

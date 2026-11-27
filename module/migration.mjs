@@ -100,7 +100,8 @@ const WORLD_SCHEMA_SETTING = "worldSchemaVersion";
 // 3.717.1: and again for Unshakable's stale note.
 // 3.718.0: and again for Nightvision's grant and Conjuration Shield's deferred save.
 // 3.718.1: and again for Size Alteration's equipment (Graham).
-export const TRG_SCHEMA_VERSION = "3.718.1";
+// 3.718.2: and again for False Health's multiplier warp (Graham, Q2).
+export const TRG_SCHEMA_VERSION = "3.718.2";
 
 /**
  * Register the hidden world setting used to determine whether a migration is
@@ -821,7 +822,8 @@ export async function migrateWorldData(fromVersion = "") {
   // RE-VERSIONED TO 3.717.1: Unshakable's stale note (the 3.717.0 live test).
   // RE-VERSIONED TO 3.718.0: Nightvision and Conjuration Shield (the player-seat sweep).
   // RE-VERSIONED TO 3.718.1: Size Alteration's equipment (Graham, 27 Nov 2026).
-  const packCopies = (await runIf("3.718.1", "stale owned copies of repaired pack items",
+  // RE-VERSIONED TO 3.718.2: False Health's multiplier warp (Graham, Q2).
+  const packCopies = (await runIf("3.718.2", "stale owned copies of repaired pack items",
     () => migrateStalePackCopies([...actors, ...tokenActors], Array.from(game.items ?? []))))
     ?? { repaired: [], kept: [] };
   result.packCopies = packCopies;
@@ -2104,7 +2106,7 @@ async function migrateStalePackCopies(actors = [], worldItems = []) {
   const kept = [];
 
   const inspect = (item, ownerName) => {
-    const entries = repairsForName(PACK_REPAIRS, item?.name);
+    const entries = repairsForName(PACK_REPAIRS, item?.name, item?.type ?? null);
     if (!entries.length) return null;
     const classified = classifyRepairs(item.system ?? {}, entries);
     for (const row of classified) {

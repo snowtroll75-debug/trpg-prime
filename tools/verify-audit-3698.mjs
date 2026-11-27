@@ -228,7 +228,7 @@ const FIGHTER = "1: Warrior's Resolve, 1: Martial Training, 2: Battle Readiness,
 
 /* Z ------------------------------------------------------------------------ */
 const sys = JSON.parse(read("system.json"));
-equal("Z the version is 3.707.3, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.718.1/")], ["3.718.1", "3.718.1", true]);
+equal("Z the version is 3.707.3, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.718.2/")], ["3.718.2", "3.718.2", true]);
 
 console.log(`verify-audit-3698: ${checks} checks — ${failures.length ? `${failures.length} FAILED` : "all green."}`);
 for (const f of failures) console.log(`  ✗ ${f}`);

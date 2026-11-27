@@ -56,7 +56,7 @@ ok("C the cast tells the headline it is held only when the hold succeeds",
 
 // Z
 const sys = JSON.parse(read("system.json"));
-equal("Z the version is 3.690.1, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.718.1/")], ["3.718.1", "3.718.1", true]);
+equal("Z the version is 3.690.1, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.718.2/")], ["3.718.2", "3.718.2", true]);
 
 if (failures.length) {
   for (const f of failures) console.log(`  ✗ ${f}`);

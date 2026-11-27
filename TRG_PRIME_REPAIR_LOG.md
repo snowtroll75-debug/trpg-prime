@@ -1292,5 +1292,33 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
   - `verify-fixes-3718-1`: 22 checks. `mutate-fixes-3718-1`: 10 mutations, all caught.
   - The full verify battery passed.
   - Every mutate file that touches the cast workflow, the attack workflow, size steps or the version pins passed (224 files).
-- **Live verification:** pending Graham's install.
+- **Live verification:** passed on 27 November 2026, on 3.718.1 as installed, from the player's seat with the GM connected:
+  - **Cure 3 AP:** no picker appeared, and the eight creatures in the radius were healed, friend and foe. At 1 AP it still refuses two.
+  - **Size Alteration:** a Large Ranger's Short Sword rolled 7d8 + 1. With the +6 PP warp the Ranger became Huge, at 2 steps.
+  - **Darkvision and Nightvision on yourself:** each granted its ability.
 - **Delivery:** 3.718.1, branch `fix/spell-core-sweep`.
+
+## R-0046 — False Health's multiplier warp did nothing; the migration weighed spell repairs against abilities (3.718.2)
+
+- **Reported:**
+  - Graham's answer to Q2 on 27 November 2026: "Yes it should increase the multiplier by 1 each time."
+  - The migration report came from the 3.718.1 migration's own card: "Kharon — Nightvision: effects … left alone".
+- **Source state:** branch `fix/spell-core-sweep` at 3.718.1 (`247cfa4`).
+- **Root causes:**
+  - **False Health:** warp 0 carried `mods: {}`, so it was charged and did nothing.
+  - **The migration:** `repairsForName` matched on name alone, so the Nightvision spell's repairs were classified against characters' Nightvision abilities and reported as "custom".
+- **Fix:**
+  - **False Health:**
+    - The warp now carries `abilityMultiplierBump`, `abilityMultiplierMax` and `abilityMultiplierFrom`.
+    - `warpMaxTimes` reads them as three purchases.
+    - The `tempHP` row raises `@castingAbility * N` through `multipliedAbilityFormula`.
+    - New repair `false-health-warps-3718-2`.
+  - **The migration:** `repairsForName(…, itemType)` keeps a spells-pack repair to spells, and the migration passes the type.
+  - The schema and the pack-copy pass were re-gated to 3.718.2.
+- **Testing:**
+  - `verify-fixes-3718-2`: 16 checks. `mutate-fixes-3718-2`: 6 mutations, all caught.
+  - `verify-warp-repeats` was recounted (P2b 63, P2c 457).
+  - The full verify battery passed.
+  - Every mutate file touching the warp, effects, pack-repair, migration or version anchors passed (180 files).
+- **Live verification:** pending Graham's install.
+- **Delivery:** 3.718.2, branch `fix/spell-core-sweep`.

@@ -61,12 +61,22 @@ function deepEquals(a, b) {
   return ka.every((k) => Object.prototype.hasOwnProperty.call(b, k) && deepEquals(a[k], b[k]));
 }
 
-/** The repairs declared for one item, matched on name and pack. */
-export function repairsForName(manifest, name) {
+/**
+ * The repairs declared for one item, matched on name — and, when the item's
+ * type is given, on the spells pack's type (3.718.2). Found in the 3.718.1
+ * migration's report: "Kharon — Nightvision: effects … left alone". Kharon
+ * carries the Nightvision ABILITY, and the spell's repair was weighed against
+ * it. Harmless (an ability has no `effects` to match, so it was only ever
+ * "kept"), but a report naming somebody's sense as a house-ruled spell sends
+ * the GM looking for an edit nobody made.
+ */
+export function repairsForName(manifest, name, itemType = null) {
   const wanted = String(name ?? "").trim().toLowerCase();
   if (!wanted) return [];
+  const type = itemType === null || itemType === undefined ? null : String(itemType);
   return (Array.isArray(manifest) ? manifest : [])
-    .filter((r) => String(r?.name ?? "").trim().toLowerCase() === wanted);
+    .filter((r) => String(r?.name ?? "").trim().toLowerCase() === wanted)
+    .filter((r) => type === null || (r?.pack === "spells") === (type === "spell"));
 }
 
 /**
