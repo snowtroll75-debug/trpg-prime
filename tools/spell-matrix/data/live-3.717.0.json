@@ -1,0 +1,35 @@
+{
+  "run": "2026-11-27, afternoon UK",
+  "core": "3.717.0",
+  "foundry": "14.367",
+  "world": "Test",
+  "sessions": {
+    "GM": "Testing Dude, http://localhost:30000, Chrome",
+    "Player": "PC Tester, http://127.0.0.1:30000, Chrome (simultaneous)"
+  },
+  "fixtures": {
+    "casters": "ZZ SM Wizard (level 10, arcane, CL 10; Imposing Will, Selective, Split, Distant, Extend; pouch), ZZ SM Cleric (divinity; Aligned Spell), ZZ SM Druid (verdant), ZZ SM Bard (ethereal, CL 5) — all owned by PC Tester",
+    "targets": "ZZ SM Ally (npc, player-owned, friendly); GM-only npcs ZZ SM Foe Evil (Humanoid, Evil), ZZ SM Foe Good (Humanoid, Good), ZZ SM Zombie (Undead, Mindless), 30 HP each",
+    "scene": "ZZ SM Live 3717 (throwaway)",
+    "dice": "player d20 15; GM d20 3 (so a save die of 3 on a player's cast is the GM's), later 12/18 for the GM's own casts"
+  },
+  "cases": [
+    { "id": "IW1", "user": "Player", "spell": "Command", "picks": [], "target": "Zombie", "expected": "refused: immune to mental; nothing spent", "actual": "warning 'ZZ SM Zombie is immune to the mental trait'; 0 PP; no card", "result": "Pass" },
+    { "id": "IW2", "user": "Player", "spell": "Command", "picks": ["Imposing Will: undead"], "target": "Zombie", "expected": "+8 PP; the zombie saves and is affected", "actual": "10 PP (2 + 8); save rolled on the GM's client (3, fumble); affected; card 'Imposing Will: ZZ SM Zombie is affected despite its immunity to the mental trait..'", "result": "Pass", "defects": ["D1 cosmetic: a doubled full stop"] },
+    { "id": "IW3", "user": "GM", "spell": "Command", "picks": ["Imposing Will: undead"], "target": "Zombie", "expected": "as IW2", "actual": "Partial (18 vs 20), affected", "result": "Pass" },
+    { "id": "X1", "user": "Player", "spell": "Acid Bolt", "picks": [], "target": "Foe Evil + Foe Good", "expected": "refused: one target", "actual": "'targets 1 creature or object; 2 were chosen'; 0 PP", "result": "Pass" },
+    { "id": "X2", "user": "Player", "spell": "Acid Bolt", "picks": ["Split x1"], "target": "Foe Evil + Foe Good", "expected": "+4 PP; one roll against both; 4d6 -> 4d4", "actual": "8 PP; attack 25 vs DB 10 for both; '4d4 + 2d6 critical + 4 splash' each; card names the extra target and one attack for MAP", "result": "Pass", "defects": ["D2: the critical's 2d6 not stepped to 2d4"] },
+    { "id": "X3", "user": "GM", "spell": "Acid Bolt", "picks": ["Split x2"], "target": "Foe Good + Zombie", "expected": "12 PP > cap 11: overcast", "actual": "Casting DC 30 (Overcast +2), Soul Drain 26; Partial: the spell fails, no PP lost", "result": "Pass (overcast rules, not Split)" },
+    { "id": "X4", "user": "GM", "spell": "Acid Bolt", "picks": ["Split x1"], "target": "Foe Good + Zombie", "expected": "as X2", "actual": "8 PP; attack 28 vs DB 10 for both; HP 30->12 and 30->11; '4d4 + 2d6 critical'", "result": "Pass", "defects": ["D2"] },
+    { "id": "S1", "user": "Player", "spell": "Chill Storm", "picks": ["Selective x1"], "expected": "exclude up to 1 of those caught; too many asks again", "actual": "5 PP; caught Foe Evil, Foe Good, Zombie; 2 ticked -> asked again '2 ticked — you bought 1.'; 1 ticked -> 'Selective Spell excluded ZZ SM Foe Good' (HP unchanged); others saved on the GM's client", "result": "Pass" },
+    { "id": "A1", "user": "Player", "spell": "Command (Cleric)", "picks": ["Aligned: good"], "target": "Foe Evil", "expected": "refused, nothing spent", "actual": "'ZZ SM Foe Evil has no good trait (Aligned Spell)'; 0 PP", "result": "Pass" },
+    { "id": "A2", "user": "Player", "spell": "Sound Burst (Cleric)", "picks": ["Aligned: evil"], "expected": "only the evil foe affected", "actual": "5 PP; caught 3; 'Not affected — ZZ SM Foe Good, ZZ SM Zombie … has no evil trait'; Foe Evil 13 sonic and Deafened", "result": "Pass" },
+    { "id": "G1", "user": "Player", "spell": "Geas", "picks": ["warp-0 (unwilling)"], "target": "Foe Good", "expected": "Will Negates rolled", "actual": "10 PP; 'Save: Will Negates against DC 20'; rolled on the GM's client (3), affected", "result": "Pass" },
+    { "id": "G2", "user": "Player", "spell": "Geas", "picks": ["warp-1 (1 year)", "Extend"], "expected": "refused (U8)", "actual": "Not Cast: Extend Spell cannot be taken with the spell's own duration warp; Nothing was spent", "result": "Pass" },
+    { "id": "U1", "user": "Player", "spell": "Unshakable (Wizard, arcane)", "picks": ["warp-1 (touch)"], "target": "Ally", "expected": "on the ally", "actual": "10 PP; Ally immune to stunned; not on the Wizard", "result": "Pass", "defects": ["D3: a stale note 'The +4 PP option … is cast by hand on another creature'"] },
+    { "id": "U2", "user": "Player", "spell": "Unshakable (Bard, ethereal)", "picks": ["warp-1 (touch)"], "expected": "refused: arcane only", "actual": "Not Cast: 'A warp you chose is arcane only, and your tradition is ethereal.' Nothing was spent", "result": "Pass" },
+    { "id": "P1", "user": "Player", "spell": "Pass Without Trace (Druid)", "picks": ["warp-1 (area)"], "expected": "20-foot emanation, caster chooses up to 10", "actual": "6 PP; emanation on the Druid caught 5; the chooser ticked all but the Druid (Missile Storm's default) and the card said it spared the Druid", "result": "Pass", "question": "Q1: should the caster be ticked by default for a beneficial area like this?" },
+    { "id": "D1", "user": "Player", "spell": "Mage Armour (Wizard, arcane)", "picks": ["Distant"], "target": "Ally", "expected": "+4, not +6 (R-0041)", "actual": "6 PP (2 + 4); Mage Armour on the Ally", "result": "Pass" }
+  ],
+  "fixedIn": { "D1": "3.717.1", "D2": "3.717.1", "D3": "3.717.1" }
+}

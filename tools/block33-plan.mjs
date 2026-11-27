@@ -239,9 +239,10 @@ export const PLAN = {
     ]
   },
   "Unshakable": {
+    // 3.717.1: the note "The +4 PP option (range touch, arcane only) is cast
+    // by hand on another creature" went — the warp is automated since 3.716.0.
     effects: [
-      { kind: "defence", target: "self", field: "immunity", value: "stunned" },
-      note("The +4 PP option (range touch, arcane only) is cast by hand on another creature.")
+      { kind: "defence", target: "self", field: "immunity", value: "stunned" }
     ]
   },
   "Unwelcome Halo": {

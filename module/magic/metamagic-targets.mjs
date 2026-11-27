@@ -132,8 +132,8 @@ export function mayImposeWill(actor, spellData) {
   return owns && /\bmental\b/i.test(String(spellData?.traits ?? ""));
 }
 
-/** The card's line for who Imposing Will let through. */
+/** The card's line for who Imposing Will let through. No full stop: it joins the metamagic notes, which add their own (3.717.1). */
 export function imposingWillLine(imposed = []) {
   const names = imposed.map((x) => x.name).join(", ");
-  return `Imposing Will: ${names} ${imposed.length > 1 ? "are" : "is"} affected despite ${imposed.length > 1 ? "their" : "its"} immunity to the ${imposed[0]?.trait ?? "mental"} trait.`;
+  return `Imposing Will: ${names} ${imposed.length > 1 ? "are" : "is"} affected despite ${imposed.length > 1 ? "their" : "its"} immunity to the ${imposed[0]?.trait ?? "mental"} trait`;
 }

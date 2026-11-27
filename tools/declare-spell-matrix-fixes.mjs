@@ -47,7 +47,10 @@ const FIXES = {
 /* A SPELL FIELD BESIDE ITS WARPS (3.717.0): "up to 10 creatures OF YOUR
  * CHOICE within that area" is the area choice Missile Storm and Wits use. */
 const SYSTEM_FIXES = {
-  "Pass Without Trace": { areaChoice: true }
+  "Pass Without Trace": { areaChoice: true },
+  // 3.717.1 (the 3.717.0 live test): the note "The +4 PP option … is cast by
+  // hand on another creature" outlived the warp's automation (3.716.0).
+  "Unshakable": { effects: [{ kind: "defence", target: "self", field: "immunity", value: "stunned" }] }
 };
 const PRINT = process.argv.includes("--print");
 const { ClassicLevel } = await import("classic-level");

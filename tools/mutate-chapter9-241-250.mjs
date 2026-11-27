@@ -323,8 +323,8 @@ const MUTATIONS = [
   { file: CASTWF, name: "R: the card stops naming the dice the critical added",
     from: "${critFormula ? ` + ${critFormula} critical` : \"\"}", to: "", breaks: "R11b" },
   { file: CASTWF, name: "R: the attack path stops adding the critical's base damage",
-    from: "  const critFormula = criticalBonusDamage(spell.system, outcome.critical?.severity ?? null);",
-    to: "  const critFormula = \"\";", breaks: "R11" },
+    from: "  const critRaw = criticalBonusDamage(spell.system, outcome.critical?.severity ?? null);",
+    to: "  const critRaw = \"\";", breaks: "R11" },
 
   /* ── Q: the block's spell data ─────────────────────────────────── */
   { file: AUTHOR, name: "Q: Acid Arrow becomes a spell that can never lapse",

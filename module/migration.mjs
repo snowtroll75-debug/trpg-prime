@@ -97,7 +97,8 @@ const WORLD_SCHEMA_SETTING = "worldSchemaVersion";
 // the Archmage and the Spellblade).
 // 3.716.0: the pack-copy pass re-gated for the spell matrix's warp ceilings.
 // 3.717.0: and again for Geas, Pass Without Trace and Unshakable (O5, O6).
-export const TRG_SCHEMA_VERSION = "3.717.0";
+// 3.717.1: and again for Unshakable's stale note.
+export const TRG_SCHEMA_VERSION = "3.717.1";
 
 /**
  * Register the hidden world setting used to determine whether a migration is
@@ -815,7 +816,8 @@ export async function migrateWorldData(fromVersion = "") {
   // RE-VERSIONED TO 3.707.1: Stone Shield's one foe.
   // RE-VERSIONED TO 3.716.0: the spell matrix's five warp ceilings (Graham's U12).
   // RE-VERSIONED TO 3.717.0: Geas, Pass Without Trace and Unshakable (Graham's O5, O6).
-  const packCopies = (await runIf("3.717.0", "stale owned copies of repaired pack items",
+  // RE-VERSIONED TO 3.717.1: Unshakable's stale note (the 3.717.0 live test).
+  const packCopies = (await runIf("3.717.1", "stale owned copies of repaired pack items",
     () => migrateStalePackCopies([...actors, ...tokenActors], Array.from(game.items ?? []))))
     ?? { repaired: [], kept: [] };
   result.packCopies = packCopies;

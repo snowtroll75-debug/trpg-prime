@@ -944,11 +944,17 @@ export const PACK_REPAIRS = Object.freeze([
     reason: "One ungated -2 DB row served both Failure and Fumble; the Fumble prints -4 to DB and to Reflex saves."
   },
   {
+    // AMENDED AT 3.717.1 (the 3.717.0 live test): the note row went, as the
+    // touch warp it described has been automated since 3.716.0; 3.609.0's
+    // \`to\` is now an \`alsoFrom\`. One entry per field (E4).
+    // SINCE 3.717.1, the release that last changed it (verify-pack-repairs F1b:
+    // the pass runs at the newest entry's version).
     id: "unshakable-effects-3609", pack: "spells", name: "Unshakable",
-    field: "effects", since: "3.609.0",
+    field: "effects", since: "3.717.1",
     from: [],
-    to: [{"kind":"defence","target":"self","field":"immunity","value":"stunned"},{"kind":"note","text":"The +4 PP option (range touch, arcane only) is cast by hand on another creature."}],
-    reason: "\"You are immune to the stunned condition\" had no row."
+    alsoFrom: [[{"kind":"defence","target":"self","field":"immunity","value":"stunned"},{"kind":"note","text":"The +4 PP option (range touch, arcane only) is cast by hand on another creature."}]],
+    to: [{"kind":"defence","target":"self","field":"immunity","value":"stunned"}],
+    reason: "\"You are immune to the stunned condition\" had no row. Until 3.717.1 a note also told the table to cast the touch warp by hand, three releases after it was automated."
   },
   {
     id: "untamed-journey-effects-3609", pack: "spells", name: "Untamed Journey",

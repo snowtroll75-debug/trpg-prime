@@ -87,6 +87,7 @@ const opt = (spellData, id, more) => opts(spellData, more).find((o) => o.id === 
   ok("I7 the cast defers the target gate only for an owner casting a mental spell",
     MT.mayImposeWill(owner, { traits: "Mental" }) && !MT.mayImposeWill(owner, { traits: "Fire" }) && !MT.mayImposeWill({ items: [] }, { traits: "Mental" }));
   ok("I8 the card names who was let through", /Zombie is affected despite its immunity to the mental trait/.test(MT.imposingWillLine([{ name: "Zombie", trait: "mental" }])));
+  ok("I9 …with no full stop of its own, as the notes add one (3.717.1; the live card read \"trait..\")", !/\.$/.test(MT.imposingWillLine([{ name: "Zombie", trait: "mental" }])));
 }
 
 /* ================================================================== */
@@ -147,6 +148,7 @@ const opt = (spellData, id, more) => opts(spellData, more).find((o) => o.id === 
   equal("P1 Pass Without Trace: a 20-foot emanation within 20 feet, of up to 10 creatures of the caster's choice",
     [byName["Pass Without Trace"].warps[1].mods.rangeOverride, byName["Pass Without Trace"].warps[1].mods.areaOverride, byName["Pass Without Trace"].warps[1].mods.targetCap, byName["Pass Without Trace"].areaChoice], ["20 feet", "20-foot emanation", 10, true]);
   equal("T5 Unshakable's touch warp is arcane only", byName.Unshakable.warps[1].mods.onlyTradition, "arcane");
+  equal("T6 …and no note tells the table to cast it by hand (3.717.1)", byName.Unshakable.effects.map((e) => e.kind), ["defence"]);
   // U8 can see them now.
   const geasDur = SW.aggregateWarpSelection(byName.Geas.warps, { "warp-1": true }).mods;
   const ext = MM.aggregateMetamagicSelection(MM.buildMetamagicOptions({ featNames: ["extend spell"], spellData: { duration: "1 week (D)" }, basePP: 6, casterLevel: 10, tradition: "arcane" }), { "mm-extend": true });
@@ -178,8 +180,10 @@ const opt = (spellData, id, more) => opts(spellData, more).find((o) => o.id === 
   ok("R1 Geas, Pass Without Trace (warps and choice) declared", ["geas-warps-3717", "pass-without-trace-warps-3717", "pass-without-trace-areachoice-3717"].every((id) => ids.includes(id)));
   const un = PACK_REPAIRS.find((r) => r.id === "unshakable-touch-warp");
   ok("R2 Unshakable's entry reaches 3.716.0's copy too", un?.to?.[1]?.mods?.onlyTradition === "arcane" && un?.alsoFrom?.[0]?.[1]?.mods?.rangeOverride === "touch" && !un?.alsoFrom?.[0]?.[1]?.mods?.onlyTradition);
+  const ue = PACK_REPAIRS.find((r) => r.id === "unshakable-effects-3609");
+  ok("R4 Unshakable's stale note is repaired on owned copies (3.717.1)", ue?.to?.length === 1 && ue?.alsoFrom?.[0]?.some((e) => e.kind === "note"));
   const mig = read("module", "migration.mjs");
-  ok("R3 the pack-copy pass and the schema are re-gated for them", /runIf\("3\.717\.0", "stale owned copies of repaired pack items"/.test(mig) && /TRG_SCHEMA_VERSION = "3\.717\.0"/.test(mig));
+  ok("R3 the pack-copy pass and the schema are re-gated for them", /runIf\("3\.717\.[01]", "stale owned copies of repaired pack items"/.test(mig) && /TRG_SCHEMA_VERSION = "3\.717\.[01]"/.test(mig));
 }
 
 /* ================================================================== */
@@ -197,7 +201,10 @@ const opt = (spellData, id, more) => opts(spellData, more).find((o) => o.id === 
   ok("W7 an area lets the paid-for type through", /imposes: mm\.imposingType \? \(a\) => isOfKindForWill\(a\.system, mm\.imposingType\) : null/.test(cw));
   ok("W8 an area keeps only the chosen alignment", /areaAligned = alignedPartition\(areaTargets, mm\.alignedTraits, \(a\) => alignedTraitsOf\(a\.system\)\);\s*areaTargets = areaAligned\.kept;/.test(cw) && /\.\.\.areaImmunity\.skipped, \.\.\.areaAligned\.skipped\]/.test(cw));
   ok("W9 an area asks who Selective excludes", /if \(mm\.selectiveCount > 0 && areaTargets\.length\) \{/.test(cw) && /areaTargets = picked\.kept;/.test(cw));
-  ok("W10 Split's first target takes the stepped die", /damageOverride: splitDamage \?\? damageForCast,\n\s*splashSaveDC: nominalSaveDC,\n\s*\/\/ The caster's declared/.test(cw));
+  ok("W10 Split's first target takes the stepped die", /damageOverride: splitDamage \?\? damageForCast,\n\s*dieSteps: splitBought,\n\s*splashSaveDC: nominalSaveDC,\n\s*\/\/ The caster's declared/.test(cw));
+  ok("W17 …and so does each other target's (3.717.1)", /damageOverride: splitDamage \?\? damageForCast, dieSteps: splitBought,/.test(cw));
+  ok("W18 the critical's dice step with the hit's (3.717.1; the live test's 4d4 + 2d6)",
+    /const critFormula = dieSteps > 0 && critRaw \? \(splitDamageRow\(\{ formula: critRaw \}, dieSteps\)\?\.formula \?\? critRaw\) : critRaw;/.test(cw));
   ok("W11 each other target is compared with the same check, one attack for MAP",
     /for \(const target of splitTargets\) \{\s*await resolveSpellAttack\(actor, spell, check, lines, clMods, warpMods, \{\s*targetOverride: target, mapCount: splitMapCount, deferMapAdvance: true/.test(cw));
   ok("W12 Split's targets are the next ones the caster targeted, up to what was bought", /\.slice\(1, 1 \+ splitBought\)/.test(cw));

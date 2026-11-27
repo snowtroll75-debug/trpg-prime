@@ -1180,7 +1180,7 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
   - `verify-metamagic-targets`: 67 checks. `mutate-metamagic-targets`: 47 mutations, all caught.
   - Six existing checks were updated for the new code, and six mutation anchors were re-pinned.
   - The spell matrix found no regressions. 7 cases now pass that failed before (U8 against the new warps, and O8), and the baseline is 1, which is an error in the model.
-- **Live verification:** pending. 3.717.0 needs installing.
+- **Live verification:** passed on 27 November 2026, from the GM's and the Player's seats at once: 16 of 16 cases (`live-testing-report-3.717.0.md`). Three defects were found, all fixed by R-0042.
 - **Delivery:** 3.717.0, branch `fix/spell-metamagic-rulings`.
 
 ## R-0041 — Distant Spell and Aligned Spell read the spell's tradition list, not the caster's (3.717.0)
@@ -1195,5 +1195,23 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
   - `verify-metamagic-targets` C1–C5. C1 is case 7 itself: an arcane caster pays 4 on a spell that also lists ethereal.
   - Four mutations, all caught.
   - Every verify and mutate file that touches the metamagic builder or the catalogue was run, and all passed.
-- **Live verification:** pending. 3.717.0 needs installing.
+- **Live verification:** passed on 27 November 2026, case D1: an arcane Wizard's Distant Mage Armour cost 6 PP (2 + 4) and landed on the ally.
 - **Delivery:** 3.717.0, branch `fix/spell-metamagic-rulings`.
+
+## R-0042 — Split's critical dice unstepped; Unshakable's stale note; a doubled full stop (3.717.1)
+
+- **Reported:** the 3.717.0 live test, 27 November 2026, in cases X2, X4, U1 and IW2.
+- **Source state:** branch `fix/spell-metamagic-rulings` at 3.717.0 (`bd31262`).
+- **Root causes:**
+  - **Split:** Split stepped the hit's damage row, but `resolveSpellAttack` read the critical's dice afresh from the spell's Base Damage, so a crit dealt "4d4 + 2d6 critical".
+  - **Unshakable:** the 3.609.0 `effects` carried a note about casting the touch warp by hand, and 3.716.0 automated the warp without removing it.
+  - **The full stop:** `imposingWillLine` ended in a full stop, and the metamagic notes add their own.
+- **Fix:**
+  - `resolveSpellAttack(…, { dieSteps })` steps the critical's formula, and Split passes it on both calls.
+  - Unshakable's note was removed from the pack. The `unshakable-effects-3609` repair was amended with `alsoFrom`, and the pack-copy pass and the schema were re-gated to 3.717.1.
+  - `imposingWillLine` no longer adds a full stop.
+- **Testing:**
+  - `verify-metamagic-targets`: 72 checks. `mutate-metamagic-targets`: 51 mutations, all caught.
+  - Every verify file was run except `verify-checks-read-source`, together with every mutate file that pins the version, schema or pack-copy gate, except `mutate-fixes-3685-3b`, whose only anchor here is the version.
+- **Live verification:** pending. 3.717.1 needs installing.
+- **Delivery:** 3.717.1, branch `fix/spell-metamagic-rulings`.

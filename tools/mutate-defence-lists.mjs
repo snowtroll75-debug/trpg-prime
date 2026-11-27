@@ -27,7 +27,7 @@ const MUTATIONS = [
   { name: "a disabled effect still counts as granting", file: MG, from: "        .filter((e) => !e?.disabled)\n        .flatMap((e) => Array.from(e?.changes", to: "        .flatMap((e) => Array.from(e?.changes", breaks: "D1" },
   { name: "every list is rewritten", file: MG, from: "      if (cleaned === null || cleaned === stored[key]) continue;\n", to: "", breaks: "D2" },
   { name: "the pass is never run", file: MG, from: "    () => migrateBakedDefenceLists(actors, tokenActors))) ?? [];", to: "    () => [])) ?? [];", breaks: "D3" },
-  { name: "the stamp stays where it was", file: MG, from: "export const TRG_SCHEMA_VERSION = \"3.717.0\";", to: "export const TRG_SCHEMA_VERSION = \"3.666.3\";", breaks: "D4" }
+  { name: "the stamp stays where it was", file: MG, from: "export const TRG_SCHEMA_VERSION = \"3.717.1\";", to: "export const TRG_SCHEMA_VERSION = \"3.666.3\";", breaks: "D4" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-defence-lists.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

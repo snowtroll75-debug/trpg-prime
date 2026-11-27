@@ -386,8 +386,10 @@ ok("P2f every ladder in the plan parses", Object.values(PLAN).flatMap((f) => (f.
     for (const field of fields) {
       const entries = PACK_REPAIRS.filter((r) => r.name === name && r.field === field);
       // 3.609.1 re-dated Vision Of Havoc's effects (the held stun, F4 of the
-      // live test); every other entry is still 3.609.0's.
-      const since = name === "Vision Of Havoc" && field === "effects" ? "3.609.1" : "3.609.0";
+      // live test); 3.717.1 re-dated Unshakable's (its stale note went, the
+      // 3.717.0 live test's D3); every other entry is still 3.609.0's.
+      const since = name === "Vision Of Havoc" && field === "effects" ? "3.609.1"
+        : name === "Unshakable" && field === "effects" ? "3.717.1" : "3.609.0";
       ok(`P3 ${name}.${field} has one ${since} pack-repair entry`, entries.length === 1 && entries[0].since === since);
       ok(`P3b and its \`to\` is the plan`, deepEqual(entries[0]?.to, PLAN[name][field]));
     }

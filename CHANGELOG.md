@@ -2,6 +2,15 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.717.1 — 27 November 2026: Three things the 3.717.0 live test found
+
+Full notes in `release-notes-3.717.1.md`. In the 3.717.0 live test, all 16 cases passed (`live-testing-report-3.717.0.md`).
+
+- **Split Spell:** its critical dice now step with the hit (2d6 → 2d4).
+- **Unshakable:** the stale "cast by hand" note is gone from the pack and from owned copies (schema 3.717.1).
+- **Imposing Will:** its card line ends with one full stop.
+- **Question:** Q1, the caster's default tick in a beneficial area chooser.
+
 ## 3.717.0 — 27 November 2026: The metamagic that chooses who is affected
 
 Full notes in `release-notes-3.717.0.md`. These are Graham's answers to O1–O8.

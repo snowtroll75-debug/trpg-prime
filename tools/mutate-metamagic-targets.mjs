@@ -50,9 +50,14 @@ const MUTATIONS = [
   { name: "Aligned reads the spell's list again", file: MM, from: "  if (has(\"aligned spell\") && /divinity/i.test(casterTrad)) {", to: "  if (has(\"aligned spell\") && /divinity/i.test(String(tradition ?? \"\"))) {", breaks: "C3" },
   { name: "no fallback to the cast's tradition", file: MM, from: "  const casterTrad = String(casterTradition ?? tradition ?? \"\");", to: "  const casterTrad = String(casterTradition ?? \"\");", breaks: "C4" },
   { name: "the cast does not name the caster's tradition", file: CW, from: "    casterTradition: String(system.magic?.tradition ?? \"\"),\n", to: "", breaks: "C5" },
+  // 3.717.1 — the live test's three
+  { name: "the extra targets take the full die", file: CW, from: "damageOverride: splitDamage ?? damageForCast, dieSteps: splitBought,", to: "damageOverride: splitDamage ?? damageForCast,", breaks: "W17" },
+  { name: "the critical's dice are not stepped", file: CW, from: "  const critFormula = dieSteps > 0 && critRaw ? (splitDamageRow({ formula: critRaw }, dieSteps)?.formula ?? critRaw) : critRaw;", to: "  const critFormula = critRaw;", breaks: "W18" },
+  { name: "the note's full stop is back", file: MT, from: "immunity to the ${imposed[0]?.trait ?? \"mental\"} trait`;", to: "immunity to the ${imposed[0]?.trait ?? \"mental\"} trait.`;", breaks: "I9" },
+  { name: "the stale note stays on owned copies", file: PR, from: `    to: [{"kind":"defence","target":"self","field":"immunity","value":"stunned"}],`, to: `    to: [{"kind":"defence","target":"self","field":"immunity","value":"stunned"},{"kind":"note","text":"x"}],`, breaks: "R4" },
   // R — the owned copies
   { name: "Geas's copies are left stale", file: PR, from: `    id: "geas-warps-3717", pack: "spells", name: "Geas",`, to: `    id: "geas-warps-3717x", pack: "spells", name: "Geas",`, breaks: "R1" },
-  { name: "the pack-copy pass is not re-gated", file: MG, from: `  const packCopies = (await runIf("3.717.0",`, to: `  const packCopies = (await runIf("3.716.0",`, breaks: "R3" },
+  { name: "the pack-copy pass is not re-gated", file: MG, from: `  const packCopies = (await runIf("3.717.1",`, to: `  const packCopies = (await runIf("3.716.0",`, breaks: "R3" },
   // W — the wiring
   { name: "the early gate refuses before Imposing Will is bought", file: CW, from: "&& !storingNow && !imposingWillDeferred) {", to: "&& !storingNow) {", breaks: "W1" },
   { name: "the late gate ignores the type", file: CW, from: "          imposes: mm.imposingType ? (a) => isOfKind(a.system, mm.imposingType) : null\n", to: "", breaks: "W2" },
@@ -61,7 +66,7 @@ const MUTATIONS = [
   { name: "an area ignores the type", file: CW, from: "          imposes: mm.imposingType ? (a) => isOfKindForWill(a.system, mm.imposingType) : null\n", to: "", breaks: "W7" },
   { name: "an area ignores the alignment", file: CW, from: "          areaTargets = areaAligned.kept;\n", to: "", breaks: "W8" },
   { name: "Selective is never asked", file: CW, from: "        if (mm.selectiveCount > 0 && areaTargets.length) {", to: "        if (false) {", breaks: "W9" },
-  { name: "the first target takes the full die", file: CW, from: "      damageOverride: splitDamage ?? damageForCast,\n      splashSaveDC: nominalSaveDC,\n      // The caster's declared", to: "      damageOverride: damageForCast,\n      splashSaveDC: nominalSaveDC,\n      // The caster's declared", breaks: "W10" },
+  { name: "the first target takes the full die", file: CW, from: "      damageOverride: splitDamage ?? damageForCast,\n      dieSteps: splitBought,\n      splashSaveDC: nominalSaveDC,", to: "      damageOverride: damageForCast,\n      dieSteps: splitBought,\n      splashSaveDC: nominalSaveDC,", breaks: "W10" },
   { name: "each extra is a fresh attack for MAP", file: CW, from: "targetOverride: target, mapCount: splitMapCount, deferMapAdvance: true,", to: "targetOverride: target, mapCount: null, deferMapAdvance: false,", breaks: "W11" },
   { name: "every target is an extra", file: CW, from: ".slice(1, 1 + splitBought)", to: ".slice(1)", breaks: "W12" },
   { name: "the warp's save is never rolled", file: CW, from: "const castDefence = effDefence ?? warpDefenceOf(warpMods) ?? spellData.defence;", to: "const castDefence = effDefence ?? spellData.defence;", breaks: "W13" },

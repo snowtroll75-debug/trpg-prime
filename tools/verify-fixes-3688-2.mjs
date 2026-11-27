@@ -54,7 +54,7 @@ ok("B …the flag it reads is the one the release sets on the built spell (`item
 ok("B and a spell of the caster's own is still asked", /spellCastBlocked\(spell\)/.test(cw) && cw.indexOf("const releasedFromItem") < cw.indexOf("const castBlocked"));
 
 const sys = JSON.parse(read("system.json"));
-equal("Z the version is 3.691.0", [sys.version, JSON.parse(read("package.json")).version], ["3.717.0", "3.717.0"]);
+equal("Z the version is 3.691.0", [sys.version, JSON.parse(read("package.json")).version], ["3.717.1", "3.717.1"]);
 
 if (failures.length) { for (const f of failures) console.log(`  ✗ ${f}`); console.log(`verify-fixes-3688-2: ${failures.length} failure(s) of ${checks}`); process.exit(1); }
 console.log(`verify-fixes-3688-2: all ${checks} checks pass`);

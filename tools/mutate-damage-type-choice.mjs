@@ -136,7 +136,7 @@ const MUTATIONS = [
   { file: CAST, name: "W the save path stops taking the override",
     from: `      damage: damageForCast,`, to: `      damage: apMode?.damage ?? null,`, breaks: "W4" },
   { file: CAST, name: "W THE ATTACK PATH STOPS TAKING IT, so Energy Bolt stays fire",
-    from: `      damageOverride: splitDamage ?? damageForCast,\n      splashSaveDC`, to: `      damageOverride: null,\n      splashSaveDC`, breaks: "W5" },
+    from: `      damageOverride: splitDamage ?? damageForCast,\n      dieSteps: splitBought,`, to: `      damageOverride: null,\n      dieSteps: splitBought,`, breaks: "W5" },
   { file: CAST, name: "W and stops honouring it",
     from: `  const dmg = damageOverride ?? spellData.damage ?? {};`,
     to: `  const dmg = spellData.damage ?? {};`, breaks: "W5b" },

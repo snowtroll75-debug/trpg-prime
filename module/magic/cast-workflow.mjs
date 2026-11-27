@@ -5160,7 +5160,7 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
           imposes: mm.imposingType ? (a) => isOfKindForWill(a.system, mm.imposingType) : null
         });
         areaTargets = areaImmunity.kept;
-        if (areaImmunity.imposed?.length) lines.push(line(`<em>${esc(imposingWillLine(areaImmunity.imposed))}</em>`));
+        if (areaImmunity.imposed?.length) lines.push(line(`<em>${esc(imposingWillLine(areaImmunity.imposed))}.</em>`));
         // ALIGNED SPELL (3.717.0, O4): only creatures with a chosen trait.
         let areaAligned = { skipped: [] };
         if ((mm.alignedTraits ?? []).length) {
@@ -5870,6 +5870,7 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
        */
       rays: Number(apMode?.rays ?? 0),
       damageOverride: splitDamage ?? damageForCast,
+      dieSteps: splitBought,
       splashSaveDC: nominalSaveDC,
       // The caster's declared spell-attack rows (3.695.0, CD14).
       declaredAttackRows,
@@ -5902,7 +5903,7 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
     for (const target of splitTargets) {
       await resolveSpellAttack(actor, spell, check, lines, clMods, warpMods, {
         targetOverride: target, mapCount: splitMapCount, deferMapAdvance: true, quiet: true,
-        damageOverride: splitDamage ?? damageForCast,
+        damageOverride: splitDamage ?? damageForCast, dieSteps: splitBought,
         splashSaveDC: nominalSaveDC,
         declaredAttackRows,
         extraAttackRows: [...(accuracyAttackRow ? [accuracyAttackRow] : []), ...(castOptionsApplied.attackRows ?? []), ...castItems.attackRows, ...gateAttackOnlyRows],
@@ -7327,7 +7328,10 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
   // of the Ancestors, Q75: "half damage rounded down"). 1 for every other.
   damageFactor = 1,
   // The caster's declared spell-attack rows (3.695.0, CD14) — spell-dc-bonus.mjs.
-  declaredAttackRows = []
+  declaredAttackRows = [],
+  // SPLIT SPELL'S STEPS (3.717.1): "the damage die of the spell attack is
+  // reduced by one step per additional target" — the critical's dice too.
+  dieSteps = 0
 } = {}) {
   const spellData = spell.system;
   // THE CHOSEN TYPE, WHEN THE CAST MADE A CHOICE (3.603.0). The same
@@ -7767,7 +7771,11 @@ async function resolveSpellAttack(actor, spell, check, lines, clMods = null, war
   // critical adds its own dice here. Asked before they are rolled; on a yes
   // they are rolled, not dealt, and half is healed once the blow has landed.
   let guardedNegated = null;
-  const critFormula = criticalBonusDamage(spell.system, outcome.critical?.severity ?? null);
+  // STEPPED WITH THE HIT'S DIE UNDER SPLIT SPELL (3.717.1; the 3.717.0 live
+  // test dealt "4d4 + 2d6 critical"): the critical's dice are the Base Damage
+  // entry's, and Split steps "the damage die of the spell attack".
+  const critRaw = criticalBonusDamage(spell.system, outcome.critical?.severity ?? null);
+  const critFormula = dieSteps > 0 && critRaw ? (splitDamageRow({ formula: critRaw }, dieSteps)?.formula ?? critRaw) : critRaw;
   if (critFormula) {
     const { offerCriticalGuard } = await import("../combat/critical-guard-workflow.mjs");
     const guarded = await offerCriticalGuard(targetActor, actor, spell);

@@ -663,7 +663,7 @@ eq("R9 no severity is no critical", criticalBonusDamage({ baseDamage: "1d8" }, n
 eq("R10 the save path may name its own die count",
   criticalBonusDamage({ baseDamage: "1d6" }, "serious", 3), "3d6");
 ok("R11 the attack path adds it — a spell critical used to add no damage at all",
-  /const critFormula = criticalBonusDamage\(spell\.system, outcome\.critical\?\.severity/.test(
+  /const crit(Formula|Raw) = criticalBonusDamage\(spell\.system, outcome\.critical\?\.severity/.test(
     code("module", "magic", "cast-workflow.mjs")));
 ok("R11b and the card NAMES the dice it added",
   /\$\{critFormula \? ` \+ \$\{critFormula\} critical` : ""\}/.test(read("module", "magic", "cast-workflow.mjs")),
