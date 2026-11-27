@@ -177,7 +177,7 @@ ok("G6 a burst is never a live emanation by its area text alone",
  * H. F8 — the chosen mode
  * ================================================================== */
 ok("H1 the Save DC is set by the mode's defence when it names one",
-  /const castDefence = effDefence \?\? spellData\.defence;\n\s*if \(castDefence\) \{\n\s*saveDC = nominalSaveDC;/.test(cast),
+  /const castDefence = effDefence \?\? (warpDefenceOf\(warpMods\) \?\? )?spellData\.defence;\n\s*if \(castDefence\) \{\n\s*saveDC = nominalSaveDC;/.test(cast),
   "Mud to Rock printed its Reflex on the mode and rolled nothing");
 ok("H2 and the card names that defence", /`Save: <strong>\$\{castDefence\}<\/strong> against DC/.test(cast));
 ok("H3 the area's row loops read the mode's rows",
@@ -218,7 +218,7 @@ ok("I6 the roll is blind by roll mode",
     && attack.indexOf("sanctuary = await sanctuaryCheck(actor, targetActor") < attack.indexOf("...(actor.system.combat?.attack?.checkModifiers ?? ["),
     "Visage's Failure made the attacker frightened 2 and the attack it gated rolled without the −2");
   ok("J2 G2 — the save path is handed the chosen mode's rows",
-    /defence: effDefence,[\s\S]{0,400}effects: effEffects,/.test(cast),
+    /defence: (effDefence|saveDefence),[\s\S]{0,400}effects: effEffects,/.test(cast),
     "Mud to Rock's card said to apply by hand a grab already applied");
   ok("J3 G3 — what claims the Region is read off the chosen mode's rows",
     cast.includes("shouldClearAreaRegion(placedArea?.regionId, { effects: effEffects }, emanationIsLive(spellData), castRefunded)"),

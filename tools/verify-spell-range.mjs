@@ -495,7 +495,8 @@ equal("C1 28 WARPS IN THE PACK TALK ABOUT RANGE", rangeWarps.length, 28,
 // spell gains a range of touch" — Nightvision's shape again (`rangeOverride`
 // plus `retargetSelfRows`), found when Graham's U8 refusal (Distant Spell
 // beside the spell's own range warp) could not see them.
-equal("C2 NINETEEN ARE LIVE ON THE NEW KEY", rangeWarps.filter((w) => w.live).length, 19);
+// 19 → 20 AT 3.717.0, and C3 6 → 5: Pass Without Trace's warp (Graham's O5).
+equal("C2 TWENTY ARE LIVE ON THE NEW KEY", rangeWarps.filter((w) => w.live).length, 20);
 // C3 MOVED 15 → 14 AT 3.520.0, and by a warp that was never really a
 // range warp: Sudden Sickening's "you can target up to 10 targets
 // WITHIN RANGE" matches on the word while changing a COUNT, and the
@@ -504,8 +505,8 @@ equal("C2 NINETEEN ARE LIVE ON THE NEW KEY", rangeWarps.filter((w) => w.live).le
 // 11 → 9 AT 3.587.0, the other side of C2's move.
 // 9 → 8 AT 3.591.0: Nightvision left this list for the one above.
 // 8 → 6 AT 3.716.0: True Seeing and Unshakable, the other side of C2's move.
-equal("C3 SIX ARE STILL FULLY INERT, DELIBERATELY",
-  rangeWarps.filter((w) => !Object.keys(w.mods).length).length, 6,
+equal("C3 FIVE ARE STILL FULLY INERT, DELIBERATELY",
+  rangeWarps.filter((w) => !Object.keys(w.mods).length).length, 5,
   "they redirect a TARGET rather than only lengthening a reach — a key no release has built yet");
 /*
  * C4 IS A DEFECT THIS CHANNEL FOUND AND DID NOT FIX, pinned so it cannot

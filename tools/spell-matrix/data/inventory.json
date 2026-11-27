@@ -434,9 +434,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 135,
-   "L20": 11024
+   "min": 0,
+   "L10": 86,
+   "L20": 7240
   }
  },
  {
@@ -490,8 +490,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 27
+   "min": 0,
+   "L20": 22
   }
  },
  {
@@ -556,9 +556,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 3,
-   "L20": 600
+   "min": 0,
+   "L10": 2,
+   "L20": 400
   }
  },
  {
@@ -791,8 +791,8 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 4
+   "min": 0,
+   "L20": 2
   }
  },
  {
@@ -913,8 +913,8 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 117
+   "min": 0,
+   "L20": 78
   }
  },
  {
@@ -968,8 +968,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 141
+   "min": 0,
+   "L20": 108
   }
  },
  {
@@ -1229,9 +1229,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 174,
-   "L20": 381
+   "min": 0,
+   "L10": 116,
+   "L20": 254
   }
  },
  {
@@ -1285,9 +1285,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 35,
-   "L20": 3104
+   "min": 0,
+   "L10": 20,
+   "L20": 2048
   }
  },
  {
@@ -1485,9 +1485,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 15,
-   "L20": 985
+   "min": 0,
+   "L10": 14,
+   "L20": 754
   }
  },
  {
@@ -1629,9 +1629,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 149,
-   "L20": 1591
+   "min": 0,
+   "L10": 124,
+   "L20": 1152
   }
  },
  {
@@ -1829,9 +1829,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 4,
-   "L20": 2660
+   "min": 0,
+   "L10": 2,
+   "L20": 1730
   }
  },
  {
@@ -2096,9 +2096,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 206,
-   "L20": 3311
+   "min": 0,
+   "L10": 174,
+   "L20": 2464
   }
  },
  {
@@ -2876,9 +2876,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 170,
-   "L20": 897
+   "min": 0,
+   "L10": 132,
+   "L20": 640
   }
  },
  {
@@ -2943,8 +2943,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 175
+   "min": 0,
+   "L20": 144
   }
  },
  {
@@ -3009,9 +3009,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 120,
-   "L20": 4680
+   "min": 0,
+   "L10": 80,
+   "L20": 3120
   }
  },
  {
@@ -3254,8 +3254,8 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 114
+   "min": 0,
+   "L20": 76
   }
  },
  {
@@ -3443,9 +3443,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 13,
-   "L20": 204
+   "min": 0,
+   "L10": 12,
+   "L20": 150
   }
  },
  {
@@ -3700,9 +3700,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 840,
-   "L20": 9813
+   "min": 0,
+   "L10": 560,
+   "L20": 6542
   }
  },
  {
@@ -3888,9 +3888,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 11,
-   "L20": 75
+   "min": 0,
+   "L10": 10,
+   "L20": 54
   }
  },
  {
@@ -4211,8 +4211,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 23
+   "min": 0,
+   "L20": 16
   }
  },
  {
@@ -4430,9 +4430,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 400,
-   "L20": 2863
+   "min": 0,
+   "L10": 320,
+   "L20": 2064
   }
  },
  {
@@ -4527,9 +4527,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 4706,
-   "L20": 148040
+   "min": 0,
+   "L10": 2938,
+   "L20": 97040
   }
  },
  {
@@ -5003,8 +5003,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 349
+   "min": 0,
+   "L20": 276
   }
  },
  {
@@ -5069,9 +5069,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 511,
-   "L20": 2721
+   "min": 0,
+   "L10": 358,
+   "L20": 1856
   }
  },
  {
@@ -5136,8 +5136,8 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 1455
+   "min": 0,
+   "L20": 934
   }
  },
  {
@@ -5191,9 +5191,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 18,
-   "L20": 47
+   "min": 0,
+   "L10": 14,
+   "L20": 32
   }
  },
  {
@@ -5258,9 +5258,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 606,
-   "L20": 3459
+   "min": 0,
+   "L10": 404,
+   "L20": 2306
   }
  },
  {
@@ -5325,9 +5325,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 39,
-   "L20": 305
+   "min": 0,
+   "L10": 32,
+   "L20": 212
   }
  },
  {
@@ -5558,9 +5558,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 238,
-   "L20": 3920
+   "min": 0,
+   "L10": 176,
+   "L20": 2638
   }
  },
  {
@@ -5777,9 +5777,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
+   "min": 0,
    "L10": 2,
-   "L20": 59
+   "L20": 42
   }
  },
  {
@@ -6140,8 +6140,8 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 812
+   "min": 0,
+   "L20": 504
   }
  },
  {
@@ -6294,8 +6294,8 @@
   },
   "fullSpace": {
    "min": 0,
-   "L10": 212,
-   "L20": 1016
+   "L10": 168,
+   "L20": 720
   }
  },
  {
@@ -6477,9 +6477,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 557,
-   "L20": 6757
+   "min": 0,
+   "L10": 364,
+   "L20": 4476
   }
  },
  {
@@ -6533,9 +6533,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 49,
-   "L20": 96
+   "min": 0,
+   "L10": 34,
+   "L20": 64
   }
  },
  {
@@ -6667,9 +6667,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 78,
-   "L20": 2088
+   "min": 0,
+   "L10": 62,
+   "L20": 1444
   }
  },
  {
@@ -6859,8 +6859,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 87
+   "min": 0,
+   "L20": 66
   }
  },
  {
@@ -6945,9 +6945,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 3285,
-   "L20": 65120
+   "min": 0,
+   "L10": 2082,
+   "L20": 42944
   }
  },
  {
@@ -7067,9 +7067,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 157,
-   "L20": 646
+   "min": 0,
+   "L10": 128,
+   "L20": 454
   }
  },
  {
@@ -7499,9 +7499,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 3,
-   "L20": 620
+   "min": 0,
+   "L10": 2,
+   "L20": 408
   }
  },
  {
@@ -7576,8 +7576,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 1713
+   "min": 0,
+   "L20": 1142
   }
  },
  {
@@ -7631,9 +7631,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 584,
-   "L20": 11484
+   "min": 0,
+   "L10": 368,
+   "L20": 7614
   }
  },
  {
@@ -7698,8 +7698,8 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 96
+   "min": 0,
+   "L20": 64
   }
  },
  {
@@ -7876,8 +7876,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 18
+   "min": 0,
+   "L20": 14
   }
  },
  {
@@ -8042,9 +8042,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 406,
-   "L20": 1092
+   "min": 0,
+   "L10": 284,
+   "L20": 738
   }
  },
  {
@@ -8155,8 +8155,8 @@
   },
   "fullSpace": {
    "min": 0,
-   "L10": 54,
-   "L20": 96
+   "L10": 44,
+   "L20": 64
   }
  },
  {
@@ -8210,7 +8210,7 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
+   "min": 0,
    "L20": 2
   }
  },
@@ -8278,7 +8278,7 @@
   "fullSpace": {
    "min": 0,
    "L10": 4,
-   "L20": 824
+   "L20": 560
   }
  },
  {
@@ -8440,9 +8440,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 82,
-   "L20": 4740
+   "min": 0,
+   "L10": 66,
+   "L20": 3282
   }
  },
  {
@@ -8661,9 +8661,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 306,
-   "L20": 2715
+   "min": 0,
+   "L10": 204,
+   "L20": 1810
   }
  },
  {
@@ -8840,8 +8840,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 27
+   "min": 0,
+   "L20": 22
   }
  },
  {
@@ -8906,9 +8906,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 78,
-   "L20": 2220
+   "min": 0,
+   "L10": 62,
+   "L20": 1504
   }
  },
  {
@@ -9247,9 +9247,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 39,
-   "L20": 6560
+   "min": 0,
+   "L10": 22,
+   "L20": 4288
   }
  },
  {
@@ -9426,9 +9426,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 4,
-   "L20": 1456
+   "min": 0,
+   "L10": 2,
+   "L20": 960
   }
  },
  {
@@ -9647,9 +9647,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 40,
-   "L20": 272
+   "min": 0,
+   "L10": 34,
+   "L20": 192
   }
  },
  {
@@ -10020,9 +10020,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 56,
-   "L20": 1232
+   "min": 0,
+   "L10": 38,
+   "L20": 812
   }
  },
  {
@@ -10097,9 +10097,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 24,
-   "L20": 1338
+   "min": 0,
+   "L10": 16,
+   "L20": 892
   }
  },
  {
@@ -10164,9 +10164,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 912,
-   "L20": 6174
+   "min": 0,
+   "L10": 608,
+   "L20": 4116
   }
  },
  {
@@ -10430,9 +10430,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 619,
-   "L20": 5456
+   "min": 0,
+   "L10": 434,
+   "L20": 3744
   }
  },
  {
@@ -10763,8 +10763,8 @@
   },
   "fullSpace": {
    "min": 0,
-   "L10": 774,
-   "L20": 21114
+   "L10": 516,
+   "L20": 14076
   }
  },
  {
@@ -11120,7 +11120,7 @@
   },
   "fullSpace": {
    "min": 0,
-   "L20": 1098
+   "L20": 696
   }
  },
  {
@@ -11562,9 +11562,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 191,
-   "L20": 1999
+   "min": 0,
+   "L10": 160,
+   "L20": 1438
   }
  },
  {
@@ -12015,9 +12015,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 168,
-   "L20": 1428
+   "min": 0,
+   "L10": 112,
+   "L20": 952
   }
  },
  {
@@ -12360,9 +12360,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 24,
-   "L20": 1821
+   "min": 0,
+   "L10": 16,
+   "L20": 1214
   }
  },
  {
@@ -12816,9 +12816,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 9,
-   "L20": 42
+   "min": 0,
+   "L10": 8,
+   "L20": 30
   }
  },
  {
@@ -13630,9 +13630,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 390,
-   "L20": 15308
+   "min": 0,
+   "L10": 340,
+   "L20": 11778
   }
  },
  {
@@ -14214,9 +14214,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 39,
-   "L20": 4959
+   "min": 0,
+   "L10": 22,
+   "L20": 3264
   }
  },
  {
@@ -14916,8 +14916,8 @@
   },
   "fullSpace": {
    "min": 0,
-   "L10": 44,
-   "L20": 1152
+   "L10": 28,
+   "L20": 768
   }
  },
  {
@@ -15059,9 +15059,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 40,
-   "L20": 353
+   "min": 0,
+   "L10": 34,
+   "L20": 256
   }
  },
  {
@@ -15249,7 +15249,7 @@
     "i": 1,
     "pp": 4,
     "text": "the spell has a range of 20 feet and an area of a 20-foot-emanation, affecting up to 10 creatures of your choice within that area",
-    "structured": false,
+    "structured": true,
     "nature": "mechanical",
     "bookMax": null,
     "textDice": null,
@@ -15606,9 +15606,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 191,
-   "L20": 19438
+   "min": 0,
+   "L10": 122,
+   "L20": 12740
   }
  },
  {
@@ -16435,9 +16435,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 46,
-   "L20": 553
+   "min": 0,
+   "L10": 34,
+   "L20": 376
   }
  },
  {
@@ -16665,7 +16665,7 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
+   "min": 0,
    "L20": 2
   }
  },
@@ -16720,9 +16720,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 9,
-   "L20": 42
+   "min": 0,
+   "L10": 8,
+   "L20": 30
   }
  },
  {
@@ -17155,9 +17155,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 81,
-   "L20": 448
+   "min": 0,
+   "L10": 64,
+   "L20": 320
   }
  },
  {
@@ -17266,8 +17266,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 49
+   "min": 0,
+   "L20": 34
   }
  },
  {
@@ -17746,9 +17746,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 261,
-   "L20": 3790
+   "min": 0,
+   "L10": 222,
+   "L20": 2782
   }
  },
  {
@@ -17988,9 +17988,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 510,
-   "L20": 16317
+   "min": 0,
+   "L10": 340,
+   "L20": 10878
   }
  },
  {
@@ -18112,7 +18112,7 @@
   "fullSpace": {
    "min": 0,
    "L10": 0,
-   "L20": 1810
+   "L20": 1184
   }
  },
  {
@@ -18398,8 +18398,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 168
+   "min": 0,
+   "L20": 112
   }
  },
  {
@@ -18484,9 +18484,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
+   "min": 0,
    "L10": 2,
-   "L20": 1299
+   "L20": 978
   }
  },
  {
@@ -18672,8 +18672,8 @@
   },
   "fullSpace": {
    "min": 0,
-   "L10": 108,
-   "L20": 776
+   "L10": 84,
+   "L20": 564
   }
  },
  {
@@ -18779,9 +18779,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 4,
-   "L20": 2833
+   "min": 0,
+   "L10": 2,
+   "L20": 1850
   }
  },
  {
@@ -19098,9 +19098,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 200,
-   "L20": 12944
+   "min": 0,
+   "L10": 118,
+   "L20": 8506
   }
  },
  {
@@ -20240,9 +20240,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 216,
-   "L20": 1539
+   "min": 0,
+   "L10": 144,
+   "L20": 1026
   }
  },
  {
@@ -20427,9 +20427,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
+   "min": 0,
    "L10": 2,
-   "L20": 865
+   "L20": 624
   }
  },
  {
@@ -20484,8 +20484,8 @@
   },
   "fullSpace": {
    "min": 0,
-   "L10": 42,
-   "L20": 1488
+   "L10": 28,
+   "L20": 992
   }
  },
  {
@@ -20539,9 +20539,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 300,
-   "L20": 744
+   "min": 0,
+   "L10": 200,
+   "L20": 496
   }
  },
  {
@@ -20816,9 +20816,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 321,
-   "L20": 1017
+   "min": 0,
+   "L10": 224,
+   "L20": 688
   }
  },
  {
@@ -20883,9 +20883,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 982,
-   "L20": 11007
+   "min": 0,
+   "L10": 636,
+   "L20": 7296
   }
  },
  {
@@ -21083,8 +21083,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 122
+   "min": 0,
+   "L20": 98
   }
  },
  {
@@ -21293,9 +21293,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 836,
-   "L20": 7328
+   "min": 0,
+   "L10": 546,
+   "L20": 4864
   }
  },
  {
@@ -21736,9 +21736,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 13,
-   "L20": 394
+   "min": 0,
+   "L10": 12,
+   "L20": 292
   }
  },
  {
@@ -21936,9 +21936,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 123,
-   "L20": 528
+   "min": 0,
+   "L10": 82,
+   "L20": 352
   }
  },
  {
@@ -22365,8 +22365,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 69
+   "min": 0,
+   "L20": 46
   }
  },
  {
@@ -22431,9 +22431,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 62,
-   "L20": 1328
+   "min": 0,
+   "L10": 48,
+   "L20": 896
   }
  },
  {
@@ -22487,9 +22487,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 41,
-   "L20": 95
+   "min": 0,
+   "L10": 30,
+   "L20": 64
   }
  },
  {
@@ -22778,9 +22778,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 174,
-   "L20": 1086
+   "min": 0,
+   "L10": 144,
+   "L20": 766
   }
  },
  {
@@ -22900,9 +22900,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 717,
-   "L20": 4197
+   "min": 0,
+   "L10": 478,
+   "L20": 2798
   }
  },
  {
@@ -22967,9 +22967,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 508,
-   "L20": 1910
+   "min": 0,
+   "L10": 356,
+   "L20": 1294
   }
  },
  {
@@ -23224,9 +23224,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 62,
-   "L20": 1328
+   "min": 0,
+   "L10": 48,
+   "L20": 896
   }
  },
  {
@@ -23291,9 +23291,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 24,
-   "L20": 858
+   "min": 0,
+   "L10": 16,
+   "L20": 572
   }
  },
  {
@@ -23347,9 +23347,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
+   "min": 0,
    "L10": 2,
-   "L20": 56
+   "L20": 40
   }
  },
  {
@@ -23489,9 +23489,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 553,
-   "L20": 13701
+   "min": 0,
+   "L10": 354,
+   "L20": 9102
   }
  },
  {
@@ -23545,8 +23545,8 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 240
+   "min": 0,
+   "L20": 160
   }
  },
  {
@@ -23707,9 +23707,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 129,
-   "L20": 13323
+   "min": 0,
+   "L10": 86,
+   "L20": 8882
   }
  },
  {
@@ -23941,8 +23941,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 13
+   "min": 0,
+   "L20": 12
   }
  },
  {
@@ -24639,9 +24639,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 240,
-   "L20": 2397
+   "min": 0,
+   "L10": 160,
+   "L20": 1598
   }
  },
  {
@@ -25013,9 +25013,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 191,
-   "L20": 1790
+   "min": 0,
+   "L10": 160,
+   "L20": 1278
   }
  },
  {
@@ -25136,9 +25136,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 982,
-   "L20": 11007
+   "min": 0,
+   "L10": 636,
+   "L20": 7296
   }
  },
  {
@@ -25259,9 +25259,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 90,
-   "L20": 1176
+   "min": 0,
+   "L10": 60,
+   "L20": 784
   }
  },
  {
@@ -25315,9 +25315,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 18,
-   "L20": 47
+   "min": 0,
+   "L10": 14,
+   "L20": 32
   }
  },
  {
@@ -25392,9 +25392,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 576,
-   "L20": 5376
+   "min": 0,
+   "L10": 384,
+   "L20": 3584
   }
  },
  {
@@ -25602,9 +25602,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 211,
-   "L20": 992
+   "min": 0,
+   "L10": 162,
+   "L20": 704
   }
  },
  {
@@ -25903,8 +25903,8 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 24
+   "min": 0,
+   "L20": 16
   }
  },
  {
@@ -25969,9 +25969,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 136,
-   "L20": 856
+   "min": 0,
+   "L10": 112,
+   "L20": 592
   }
  },
  {
@@ -26036,8 +26036,8 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 812
+   "min": 0,
+   "L20": 504
   }
  },
  {
@@ -26122,9 +26122,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 1564,
-   "L20": 13824
+   "min": 0,
+   "L10": 1022,
+   "L20": 9216
   }
  },
  {
@@ -26435,8 +26435,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 35
+   "min": 0,
+   "L20": 20
   }
  },
  {
@@ -26665,9 +26665,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 24,
-   "L20": 2499
+   "min": 0,
+   "L10": 16,
+   "L20": 1666
   }
  },
  {
@@ -26845,8 +26845,8 @@
   },
   "fullSpace": {
    "min": 0,
-   "L10": 82,
-   "L20": 190
+   "L10": 60,
+   "L20": 128
   }
  },
  {
@@ -27120,9 +27120,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 39,
-   "L20": 3909
+   "min": 0,
+   "L10": 22,
+   "L20": 2574
   }
  },
  {
@@ -27232,8 +27232,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 832
+   "min": 0,
+   "L20": 544
   }
  },
  {
@@ -27298,9 +27298,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 76,
-   "L20": 1216
+   "min": 0,
+   "L10": 60,
+   "L20": 840
   }
  },
  {
@@ -27405,9 +27405,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 156,
-   "L20": 19941
+   "min": 0,
+   "L10": 104,
+   "L20": 13294
   }
  },
  {
@@ -27548,9 +27548,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 534,
-   "L20": 3254
+   "min": 0,
+   "L10": 374,
+   "L20": 2222
   }
  },
  {
@@ -27757,9 +27757,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 96,
-   "L20": 480
+   "min": 0,
+   "L10": 64,
+   "L20": 320
   }
  },
  {
@@ -27834,9 +27834,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 129,
-   "L20": 5408
+   "min": 0,
+   "L10": 82,
+   "L20": 3584
   }
  },
  {
@@ -28131,9 +28131,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 216,
-   "L20": 1539
+   "min": 0,
+   "L10": 144,
+   "L20": 1026
   }
  },
  {
@@ -28442,9 +28442,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 982,
-   "L20": 11007
+   "min": 0,
+   "L10": 636,
+   "L20": 7296
   }
  },
  {
@@ -28575,9 +28575,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 480,
-   "L20": 3096
+   "min": 0,
+   "L10": 320,
+   "L20": 2064
   }
  },
  {
@@ -28698,8 +28698,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 216
+   "min": 0,
+   "L20": 144
   }
  },
  {
@@ -28831,9 +28831,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 2769,
-   "L20": 52961
+   "min": 0,
+   "L10": 1760,
+   "L20": 35014
   }
  },
  {
@@ -29086,8 +29086,8 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 3
+   "min": 0,
+   "L20": 2
   }
  },
  {
@@ -29228,9 +29228,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 492,
-   "L20": 1425
+   "min": 0,
+   "L10": 328,
+   "L20": 950
   }
  },
  {
@@ -29284,9 +29284,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 3,
-   "L20": 600
+   "min": 0,
+   "L10": 2,
+   "L20": 400
   }
  },
  {
@@ -29518,9 +29518,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 357,
-   "L20": 5421
+   "min": 0,
+   "L10": 238,
+   "L20": 3614
   }
  },
  {
@@ -29681,9 +29681,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 2212,
-   "L20": 80304
+   "min": 0,
+   "L10": 1384,
+   "L20": 52474
   }
  },
  {
@@ -29758,9 +29758,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 151,
-   "L20": 1808
+   "min": 0,
+   "L10": 98,
+   "L20": 1198
   }
  },
  {
@@ -29814,8 +29814,8 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 43
+   "min": 0,
+   "L20": 24
   }
  },
  {
@@ -29936,9 +29936,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 208,
-   "L20": 3294
+   "min": 0,
+   "L10": 176,
+   "L20": 2430
   }
  },
  {
@@ -30114,9 +30114,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 1823,
-   "L20": 15451
+   "min": 0,
+   "L10": 1184,
+   "L20": 10276
   }
  },
  {
@@ -30191,9 +30191,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 11,
-   "L20": 262
+   "min": 0,
+   "L10": 10,
+   "L20": 196
   }
  },
  {
@@ -30258,9 +30258,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 120,
-   "L20": 4680
+   "min": 0,
+   "L10": 80,
+   "L20": 3120
   }
  },
  {
@@ -30544,9 +30544,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 27,
-   "L20": 2904
+   "min": 0,
+   "L10": 18,
+   "L20": 1936
   }
  },
  {
@@ -30638,7 +30638,7 @@
     "i": 0,
     "pp": 4,
     "text": "You can use geas on an unwilling creature; it can attempt a Will save to negate the effect. If the target fails this save, the geas lasts up to 1 week. A remove curse spell can counteract a geas on an unwilling creature, in addition to powerful magic such as a wish spell. A clever unwilling creature can subvert the geas by contriving situations that prevent it from complying, but in that case, it becomes sickened (as described above)",
-    "structured": false,
+    "structured": true,
     "nature": "mechanical",
     "bookMax": 1,
     "textDice": null,
@@ -30648,7 +30648,7 @@
     "i": 1,
     "pp": 8,
     "text": "as above but the Geas lasts for up to 1 year",
-    "structured": false,
+    "structured": true,
     "nature": "narrative",
     "bookMax": null,
     "textDice": null,
@@ -30658,7 +30658,7 @@
     "i": 2,
     "pp": 12,
     "text": "as above but the Geas has unlimited duration",
-    "structured": false,
+    "structured": true,
     "nature": "mechanical",
     "bookMax": null,
     "textDice": null,
@@ -30688,8 +30688,8 @@
   },
   "fullSpace": {
    "min": 0,
-   "L10": 30,
-   "L20": 910
+   "L10": 28,
+   "L20": 672
   }
  },
  {
@@ -30810,9 +30810,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 126,
-   "L20": 3856
+   "min": 0,
+   "L10": 80,
+   "L20": 2560
   }
  },
  {
@@ -30944,8 +30944,8 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 4
+   "min": 0,
+   "L20": 2
   }
  },
  {
@@ -31265,8 +31265,8 @@
   },
   "fullSpace": {
    "min": 0,
-   "L10": 28,
-   "L20": 1026
+   "L10": 24,
+   "L20": 712
   }
  },
  {
@@ -31341,9 +31341,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 1416,
-   "L20": 18737
+   "min": 0,
+   "L10": 912,
+   "L20": 12410
   }
  },
  {
@@ -31408,9 +31408,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 216,
-   "L20": 1539
+   "min": 0,
+   "L10": 144,
+   "L20": 1026
   }
  },
  {
@@ -31475,9 +31475,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 60,
-   "L20": 768
+   "min": 0,
+   "L10": 46,
+   "L20": 512
   }
  },
  {
@@ -31788,9 +31788,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 134,
-   "L20": 1065
+   "min": 0,
+   "L10": 110,
+   "L20": 770
   }
  },
  {
@@ -32221,9 +32221,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 191,
-   "L20": 2592
+   "min": 0,
+   "L10": 160,
+   "L20": 1920
   }
  },
  {
@@ -32344,8 +32344,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 224
+   "min": 0,
+   "L20": 174
   }
  },
  {
@@ -32460,8 +32460,8 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 315
+   "min": 0,
+   "L20": 210
   }
  },
  {
@@ -32536,9 +32536,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 963,
-   "L20": 16896
+   "min": 0,
+   "L10": 642,
+   "L20": 11264
   }
  },
  {
@@ -32715,9 +32715,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 1231,
-   "L20": 10313
+   "min": 0,
+   "L10": 800,
+   "L20": 6858
   }
  },
  {
@@ -32771,8 +32771,8 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 3
+   "min": 0,
+   "L20": 2
   }
  },
  {
@@ -32882,8 +32882,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 27
+   "min": 0,
+   "L20": 22
   }
  },
  {
@@ -33004,9 +33004,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 51,
-   "L20": 298
+   "min": 0,
+   "L10": 44,
+   "L20": 212
   }
  },
  {
@@ -33081,9 +33081,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 126,
-   "L20": 4056
+   "min": 0,
+   "L10": 80,
+   "L20": 2680
   }
  },
  {
@@ -33337,9 +33337,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 1235,
-   "L20": 12640
+   "min": 0,
+   "L10": 802,
+   "L20": 8384
   }
  },
  {
@@ -33592,9 +33592,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 48,
-   "L20": 832
+   "min": 0,
+   "L10": 36,
+   "L20": 572
   }
  },
  {
@@ -33869,8 +33869,8 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 169
+   "min": 0,
+   "L20": 112
   }
  },
  {
@@ -33924,9 +33924,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 15,
-   "L20": 242
+   "min": 0,
+   "L10": 14,
+   "L20": 172
   }
  },
  {
@@ -34365,8 +34365,8 @@
   },
   "fullSpace": {
    "min": 0,
-   "L10": 140,
-   "L20": 3582
+   "L10": 124,
+   "L20": 2688
   }
  },
  {
@@ -34664,8 +34664,8 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 720
+   "min": 0,
+   "L20": 480
   }
  },
  {
@@ -34807,9 +34807,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 3,
-   "L20": 1002
+   "min": 0,
+   "L10": 2,
+   "L20": 658
   }
  },
  {
@@ -35134,8 +35134,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 483
+   "min": 0,
+   "L20": 322
   }
  },
  {
@@ -35364,9 +35364,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 195,
-   "L20": 672
+   "min": 0,
+   "L10": 130,
+   "L20": 448
   }
  },
  {
@@ -35420,9 +35420,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 3,
-   "L20": 978
+   "min": 0,
+   "L10": 2,
+   "L20": 642
   }
  },
  {
@@ -35695,9 +35695,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 306,
-   "L20": 2715
+   "min": 0,
+   "L10": 204,
+   "L20": 1810
   }
  },
  {
@@ -36083,9 +36083,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 315,
-   "L20": 3612
+   "min": 0,
+   "L10": 210,
+   "L20": 2408
   }
  },
  {
@@ -36283,9 +36283,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
+   "min": 0,
    "L10": 2,
-   "L20": 111
+   "L20": 82
   }
  },
  {
@@ -36514,9 +36514,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 119,
-   "L20": 482
+   "min": 0,
+   "L10": 96,
+   "L20": 338
   }
  },
  {
@@ -36713,9 +36713,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 1780,
-   "L20": 21631
+   "min": 0,
+   "L10": 1148,
+   "L20": 14336
   }
  },
  {
@@ -36989,9 +36989,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 299,
-   "L20": 9537
+   "min": 0,
+   "L10": 258,
+   "L20": 7296
   }
  },
  {
@@ -37056,9 +37056,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
+   "min": 0,
    "L10": 2,
-   "L20": 111
+   "L20": 82
   }
  },
  {
@@ -37189,8 +37189,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 23
+   "min": 0,
+   "L20": 16
   }
  },
  {
@@ -37726,9 +37726,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 147,
-   "L20": 864
+   "min": 0,
+   "L10": 98,
+   "L20": 576
   }
  },
  {
@@ -37855,9 +37855,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 1076,
-   "L20": 10208
+   "min": 0,
+   "L10": 706,
+   "L20": 6784
   }
  },
  {
@@ -37922,9 +37922,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 13,
-   "L20": 394
+   "min": 0,
+   "L10": 12,
+   "L20": 292
   }
  },
  {
@@ -38097,9 +38097,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 360,
-   "L20": 7077
+   "min": 0,
+   "L10": 240,
+   "L20": 4718
   }
  },
  {
@@ -38153,9 +38153,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 13,
-   "L20": 352
+   "min": 0,
+   "L10": 12,
+   "L20": 256
   }
  },
  {
@@ -38286,9 +38286,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 39,
-   "L20": 264
+   "min": 0,
+   "L10": 26,
+   "L20": 176
   }
  },
  {
@@ -38420,9 +38420,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 27,
-   "L20": 2901
+   "min": 0,
+   "L10": 18,
+   "L20": 1934
   }
  },
  {
@@ -38675,8 +38675,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 140
+   "min": 0,
+   "L20": 110
   }
  },
  {
@@ -38950,9 +38950,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 68,
-   "L20": 184
+   "min": 0,
+   "L10": 52,
+   "L20": 126
   }
  },
  {
@@ -39164,8 +39164,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 14093
+   "min": 0,
+   "L20": 8306
   }
  },
  {
@@ -39286,7 +39286,7 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
+   "min": 0,
    "L20": 2
   }
  },
@@ -39599,8 +39599,8 @@
   },
   "fullSpace": {
    "min": 0,
-   "L10": 26,
-   "L20": 528
+   "L10": 24,
+   "L20": 388
   }
  },
  {
@@ -39798,9 +39798,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 300,
-   "L20": 744
+   "min": 0,
+   "L10": 200,
+   "L20": 496
   }
  },
  {
@@ -40007,9 +40007,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 151,
-   "L20": 1491
+   "min": 0,
+   "L10": 120,
+   "L20": 1102
   }
  },
  {
@@ -40536,9 +40536,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 655,
-   "L20": 2067
+   "min": 0,
+   "L10": 436,
+   "L20": 1384
   }
  },
  {
@@ -40680,9 +40680,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 223,
-   "L20": 4751
+   "min": 0,
+   "L10": 190,
+   "L20": 3568
   }
  },
  {
@@ -41752,9 +41752,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 477,
-   "L20": 9261
+   "min": 0,
+   "L10": 318,
+   "L20": 6174
   }
  },
  {
@@ -41864,8 +41864,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 216
+   "min": 0,
+   "L20": 144
   }
  },
  {
@@ -41995,9 +41995,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 840,
-   "L20": 10173
+   "min": 0,
+   "L10": 560,
+   "L20": 6782
   }
  },
  {
@@ -42051,9 +42051,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 49,
-   "L20": 96
+   "min": 0,
+   "L10": 34,
+   "L20": 64
   }
  },
  {
@@ -42118,9 +42118,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 191,
-   "L20": 2190
+   "min": 0,
+   "L10": 160,
+   "L20": 1598
   }
  },
  {
@@ -42195,9 +42195,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 480,
-   "L20": 11757
+   "min": 0,
+   "L10": 320,
+   "L20": 7838
   }
  },
  {
@@ -42404,9 +42404,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 266,
-   "L20": 2064
+   "min": 0,
+   "L10": 210,
+   "L20": 1504
   }
  },
  {
@@ -43052,8 +43052,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 41
+   "min": 0,
+   "L20": 30
   }
  },
  {
@@ -43118,9 +43118,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 3,
-   "L20": 357
+   "min": 0,
+   "L10": 2,
+   "L20": 238
   }
  },
  {
@@ -43338,9 +43338,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 42,
-   "L20": 448
+   "min": 0,
+   "L10": 36,
+   "L20": 320
   }
  },
  {
@@ -43415,9 +43415,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 136,
-   "L20": 1520
+   "min": 0,
+   "L10": 112,
+   "L20": 1120
   }
  },
  {
@@ -43681,9 +43681,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 136,
-   "L20": 1520
+   "min": 0,
+   "L10": 112,
+   "L20": 1120
   }
  },
  {
@@ -43758,9 +43758,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 3,
-   "L20": 1193
+   "min": 0,
+   "L10": 2,
+   "L20": 782
   }
  },
  {
@@ -43891,9 +43891,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 216,
-   "L20": 1539
+   "min": 0,
+   "L10": 144,
+   "L20": 1026
   }
  },
  {
@@ -43999,7 +43999,7 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
+   "min": 0,
    "L20": 2
   }
  },
@@ -44109,9 +44109,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 49,
-   "L20": 96
+   "min": 0,
+   "L10": 34,
+   "L20": 64
   }
  },
  {
@@ -44165,7 +44165,7 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
+   "min": 0,
    "L20": 2
   }
  },
@@ -44552,9 +44552,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 492,
-   "L20": 1425
+   "min": 0,
+   "L10": 328,
+   "L20": 950
   }
  },
  {
@@ -44773,9 +44773,9 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 627,
-   "L20": 17661
+   "min": 0,
+   "L10": 418,
+   "L20": 11774
   }
  },
  {
@@ -44906,9 +44906,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 306,
-   "L20": 2715
+   "min": 0,
+   "L10": 204,
+   "L20": 1810
   }
  },
  {
@@ -45085,8 +45085,8 @@
    "widen spell": "eligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 1713
+   "min": 0,
+   "L20": 1142
   }
  },
  {
@@ -45151,9 +45151,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 198,
-   "L20": 806
+   "min": 0,
+   "L10": 132,
+   "L20": 540
   }
  },
  {
@@ -45448,9 +45448,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 243,
-   "L20": 1056
+   "min": 0,
+   "L10": 162,
+   "L20": 704
   }
  },
  {
@@ -45544,7 +45544,7 @@
     "text": "increase the amount warped by healing spells by an additional 1 PP (max +4)",
     "structured": true,
     "nature": "narrative",
-    "bookMax": 1,
+    "bookMax": 4,
     "textDice": null,
     "modsDice": null
    }
@@ -45572,8 +45572,8 @@
   },
   "fullSpace": {
    "min": 1,
-   "L10": 128,
-   "L20": 256
+   "L10": 130,
+   "L20": 448
   }
  },
  {
@@ -45638,8 +45638,8 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L20": 483
+   "min": 0,
+   "L20": 322
   }
  },
  {
@@ -45704,9 +45704,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 24,
-   "L20": 120
+   "min": 0,
+   "L10": 16,
+   "L20": 80
   }
  },
  {
@@ -45760,9 +45760,9 @@
    "widen spell": "ineligible"
   },
   "fullSpace": {
-   "min": 1,
-   "L10": 90,
-   "L20": 191
+   "min": 0,
+   "L10": 64,
+   "L20": 128
   }
  },
  {

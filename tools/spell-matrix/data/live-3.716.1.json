@@ -1,0 +1,17 @@
+{
+  "run": "2026-11-27, morning UK",
+  "core": "3.716.1",
+  "foundry": "14.367",
+  "world": "Test",
+  "sessions": {
+    "GM": "Testing Dude, http://localhost:30000, Chrome",
+    "Player": "PC Tester, http://127.0.0.1:30000, Chrome (simultaneous)"
+  },
+  "fixtures": "ZZ SM Bard (level 10, Bard, Charisma 2, Inspire Courage, Lingering + Echoing Performance), ZZ SM Wizard, ZZ SM Ally, on scene ZZ SM Live 3716b; combat Bard 30 / Wizard 20 / Ally 10",
+  "cases": [
+    { "id": 13, "user": "Player cast, GM turns", "spell": "Inspire Courage", "picks": ["Lingering Performance"],
+      "expected": "lingers Cha + 1 rounds after the Sustain lapses; no server error; the card says it lingers; 'fades' once",
+      "actual": "lingered round 3 to round 6 (linger 3, concurrent 2); effects came off the Bard and the Wizard at round 6; 0 errors on the GM client; Phase 1 card: 'Inspire Courage lingers — the performance has stopped, and it carries on for 3 rounds (Lingering Performance).'; one 'Inspire Courage fades — its duration is spent.'",
+      "result": "Pass" }
+  ]
+}

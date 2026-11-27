@@ -65,7 +65,7 @@ const CHECK = strip(read("module", "dice", "check.mjs"));
     STI.partitionTraitImmune([{ name: "Golem", system: { details: { traits: "Construct" } } }], "Essence, Soul").skipped[0]?.trait === "essence"
     && STI.partitionTraitImmune([{ name: "Wight", system: { combat: { immunities: "poison" }, details: {} } }], "Poison").skipped[0]?.trait === "poison");
   ok("A4 a targeted spell prunes the immune and refuses a cast with nobody left, before anything is spent",
-    /if \(!isAreaSpell\(spellData\) && spellNeedsTarget\(spellData, spell\) && !storingNow\) \{/.test(CAST)
+    /if \(!isAreaSpell\(spellData\) && spellNeedsTarget\(spellData, spell\) && !storingNow( && !imposingWillDeferred)?\) \{/.test(CAST)
     && /const immunity = partitionTraitImmune\(targeted\.map\(\(t\) => t\.actor\), spellData\.traits \?\? "", ownedCreatureTypeSystem\);/.test(CAST)
     && /if \(!immunity\.kept\.length\) \{[\s\S]{0,160}return null;/.test(CAST)
     && /if \(!immunity\.kept\.includes\(token\.actor\)\) token\.setTarget\(false/.test(CAST)
@@ -74,8 +74,8 @@ const CHECK = strip(read("module", "dice", "check.mjs"));
     CAST.indexOf("const immunity = partitionTraitImmune(") > CAST.indexOf("const gate = applyKindGate(actor, spell, spellData);")
     && CAST.indexOf("const immunity = partitionTraitImmune(") < CAST.indexOf("const basePP = isInnate ? 0"));
   ok("A6 an area meets it against what its template caught, named on the card",
-    /const areaImmunity = partitionTraitImmune\(areaTargets, spellData\.traits \?\? "", ownedCreatureTypeSystem(, \{ targetCount: Infinity \})?\);\s*areaTargets = areaImmunity\.kept;/.test(CAST)
-    && /kindSkippedText\(\[\.\.\.kindFiltered\.skipped, \.\.\.areaImmunity\.skipped\]\)/.test(CAST));
+    /const areaImmunity = partitionTraitImmune\(areaTargets, spellData\.traits \?\? "", ownedCreatureTypeSystem(, \{[\s\S]{0,240}?\})?\);\s*areaTargets = areaImmunity\.kept;/.test(CAST)
+    && /kindSkippedText\(\[\.\.\.kindFiltered\.skipped, \.\.\.areaImmunity\.skipped(, \.\.\.areaAligned\.skipped)?\]\)/.test(CAST));
 }
 
 /* B — R2, a late DC; G3 the label */

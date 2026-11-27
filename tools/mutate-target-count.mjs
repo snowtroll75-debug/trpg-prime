@@ -195,8 +195,8 @@ const MUTATIONS = [
     file: CAST,
     name: "G3 the gate reads the printed cap and ignores the warp",
     // RE-ANCHORED 2 Oct 2026 (3.611.0): an AP mode may name its own count.
-    from: "      cap: targetCapFor(apMode?.targets ?? spellData?.targets, warp.mods, casterLevel),",
-    to: "      cap: targetCapFor(apMode?.targets ?? spellData?.targets, {}, casterLevel),",
+    from: "targetCapFor(apMode?.targets ?? spellData?.targets, warp.mods, casterLevel), mm.splitExtra),",
+    to: "targetCapFor(apMode?.targets ?? spellData?.targets, {}, casterLevel), mm.splitExtra),",
     breaks: "W2 — the warp would buy nothing at the one place it matters"
   },
   {

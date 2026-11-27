@@ -2648,9 +2648,13 @@ export const PACK_REPAIRS = Object.freeze([
   {
     id: "unshakable-touch-warp", pack: "spells", name: "Unshakable",
     field: "warps", since: "3.716.0",
+    // AMENDED AT 3.717.0 (O6, Graham 27 Nov 2026: "needs checking"): `to`
+    // gained `onlyTradition: "arcane"`, and 3.716.0's `to` became an
+    // `alsoFrom`. One entry per field (E4).
     from: [{"ppCost": 2, "text": "the spell has a duration of 10 minutes", "mods": {"durationText": "10 minutes"}}, {"ppCost": 4, "text": "the spell gains a range of touch (arcane only)", "mods": {}}],
-    to: [{"ppCost": 2, "text": "the spell has a duration of 10 minutes", "mods": {"durationText": "10 minutes"}}, {"ppCost": 4, "text": "the spell gains a range of touch (arcane only)", "mods": {"rangeOverride": "touch", "retargetSelfRows": true}}],
-    reason: "Its warp \"the spell gains a range of touch\" carried no mods: charged, and only the caster was made unshakable. Now Invisibility's touch warp."
+    alsoFrom: [[{"ppCost":2,"text":"the spell has a duration of 10 minutes","mods":{"durationText":"10 minutes"}},{"ppCost":4,"text":"the spell gains a range of touch (arcane only)","mods":{"rangeOverride":"touch","retargetSelfRows":true}}]],
+    to: [{"ppCost":2,"text":"the spell has a duration of 10 minutes","mods":{"durationText":"10 minutes"}},{"ppCost":4,"text":"the spell gains a range of touch (arcane only)","mods":{"rangeOverride":"touch","retargetSelfRows":true,"onlyTradition":"arcane"}}],
+    reason: "Its warp \"the spell gains a range of touch (arcane only)\" carried no mods until 3.716.0: charged, and only the caster was made unshakable. From 3.717.0 a caster who is not arcane is refused it, nothing spent."
   },
   {
     id: "gravity-weapon-bonus-once", pack: "spells", name: "Gravity Weapon",
@@ -2665,6 +2669,29 @@ export const PACK_REPAIRS = Object.freeze([
     from: [{"ppCost": 2, "text": "increase the bonus to +2", "mods": {"bonusValue": 1, "bonusMax": 2}}],
     to: [{"ppCost": 2, "text": "increase the bonus to +2", "mods": {"bonusValue": 1, "bonusMax": 2, "once": true}}],
     reason: "\"Increase the bonus to +2\" from +1 is one purchase. An owned copy sold two."
+  },
+  /* GRAHAM'S ANSWERS OF 27 NOV 2026 (3.717.0; O5, "need building"). Written
+   * by tools/declare-spell-matrix-fixes.mjs; the `from` side is 3.716.1's pack. */
+  {
+    id: "geas-warps-3717", pack: "spells", name: "Geas",
+    field: "warps", since: "3.717.0",
+    from: [{"ppCost":4,"text":"You can use geas on an unwilling creature; it can attempt a Will save to negate the effect. If the target fails this save, the geas lasts up to 1 week. A remove curse spell can counteract a geas on an unwilling creature, in addition to powerful magic such as a wish spell. A clever unwilling creature can subvert the geas by contriving situations that prevent it from complying, but in that case, it becomes sickened (as described above)","mods":{}},{"ppCost":8,"text":"as above but the Geas lasts for up to 1 year","mods":{}},{"ppCost":12,"text":"as above but the Geas has unlimited duration","mods":{}}],
+    to: [{"ppCost":4,"text":"You can use geas on an unwilling creature; it can attempt a Will save to negate the effect. If the target fails this save, the geas lasts up to 1 week. A remove curse spell can counteract a geas on an unwilling creature, in addition to powerful magic such as a wish spell. A clever unwilling creature can subvert the geas by contriving situations that prevent it from complying, but in that case, it becomes sickened (as described above)","mods":{"defence":"Will Negates"}},{"ppCost":8,"text":"as above but the Geas lasts for up to 1 year","mods":{"defence":"Will Negates","durationText":"1 year"}},{"ppCost":12,"text":"as above but the Geas has unlimited duration","mods":{"defence":"Will Negates","durationText":"unlimited"}}],
+    reason: "Its three warps carried no mods: the unwilling creature's Will save was never rolled, and \"1 year\" and \"unlimited\" never reached the clock, so U8 could not see them beside Extend."
+  },
+  {
+    id: "pass-without-trace-warps-3717", pack: "spells", name: "Pass Without Trace",
+    field: "warps", since: "3.717.0",
+    from: [{"ppCost":1,"text":"the duration increases to 8 hours","mods":{"durationText":"8 hours"}},{"ppCost":4,"text":"the spell has a range of 20 feet and an area of a 20-foot-emanation, affecting up to 10 creatures of your choice within that area","mods":{}}],
+    to: [{"ppCost":1,"text":"the duration increases to 8 hours","mods":{"durationText":"8 hours"}},{"ppCost":4,"text":"the spell has a range of 20 feet and an area of a 20-foot-emanation, affecting up to 10 creatures of your choice within that area","mods":{"rangeOverride":"20 feet","areaOverride":"20-foot emanation","targetCap":10,"shareSelfRows":true}}],
+    reason: "Its area warp carried no mods: charged, and nobody but the caster was named. Now a 20-foot emanation within 20 feet, of up to 10 creatures of the caster's choice."
+  },
+  {
+    id: "pass-without-trace-areachoice-3717", pack: "spells", name: "Pass Without Trace",
+    field: "areaChoice", since: "3.717.0",
+    from: false,
+    to: true,
+    reason: "\"Up to 10 creatures of your choice within that area\": the caster chooses from what the emanation caught."
   },
 ]);
 

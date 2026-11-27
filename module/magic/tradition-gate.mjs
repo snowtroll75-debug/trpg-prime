@@ -290,3 +290,27 @@ export function traditionGate(actor, spellData, spellName = "This spell") {
   );
   return false;
 }
+
+/**
+ * A WARP ONE TRADITION MAY BUY (3.717.0, O6; Graham: "Needs checking").
+ * Unshakable's "+4 PP: the spell gains a range of touch (arcane only)" — the
+ * only warp in the core pack that names a tradition. The caster's own
+ * tradition decides, not the spell's list: Unshakable is arcane AND ethereal,
+ * so reading the spell would let every caster of it through.
+ *
+ * @param {string[]} onlyTraditions the traditions the bought warps require
+ * @param {string} casterTradition the caster's `system.magic.tradition`
+ * @returns {string[]} the refusals ("This warp is arcane only, and you cast as …")
+ */
+export function warpTraditionRefusals(onlyTraditions = [], casterTradition = "") {
+  const own = String(casterTradition ?? "").toLowerCase();
+  const out = [];
+  for (const t of new Set((onlyTraditions ?? []).map((x) => String(x).toLowerCase()).filter(Boolean))) {
+    // "divine" and "divinity" name one tradition.
+    const stem = t.replace(/ity$|e$/, "");
+    if (!own.includes(stem)) {
+      out.push(`A warp you chose is ${t} only, and your tradition is ${own ? own : "none"}`);
+    }
+  }
+  return out;
+}

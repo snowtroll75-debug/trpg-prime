@@ -23,7 +23,7 @@
 | 4 | Player | Mage Armour + Temporal ×1 | 3 PP. `spellEffectEnd − worldTime` = 43,200 s (1 hour → 12 hours) | Pass |
 | 5 | Player | Mage Armour: Temporal's ceiling | The count's `max` is 1 (one step left from Hours) | Pass |
 | 6 | Player | Mage Armour + Extend + Temporal | "Not Cast … Nothing was spent." 0 PP | Pass |
-| 7 | Player | Mage Armour + Distant, Ally targeted | Distant offered. The effect landed on the Ally, not the Wizard. 10 PP in all: Distant cost 6 on the Ethereal tradition, and a Partial with Variable Success added 2 | Pass (see note 1) |
+| 7 | Player | Mage Armour + Distant, Ally targeted | Distant offered. The effect landed on the Ally, not the Wizard. 10 PP in all: Distant cost 6 on the Ethereal tradition, and a Partial with Variable Success added 2 | Pass on reach; **the price was wrong** (see note 1) |
 | 8 | Player | Invisibility's own touch warp + Distant | "Not Cast — Distant Spell cannot be taken with the spell's own range warp … Nothing was spent." | Pass |
 | 9 | Player | Invisibility with no pouch, + Component Mastery material → verbal | Cast. "The material component becomes verbal for this cast." Invisible on the Wizard. 4 PP (a critical halved the base) | Pass |
 | 10 | Player | The same without Component Mastery | Refused after the Warp dialog with "no Material Component Pouch equipped". 0 PP, no effect | Pass |
@@ -51,7 +51,7 @@ A stale comment in `metamagic.mjs` that still called Lingering Performance a not
 
 ## Notes
 
-1. **Case 7's cost** matches the book. Distant's price depends on the tradition, and Variable Success adds PP on a Partial. It is recorded so that the 10 PP is not mistaken for a defect.
+1. **Case 7's cost was wrong.** This report first said it matched the book; it did not, and the correction came on 27 November. The Wizard is an arcane caster. Distant's +6 is for "Ethereal Casters", and the engine had read the spell's list ("arcane, ethereal") instead of the caster's tradition. Distant should have cost 4, so 8 PP in all. Fixed in 3.717.0 (R-0041).
 2. **Case 11's area** was removed once the cast resolved, because nothing claimed it (`shouldClearAreaRegion`, 3.609.2 onward). This is by design.
 3. **Case 12's counteract DC** was blank ("GM adjudicates"), because a cast's stamp carries the PP and no DC. That is how a counteract against a spell effect has always worked.
 4. **Case 12's first half** shows that a Specialist Spell's "maximum castable PP" is the character level (`specialistMaxPP`), not the caster level + 1. The stamp follows the cast's own cap.

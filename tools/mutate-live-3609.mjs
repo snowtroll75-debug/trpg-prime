@@ -68,7 +68,7 @@ const MUTATIONS = [
     from: "    || (config.shape === \"burst\" && !(Number(rangeFeet) > 0)));",
     to: "    || config.shape === \"burst\");", breaks: "G4" },
   { file: CAST, name: "F8 — the Save DC reads only the spell's defence",
-    from: "    const castDefence = effDefence ?? spellData.defence;", to: "    const castDefence = spellData.defence;", breaks: "H1" },
+    from: "    const castDefence = effDefence ?? warpDefenceOf(warpMods) ?? spellData.defence;", to: "    const castDefence = warpDefenceOf(warpMods) ?? spellData.defence;", breaks: "H1" },
   { file: CAST, name: "F8 — the terrain loop reads the spell's rows",
     from: "      for (const row of (effEffects ?? [])) {\n        if (row?.kind !== \"difficultTerrain\"",
     to: "      for (const row of (spellData.effects ?? [])) {\n        if (row?.kind !== \"difficultTerrain\"", breaks: "H3/H4" },

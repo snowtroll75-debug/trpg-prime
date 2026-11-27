@@ -202,7 +202,9 @@ const rawStrip = spells.flatMap((s) => (s.system?.warps ?? [])
     && isDismissibleDuration(s.system.duration)
     && !isDismissibleDuration(w.mods.durationText))
   .map(() => s.name));
-equal("E2 AND TWENTY OF THEM STILL WOULD, WITHOUT THE RULE", rawStrip.length, 20,
+// 20 → 22 AT 3.717.0: Geas's "1 year" and "unlimited" (Graham's O5), authored
+// without the (D) of its "1 week (D)" for the same reason as Possession's.
+equal("E2 AND TWENTY-TWO OF THEM STILL WOULD, WITHOUT THE RULE", rawStrip.length, 22,
   "measured against the AUTHORED text rather than the resolved one. Eighteen were the defect's own "
   + "footprint; the other two are Possession's, added by this very release and deliberately authored "
   + "WITHOUT the (D) — if the rule ever goes, the two newest rows fail with the eighteen old ones "

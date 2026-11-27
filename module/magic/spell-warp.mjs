@@ -245,6 +245,14 @@ function emptyWarpMods() {
   return {
     damageDice: "", persistent: 0, bonusValue: 0, bonusMax: null, saveDC: 0,
     durationText: null, traitPicks: 0,
+    // A SAVE THE WARP ADDS (3.717.0, O5; Geas: "you can use geas on an
+    // unwilling creature; it can attempt a Will save to negate the effect").
+    // The cast rolls it as though the spell printed it. Null: the spell's own.
+    defence: null,
+    // A WARP ONE TRADITION MAY BUY (3.717.0, O6; Unshakable: "the spell gains
+    // a range of touch (arcane only)"). The traditions named by the bought
+    // warps; the cast refuses, before anything is spent, a caster outside one.
+    onlyTradition: [],
     // AVOIDANCE SIGHT (3.597.0). See Invisible's +4 PP option — "invisible
     // creatures can be seen clearly and are not concealed" — REPLACES the
     // level the row declares rather than adding to it, so this is a
@@ -684,6 +692,8 @@ export function aggregateWarpSelection(warps, form) {
     // free pick can be counted alongside it.
     if (m.traitPicks) mods.traitPicks += Number(m.traitPicks) * times;
     if (m.durationText) mods.durationText = m.durationText;
+    if (m.defence) mods.defence = String(m.defence);
+    if (m.onlyTradition) mods.onlyTradition = [...(mods.onlyTradition ?? []), String(m.onlyTradition).toLowerCase()];
     /*
      * AVOIDANCE SIGHT (3.597.0). See Invisible's +4 PP option REPLACES the
      * row's level — "seen clearly and are not concealed" is not a stronger
@@ -1053,6 +1063,9 @@ export function mergeWarpSelections(first, second) {
       // longer one — and the later choice is the one the caster made
       // knowing how the check went.
       durationText: b.mods?.durationText ?? a.mods?.durationText ?? null,
+      // A SET, the later choice winning, as durationText (3.717.0).
+      defence: b.mods?.defence ?? a.mods?.defence ?? null,
+      onlyTradition: [...new Set([...(a.mods?.onlyTradition ?? []), ...(b.mods?.onlyTradition ?? [])])],
       qualityTier: b.mods?.qualityTier ?? a.mods?.qualityTier ?? null,
       // A SET, so the later choice wins — the same reason as durationText.
       sightLevel: b.mods?.sightLevel ?? a.mods?.sightLevel ?? null,

@@ -20,7 +20,7 @@ const MUTATIONS = [
   { name: "the turn grants 3 AP", file: CMB, from: "fastAttack ? 1 : 0, ...dualBase, ...(acting", to: "fastAttack ? 1 : 0, ...(acting", breaks: "D5" },
   { name: "the worse save stands", file: CK, from: "const keptFirst = rank(first.outcome) > rank(check.outcome)", to: "const keptFirst = rank(first.outcome) < rank(check.outcome)", breaks: "D6" },
   { name: "a mental action reaches it", file: AW, from: "dualMindsVerdict(targetActor.items, action.traits ?? \"\", 1) === \"immune\"", to: "false", breaks: "D7" },
-  { name: "an area counts its targets", file: CW, from: "ownedCreatureTypeSystem, { targetCount: Infinity });", to: "ownedCreatureTypeSystem);", breaks: "D7" },
+  { name: "an area counts its targets", file: CW, from: "ownedCreatureTypeSystem, {\n          targetCount: Infinity,\n", to: "ownedCreatureTypeSystem, {\n", breaks: "D7" },
   { name: "a body feeds the same ghoul twice", file: CR, from: "  return Boolean(feederUuid) && !(Array.isArray(fedBy) ? fedBy : []).includes(feederUuid);", to: "  return Boolean(feederUuid);", breaks: "C1" },
   { name: "the body is not marked", file: CAW, from: "  if (body.actor.isOwner) await body.actor.setFlag(SYSTEM_ID, CARRION_FED_FLAG, fedBy);\n", to: "", breaks: "C2" },
   { name: "chaos does not reverse", file: CR, from: "  const dir = Math.sign(Number(direction) || 1) * (chaos ? -1 : 1);", to: "  const dir = Math.sign(Number(direction) || 1);", breaks: "S1" },

@@ -1155,5 +1155,45 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
   - `verify-spell-metamagic-rulings`: E1–E4 (two concurrent ends end once; the claim is released; different entries are not held up; "fades" is said once between the two sweeps) and N1–N3. 99 checks.
   - `mutate-spell-metamagic-rulings`: 7 new mutations, 61 in all, every one caught.
   - Every verify and mutate file that pins the version, or touches the changed lines, was re-run.
-- **Live verification:** pending. 3.716.1 needs installing, and then case 13 needs repeating.
+- **Live verification:** passed, 27 November 2026, on 3.716.1 as installed. The player cast Inspire Courage with Lingering Performance and the GM advanced the turns. It lingered from round 3 to round 6 and came off both creatures it was on, with no server error. The card said "lingers … for 3 rounds (Lingering Performance)", and "fades" was said once.
 - **Delivery:** 3.716.1, branch `fix/spell-metamagic-rulings`.
+
+## R-0040 — Selective, Split, Aligned and Imposing Will charged PP and did nothing; Geas, Pass Without Trace and Unshakable's warps were unstructured (3.717.0)
+
+- **Reported:** the spell matrix (RC4, RC9), and Graham's answers to O4, O5 and O6 on 27 November 2026: "Should be automated", "Need building", "Needs checking".
+- **Source state:** branch `fix/spell-metamagic-rulings` at 3.716.1 (`baa6030`).
+- **Root cause:**
+  - **The four feats:** they were note-only by design. The aggregate's default branch charged the PP and set no field the cast read.
+  - **Geas:** its three warps had empty `mods`, so the unwilling creature's save was never rolled and the year or unlimited duration never reached the clock. U8 could not see them either.
+  - **Pass Without Trace:** the same for its area warp.
+  - **Unshakable:** the "(arcane only)" in its touch warp was text, and nothing checked it.
+- **Fix:**
+  - `metamagic-targets.mjs` holds the pure rules, and `selective-spell-workflow.mjs` the dialog.
+  - The aggregate carries the four choices.
+  - The cast applies them where it already prunes targets:
+    - the targeted immunity check waits for Imposing Will;
+    - a new check after the Warp dialog applies Imposing Will and Aligned to targeted spells;
+    - the area's catch applies Imposing Will, Aligned and Selective;
+    - the target cap and the attack apply Split.
+  - The warps gain two new mods, `defence` and `onlyTradition`. The pack is edited, owned copies are repaired, and the migration is re-gated.
+- **Testing:**
+  - `verify-metamagic-targets`: 67 checks. `mutate-metamagic-targets`: 47 mutations, all caught.
+  - Six existing checks were updated for the new code, and six mutation anchors were re-pinned.
+  - The spell matrix found no regressions. 7 cases now pass that failed before (U8 against the new warps, and O8), and the baseline is 1, which is an error in the model.
+- **Live verification:** pending. 3.717.0 needs installing.
+- **Delivery:** 3.717.0, branch `fix/spell-metamagic-rulings`.
+
+## R-0041 — Distant Spell and Aligned Spell read the spell's tradition list, not the caster's (3.717.0)
+
+- **Reported:** the 3.716.0 live retest, case 7. An arcane Wizard's Distant Mage Armour cost +6, the Ethereal price. On 27 November, checking Unshakable's "(arcane only)" (O6), I found the Wizard's own tradition is `arcane`. The report had called case 7's 10 PP correct; it was not.
+- **Source state:** branch `fix/spell-metamagic-rulings` at 3.716.1.
+- **Root cause:** `buildMetamagicOptions` takes `tradition`, and the cast passes it `effectiveSpellTradition(spellData.tradition, …)`, the spell's own list ("arcane, ethereal"). But both feats name the caster: *"Ethereal Casters can use this option for PP +6"* and *"Requirement Divine Caster only"*.
+- **Fix:**
+  - `casterTradition` is a new argument. The cast passes `system.magic.tradition`, and the catalogue passes the actor's own when it has a spell.
+  - Distant and Aligned read it. A caller that passes nothing falls back to `tradition`.
+- **Testing:**
+  - `verify-metamagic-targets` C1–C5. C1 is case 7 itself: an arcane caster pays 4 on a spell that also lists ethereal.
+  - Four mutations, all caught.
+  - Every verify and mutate file that touches the metamagic builder or the catalogue was run, and all passed.
+- **Live verification:** pending. 3.717.0 needs installing.
+- **Delivery:** 3.717.0, branch `fix/spell-metamagic-rulings`.

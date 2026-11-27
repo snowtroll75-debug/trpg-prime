@@ -345,10 +345,14 @@ const warpOf = (s, i) => s?.system?.warps?.[i];
   // Unshakable, CHECKED as this message asks — both print Invisibility's touch
   // warp, both carried empty mods (charged, and only the caster was affected),
   // and both now move their `self` rows onto the creature touched, as Jump does.
-  ok("F4c AND THE BLANK-BASE OVERRIDES ARE THE TEN THE RULING FINISHED",
+  // 10 → 11 AT 3.717.0 (Graham's O5, 27 Nov 2026): PASS WITHOUT TRACE, checked.
+  // Its warp is "a range of 20 feet and an area of a 20-foot-emanation,
+  // affecting up to 10 creatures of your choice": the range places the
+  // emanation, and the spell has no rows to move (its effect is narrative).
+  ok("F4c AND THE BLANK-BASE OVERRIDES ARE THE ELEVEN THE RULINGS FINISHED",
     JSON.stringify(blankRangeOverrides.slice().sort())
       === JSON.stringify(["Darkvision", "Dimension Door", "Ethereal Jaunt",
-        "Invisibility", "Jump", "Loremasters Edge", "Nightvision", "Shield Of Faith", "True Seeing", "Unshakable"]),
+        "Invisibility", "Jump", "Loremasters Edge", "Nightvision", "Pass Without Trace", "Shield Of Faith", "True Seeing", "Unshakable"]),
     `${JSON.stringify(blankRangeOverrides)} — 1 → 3 at 3.533.0 and 3 → 5 at 3.534.0, `
     + "and this check firing each time is how those were noticed rather than assumed. "
     + "Shield Of Faith (3.531.0) was first; Invisibility's row already targets `targets`; "

@@ -205,7 +205,7 @@ ok("G Effortless Spell's free Sustain announces itself too (found in review)",
 
 /* Z ---------------------------------------------------------------- */
 const sys = JSON.parse(read("system.json"));
-equal("Z the version is 3.692.0, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.716.1/")], ["3.716.1", "3.716.1", true]);
+equal("Z the version is 3.692.0, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.717.0/")], ["3.717.0", "3.717.0", true]);
 
 if (failures.length) {
   console.log(`verify-fixes-3692-0: ${checks} checks, ${failures.length} failure(s).`);

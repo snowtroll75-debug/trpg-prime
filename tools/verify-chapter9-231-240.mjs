@@ -474,7 +474,7 @@ eq("J9 the Critical trade is not broken",
   // AND 3.609.0 lets a cast MODE carry its own save (Transmute Rock & Mud),
   // so the defence is `(effDefence ?? spellData.defence)` — same rule.
   ok("K21 a missed touch stops the spell",
-    /\(effDefence \?\? spellData\.defence\) && saveDC != null && !touchMissed/.test(cast));
+    /\(effDefence \?\? (warpDefenceOf\(warpMods\) \?\? )?spellData\.defence\) && saveDC != null && !touchMissed/.test(cast));
 }
 {
   const sj = JSON.parse(read("system.json"));

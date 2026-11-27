@@ -101,6 +101,28 @@ export const IMPOSING_WILL_COSTS = Object.freeze({
   wyrm: 4
 });
 
+/** Aligned Spell's four traits, in the feat's own order. */
+const ALIGNED_SPELL_TRAITS = Object.freeze(["chaos", "evil", "good", "order"]);
+
+/**
+ * Aligned Spell's choices: each trait alone (+1 PP) and each pair (+2 PP).
+ * The value is the traits joined with "+", e.g. "evil+chaos".
+ */
+function alignedSpellChoices() {
+  const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+  const singles = ALIGNED_SPELL_TRAITS.map((t) => ({ value: t, ppCost: 1, label: `${cap(t)} (+1 PP)` }));
+  const pairs = [];
+  ALIGNED_SPELL_TRAITS.forEach((a, i) => ALIGNED_SPELL_TRAITS.slice(i + 1)
+    .forEach((b) => pairs.push({ value: `${a}+${b}`, ppCost: 2, label: `${cap(a)} or ${cap(b)} (+2 PP)` })));
+  return [...singles, ...pairs];
+}
+
+/** The traits an Aligned Spell choice names: "evil+chaos" -> ["evil", "chaos"]. */
+function alignedChoiceTraits(value) {
+  return String(value ?? "").toLowerCase().split("+").map((t) => t.trim())
+    .filter((t) => ALIGNED_SPELL_TRAITS.includes(t));
+}
+
 /** The first dice term of a formula: "15d6 + 4" -> {n: 15, faces: 6}. */
 export function firstDiceTerm(formula) {
   const m = String(formula ?? "").match(/(\d+)d(\d+)/);
@@ -117,7 +139,10 @@ export function firstDiceTerm(formula) {
  * @param {object} input.spellData The spell's system data.
  * @param {number} input.basePP
  * @param {number} input.casterLevel
- * @param {string} [input.tradition]
+ * @param {string} [input.tradition] the cast's tradition (the spell's list)
+ * @param {string} [input.casterTradition] the CASTER's own tradition, for the
+ *   two feats that name the caster: Aligned Spell ("Divine Caster only") and
+ *   Distant Spell ("Ethereal Casters … +6"). Falls back to `tradition`.
  * @param {Array} [input.rods] Held metamagic rods (rod-powers.mjs,
  *   `metamagicRodsOf`), 3.616.0.
  * @returns {Array<{id, label, ppCost, max, note, apply}>}
@@ -130,6 +155,7 @@ export function buildMetamagicOptions({
   basePP = 0,
   casterLevel = 0,
   tradition = "",
+  casterTradition = null,
   charisma = 0
 } = {}) {
   const has = (name) => featNames.includes(name);
@@ -171,13 +197,29 @@ export function buildMetamagicOptions({
   const area = String(spellData.area ?? "").trim();
   const components = spellData.components ?? {};
   const traits = String(spellData.traits ?? "");
-  const isEthereal = /ethereal/i.test(String(tradition ?? ""));
+  // THE CASTER'S TRADITION, NOT THE SPELL'S LIST (3.717.0; found in the
+  // 3.716.0 live retest's case 7). An arcane Wizard casting Mage Armour, which
+  // lists "arcane, ethereal", paid Distant's Ethereal +6, and a Wizard casting a
+  // spell that lists divinity would have been offered Aligned Spell.
+  const casterTrad = String(casterTradition ?? tradition ?? "");
+  const isEthereal = /ethereal/i.test(casterTrad);
 
-  if (has("aligned spell") && /divinity/i.test(String(tradition ?? ""))) {
+  /*
+   * ALIGNED SPELL, AUTOMATED (O4, Graham 27 Nov 2026: "Should be automated").
+   * "You can cause your spell to only affect targets with either the chaos,
+   * evil, good, or order alignment traits chosen at the time of casting. You
+   * can warp the spell by a further PP to affect a second trait." So the
+   * choice IS the purchase: one trait +1 PP, two +2. The cast then prunes
+   * every creature that carries none of them (cast-workflow, after the warp
+   * dialog for a targeted spell and after the template for an area).
+   */
+  if (has("aligned spell") && /divinity/i.test(casterTrad)) {
     options.push({
       id: "aligned", label: "Aligned Spell — affects only chosen alignment trait(s)",
-      ppCost: 1, max: 2,
-      note: (times) => `affects only targets with ${times > 1 ? "two chosen alignment traits" : "one chosen alignment trait"} (chaos/evil/good/order)`
+      ppCost: 0, max: 1,
+      kind: "select", select: "aligned",
+      choices: alignedSpellChoices(),
+      note: (times, value) => `affects only targets with the ${alignedChoiceTraits(value).join(" or ")} trait (Aligned Spell)`
     });
   }
   /*
@@ -246,7 +288,9 @@ export function buildMetamagicOptions({
       id: "imposingWill",
       label: "Imposing Will — affect a creature type normally immune to mental effects",
       ppCost: 0, max: 1,
-      kind: "select",
+      // AUTOMATED (O4, 27 Nov 2026): the cast lets a creature of this type
+      // through the mental-immunity gate (spell-trait-immunity.mjs).
+      kind: "select", select: "imposingWill",
       choices: Object.entries(IMPOSING_WILL_COSTS).map(([type, pp]) => ({
         value: type,
         ppCost: pp,
@@ -335,7 +379,9 @@ export function buildMetamagicOptions({
     options.push({
       id: "selective", label: "Selective Spell — exclude chosen targets (+1 PP each)",
       // "+1 PP per target", no printed ceiling: the cast cap is the ceiling (RC7).
-      ppCost: 1, max: Math.max(1, Math.floor(Number(casterLevel) || 0) + 1),
+      // AUTOMATED (O4): the caster picks who to exclude from what the
+      // template caught (selective-spell-workflow.mjs).
+      ppCost: 1, max: Math.max(1, Math.floor(Number(casterLevel) || 0) + 1), kind: "selective",
       note: (times) => `${times} chosen creature${times > 1 ? "s are" : " is"} excluded from the effect (you must be aware of them)`
     });
   }
@@ -353,7 +399,10 @@ export function buildMetamagicOptions({
   if (has("split spell") && damageFormula && String(spellData.category ?? "") === "attack") {
     options.push({
       id: "split", label: "Split Spell — extra targets, damage die stepped down each (+4 PP each)",
-      ppCost: 4, max: Math.max(1, Math.floor((Math.floor(Number(casterLevel) || 0) + 1) / 4)),
+      // AUTOMATED (O4): the target cap rises by the count, the first target
+      // is attacked as usual and each other one is compared with the same
+      // roll, all at the stepped-down die; one attack for MAP.
+      ppCost: 4, max: Math.max(1, Math.floor((Math.floor(Number(casterLevel) || 0) + 1) / 4)), kind: "split",
       note: (times) => `attack compared against ${times + 1} targets; damage die stepped down ${times} step${times > 1 ? "s" : ""}; one attack for MAP`
     });
   }
@@ -451,6 +500,9 @@ export function aggregateMetamagicSelection(options, form, { damageFormula = "",
     // and Widen's ×2, Distant's touch, Component Mastery's change, and
     // Lingering Performance's rounds. The cast reads each (cast-workflow).
     rangeFactor: 1, areaFactor: 1, distant: false, componentSwap: null, linger: null,
+    // THE FOUR THAT CHOOSE WHO IS AFFECTED (O4, 27 Nov 2026): Split's extra
+    // targets, Selective's exclusions, Aligned's traits, Imposing Will's type.
+    splitExtra: 0, selectiveCount: 0, alignedTraits: [], imposingType: null,
     notes: [],
     // WHAT THE RODS PAY (3.616.0, R12), deducted from each rod after the
     // cast. A rod Extend beside the feat's is one Extend: the duration
@@ -475,6 +527,8 @@ export function aggregateMetamagicSelection(options, form, { damageFormula = "",
         const [from, to] = value.split(">");
         agg.componentSwap = { from, to };
       }
+      if (o.select === "aligned") agg.alignedTraits = alignedChoiceTraits(value);
+      if (o.select === "imposingWill") agg.imposingType = value;
       agg.notes.push(`+${chosen.ppCost} PP: ${o.note(1, value)}`);
       continue;
     }
@@ -512,6 +566,12 @@ export function aggregateMetamagicSelection(options, form, { damageFormula = "",
         break;
       case "distant":
         agg.distant = true;
+        break;
+      case "split":
+        agg.splitExtra = times;
+        break;
+      case "selective":
+        agg.selectiveCount = times;
         break;
       case "lingering":
         agg.linger = { rounds: Math.max(0, Math.trunc(Number(o.lingerRounds) || 0)), concurrent: Math.max(1, Math.trunc(Number(o.lingerConcurrent) || 1)) };

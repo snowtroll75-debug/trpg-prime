@@ -38,7 +38,7 @@ const MUTATIONS = [
   { file: CAST, name: "a cast at only the immune goes ahead", from: "          for (const miss of immunity.skipped) ui.notifications.warn(`${spell.name}: ${miss.reason}.`);\n          return null;", to: "          for (const miss of immunity.skipped) ui.notifications.warn(`${spell.name}: ${miss.reason}.`);", breaks: "A4" },
   { file: CAST, name: "the immune are not named on the card", from: "        kindSkipped = [...kindSkipped, ...immunity.skipped];\n", to: "", breaks: "A4" },
   { file: CAST, name: "an area ignores immunity", from: "        areaTargets = areaImmunity.kept;\n", to: "", breaks: "A6" },
-  { file: CAST, name: "an area's immune are not named", from: "kindSkippedText([...kindFiltered.skipped, ...areaImmunity.skipped])", to: "kindSkippedText(kindFiltered.skipped)", breaks: "A6" },
+  { file: CAST, name: "an area's immune are not named", from: "kindSkippedText([...kindFiltered.skipped, ...areaImmunity.skipped, ...areaAligned.skipped])", to: "kindSkippedText([...kindFiltered.skipped, ...areaAligned.skipped])", breaks: "A6" },
   // B — R2, G3
   { file: TR, name: "F2 — THE OLD DEFECT: a late DC is not raised", from: "  return { dc: Number(entered) + n, note:", to: "  return { dc: Number(entered), note:", breaks: "B1" },
   { file: TR, name: "an Uncommon raise reads Rare", from: "is ${n >= 5 ? \"Rare\" : \"Uncommon\"})`;", to: "is Rare)`;", breaks: "B2" },
@@ -55,7 +55,7 @@ const MUTATIONS = [
   { file: TREC, name: "a Word penalty alone counts as clear", from: "  return Object.entries(record).every(([, v]) => !v);", to: "  return Object.entries(record).every(([, v]) => !v || v === true);", breaks: "D1" },
   { file: TW, name: "the turn start deletes as before", from: "  const { clearTraitUsageRecord } = await import(\"./combat/turn-records.mjs\");\n  await clearTraitUsageRecord(actor);", to: "  if (actor?.getFlag?.(SYSTEM_ID, USAGE_FLAG) === undefined) return;\n  await actor.unsetFlag(SYSTEM_ID, USAGE_FLAG);", breaks: "D4" },
   { file: COMBAT, name: "the attack count is deleted as before", from: "      const { clearAttackCount } = await import(\"../combat/turn-records.mjs\");\n      await clearAttackCount(actor);", to: "      await actor.unsetFlag(SYSTEM_ID, \"attackCount\");", breaks: "D4" },
-  { file: MIGRATION, name: "the schema is not raised (the pass is unreachable)", from: "export const TRG_SCHEMA_VERSION = \"3.716.0\";", to: "export const TRG_SCHEMA_VERSION = \"3.618.0\";", breaks: "D5" },
+  { file: MIGRATION, name: "the schema is not raised (the pass is unreachable)", from: "export const TRG_SCHEMA_VERSION = \"3.717.0\";", to: "export const TRG_SCHEMA_VERSION = \"3.618.0\";", breaks: "D5" },
   { file: MIGRATION, name: "the repair clears a running fight's records", from: "    if (!actor || fighting.has(actor.uuid)) continue;", to: "    if (!actor) continue;", breaks: "D6" },
   { file: MIGRATION, name: "the repair clears nothing", from: "    if (!stale) continue;", to: "    if (true) continue;", breaks: "D6" },
   // E — R6

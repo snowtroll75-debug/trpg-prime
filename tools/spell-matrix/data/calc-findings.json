@@ -1,9 +1,9 @@
 {
  "stats": {
-  "cases": 138415,
-  "compared": 136602,
-  "agree": 136117,
-  "disagree": 37,
+  "cases": 137435,
+  "compared": 135622,
+  "agree": 135144,
+  "disagree": 30,
   "liveOnly": 1813,
   "sweepSpells": 0,
   "sweepConfigs": 0,
@@ -13,15 +13,13 @@
   "fixedSinceBaseline": 0
  },
  "tally": {
-  "INTERPRETATION:WARP-CHECKBOX": 135,
+  "INTERPRETATION:WARP-CHECKBOX": 138,
   "DEFECT:MM-ARBITRARY-CAP": 4,
-  "NOTE-ONLY:MM-NOTE-ONLY": 4,
   "INTERPRETATION:MM-UNRESOLVED": 183,
-  "REVIEW:WARP-EMPTY-MECHANICAL": 92,
+  "REVIEW:WARP-EMPTY-MECHANICAL": 89,
   "REVIEW:WARP-MAX": 17,
   "REVIEW:WARP-DICE": 3,
   "REVIEW:WARP-CEILING-PARSE": 27,
-  "DEFECT:ILLEGAL-ACCEPTED": 5,
   "DEFECT:LEGAL-REFUSED": 1
  },
  "findings": [
@@ -50,28 +48,10 @@
    "detail": "selective spell: engine caps at 11×; the feat prints no ceiling (the cast cap is the limit)"
   },
   {
-   "class": "NOTE-ONLY",
-   "code": "MM-NOTE-ONLY",
-   "spell": "(all)",
-   "detail": "selective spell: charges +1 PP and sets no mechanical field (aggregate default branch)"
-  },
-  {
    "class": "DEFECT",
    "code": "MM-ARBITRARY-CAP",
    "spell": "(all)",
    "detail": "selective spell: engine caps at 21×; the feat prints no ceiling (the cast cap is the limit)"
-  },
-  {
-   "class": "NOTE-ONLY",
-   "code": "MM-NOTE-ONLY",
-   "spell": "(all)",
-   "detail": "imposing will: charges its choice's PP and sets no mechanical field (aggregate default branch)"
-  },
-  {
-   "class": "NOTE-ONLY",
-   "code": "MM-NOTE-ONLY",
-   "spell": "(all)",
-   "detail": "aligned spell: charges +1 PP and sets no mechanical field (aggregate default branch)"
   },
   {
    "class": "INTERPRETATION",
@@ -203,12 +183,6 @@
    "code": "MM-ARBITRARY-CAP",
    "spell": "(all)",
    "detail": "split spell: engine caps at 2×; the feat prints no ceiling (the cast cap is the limit)"
-  },
-  {
-   "class": "NOTE-ONLY",
-   "code": "MM-NOTE-ONLY",
-   "spell": "(all)",
-   "detail": "split spell: charges +4 PP and sets no mechanical field (aggregate default branch)"
   },
   {
    "class": "DEFECT",
@@ -990,10 +964,10 @@
    "detail": "warp 2 (+4 PP) \"the illusion gains 3 AP per round when you Sustain the Spell\" — no structured mods; live must show it applied"
   },
   {
-   "class": "REVIEW",
-   "code": "WARP-EMPTY-MECHANICAL",
+   "class": "INTERPRETATION",
+   "code": "WARP-CHECKBOX",
    "spell": "Pass Without Trace",
-   "detail": "warp 1 (+4 PP) \"the spell has a range of 20 feet and an area of a 20-foot-emanation, affecting u\" — no structured mods; live must show it applied"
+   "detail": "warp 1: book says repeatable; engine offers once because a repeat changes nothing"
   },
   {
    "class": "INTERPRETATION",
@@ -1940,16 +1914,16 @@
    "source": "trg-prime"
   },
   {
-   "class": "REVIEW",
-   "code": "WARP-EMPTY-MECHANICAL",
+   "class": "INTERPRETATION",
+   "code": "WARP-CHECKBOX",
    "spell": "Geas",
-   "detail": "warp 0 (+4 PP) \"You can use geas on an unwilling creature; it can attempt a Will save to negate \" — no structured mods; live must show it applied"
+   "detail": "warp 1: book says repeatable; engine offers once because a repeat changes nothing"
   },
   {
-   "class": "REVIEW",
-   "code": "WARP-EMPTY-MECHANICAL",
+   "class": "INTERPRETATION",
+   "code": "WARP-CHECKBOX",
    "spell": "Geas",
-   "detail": "warp 2 (+12 PP) \"as above but the Geas has unlimited duration\" — no structured mods; live must show it applied"
+   "detail": "warp 2: book says repeatable; engine offers once because a repeat changes nothing"
   },
   {
    "class": "INTERPRETATION",
@@ -2900,13 +2874,6 @@
    "caseId": "Jp0pyprZe6zAHfuQ|L20|warp-0x10"
   },
   {
-   "class": "DEFECT",
-   "code": "ILLEGAL-ACCEPTED",
-   "spell": "Pass Without Trace",
-   "detail": "combined: warp-1×1 + distant×1 — engine accepts an illegal cast (U8: the spell's own range warp overrides distant spell (refused))",
-   "caseId": "KJKnVYT5wZG4YtOn|L10|warp-1x1+distantx1"
-  },
-  {
    "class": "REVIEW",
    "code": "WARP-CEILING-PARSE",
    "spell": "Shape Of The Animal",
@@ -2961,27 +2928,6 @@
    "spell": "Gravity Weapon",
    "detail": "warp-max: warp-1×2 — engine refuses a legal cast (repeat cap)",
    "caseId": "bqrmzohKCsLd9pyq|L10|warp-1x2"
-  },
-  {
-   "class": "DEFECT",
-   "code": "ILLEGAL-ACCEPTED",
-   "spell": "Geas",
-   "detail": "combined: warp-0×1 + extend×1 — engine accepts an illegal cast (U8: the spell's own duration warp overrides extend spell (refused))",
-   "caseId": "ePF3HOG5DQ71aEer|L20|warp-0x1+extendx1"
-  },
-  {
-   "class": "DEFECT",
-   "code": "ILLEGAL-ACCEPTED",
-   "spell": "Geas",
-   "detail": "combined: warp-1×1 + extend×1 — engine accepts an illegal cast (U8: the spell's own duration warp overrides extend spell (refused))",
-   "caseId": "ePF3HOG5DQ71aEer|L20|warp-1x1+extendx1"
-  },
-  {
-   "class": "DEFECT",
-   "code": "ILLEGAL-ACCEPTED",
-   "spell": "Geas",
-   "detail": "combined: warp-2×1 + extend×1 — engine accepts an illegal cast (U8: the spell's own duration warp overrides extend spell (refused))",
-   "caseId": "ePF3HOG5DQ71aEer|L20|warp-2x1+extendx1"
   },
   {
    "class": "REVIEW",
@@ -3059,13 +3005,6 @@
    "spell": "Voice Of Healing",
    "detail": "warp-max: warp-2×9 — engine refuses a legal cast (repeat cap)",
    "caseId": "u2FGfj8AUimbptR4|L20|warp-2x9"
-  },
-  {
-   "class": "DEFECT",
-   "code": "ILLEGAL-ACCEPTED",
-   "spell": "Healer’s Grace",
-   "detail": "warp-over: warp-0×2 — engine accepts an illegal cast (warp-0 bought 2× (book max 1))",
-   "caseId": "zhoqDb47get5kGKl|L10|warp-0x2"
   }
  ]
 }

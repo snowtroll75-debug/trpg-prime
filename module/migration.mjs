@@ -96,7 +96,8 @@ const WORLD_SCHEMA_SETTING = "worldSchemaVersion";
 // 3.712.4: re-gated for one Spellbook for every book caster (the Prayer Book,
 // the Archmage and the Spellblade).
 // 3.716.0: the pack-copy pass re-gated for the spell matrix's warp ceilings.
-export const TRG_SCHEMA_VERSION = "3.716.0";
+// 3.717.0: and again for Geas, Pass Without Trace and Unshakable (O5, O6).
+export const TRG_SCHEMA_VERSION = "3.717.0";
 
 /**
  * Register the hidden world setting used to determine whether a migration is
@@ -813,7 +814,8 @@ export async function migrateWorldData(fromVersion = "") {
   // RE-VERSIONED TO 3.707.0: Stone Shield's shield (Graham, 21 Nov 2026).
   // RE-VERSIONED TO 3.707.1: Stone Shield's one foe.
   // RE-VERSIONED TO 3.716.0: the spell matrix's five warp ceilings (Graham's U12).
-  const packCopies = (await runIf("3.716.0", "stale owned copies of repaired pack items",
+  // RE-VERSIONED TO 3.717.0: Geas, Pass Without Trace and Unshakable (Graham's O5, O6).
+  const packCopies = (await runIf("3.717.0", "stale owned copies of repaired pack items",
     () => migrateStalePackCopies([...actors, ...tokenActors], Array.from(game.items ?? []))))
     ?? { repaired: [], kept: [] };
   result.packCopies = packCopies;

@@ -51,7 +51,7 @@ ok("D6 a mental save that reaches it rolls again and keeps the better", /dualMin
   && /const keptFirst = rank\(first\.outcome\) > rank\(check\.outcome\)/.test(src.check) && /if \(keptFirst\) \{\n          check\.dice = first\.dice;\n          check\.outcome = first\.outcome;/.test(src.check));
 ok("D7 a mental action aimed at it is refused; an area spell is never one target",
   /dualMindsVerdict\(targetActor\.items, action\.traits \?\? "", 1\) === "immune"/.test(src.aw)
-  && /partitionTraitImmune\(areaTargets, spellData\.traits \?\? "", ownedCreatureTypeSystem, \{ targetCount: Infinity \}\)/.test(src.cast));
+  && /partitionTraitImmune\(areaTargets, spellData\.traits \?\? "", ownedCreatureTypeSystem, \{\s*targetCount: Infinity[,\s]/.test(src.cast));
 
 // R7
 equal("C1 Carrion Feast: once per body per feeder", [CR.carrionFeastAllowed([], "A.g1"), CR.carrionFeastAllowed(["A.g1"], "A.g1"), CR.carrionFeastAllowed(["A.g1"], "A.g2"), CR.carrionFeastAllowed(null, "")], [true, false, true, false]);

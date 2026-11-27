@@ -23,6 +23,7 @@
 
 import { immuneToEffect } from "../traits.mjs";
 import { dualMindsImmuneReason, dualMindsVerdict } from "../dual-minds.mjs";
+import { imposingWillOvercomes } from "./metamagic-targets.mjs";
 
 /** The trait this creature is immune to among a spell's, or null. */
 function spellImmunityTrait(spellTraits, targetSystem, creatureTypeSystem = null) {
@@ -41,15 +42,25 @@ function immunityReason(name, trait) {
  * @param {object[]} actors the creatures the spell would reach
  * @param {string} spellTraits
  * @param {(actor:object)=>object|null} [typeOf] the owned creature type's system data
- * @returns {{kept:object[], skipped:{name:string, reason:string, trait:string}[]}}
+ * @param {{targetCount?:number, imposes?:(actor:object)=>boolean}} [opts]
+ *   `imposes`: Imposing Will's test, "is this creature of the paid-for type"
+ * @returns {{kept:object[], skipped:{name:string, reason:string, trait:string}[], imposed:{name:string, trait:string}[]}}
  */
-export function partitionTraitImmune(actors = [], spellTraits = "", typeOf = () => null, { targetCount = null } = {}) {
+export function partitionTraitImmune(actors = [], spellTraits = "", typeOf = () => null, { targetCount = null, imposes = null } = {}) {
   const kept = [];
   const skipped = [];
+  // IMPOSING WILL (3.717.0, O4): the creatures of the paid-for type that a
+  // mental-family immunity would have shielded, let through and named.
+  const imposed = [];
   const count = targetCount ?? (actors ?? []).filter(Boolean).length;
   for (const actor of actors ?? []) {
     if (!actor) continue;
     const trait = spellImmunityTrait(spellTraits, actor.system, typeOf(actor));
+    if (trait && typeof imposes === "function" && imposingWillOvercomes(trait, imposes(actor))) {
+      imposed.push({ name: actor.name, trait });
+      kept.push(actor);
+      continue;
+    }
     if (trait) { skipped.push({ name: actor.name, reason: immunityReason(actor.name, trait), trait }); continue; }
     // DUAL MINDS (3.647.0, F&F 3.0 block 15 R9): a mental spell aimed at the
     // Ettin alone reaches one head and does nothing.
@@ -59,5 +70,5 @@ export function partitionTraitImmune(actors = [], spellTraits = "", typeOf = () 
     }
     kept.push(actor);
   }
-  return { kept, skipped };
+  return { kept, skipped, imposed };
 }

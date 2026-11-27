@@ -264,7 +264,8 @@ for (const s of spells) {
   }
 }
 ok("S0 THE PRECEDENT IS STILL THERE AND HAS GROWN AGAIN",
-  declared.length === 24,
+  // 24 → 25 AT 3.717.0: Pass Without Trace's emanation (Graham's O5).
+  declared.length === 25,
   `${declared.length} spells carry an areaOverride — twelve before 3.530.0, seven `
   + "declared there, Luminous Flare at 3.531.0, the four self-row spells at 3.534.0, "
   + "and Word Of Stunning at 3.539.0, which was matching its own twin all along");

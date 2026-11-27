@@ -6,7 +6,7 @@
 
 | # | Ruling |
 |---|---|
-| U1 | The steps: Rounds → Minutes → 10 minutes → Hours → 12 hours. 1 round steps to 1 minute, 10 minutes, 1 hour, 12 hours. Each step costs half the base PP. Shield of Faith (2 PP, 10 minutes): one step costs 1 PP and gives 1 hour. |
+| U1 | The steps: Rounds → Minutes → 10 minutes → Hours → 12 hours. 1 round steps to 1 minute, 10 minutes, 1 hour, 12 hours. Each step costs half the base PP. Shield of Faith (2 PP, 10 minutes): one step costs 1 PP and gives 1 hour; a second gives 12 hours (O1). |
 | U2 | Distant Spell: only spells that affect the caster. |
 | U3 | Heighten Spell: every spell. It also affects dispel and counteract. |
 | U4 | Widen Spell: a radius as well. |
@@ -19,18 +19,18 @@
 | U11 | The NPC's save is rolled on the GM's client. |
 | U12 | Shape Of The Wyrm's extra attack: once. |
 
-## Still open after 3.716.0
+## Graham's answers, 27 November 2026 (built in 3.717.0)
 
-| # | Question | Built as |
-|---|---|---|
-| O1 | **U1's Hours step.** The ladder says hours become 12 hours; the Shield of Faith example says the second step from 10 minutes gives 2 hours. | 12 hours, as the ladder says. One line to change. |
-| O2 | **Counts on the ladder.** Should "3 rounds" become 3 minutes, and "8 hours" become 96 hours (8 × 12)? Or does the count reset to 1? | The count is carried. |
-| O3 | **U8 and damage.** Empower or Intensified beside the spell's own "+1d6 damage" warp. | Allowed (U8 named duration, range, area). |
-| O4 | **Selective, Split, Aligned, Imposing Will.** They charge PP and print a note. Automate them? | Notes. |
-| O5 | **Geas's "1 year" and "unlimited" warps, and Pass Without Trace's range-and-area warp.** They carry no structured mods, so U8 cannot see them. | As before. |
-| O6 | **Unshakable's touch warp says "(arcane only)".** That limit is not checked. | Not checked (it never was). |
-| O7 | **Extend on "until …", "varies" and "see text" durations.** U5 ruled sustained only. | Offered. Temporal Extension is not offered on these, as they are off the ladder. |
-| O8 | **Healer's Grace's "an additional 1 PP (max +4)".** Is +4 the total, or the addition? | 4 purchases. |
+| # | Question | Answer | Now |
+|---|---|---|---|
+| O1 | U1's Hours step: 12 hours or 2 hours? | "As you have built, my example should have been 12 hours for the second step not 2." | 12 hours. Unchanged. |
+| O2 | Is the count carried up the ladder? | As built. | Carried. Unchanged. |
+| O3 | U8 and damage. | As built. | Empower or Intensified beside a damage warp is allowed. Unchanged. |
+| O4 | Automate Selective, Split, Aligned and Imposing Will? | "Should be automated." | Built: see release-notes-3.717.0.md. |
+| O5 | Geas's and Pass Without Trace's warps have no mods. | "Need building." | Built: Geas's warps now roll a Will save and set the duration. Pass Without Trace's warp is now a 20-foot emanation within 20 feet, of up to 10 creatures of the caster's choice. |
+| O6 | Unshakable's "(arcane only)". | "Needs checking." | Checked: a caster who is not arcane is refused that warp, and nothing is spent. |
+| O7 | Extend on "until", "varies" and "see text" durations. | "Yes." | Offered. Unchanged. |
+| O8 | Healer's Grace's "(max +4)". | As built. | Four purchases. The rules model now follows the ruling. |
 
 ## The questions as first asked (26 Nov, before the rulings)
 

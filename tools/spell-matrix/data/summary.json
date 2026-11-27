@@ -1,32 +1,32 @@
 {
- "generated": "2026-11-26T18:30:24.835Z",
- "core": "3.716.1",
+ "generated": "2026-11-27T13:33:15.546Z",
+ "core": "3.717.0",
  "sources": [
-  "trg-prime@3.716.1:692"
+  "trg-prime@3.717.0:692"
  ],
  "spells": 692,
- "cases": 138415,
- "legal": 55116,
- "illegal": 81486,
+ "cases": 137435,
+ "legal": 54752,
+ "illegal": 80870,
  "unresolved": 1813,
  "byConfig": {
   "base": 1932,
   "warp": 1984,
   "warp-over": 1984,
   "metamagic": 15552,
-  "metamagic-over": 13802,
+  "metamagic-over": 13187,
   "metamagic-ineligible": 19446,
   "warp-pair": 1707,
   "combined": 16562,
   "metamagic-pair": 61347,
-  "warp-max": 842,
+  "warp-max": 844,
   "fill-cap": 1051,
-  "metamagic-max": 2206
+  "metamagic-max": 1839
  },
  "fullSpace": {
-  "min": 591,
-  "L10": 97652,
-  "L20": 2247441
+  "min": 385,
+  "L10": 79259,
+  "L20": 1915464
  },
- "emptyMechanicalWarps": 92
+ "emptyMechanicalWarps": 89
 }

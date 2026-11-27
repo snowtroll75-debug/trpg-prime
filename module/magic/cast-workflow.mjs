@@ -82,6 +82,7 @@ import {
   releaseActionCost, storedSettlement, storedLine, displacedLine, noBondLine, settlementLine, foreignReleaseLine
 } from "./spell-storing.mjs";
 import { targetCapFor, targetCapNote, overTargetRefusal } from "./target-count.mjs";
+import { imposingWillLine, mayImposeWill, splitDamageRow, splitLine, splitTargetCap } from "./metamagic-targets.mjs";
 import { luminanceOpeningState } from "./luminance-workflow.mjs";
 import {
   emanationFloors, emanationIsLive, emanationSave, liveEmanationEffects, membershipFrozen
@@ -258,6 +259,16 @@ async function postCard(actor, title, lines, rolls = [], extra = {}) {
     content: `<div class="trg-prime trg-check-card"><header class="check-header"><div class="check-heading"><span class="check-actor">${actor.name}</span><h3>${title}</h3></div></header>${lines.join("")}</div>`,
     ...extra
   });
+}
+
+/**
+ * The save a bought warp adds (3.717.0, O5), or null. Geas: "you can use
+ * geas on an unwilling creature; it can attempt a Will save to negate the
+ * effect". Read only where the spell's own defence and its AP mode's are.
+ */
+function warpDefenceOf(warpMods) {
+  const d = String(warpMods?.defence ?? "").trim();
+  return d || null;
 }
 
 /** The tradition's fumble modifier, tolerant of combined table keys. */
@@ -1440,7 +1451,14 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
   // is pruned and named on the card, and a cast whose every target is immune
   // is refused before anything is spent. An area is asked against what its
   // template caught, further down. See magic/spell-trait-immunity.mjs.
-  if (!isAreaSpell(spellData) && spellNeedsTarget(spellData, spell) && !storingNow) {
+  //
+  // DEFERRED WHEN IMPOSING WILL MAY BE BOUGHT (3.717.0, O4): the feat lets a
+  // creature of a paid-for type through this very gate, and it is bought in
+  // the warp dialog below, so the gate is asked after it instead (see
+  // "WHO THE METAMAGIC LETS IN" further down). Asked here, a Mindless undead
+  // would have been refused before the caster could pay to reach it.
+  const imposingWillDeferred = mayImposeWill(actor, spellData);
+  if (!isAreaSpell(spellData) && spellNeedsTarget(spellData, spell) && !storingNow && !imposingWillDeferred) {
     const targeted = Array.from(game.user?.targets ?? []).filter((t) => t?.actor);
     if (targeted.length) {
       const { partitionTraitImmune } = await import("./spell-trait-immunity.mjs");
@@ -1653,6 +1671,8 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
     basePP: innateMetamagic ? Math.max(0, Number(spellData.ppCost ?? 0)) : basePP,
     casterLevel,
     tradition,
+    // …and the caster's own, for Aligned and Distant (3.717.0).
+    casterTradition: String(system.magic?.tradition ?? ""),
     // Echoing Performance needs the number, not the word "Cha".
     charisma: Number(system.attributes?.charisma?.total ?? 0)
   };
@@ -2054,7 +2074,12 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
    */
   {
     const { metamagicWarpConflicts } = await import("./metamagic.mjs");
-    const conflicts = metamagicWarpConflicts(mm, warpMods);
+    // …AND A WARP ONE TRADITION MAY BUY, by a caster outside it (3.717.0, O6).
+    const { warpTraditionRefusals } = await import("./tradition-gate.mjs");
+    const conflicts = [
+      ...metamagicWarpConflicts(mm, warpMods),
+      ...warpTraditionRefusals(warpMods?.onlyTradition ?? [], system.magic?.tradition ?? "")
+    ];
     if (conflicts.length) {
       ui.notifications.warn(`${spell.name}: ${conflicts[0]}.`);
       await ChatMessage.create({
@@ -2537,6 +2562,54 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
    * all and `game.user.targets` may still hold whatever was aimed at
    * last. See magic/spell-storing.mjs.
    */
+  /*
+   * WHO THE METAMAGIC LETS IN, AND WHO IT LEAVES OUT (3.717.0, O4), for a
+   * TARGETED spell; an area asks the same of what its template caught.
+   * After the warp dialog, because both are bought in it; before the target
+   * cap, the Spellcraft check and the PP spend, so a refusal costs nothing.
+   *   - Imposing Will: the trait-immunity gate deferred above, asked now with
+   *     the paid-for type let through.
+   *   - Aligned Spell: a creature with none of the chosen traits is passed by.
+   * The kind gate's shape: pruned and named; refused if nobody is left.
+   */
+  if (!storingNow && !isAreaSpell(spellData) && spellNeedsTarget(spellData, spell)
+    && (imposingWillDeferred || (mm.alignedTraits ?? []).length)) {
+    const targeted = Array.from(game.user?.targets ?? []).filter((t) => t?.actor);
+    if (targeted.length) {
+      const { alignedPartition } = await import("./metamagic-targets.mjs");
+      let reached = targeted.map((t) => t.actor);
+      const passedBy = [];
+      if (imposingWillDeferred) {
+        const { partitionTraitImmune } = await import("./spell-trait-immunity.mjs");
+        const { ownedCreatureTypeSystem } = await import("../creature-type-rules.mjs");
+        const { isOfKind } = await import("../kind-targeting.mjs");
+        const immunity = partitionTraitImmune(reached, spellData.traits ?? "", ownedCreatureTypeSystem, {
+          imposes: mm.imposingType ? (a) => isOfKind(a.system, mm.imposingType) : null
+        });
+        reached = immunity.kept;
+        passedBy.push(...immunity.skipped);
+        if (immunity.imposed.length) mm.notes.push(imposingWillLine(immunity.imposed));
+      }
+      if ((mm.alignedTraits ?? []).length) {
+        const { alignedTraitsOf } = await import("../aligned.mjs");
+        const aligned = alignedPartition(reached, mm.alignedTraits, (a) => alignedTraitsOf(a.system));
+        reached = aligned.kept;
+        passedBy.push(...aligned.skipped);
+      }
+      if (passedBy.length) {
+        if (!reached.length) {
+          for (const miss of passedBy) ui.notifications.warn(`${spell.name}: ${miss.reason}.`);
+          return null;
+        }
+        for (const token of targeted) {
+          if (!reached.includes(token.actor)) token.setTarget(false, { releaseOthers: false, groupSelection: true });
+        }
+        ui.notifications.info(`${spell.name}: ${passedBy.map((x) => x.reason).join("; ")}.`);
+        kindSkipped = [...kindSkipped, ...passedBy];
+      }
+    }
+  }
+
   if (!storingNow && spellNeedsTarget(spellData, spell)) {
     const refusal = overTargetRefusal({
       spellName: spell.name,
@@ -2548,7 +2621,8 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
       // AN AP MODE MAY NAME ITS OWN COUNT (3.611.0, R7 of block 34) —
       // Death's Defiance: "1 living creature per action spent to cast this
       // spell", so the 2 AP mode targets two.
-      cap: targetCapFor(apMode?.targets ?? spellData?.targets, warp.mods, casterLevel),
+      // SPLIT SPELL'S EXTRA TARGETS (3.717.0, O4) raise the cap by what was bought.
+      cap: splitTargetCap(targetCapFor(apMode?.targets ?? spellData?.targets, warp.mods, casterLevel), mm.splitExtra),
       chosen: Array.from(game.user?.targets ?? []).length
     });
     if (refusal) {
@@ -4769,7 +4843,8 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
     // THE CHOSEN MODE'S DEFENCE when it names one (3.609.1, the 3.609.0 live
     // test's F8). Mud to Rock's Reflex is printed on its mode; reading only
     // the spell left the DC unset, so no save was rolled and nothing landed.
-    const castDefence = effDefence ?? spellData.defence;
+    // …OR THE SAVE A WARP ADDS (3.717.0, O5; Geas's unwilling creature).
+    const castDefence = effDefence ?? warpDefenceOf(warpMods) ?? spellData.defence;
     if (castDefence) {
       saveDC = nominalSaveDC;
       lines.push(
@@ -5078,8 +5153,31 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
         const { partitionTraitImmune } = await import("./spell-trait-immunity.mjs");
         const { ownedCreatureTypeSystem } = await import("../creature-type-rules.mjs");
         // AN AREA REACHES BOTH OF AN ETTIN'S HEADS (3.647.0, R9): never "one target".
-        const areaImmunity = partitionTraitImmune(areaTargets, spellData.traits ?? "", ownedCreatureTypeSystem, { targetCount: Infinity });
+        // IMPOSING WILL (3.717.0, O4) lets the paid-for type through.
+        const { isOfKind: isOfKindForWill } = await import("../kind-targeting.mjs");
+        const areaImmunity = partitionTraitImmune(areaTargets, spellData.traits ?? "", ownedCreatureTypeSystem, {
+          targetCount: Infinity,
+          imposes: mm.imposingType ? (a) => isOfKindForWill(a.system, mm.imposingType) : null
+        });
         areaTargets = areaImmunity.kept;
+        if (areaImmunity.imposed?.length) lines.push(line(`<em>${esc(imposingWillLine(areaImmunity.imposed))}</em>`));
+        // ALIGNED SPELL (3.717.0, O4): only creatures with a chosen trait.
+        let areaAligned = { skipped: [] };
+        if ((mm.alignedTraits ?? []).length) {
+          const { alignedPartition } = await import("./metamagic-targets.mjs");
+          const { alignedTraitsOf } = await import("../aligned.mjs");
+          areaAligned = alignedPartition(areaTargets, mm.alignedTraits, (a) => alignedTraitsOf(a.system));
+          areaTargets = areaAligned.kept;
+        }
+        // SELECTIVE SPELL (3.717.0, O4): the caster excludes up to what they
+        // bought, from what is left. See selective-spell-workflow.mjs.
+        if (mm.selectiveCount > 0 && areaTargets.length) {
+          const { promptSelectiveExclusion } = await import("./selective-spell-workflow.mjs");
+          const { selectiveLine } = await import("./metamagic-targets.mjs");
+          const picked = await promptSelectiveExclusion(spell.name, areaTargets, mm.selectiveCount);
+          areaTargets = picked.kept;
+          lines.push(line(selectiveLine(esc(spell.name), picked.excluded.map((a) => ({ name: esc(a.name) })), mm.selectiveCount)));
+        }
         // SPARED BY A REACTION (3.685.0, H5; Spectral Aegis, Q152: "an area
         // spell spares only the target"): the area lands on everyone else.
         // See cast-reaction-shape.mjs `withoutExcluded`.
@@ -5212,7 +5310,7 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
         // names silently — which is the exact failure Graham named when
         // he chose pruning over refusing ("the player might not read the
         // note and think the goblin got charmed").
-        const areaSkipText = kindSkippedText([...kindFiltered.skipped, ...areaImmunity.skipped]);
+        const areaSkipText = kindSkippedText([...kindFiltered.skipped, ...areaImmunity.skipped, ...areaAligned.skipped]);
         if (areaSkipText) lines.push(line(`<em>${esc(areaSkipText)}</em>`));
         const widenText = areaWidenedText(kindFiltered.widened);
         if (widenText) lines.push(line(`<em>${esc(widenText)}</em>`));
@@ -5732,6 +5830,18 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
     // THE PENALTY COUNT BEFORE THIS CAST (3.684.0, G1), for Echo's second
     // creature: one attack, so it is compared at the first one's penalty.
     const echoMapCount = mmxExtraTargets.length ? attackCountOf(actor) : null;
+    // SPLIT SPELL (3.717.0, O4): "Your Spell Attack check is compared to the
+    // DB of multiple targets … The damage die … is reduced by one step per
+    // additional target … This counts as one attack for your multiple attack
+    // penalty." The first target is attacked as usual; each other one the
+    // caster targeted is compared with the same check, Echo's way, at the
+    // penalty count from before this cast. Every pool uses the stepped die.
+    const splitBought = Math.max(0, Number(mm.splitExtra) || 0);
+    const splitTargets = splitBought
+      ? Array.from(game.user?.targets ?? []).slice(1, 1 + splitBought).map((t) => t?.actor).filter((a) => a && a !== actor)
+      : [];
+    const splitMapCount = splitBought ? attackCountOf(actor) : null;
+    const splitDamage = splitBought ? splitDamageRow(damageForCast ?? baseDamageRow, splitBought) : null;
     spellAttack = await resolveSpellVolley(actor, spell, check, lines, clMods, warpMods, {
       // SPECIALIST ATTACK SPELLS (Chapter 9): "…equal to your magical
       // ability score + level or your spellcraft bonus, whichever is
@@ -5759,7 +5869,7 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
        * a volley of one and behaves exactly as it did. See magic/ray-volley.mjs.
        */
       rays: Number(apMode?.rays ?? 0),
-      damageOverride: damageForCast,
+      damageOverride: splitDamage ?? damageForCast,
       splashSaveDC: nominalSaveDC,
       // The caster's declared spell-attack rows (3.695.0, CD14).
       declaredAttackRows,
@@ -5789,7 +5899,18 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
       });
       lines.push(line(`<em>${esc(extra.label)}: ${esc(extra.actor.name)} is compared with the same roll for ${Math.round(extra.factor * 100)}% of the damage; any other effect on it is the table's.</em>`));
     }
-  } else if (outcome.cast && !damageChoiceRefused && (effDefence ?? spellData.defence) && saveDC != null && !touchMissed
+    for (const target of splitTargets) {
+      await resolveSpellAttack(actor, spell, check, lines, clMods, warpMods, {
+        targetOverride: target, mapCount: splitMapCount, deferMapAdvance: true, quiet: true,
+        damageOverride: splitDamage ?? damageForCast,
+        splashSaveDC: nominalSaveDC,
+        declaredAttackRows,
+        extraAttackRows: [...(accuracyAttackRow ? [accuracyAttackRow] : []), ...(castOptionsApplied.attackRows ?? []), ...castItems.attackRows, ...gateAttackOnlyRows],
+        castingAbilityKey: castAbilityKey, castPP
+      });
+    }
+    if (splitBought) lines.push(line(splitLine(esc(spell.name), splitTargets.map((a) => esc(a.name)), splitBought, String(splitDamage?.formula ?? ""))));
+  } else if (outcome.cast && !damageChoiceRefused && (effDefence ?? warpDefenceOf(warpMods) ?? spellData.defence) && saveDC != null && !touchMissed
       && !spellDefersItsSave(spellData.effects)
       // NOR A SAVE OWED AT THE START OF EACH CREATURE'S TURN (3.609.0, R3).
       // Turn Undead: "must make a saving throw if they begin their turn in
@@ -5810,11 +5931,12 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
      * question is asked of the effect LIST rather than of the spell's name;
      * see magic/sanctuary.mjs.
      */
-    spellSave = await resolveSpellSave(actor, effDefence === null ? spell : {
+    const saveDefence = effDefence ?? warpDefenceOf(warpMods);
+    spellSave = await resolveSpellSave(actor, saveDefence === null ? spell : {
       name: spell.name, uuid: spell.uuid, img: spell.img,
       system: {
         ...(spell.system?.toObject?.(false) ?? spell.system),
-        defence: effDefence,
+        defence: saveDefence,
         // AND THE MODE'S OWN ROWS (3.609.2, G2 of the 3.609.1 drive). The save
         // path reads them to know whether the spell applies itself; handed the
         // spell's empty rows, Mud to Rock's card told the table to apply a grab

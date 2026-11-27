@@ -93,13 +93,13 @@ const mod = (...p) => import(new URL(`../module/${p.join("/")}`, import.meta.url
   equal("D2 an item's innate spell gets it only from an itemCasts row", [sdc.declaredSpellAttackBonuses(er, "", { innate: true, itemCast: true }).length, sdc.declaredSpellDCBonuses(er, "", { innate: true, itemCast: true }).length, sdc.declaredSpellDCBonuses([fx({ spellDCBonus: { value: 1, type: "race", innateOnly: true } })], "", { innate: true, itemCast: true }).length], [1, 1, 0]);
   equal("D3 typed rows still take the highest, untyped sum", sdc.declaredSpellAttackBonuses([fx({ spellAttackBonus: [{ value: 1, type: "race" }, { value: 2, type: "race" }, { value: 1 }, { value: 1 }] })], "").map((r) => r.value), [2, 1, 1]);
   const cw = read("module", "magic", "cast-workflow.mjs");
-  ok("D4 the cast hands the declared attack rows to the attack pool, at both of its calls", (cw.match(/splashSaveDC: nominalSaveDC,\n(?:\s*\/\/[^\n]*\n)?\s+declaredAttackRows,\n/g) ?? []).length === 2 && /\.concat\(Array\.isArray\(declaredAttackRows\) \? declaredAttackRows : \[\]\), \{\}\);/.test(cw) && /const declaredAttackRows = declaredSpellAttackBonuses\(\n\s*Array\.from\(actor\.appliedEffects \?\? actor\.effects \?\? \[\]\), spellData\.traits, \{ innate: isInnate, itemCast: isItemCast \}\);/.test(cw));
+  ok("D4 the cast hands the declared attack rows to the attack pool, at every one of its calls (three since 3.717.0's Split)", (cw.match(/splashSaveDC: nominalSaveDC,\n(?:\s*\/\/[^\n]*\n)?\s+declaredAttackRows,\n/g) ?? []).length === 3 && /\.concat\(Array\.isArray\(declaredAttackRows\) \? declaredAttackRows : \[\]\), \{\}\);/.test(cw) && /const declaredAttackRows = declaredSpellAttackBonuses\(\n\s*Array\.from\(actor\.appliedEffects \?\? actor\.effects \?\? \[\]\), spellData\.traits, \{ innate: isInnate, itemCast: isItemCast \}\);/.test(cw));
   ok("D5 the Save DC takes an item's spell's itemCasts rows, and nothing else of an item's", /\.\.\.\(isItemCast \? declaredSpellDCBonuses\(\n\s*Array\.from\(actor\.appliedEffects \?\? actor\.effects \?\? \[\]\), spellData\.traits, \{ innate: isInnate, itemCast: true \}\) : \[\]\),/.test(cw));
 }
 
 /* Z — the release ------------------------------------------------------ */
 const sys = JSON.parse(read("system.json"));
-equal("Z the version is 3.695.0, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.716.1/")], ["3.716.1", "3.716.1", true]);
+equal("Z the version is 3.695.0, and the download names it", [sys.version, JSON.parse(read("package.json")).version, sys.download.includes("/v3.717.0/")], ["3.717.0", "3.717.0", true]);
 
 console.log(`verify-fixes-3695-0: ${checks} checks — ${failures.length ? `${failures.length} FAILED` : "all green."}`);
 for (const f of failures) console.log(`  ✗ ${f}`);

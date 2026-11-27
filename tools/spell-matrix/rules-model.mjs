@@ -46,6 +46,10 @@ export function bookWarpMax(warp) {
   const t = String(warp.text ?? "");
   // U12: Shape Of The Wyrm's extra natural attack, once.
   if (/gain an additional natural attack \(available to your type\)/i.test(t)) return { max: 1, why: "U12: once" };
+  // O8 (Graham, 27 Nov 2026, "as built"): "an additional 1 PP (max +4)" is the
+  // addition's ceiling, so four purchases.
+  const additional = t.match(/an additional (\d+)[^(]*\(max \+(\d+)\)/i);
+  if (additional && Number(additional[1]) > 0) return { max: Math.ceil(Number(additional[2]) / Number(additional[1])), why: `O8: +${additional[1]} each to +${additional[2]}` };
   if (/(only|cannot)\b[^.]*\b(once|more than once)|may (only )?be (taken|selected|applied) once|not be (taken|selected) more than once/i.test(t))
     return { max: 1, why: "text prohibits repeats" };
   const cap = t.match(/\(max(?:imum)?(?: of)? ([+]?\d+)/i);
@@ -127,7 +131,9 @@ export function temporalRung(duration, sustained = false) {
  * or after the roll and are tested live only.
  */
 export const METAMAGIC = {
-  "aligned spell": { id: "aligned", castTime: true, cost: (s, n) => n, max: () => 2,
+  // "You can warp the spell by a further PP to affect a second trait": the
+  // choice is the purchase (O4, 3.717.0); the generator takes one trait, +1.
+  "aligned spell": { id: "aligned", castTime: true, cost: () => 1, max: () => 1, select: "chaos",
     // "Requirement Divine Caster only"
     eligible: (s, c) => (/divinity/i.test(c.tradition) ? "eligible" : "ineligible") },
   // "change a component type" (U10: automated): FROM one the spell has TO one
@@ -234,6 +240,11 @@ export function warpDimension(warp, spell = {}) {
   // ONLY A WARP THAT CHANGES THE DIMENSION (26 Nov 2026): "fast healing 5 for
   // duration" or "targets within range" name the word and change nothing.
   const t = String(warp.text ?? "").toLowerCase();
+  // "LASTS UP TO" THE SPELL'S OWN DURATION CHANGES NOTHING (3.717.0): Geas's
+  // unwilling-creature warp restates its 1 week.
+  const lasts = t.match(/lasts? (?:for )?up to (\d+ \w+)/);
+  const own = String(spell.duration ?? "").toLowerCase().trim();
+  if (lasts && own.startsWith(lasts[1].replace(/s$/, "")) && !/year|unlimited/.test(t)) return "other";
   if (/(increase|extend|change)s? (the )?duration|duration (becomes|increases|changes|is|lasts)|lasts? (for|until|up to)|(has|have) a duration of|unlimited duration|duration to /.test(t)) return "duration";
   if (!/attacks gain a range/.test(t) && /range (becomes|increases|changes|is|to)|range of the spell increases|(increase|change)s? the range|(gains?|has) a range|range of touch|range to touch/.test(t)) return "range";
   // A SELF-ONLY SPELL'S "target an ally within 30 feet" gives it a range;

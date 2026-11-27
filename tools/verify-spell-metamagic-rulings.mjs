@@ -263,7 +263,7 @@ const repairs = read("module", "data", "pack-repairs.mjs");
 ok("P8 the owned copies are repaired (6 entries since 3.716.0, and Unliving Vitality's 3.613.0 entry amended)",
   (repairs.match(/since: "3\.716\.0"/g) ?? []).length === 6
   && /alsoFrom: \[\[\{"ppCost":1,"text":"The fast healing increases by 1 \(max 10\)","mods":\{"healingRateBump":1,"healingRateMax":10\}\}\]\],\s*to: \[\{"ppCost":1,"text":"The fast healing increases by 1 \(max 10\)","mods":\{"healingRateBump":1,"healingRateMax":10,"healingRateFrom":5\}\}\]/.test(repairs));
-ok("P9 the pack-copy pass is re-gated to 3.716.0", /runIf\("3\.716\.0", "stale owned copies of repaired pack items"/.test(read("module", "migration.mjs")));
+ok("P9 the pack-copy pass is re-gated to 3.716.0 or later", /runIf\("3\.(71[6-9]|7[2-9]\d)\.\d+", "stale owned copies of repaired pack items"/.test(read("module", "migration.mjs")));
 
 /* ================================================================== */
 /* S — the save relay (U11)                                            */
@@ -283,8 +283,8 @@ ok("P9 the pack-copy pass is re-gated to 3.716.0", /runIf\("3\.716\.0", "stale o
 const cw = read("module", "magic", "cast-workflow.mjs");
 const at = (s) => cw.indexOf(s);
 ok("W1 the U8 refusal reads the spell's own warps, right after they are aggregated",
-  at("const conflicts = metamagicWarpConflicts(mm, warpMods);") > at("const warpMods = warp.mods;")
-  && at("const conflicts = metamagicWarpConflicts(mm, warpMods);") < at("apScaleMods(spellData?.apScale, apScaleExtra)"));
+  at("...metamagicWarpConflicts(mm, warpMods),") > at("const warpMods = warp.mods;")
+  && at("...metamagicWarpConflicts(mm, warpMods),") < at("apScaleMods(spellData?.apScale, apScaleExtra)"));
 ok("W2 …and returns before anything is spent", /if \(conflicts\.length\) \{[\s\S]{0,700}?return null;\s*\}/.test(cw));
 ok("W3 Reach writes the doubled range", /const to = scaledRangeText\(effRange, mm\.rangeFactor\);\s*if \(to\) warpMods\.rangeOverride = to;/.test(cw));
 ok("W4 …before the range check reads it", at("scaledRangeText(effRange, mm.rangeFactor)") < at("warpedRange(effRange, warpMods),\n      warpedAreaText(effArea, warpMods)"));

@@ -248,8 +248,9 @@ function caster(items) {
   ok("H19 its check modifiers join the situational ones", /for \(const mod of castItems\.checkModifiers\) situational\.push\(\{ label: mod\.label, value: mod\.value, type: mod\.type \}\);/.test(cw));
   ok("H19 its ignored resistance is set after the boost clears the bypass, joined with the boost's",
     cw.indexOf("setResistanceBypass([...new Set([...(boost?.ignoreResistance ? boost.types : []), ...castItems.ignoreResistance])]);") > cw.indexOf("    clearResistanceBypass();"));
-  equal("H19 its attack rows join both spell-attack resolutions",
-    cw.split("...(castOptionsApplied.attackRows ?? []), ...castItems.attackRows, ...gateAttackOnlyRows],").length - 1, 2);
+  // THREE SINCE 3.717.0: the volley, Echo's second creature, and Split Spell's extra targets.
+  equal("H19 its attack rows join every spell-attack resolution",
+    cw.split("...(castOptionsApplied.attackRows ?? []), ...castItems.attackRows, ...gateAttackOnlyRows],").length - 1, 3);
   ok("H19 its lines lead the cast's card", /const lines = \[\.\.\.castItems\.lines\.map\(\(text\) => line\(text\)\), \.\.\.reagentLines, \.\.\.gateLines,/.test(cw));
   const settleAt = cw.indexOf("const castItemsSettled = castItems.chosen.length");
   ok("H19 settled after the module metamagic's, before trgPrimeSpellSettled, with the degree and the cast's facts",
@@ -351,8 +352,8 @@ function caster(items) {
 
 /* ================================================================== Z */
 equal("Z1 the version is 3.690.0, and the download names it", [sys.version, sys.download],
-  ["3.716.1", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.716.1/trg-prime.zip"]);
-equal("Z2 package.json agrees", JSON.parse(read("package.json")).version, "3.716.1");
+  ["3.717.0", "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.717.0/trg-prime.zip"]);
+equal("Z2 package.json agrees", JSON.parse(read("package.json")).version, "3.717.0");
 
 api.resetModuleRegistry();
 if (failures.length) {

@@ -2,6 +2,22 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.717.0 — 27 November 2026: The metamagic that chooses who is affected
+
+Full notes in `release-notes-3.717.0.md`. These are Graham's answers to O1–O8.
+
+- **Automated (O4):**
+  - **Aligned Spell:** choose one trait (+1 PP) or two (+2 PP); creatures with none of them are passed by.
+  - **Imposing Will:** lets the paid-for creature type through mental, emotion and fear immunity.
+  - **Selective Spell:** the caster excludes up to the number bought from what the area caught.
+  - **Split Spell:** the same attack roll against the extra targets, at the stepped-down die; one attack for the multiple attack penalty.
+- **Built (O5):** Geas's warps roll the unwilling creature's Will save and set 1 year or unlimited. Pass Without Trace's warp is a chosen 20-foot emanation within 20 feet.
+- **Checked (O6):** Unshakable's touch warp is arcane only, judged on the caster's tradition.
+- **Confirmed as built:** O1 (12 hours), O2, O3, O7 and O8.
+- **Fixed:** Distant Spell's Ethereal +6 and Aligned Spell's "Divine Caster only" now read the caster's tradition, not the spell's list. The 3.716.0 retest's case 7 charged an arcane Wizard +6.
+- **Live:** 3.716.1's Lingering Performance retest passed: no server error, "lingers" on the card, "fades" said once.
+- **Migration:** owned Geas, Pass Without Trace and Unshakable copies are repaired; schema 3.717.0.
+
 ## 3.716.1 — 26 November 2026: A lingering performance ends cleanly, and says it lingers
 
 Full notes in `release-notes-3.716.1.md`. Found by the 3.716.0 live retest, in which all 14 cases passed.

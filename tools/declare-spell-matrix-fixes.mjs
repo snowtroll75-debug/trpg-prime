@@ -32,7 +32,22 @@ const FIXES = {
   // range becomes touch and the self rows move to the creature touched. Found
   // when Graham's U8 refusal could not see them as range warps.
   "True Seeing": [{ index: 0, add: { rangeOverride: "touch", retargetSelfRows: true } }],
-  "Unshakable": [{ index: 1, add: { rangeOverride: "touch", retargetSelfRows: true } }]
+  "Unshakable": [{ index: 1, add: { rangeOverride: "touch", retargetSelfRows: true, onlyTradition: "arcane" } }],
+  // 3.717.0 (Graham, 27 Nov 2026). O5, "need building": Geas's three warps
+  // ("as above" carries the unwilling creature's Will save up the tiers)
+  // and Pass Without Trace's area. O6, "needs checking": Unshakable's
+  // "(arcane only)", above.
+  "Geas": [
+    { index: 0, add: { defence: "Will Negates" } },
+    { index: 1, add: { defence: "Will Negates", durationText: "1 year" } },
+    { index: 2, add: { defence: "Will Negates", durationText: "unlimited" } }
+  ],
+  "Pass Without Trace": [{ index: 1, add: { rangeOverride: "20 feet", areaOverride: "20-foot emanation", targetCap: 10, shareSelfRows: true } }]
+};
+/* A SPELL FIELD BESIDE ITS WARPS (3.717.0): "up to 10 creatures OF YOUR
+ * CHOICE within that area" is the area choice Missile Storm and Wits use. */
+const SYSTEM_FIXES = {
+  "Pass Without Trace": { areaChoice: true }
 };
 const PRINT = process.argv.includes("--print");
 const { ClassicLevel } = await import("classic-level");
@@ -45,8 +60,16 @@ for await (const [key, value] of db.iterator()) {
   const to = JSON.parse(JSON.stringify(from));
   for (const f of FIXES[value.name]) to[f.index].mods = { ...(to[f.index].mods ?? {}), ...f.add };
   out[value.name] = { from, to };
-  if (!PRINT && JSON.stringify(from) !== JSON.stringify(to)) {
+  const sysFrom = {};
+  for (const [field, v] of Object.entries(SYSTEM_FIXES[value.name] ?? {})) {
+    sysFrom[field] = value.system[field] ?? null;
+    out[value.name][field] = { from: sysFrom[field], to: v };
+  }
+  const changed = JSON.stringify(from) !== JSON.stringify(to)
+    || Object.entries(SYSTEM_FIXES[value.name] ?? {}).some(([f, v]) => JSON.stringify(value.system[f]) !== JSON.stringify(v));
+  if (!PRINT && changed) {
     value.system.warps = to;
+    Object.assign(value.system, SYSTEM_FIXES[value.name] ?? {});
     await db.put(key, value);
   }
 }

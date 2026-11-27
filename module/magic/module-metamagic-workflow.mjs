@@ -334,6 +334,9 @@ export async function metamagicCatalogue(actor, { spell = null } = {}) {
   const core = probes.flatMap((p) => buildMetamagicOptions({
     featNames, elementalTypes: elementalTypes.length ? elementalTypes : (spell ? [] : ["fire"]),
     spellData: p.spellData, basePP: p.basePP, casterLevel, tradition: p.tradition,
+    // The caster's own tradition when there is a spell (3.717.0); the probe
+    // set keeps its divinity, so the catalogue lists every feat.
+    ...(spell?.system ? { casterTradition: String(actor?.system?.magic?.tradition ?? "") } : {}),
     charisma: Number(actor?.system?.attributes?.charisma?.total ?? 0)
   }));
   return metamagicCatalogueOf(core, registeredMetamagic(), { featNames, granted: grantedMetamagicKeys(effectsOf(actor)) }, { withSpell: Boolean(spell) });

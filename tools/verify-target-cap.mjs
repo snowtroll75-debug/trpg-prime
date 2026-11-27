@@ -215,7 +215,8 @@ for (const s of spells) {
 // and it targets 1 willing creature" -- a range override and a total of
 // one, which is a cap rather than an increment because the sentence
 // names how many there are rather than how many more.
-equal("C1 TEN FLAT TOTALS ARE AUTHORED", flat, 10);
+// 10 → 11 AT 3.717.0: Pass Without Trace's "up to 10 creatures" (Graham's O5).
+equal("C1 ELEVEN FLAT TOTALS ARE AUTHORED", flat, 11);
 equal("C2 AND THREE PER-LEVEL RATES", perLevel, 3);
 
 const stillInert = [];

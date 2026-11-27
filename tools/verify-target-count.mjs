@@ -194,7 +194,8 @@ const cast = read("module", "magic", "cast-workflow.mjs");
 ok("G1 the gate exists, and knows the caster's level",
   cast.includes("if (!storingNow && spellNeedsTarget(spellData, spell)) {")
   // An AP mode may name its own count since 3.611.0 (Death's Defiance).
-  && cast.includes("cap: targetCapFor(apMode?.targets ?? spellData?.targets, warp.mods, casterLevel),"));
+  // …raised by Split Spell's extra targets since 3.717.0.
+  && cast.includes("targetCapFor(apMode?.targets ?? spellData?.targets, warp.mods, casterLevel)"));
 ok("G1b and refuses out loud", cast.includes("const refusal = overTargetRefusal({")
   && cast.includes("ui.notifications.warn(refusal);"));
 

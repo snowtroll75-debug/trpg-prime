@@ -142,7 +142,7 @@ const src = {
   equal("O2 only `true` is the mark (no reading of the printed word \"object\")",
     [C.spellTargetsObject({ flags: { "trg-prime": { targetsObject: "yes" } } }), C.spellTargetsObject({ system: { targets: "1 creature or object" } }), C.spellTargetsObject(null)], [false, false, false]);
   ok("O3 castSpell passes the spell to every target question (picker, trait immunity, the count), none asks without it, and the range gate skips an object's spell",
-    (src.cw.match(/spellNeedsTarget\(spellData, spell\)/g) ?? []).length === 3 && !/spellNeedsTarget\(spellData\)/.test(src.cw)
+    (src.cw.match(/spellNeedsTarget\(spellData, spell\)/g) ?? []).length === 4 /* 3.717.0: and the metamagic target gate */ && !/spellNeedsTarget\(spellData\)/.test(src.cw)
     && /if \(!storingNow && !spellTargetsObject\(spell\) && !wardFoeOnly && \(game\.user\?\.targets\?\.size \?\? 0\)\) \{\n\s+\/\/ FROM ANOTHER TOKEN/.test(src.cw) // re-anchored at 3.707.3: and a ward's foe
     && /if \(spellNeedsTarget\(spellData, spell\) && !storingNow && !reaction\?\.presetTargets && !presetTargets\) \{[\s\S]{0,900}promptTargetSelection\(actor,/.test(src.cw));
 }

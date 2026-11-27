@@ -105,7 +105,9 @@ for (const s of inventory) {
         const agg = aggregateMetamagicSelection([o], { [`mm-${o.id}`]: o.kind === "select" ? (o.choices?.[0]?.value ?? "") : 1 },
           { damageFormula: String(sys.damage?.formula ?? ""), baseDamage: String(sys.baseDamage ?? "") });
         const mechanical = agg.ppDelta || agg.dcDelta || agg.apDelta || agg.componentsOff.length || agg.extend || agg.temporalSteps || agg.heightenSave || agg.elementalType || agg.extraDamageDice
-          || agg.rangeFactor > 1 || agg.areaFactor > 1 || agg.distant || agg.componentSwap || agg.linger;
+          || agg.rangeFactor > 1 || agg.areaFactor > 1 || agg.distant || agg.componentSwap || agg.linger
+          // O4 (3.717.0): the four that decide who the cast affects.
+          || agg.splitExtra || agg.selectiveCount || agg.alignedTraits?.length || agg.imposingType;
         if (!mechanical) find("NOTE-ONLY", "MM-NOTE-ONLY", "(all)", `${name}: charges ${o.kind === "select" ? "its choice's" : `+${o.ppCost}`} PP and sets no mechanical field (aggregate default branch)`);
       }
     }

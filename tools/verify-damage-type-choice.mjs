@@ -164,7 +164,8 @@ ok("W4 the save path takes the override", cast.includes("damage: damageForCast,"
 // PRIMARY attack's override removed (mutate-damage-type-choice, SURVIVED —
 // the code was intact; the check could no longer see it). Pinned on the
 // primary call's own line, beside the volley's `rays`.
-ok("W5 the attack path takes it too", /rays: Number\(apMode\?\.rays \?\? 0\),\n\s*damageOverride: damageForCast,/.test(cast));
+// SPLIT SPELL'S STEPPED ROW (3.717.0) is the choice's row stepped down, so it still carries the type.
+ok("W5 the attack path takes it too", /rays: Number\(apMode\?\.rays \?\? 0\),\n\s*damageOverride: (splitDamage \?\? )?damageForCast,/.test(cast));
 ok("W5b and honours it", cast.includes("const dmg = damageOverride ?? spellData.damage ?? {};"));
 ok("W6 a refused choice is said out loud", cast.includes("lines.push(line(typeRefusal(label)));"));
 // W6b IS THE CARD AND THE DICE AGREEING. The refusal line says "nothing
@@ -176,7 +177,8 @@ ok("W6c the attack path is gated on it",
   cast.includes("if (isAttack && outcome.cast && !damageChoiceRefused) {"));
 ok("W6d and so is the save path",
   // RE-READ 3.609.0: a cast mode may carry its own save (effDefence).
-  cast.includes("} else if (outcome.cast && !damageChoiceRefused && (effDefence ?? spellData.defence)"));
+  // …and a warp's own save beside them (3.717.0, Geas).
+  /\} else if \(outcome\.cast && !damageChoiceRefused && \(effDefence \?\? (warpDefenceOf\(warpMods\) \?\? )?spellData\.defence\)/.test(cast));
 ok("W7 the source line is printed only when the row asks",
   cast.includes("if (sourceLine && choiceRow.printSource)"),
   "Shadow Blast prints no source rule and must not grow one from a shared mechanism");

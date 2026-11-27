@@ -274,7 +274,8 @@ for (const s of spells) {
 // 4 PP on a spell with the same range and target line — and had simply
 // never been filled in. This count is meant to grow when a warp is
 // built; it exists so one appearing that nobody declared gets noticed.
-ok("E3 the thirty-one area warps are authored", authored.length === 31,
+// 31 → 32 AT 3.717.0: Pass Without Trace's emanation (Graham's O5).
+ok("E3 the thirty-two area warps are authored", authored.length === 32,
   `${authored.length} found: ${authored.map((a) => a.spell.name).join(", ")}`);
 
 // EVERY AUTHORED WARP MUST ACTUALLY MOVE ITS SPELL'S AREA. This is the
