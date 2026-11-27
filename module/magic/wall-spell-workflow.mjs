@@ -213,10 +213,19 @@ export async function raiseWall(region, spec, placed, { caster, spellName, castI
       c, move: spec.block.move, sight: spec.block.sight, light: spec.block.light, sound: spec.block.sound,
       flags: { [SYSTEM_ID]: { [WALL_FLAG]: { regionId: region.id, castId } } }
     }));
-    const made = await canvas.scene.createEmbeddedDocuments("Wall", docs).catch((error) => {
-      console.warn("TRG Prime | the wall could not be put on the map", error);
-      return [];
-    });
+    // THROUGH THE GM FOR A PLAYER (3.718.0): a player may place the wall's
+    // Region but not create Wall documents. Found in the player-seat sweep.
+    let made;
+    if (game.user?.isGM || globalThis.foundry?.documents?.WallDocument?.canUserCreate?.(game.user) === true) {
+      made = await canvas.scene.createEmbeddedDocuments("Wall", docs).catch((error) => {
+        console.warn("TRG Prime | the wall could not be put on the map", error);
+        return [];
+      });
+    } else {
+      const { relaySpellWalls } = await import("../combat/target-relay-workflow.mjs");
+      const count = await relaySpellWalls(region, docs.map(({ c, move, sight, light, sound }) => ({ c, move, sight, light, sound })), castId);
+      made = Array.from({ length: count });
+    }
     if (made.length) {
       const blocks = wallBlocksLine(spec);
       if (blocks) lines.push(blocks);

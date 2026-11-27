@@ -181,7 +181,8 @@ export async function applyFlatLadder(caster, spec, target, degree, castId = nul
     // and turned Serenity's 10 Mental into "drops to 0 HP". See that
     // function's own comment; the fix is there, where any future caller
     // storing a normalised row inherits it, rather than here.
-    await target.setFlag(SYSTEM_ID, CURSE_FLAG, {
+    const { setTargetFlag: setCurse } = await import("../combat/relayed-writes.mjs");
+    await setCurse(target, CURSE_FLAG, {
       label: spec.label, degree, castId: castId ?? null,
       damageType: spec.damageType, ladder: spec.ladder
     }).catch(() => {});
@@ -193,7 +194,8 @@ export async function applyFlatLadder(caster, spec, target, degree, castId = nul
     const { withImmunity, IMMUNITY_FLAG } = await import("../temporary-immunity.mjs");
     const now = Number(game.time?.worldTime ?? 0);
     const record = target.getFlag(SYSTEM_ID, IMMUNITY_FLAG) ?? {};
-    await target.setFlag(SYSTEM_ID, IMMUNITY_FLAG,
+    const { setTargetFlag } = await import("../combat/relayed-writes.mjs");
+    await setTargetFlag(target, IMMUNITY_FLAG,
       withImmunity(record, spec.label, spec.immuneSeconds, now)).catch(() => {});
   }
 

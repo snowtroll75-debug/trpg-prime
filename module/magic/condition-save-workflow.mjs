@@ -159,6 +159,8 @@ export async function recordConditionSave(actor, descriptor) {
   const effect = actor.effects?.find?.(
     (e) => !e.disabled && e.statuses?.has?.(spec.condition));
   if (!effect?.setFlag) return null;
-  await effect.setFlag(SYSTEM_ID, CONDITION_SAVE_FLAG, descriptor);
+  // THROUGH THE GM WHEN THE EFFECT IS NOT OURS (3.718.0; Petrification).
+  const { setEffectFlags } = await import("../combat/relayed-writes.mjs");
+  if (!(await setEffectFlags(effect, { [CONDITION_SAVE_FLAG]: descriptor }))) return null;
   return spec;
 }

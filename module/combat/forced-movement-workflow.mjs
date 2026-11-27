@@ -288,7 +288,7 @@ export function pushButtonsHtml(push, gridDistance = 5, prompts = []) {
  * @param {number} feet how far
  * @returns {Promise<{ok: boolean, text: string}>}
  */
-export async function forceMoveAway(sourceActor, targetActor, feet) {
+export async function forceMoveAway(sourceActor, targetActor, feet, { direct = false } = {}) {
   const ids = resolvePushTokens(sourceActor, targetActor);
   if (!ids) {
     return {
@@ -298,6 +298,13 @@ export async function forceMoveAway(sourceActor, targetActor, feet) {
     };
   }
   const { plan, targetToken } = planPushFromIds(ids, feet);
+  // THROUGH THE GM WHEN THE TOKEN IS NOT OURS (3.718.0; found in the
+  // player-seat sweep: Startle's forced Step threw "lacks permission to
+  // update Token"). The GM's client plans the move again itself.
+  if (!direct && targetToken?.isOwner === false && game?.user?.isGM !== true) {
+    const { relayForcedMove } = await import("./target-relay-workflow.mjs");
+    return relayForcedMove(sourceActor, targetActor, feet);
+  }
   // WRITTEN DIFFERENTLY FROM THE BUTTON'S OWN MOVE, deliberately: the
   // Shove harness anchors a mutation on that exact line, and a second copy
   // of it here would make the anchor ambiguous and the check prove nothing.

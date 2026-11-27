@@ -206,7 +206,8 @@ ok("B1 the three new kinds are declared as handled",
     /case "deathKnell": \{[\s\S]*?if \(gained > 0\) await caster\.update\(\{ "system\.resources\.hp\.value": kbefore \+ gained \}\);/
       .test(applier));
   ok("B6 the grantAbility case actually creates the item",
-    /case "grantAbility": \{[\s\S]*?await target\.createEmbeddedDocuments\("Item", \[payload\]\)/
+    // RE-ANCHORED AT 3.718.0: through createTargetSpellItems (verify-core-sweep-3718 D7).
+    /case "grantAbility": \{[\s\S]*?await createTargetSpellItems\(target, \[payload\]\)/
       .test(applier));
   ok("B7 and hands it the grantedItems lifecycle, so the spell can take it back",
     /case "grantAbility": \{[\s\S]*?grantedItems: \[madeAbility\.id\]/.test(applier),

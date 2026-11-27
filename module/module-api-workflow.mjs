@@ -505,8 +505,9 @@ export function buildModuleApi() {
         const t = await import("./temporary-immunity.mjs");
         const now = Number(game.time?.worldTime ?? 0);
         const record = target?.getFlag?.(SYSTEM_ID, t.IMMUNITY_FLAG) ?? {};
-        await target?.setFlag?.(SYSTEM_ID, t.IMMUNITY_FLAG, t.withImmunity(t.prunedImmunities(record, now), key, seconds, now));
-        return true;
+        if (!target) return false;
+        const { setTargetFlag } = await import("./combat/relayed-writes.mjs");
+        return (await setTargetFlag(target, t.IMMUNITY_FLAG, t.withImmunity(t.prunedImmunities(record, now), key, seconds, now))) !== false;
       },
       /**
        * A SHEATHED WEAPON (3.671.0; Iaijutsu Master, B7-5): the weapons the

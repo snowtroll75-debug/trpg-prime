@@ -142,6 +142,55 @@ export const RELAY_ACTIONS = Object.freeze({
   // client"). The payload is the roll's plain parameters; the GM's client
   // rolls it as the creature and answers with the outcome only.
   SAVE: "target.save",
+  // A CHARM'S ATTITUDE, SET BY A PLAYER ON THE GM'S CREATURE (3.718.0; found
+  // in the player-seat sweep of every core spell, 27 November 2026: Alluring
+  // Caress and Charm Undead stopped at "User PC Tester lacks permission to
+  // update Actor", and no Result card posted). The attitude is a flag on the
+  // TARGET, keyed to the caster. The payload names the operation and the
+  // caster; the asker must own the caster, so a forged request can charm a
+  // creature only toward a character the asker already plays.
+  ATTITUDE: "target.attitude",
+  // A CONJURED ITEM HANDED TO A CREATURE THE CASTER'S USER DOES NOT OWN
+  // (3.718.0; same sweep: Bless Water on an ally's flask posted "Holy Water is
+  // not in the compendium" when the real fault was a refused write). The
+  // payload names a compendium entry and a quantity; the GM's client copies
+  // the entry itself, so a request cannot hand over an arbitrary item.
+  CONJURE_ITEM: "target.conjureItem",
+  // A SPELL'S RECORD ON SOMEBODY ELSE'S CREATURE (3.718.0; same sweep). Doubt's
+  // owed -2 (pendingModifiers), False Arrogance's temporary immunity and the
+  // Prison spells' cage were each a setFlag on the TARGET, and a player's cast
+  // threw "lacks permission to update Actor" with no Result card. One action
+  // for all of them, bounded by SPELL_RELAY_FLAGS: a forged request can write
+  // only those records, which a player's own spell could have written anyway.
+  SPELL_FLAG: "target.spellFlag",
+  // A SPELL-GRANTED ABILITY ON SOMEBODY ELSE'S CREATURE (3.718.0; same sweep:
+  // Fly and Earth Glide on another's character, "lacks permission to create
+  // Item"). Only ability items stamped `spellItem`, which every spell grant is
+  // and nothing a player could otherwise smuggle in is.
+  SPELL_ITEMS: "target.spellItems",
+  // GROUND A PLAYER'S SPELL MADE DIFFICULT (3.718.0; same sweep: Entangle and
+  // False Mire, "lacks permission to create RegionBehavior"). A player may
+  // place a spell's Region, but not give it behaviours. The target is the
+  // Region; only movement-cost behaviours, and only on a Region the asker
+  // placed.
+  REGION_BEHAVIOURS: "target.regionBehaviours",
+  // A STAMP ON A CONDITION A SPELL JUST LAID (3.718.0; same sweep). The
+  // condition itself crosses the relay (CONDITIONS), but the escape save
+  // stamped on it afterwards did not: Petrification's slowed, Speed's
+  // quickened, Vision Of Havoc's stunned and Volcanic Inferno's rock each
+  // threw "lacks permission to update ActiveEffect". Named flags only; a
+  // removal only of an effect a spell made.
+  EFFECT_STAMP: "target.effectStamp",
+  // A SPELL'S FORCED MOVEMENT (3.718.0; same sweep: Startle's forced Step,
+  // "lacks permission to update Token"). The asker names its own creature and
+  // the distance; the GM's client plans the move itself, walls and all.
+  FORCED_MOVE: "target.forcedMove",
+  // A WALL SPELL'S SEGMENTS (3.718.0; same sweep). A player may place the
+  // wall's Region but not create Wall documents, so Wall Of Stone, Force, Ice
+  // and Thorns cast by a player never blocked anything — the card said "block
+  // movement and sight by hand". The target is the Region the asker placed;
+  // the GM's client builds each segment from its coordinates and senses.
+  SPELL_WALLS: "target.spellWalls",
   RESULT: "target.result",
   // "I HAVE IT, AND IT MAY TAKE A WHILE" (3.673.0). Sent by the GM's client
   // the moment it takes a request, before carrying it out. A request that
@@ -152,6 +201,66 @@ export const RELAY_ACTIONS = Object.freeze({
   // goes on to apply the blow.
   WORKING: "target.working"
 });
+
+/**
+ * The flags a SPELL_FLAG request may write on a target, and nothing else
+ * (3.718.0). Each is a record a spell keeps on the creature it affects.
+ */
+export const SPELL_RELAY_FLAGS = Object.freeze([
+  "pendingModifiers", "temporaryImmunity", "imprisoned", "cuttingWords", "spellDrain", "flatLadderCurse"
+]);
+
+/** The flags an EFFECT_STAMP request may set on a target's effect (3.718.0). */
+export const EFFECT_STAMP_FLAGS = Object.freeze(["conditionHold", "conditionSave", "endSave", "escapeDC", "escapeFrom"]);
+
+/**
+ * A SPELL_WALLS request's segments, rebuilt from named fields, or null when
+ * any is malformed (3.718.0). Pure. Each keeps only its coordinates and its
+ * four senses, so a forged request cannot make a door or a one-way wall.
+ */
+export function relayableWallSegments(walls) {
+  if (!Array.isArray(walls) || !walls.length || walls.length > 64) return null;
+  const out = [];
+  for (const w of walls) {
+    const c = Array.isArray(w?.c) ? w.c.map(Number) : [];
+    if (c.length !== 4 || !c.every(Number.isFinite)) return null;
+    const sense = (v) => (Number.isInteger(Number(v)) && Number(v) >= 0 && Number(v) <= 50 ? Number(v) : 0);
+    out.push({ c, move: sense(w.move), sight: sense(w.sight), light: sense(w.light), sound: sense(w.sound) });
+  }
+  return out;
+}
+
+/** The farthest a FORCED_MOVE request may push, in feet (3.718.0). */
+export const FORCED_MOVE_MAX_FEET = 120;
+
+/** The behaviour types a REGION_BEHAVIOURS request may create (3.718.0). */
+const RELAY_REGION_BEHAVIOUR_TYPES = Object.freeze(["modifyMovementCost"]);
+
+/**
+ * Why a SPELL_ITEMS request is refused, or "" (3.718.0). Pure. Every item
+ * must be an ability stamped as a spell's grant.
+ */
+function spellItemsRelayRefusal(items) {
+  if (!Array.isArray(items) || !items.length) return "no items named";
+  for (const item of items) {
+    if (!item || typeof item !== "object") return "not an item";
+    if (item.type !== "ability") return `not an ability: ${item.type}`;
+    if (item.flags?.[SYSTEM_ID]?.spellItem !== true) return "not a spell's grant";
+  }
+  return "";
+}
+
+/**
+ * Why a REGION_BEHAVIOURS request is refused, or "" (3.718.0). Pure.
+ */
+function regionBehavioursRelayRefusal(behaviours, askerPlacedRegion) {
+  if (!askerPlacedRegion) return "the asker did not place that region";
+  if (!Array.isArray(behaviours) || !behaviours.length) return "no behaviours named";
+  for (const b of behaviours) {
+    if (!b || typeof b !== "object" || !RELAY_REGION_BEHAVIOUR_TYPES.includes(b.type)) return `not a relayable behaviour: ${b?.type}`;
+  }
+  return "";
+}
 
 /** The records an INJURY_RECORD request may write, and nothing else. */
 // "ppDrain" and "apWatch" joined at 3.627.2: the Aligned 19 row's "Drained of
@@ -674,6 +783,82 @@ export async function performRelay(request, deps) {
       delete params.actor;
       const outcome = await deps.rollSave(target, { ...params, type: "save" });
       return outcome ? { ok: true, result: outcome } : { ok: false, reason: "the save could not be rolled" };
+    }
+    case RELAY_ACTIONS.ATTITUDE: {
+      const observer = await deps.fromUuid(String(payload.observerUuid ?? ""));
+      if (!observer) return { ok: false, reason: "the caster was not found" };
+      if (deps.userOwns?.(observer, String(request?.userId ?? "")) !== true) return { ok: false, reason: "the asker does not own the caster" };
+      const mode = String(payload.mode ?? "");
+      if (mode !== "charm" && mode !== "step") return { ok: false, reason: `not an attitude operation: ${mode}` };
+      const seconds = payload.seconds === null || payload.seconds === undefined ? null : Number(payload.seconds);
+      if (seconds !== null && !Number.isFinite(seconds)) return { ok: false, reason: "not a duration" };
+      const result = mode === "charm"
+        ? await deps.charmAttitude(target, observer.uuid, String(payload.floor ?? ""), seconds)
+        : await deps.charmAttitudeByStep(target, observer.uuid, Math.trunc(Number(payload.steps) || 0), seconds);
+      return result ? { ok: true, result } : { ok: false, reason: "the attitude could not be set" };
+    }
+    case RELAY_ACTIONS.CONJURE_ITEM: {
+      const spec = payload.spec && typeof payload.spec === "object" ? payload.spec : null;
+      if (!spec) return { ok: false, reason: "no item named" };
+      const made = await deps.conjureItem(target, spec, {
+        castId: payload.castId ? String(payload.castId) : null,
+        expires: payload.expires === true,
+        stamp: payload.stamp && typeof payload.stamp === "object" ? payload.stamp : null
+      });
+      return made ? { ok: true, result: { id: made.id, name: made.name } } : { ok: false, reason: "the item could not be made" };
+    }
+    case RELAY_ACTIONS.SPELL_FLAG: {
+      const key = String(payload.key ?? "");
+      if (!SPELL_RELAY_FLAGS.includes(key)) return { ok: false, reason: `not a spell's record: ${key}` };
+      const value = payload.value ?? null;
+      if (value !== null && typeof value !== "object") return { ok: false, reason: "not a record" };
+      await deps.setSpellFlag(target, key, value);
+      return { ok: true, result: true };
+    }
+    case RELAY_ACTIONS.SPELL_ITEMS: {
+      const refusal = spellItemsRelayRefusal(payload.items);
+      if (refusal) return { ok: false, reason: refusal };
+      const made = await deps.createSpellItems(target, payload.items);
+      return { ok: true, result: (made ?? []).map((i) => ({ id: i.id, name: i.name })) };
+    }
+    case RELAY_ACTIONS.REGION_BEHAVIOURS: {
+      const refusal = regionBehavioursRelayRefusal(payload.behaviours, deps.userPlacedRegion?.(target, String(request?.userId ?? "")) === true);
+      if (refusal) return { ok: false, reason: refusal };
+      if (payload.name) await deps.updateRegion(target, { name: String(payload.name).slice(0, 200) });
+      const made = await deps.createRegionBehaviours(target, payload.behaviours);
+      return { ok: true, result: (made ?? []).map((b) => b.id) };
+    }
+    case RELAY_ACTIONS.EFFECT_STAMP: {
+      const effect = deps.effectOf(target, String(payload.effectId ?? ""));
+      if (!effect) return { ok: false, reason: "effect not found on that target" };
+      if (payload.remove === true) {
+        if (!deps.isSpellEffect(effect)) return { ok: false, reason: "only a spell's own effect may be removed" };
+        await deps.deleteEffect(effect);
+        return { ok: true, result: true };
+      }
+      const flags = payload.flags && typeof payload.flags === "object" ? payload.flags : {};
+      const keys = Object.keys(flags);
+      if (!keys.length) return { ok: false, reason: "no stamp named" };
+      const stray = keys.find((k) => !EFFECT_STAMP_FLAGS.includes(k));
+      if (stray) return { ok: false, reason: `not a stamp: ${stray}` };
+      await deps.stampEffect(effect, flags);
+      return { ok: true, result: true };
+    }
+    case RELAY_ACTIONS.FORCED_MOVE: {
+      const source = await deps.fromUuid(String(payload.sourceUuid ?? ""));
+      if (!source) return { ok: false, reason: "the moving creature's source was not found" };
+      if (deps.userOwns?.(source, String(request?.userId ?? "")) !== true) return { ok: false, reason: "the asker does not own the source creature" };
+      const feet = Math.trunc(Number(payload.feet));
+      if (!Number.isFinite(feet) || feet <= 0 || feet > FORCED_MOVE_MAX_FEET) return { ok: false, reason: "not a distance" };
+      const moved = await deps.forceMoveAway(source, target, feet);
+      return { ok: true, result: moved ?? null };
+    }
+    case RELAY_ACTIONS.SPELL_WALLS: {
+      if (deps.userPlacedRegion?.(target, String(request?.userId ?? "")) !== true) return { ok: false, reason: "the asker did not place that region" };
+      const segments = relayableWallSegments(payload.walls);
+      if (!segments) return { ok: false, reason: "not wall segments" };
+      const made = await deps.createSpellWalls(target, segments, payload.castId ? String(payload.castId) : null);
+      return { ok: true, result: (made ?? []).length };
     }
     case RELAY_ACTIONS.ONE_ATTACK: {
       const event = {

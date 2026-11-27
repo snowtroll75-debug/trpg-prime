@@ -107,7 +107,8 @@ ok("C4 and the two write-backs inside a refresh are the only calls that turn it 
   ok("D2 and keep the save that ends them", stuns.every((x) => x?.conditionSave?.onSuccess === "end"));
 }
 ok("D3 a held condition is stamped on the effect it put there",
-  /if \(effect\.hold\) \{[\s\S]{0,400}setFlag\(SYSTEM_ID, "conditionHold", holdAt\)/.test(effects));
+  // RE-ANCHORED AT 3.718.0: through setEffectFlags (verify-core-sweep-3718 F7).
+  /if \(effect\.hold\) \{[\s\S]{0,600}setEffectFlags\(e, \{ conditionHold: holdAt \}\)/.test(effects));
 ok("D4 the turn tracker reads the hold off the stun",
   /getFlag\?\.\(SYSTEM_ID, "conditionHold"\)/.test(combat));
 ok("D5 and a held stun is not reduced or ended by the turn",

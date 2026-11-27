@@ -216,7 +216,9 @@ for (const s of spells) {
 // one, which is a cap rather than an increment because the sentence
 // names how many there are rather than how many more.
 // 10 → 11 AT 3.717.0: Pass Without Trace's "up to 10 creatures" (Graham's O5).
-equal("C1 ELEVEN FLAT TOTALS ARE AUTHORED", flat, 11);
+// 11 → 12 AT 3.718.0: Nightvision's touch warp, "targets 1 willing creature",
+// as Darkvision's (the player-seat sweep).
+equal("C1 TWELVE FLAT TOTALS ARE AUTHORED", flat, 12);
 equal("C2 AND THREE PER-LEVEL RATES", perLevel, 3);
 
 const stillInert = [];

@@ -15,6 +15,8 @@
  *   True Seeing         "you may target another creature and the range becomes touch"
  *   Unshakable          "the spell gains a range of touch (arcane only)" — both
  *                       Invisibility's touch warp, charged and never applied.
+ * 3.718.0 adds Nightvision's ability row and touch cap, and Conjuration
+ * Shield's deferred save (see SYSTEM_FIXES).
  * The last two carry `healingRateFrom`, which `warpMaxTimes` reads. The
  * owned-copy repairs are in module/data/pack-repairs.mjs (since 3.716.0).
  * Idempotent: a warp already carrying its fix is left alone.
@@ -42,7 +44,11 @@ const FIXES = {
     { index: 1, add: { defence: "Will Negates", durationText: "1 year" } },
     { index: 2, add: { defence: "Will Negates", durationText: "unlimited" } }
   ],
-  "Pass Without Trace": [{ index: 1, add: { rangeOverride: "20 feet", areaOverride: "20-foot emanation", targetCap: 10, shareSelfRows: true } }]
+  "Pass Without Trace": [{ index: 1, add: { rangeOverride: "20 feet", areaOverride: "20-foot emanation", targetCap: 10, shareSelfRows: true } }],
+  // 3.718.0 (the player-seat sweep of every core spell). Nightvision's touch
+  // warp "targets 1 willing creature", as Darkvision's carries.
+  "Nightvision": [{ index: 0, add: { targetCap: 1 } }],
+  "Conjuration Shield": []
 };
 /* A SPELL FIELD BESIDE ITS WARPS (3.717.0): "up to 10 creatures OF YOUR
  * CHOICE within that area" is the area choice Missile Storm and Wits use. */
@@ -50,7 +56,21 @@ const SYSTEM_FIXES = {
   "Pass Without Trace": { areaChoice: true },
   // 3.717.1 (the 3.717.0 live test): the note "The +4 PP option … is cast by
   // hand on another creature" outlived the warp's automation (3.716.0).
-  "Unshakable": { effects: [{ kind: "defence", target: "self", field: "immunity", value: "stunned" }] }
+  "Unshakable": { effects: [{ kind: "defence", target: "self", field: "immunity", value: "stunned" }] },
+  // 3.718.0 (the sweep): Nightvision's row named its ability by NAME, which the
+  // grant does not read — "Nightvision declares a malformed ability grant" and
+  // nothing granted. Now the pack's own Nightvision, by uuid, as Darkvision's.
+  "Nightvision": { effects: [{ kind: "grantAbility", target: "self", uuid: "Compendium.trg-prime.abilities.Item.Dkq2b7EZDdPKGzxy", label: "Nightvision" }] },
+  // 3.718.0 (the sweep): "Any such creature invokes a Will save against this
+  // spell FROM THE CONJURING CASTER". The save is a later caster's, not the
+  // area's on casting — but the row carried defence "Will", so every creature
+  // inside, allies included, rolled a Will save the moment it was cast. Now a
+  // warding with nothing rolled at casting, as Rune Of Warding is.
+  "Conjuration Shield": {
+    category: "utility",
+    defence: "",
+    effects: [{ kind: "note", text: "A creature conjured within the area invokes a Will save against this spell from the conjuring caster (your spell DC). A failed save stops the conjuring spell from working, and its PP are wasted — rolled by hand when it happens." }]
+  }
 };
 const PRINT = process.argv.includes("--print");
 const { ClassicLevel } = await import("classic-level");

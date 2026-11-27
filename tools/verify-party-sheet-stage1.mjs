@@ -489,7 +489,7 @@ const RWS = strip(read("module", "party-rewards-workflow.mjs"));
 {
   const sys = JSON.parse(read("system.json"));
   equal("Z1 the version is 3.713.0 (3.708.1 or later), the download names it, and package.json agrees",
-    [sys.version, sys.download.includes("/v3.717.1/"), JSON.parse(read("package.json")).version], ["3.717.1", true, "3.717.1"]);
+    [sys.version, sys.download.includes("/v3.718.0/"), JSON.parse(read("package.json")).version], ["3.718.0", true, "3.718.0"]);
   ok("Z2 the manifest URL is unchanged", sys.manifest === "https://raw.githubusercontent.com/snowtroll75-debug/trpg-prime/main/system.json");
 }
 

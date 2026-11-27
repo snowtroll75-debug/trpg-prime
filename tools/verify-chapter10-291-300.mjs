@@ -470,7 +470,11 @@ ok("E1b the applier has a case for it", applier.includes('case "itemQuality": {'
   const row = rowOf("Nightvision", "grantAbility");
   ok("F1 NIGHTVISION GRANTS NIGHTVISION", row !== null,
     "grantAbility was built at 3.587.0 for Darkvision and the ability is in the pack");
-  equal("F1b by name", row?.ability, "Nightvision");
+  // CORRECTED AT 3.718.0. This pinned the row BY NAME, and the grant reads
+  // only a uuid: every cast printed "Nightvision declares a malformed ability
+  // grant" and gave nothing. Found by the player-seat sweep of every core
+  // spell; the check now holds what the grant actually reads.
+  equal("F1b by uuid, the pack's own Nightvision", row?.uuid, "Compendium.trg-prime.abilities.Item.Dkq2b7EZDdPKGzxy");
 
   /*
    * F2 IS A CORRECTION, AND THE SECOND ONE IN THIS FILE.

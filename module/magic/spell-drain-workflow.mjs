@@ -23,7 +23,9 @@ export async function recordSpellDrain(target, row, drainer) {
     drainerName: drainer?.name ?? "",
     worldTime: Number(game.time?.worldTime ?? 0)
   });
-  await target.setFlag(SYSTEM_ID, SPELL_DRAIN_FLAG, record);
+  // THROUGH THE GM WHEN THE TARGET IS NOT OURS (3.718.0).
+  const { setTargetFlag } = await import("../combat/relayed-writes.mjs");
+  if ((await setTargetFlag(target, SPELL_DRAIN_FLAG, record)) === false) return null;
   return record;
 }
 

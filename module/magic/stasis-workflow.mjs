@@ -32,7 +32,11 @@ export async function applyStasis(target, spell, raw, { castId = null, saveDC = 
   // ONE STASIS AT A TIME: a second casting replaces the first rather than
   // stacking two clocks that would each freeze the other.
   const existing = stasisOn(target);
-  if (existing) await existing.delete();
+  // THROUGH THE GM WHEN THE TARGET IS NOT OURS (3.718.0; found in the
+  // player-seat sweep: Stasis threw "lacks permission to create ActiveEffect").
+  const { removeSpellEffect } = await import("../combat/relayed-writes.mjs");
+  const { createEffectsOn } = await import("../combat/target-relay-workflow.mjs");
+  if (existing) await removeSpellEffect(existing);
   const t = now();
   const flags = {
     [SYSTEM_ID]: {
@@ -44,7 +48,7 @@ export async function applyStasis(target, spell, raw, { castId = null, saveDC = 
       ...(castId ? { castId } : {})
     }
   };
-  await target.createEmbeddedDocuments("ActiveEffect", [{
+  await createEffectsOn(target, [{
     name: spec.label,
     img: img || "icons/magic/time/hourglass-tilted-gray.webp",
     origin: spell?.uuid ?? null,

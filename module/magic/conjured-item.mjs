@@ -114,6 +114,18 @@ export function conjuredItemMissingLine(spec, spellName) {
 }
 
 /**
+ * What the card says when the item exists but could not be handed over
+ * (3.718.0). Found in the player-seat sweep: a player's Bless Water on a
+ * flask an ally holds was refused by Foundry ("lacks permission"), and the
+ * card blamed the compendium. A refused write is not a gap in the data, and
+ * saying so sends the GM looking in the wrong place.
+ */
+export function conjuredItemRefusedLine(spec, spellName, targetName, reason) {
+  return `<em>${spellName} could not give "${spec.itemName}" to ${targetName}`
+    + `${reason ? ` (${reason})` : ""} &mdash; nothing was created.</em>`;
+}
+
+/**
  * Who ends up holding a conjured item when nobody was named.
  *
  * GRAHAM'S RULING, 26 September 2026: "Yes go with your idea on Power

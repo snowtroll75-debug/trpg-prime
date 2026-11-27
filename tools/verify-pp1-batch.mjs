@@ -285,7 +285,9 @@ ok("C-E1d the card tells the caster only when the fallback actually fired",
   /conjureFellBack = held\.length > 0 && recipients\.length === 0;/.test(effects)
   && /if \(conjureFellBack\) lines\.push\(line\(conjuredItemNobodyNamedLine\(target\.name\)\)\);/.test(effects));
 ok("C-E2 a missing item prints the diagnostic rather than a success line",
-  /if \(!made\) \{[\s\S]{0,140}conjuredItemMissingLine\(spec, spell\.name\)/.test(effects));
+  // RE-ANCHORED AT 3.718.0: a refused write now says it was refused, and only
+  // an entry the pack lacks blames the data (verify-core-sweep-3718 B9).
+  /if \(!made\) \{[\s\S]{0,300}: conjuredItemMissingLine\(spec, spell\.name\)/.test(effects));
 {
   const cw = strip(read("module", "magic", "conjured-item-workflow.mjs"));
   ok("C-E3 THE REAL DOCUMENT IS COPIED, not rebuilt",

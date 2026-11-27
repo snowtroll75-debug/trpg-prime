@@ -528,7 +528,8 @@ async function applyBombRiders(actor, item, targetActor, targetToken, extras, { 
   }
   if (extras.immunitySeconds) {
     const record = targetActor.getFlag?.(SYSTEM_ID, IMMUNITY_FLAG) ?? {};
-    await targetActor.setFlag?.(SYSTEM_ID, IMMUNITY_FLAG,
+    const { setTargetFlag } = await import("./combat/relayed-writes.mjs");
+    await setTargetFlag(targetActor, IMMUNITY_FLAG,
       withImmunity(prunedImmunities(record, now), key, extras.immunitySeconds, now));
     lines.push(line(`<em>${targetActor.name} is immune to ${item.name}'s effects for ${describeRemaining(extras.immunitySeconds)}.</em>`));
   }

@@ -2699,6 +2699,42 @@ export const PACK_REPAIRS = Object.freeze([
     to: true,
     reason: "\"Up to 10 creatures of your choice within that area\": the caster chooses from what the emanation caught."
   },
+  /* THE PLAYER-SEAT SWEEP OF EVERY CORE SPELL (3.718.0, 27 Nov 2026). */
+  {
+    id: "nightvision-effects-3718", pack: "spells", name: "Nightvision",
+    field: "effects", since: "3.718.0",
+    from: [{"kind":"grantAbility","target":"self","ability":"Nightvision"}],
+    to: [{"kind":"grantAbility","target":"self","uuid":"Compendium.trg-prime.abilities.Item.Dkq2b7EZDdPKGzxy","label":"Nightvision"}],
+    reason: "The row named its ability by name, which the grant does not read: every cast printed \"Nightvision declares a malformed ability grant\" and granted nothing. Now the pack's own Nightvision, by uuid, as Darkvision's row is."
+  },
+  {
+    id: "nightvision-warps-3718", pack: "spells", name: "Nightvision",
+    field: "warps", since: "3.718.0",
+    from: [{"ppCost":1,"text":"the spell's range is touch and it targets 1 willing creature","mods":{"rangeOverride":"touch","retargetSelfRows":true}},{"ppCost":2,"text":"the duration is until the next time you make your daily preparations","mods":{"durationText":"until the next time you make your daily preparations"}}],
+    to: [{"ppCost":1,"text":"the spell's range is touch and it targets 1 willing creature","mods":{"rangeOverride":"touch","retargetSelfRows":true,"targetCap":1}},{"ppCost":2,"text":"the duration is until the next time you make your daily preparations","mods":{"durationText":"until the next time you make your daily preparations"}}],
+    reason: "The touch warp \"targets 1 willing creature\" — capped at one, as Darkvision's is."
+  },
+  {
+    id: "conjuration-shield-category-3718", pack: "spells", name: "Conjuration Shield",
+    field: "category", since: "3.718.0",
+    from: "save",
+    to: "utility",
+    reason: "The save is a later conjurer's, not the area's on casting; with category save and defence Will, every creature in the radius, allies included, rolled a Will save the moment the ward was raised."
+  },
+  {
+    id: "conjuration-shield-defence-3718", pack: "spells", name: "Conjuration Shield",
+    field: "defence", since: "3.718.0",
+    from: "Will",
+    to: "",
+    reason: "As conjuration-shield-category-3718: nothing is rolled at casting."
+  },
+  {
+    id: "conjuration-shield-effects-3718", pack: "spells", name: "Conjuration Shield",
+    field: "effects", since: "3.718.0",
+    from: [],
+    to: [{"kind":"note","text":"A creature conjured within the area invokes a Will save against this spell from the conjuring caster (your spell DC). A failed save stops the conjuring spell from working, and its PP are wasted \u2014 rolled by hand when it happens."}],
+    reason: "The deferred Will save, said on the card, since it is rolled by hand when a creature is conjured inside."
+  },
 ]);
 
 /* ==================================================================== *

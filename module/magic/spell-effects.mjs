@@ -1491,9 +1491,11 @@ async function stampEscapable(target, docs, dc, from) {
   const { ESCAPE_DC_FLAG, ESCAPE_LABEL_FLAG } = await import("./encase.mjs");
   for (const doc of docs) {
     if (!doc?.update || Number(doc.getFlag?.(SYSTEM_ID, ESCAPE_DC_FLAG)) > 0) continue;
-    await doc.update({
-      [`flags.${SYSTEM_ID}.${ESCAPE_DC_FLAG}`]: Math.trunc(Number(dc)),
-      [`flags.${SYSTEM_ID}.${ESCAPE_LABEL_FLAG}`]: String(from ?? "")
+    // THROUGH THE GM WHEN IT IS NOT OURS (3.718.0; Volcanic Inferno's rock).
+    const { setEffectFlags } = await import("../combat/relayed-writes.mjs");
+    await setEffectFlags(doc, {
+      [ESCAPE_DC_FLAG]: Math.trunc(Number(dc)),
+      [ESCAPE_LABEL_FLAG]: String(from ?? "")
     });
   }
 }
@@ -2197,15 +2199,18 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             break;
           }
           const saveDC = Number(rollData?.saveDC ?? 0) || 0;
+          // THROUGH THE GM WHEN THE PRISONER IS NOT OURS (3.718.0): Flame Prison
+          // and Force Prison cast by a player threw "lacks permission to update Actor".
+          const { setTargetFlag } = await import("../combat/relayed-writes.mjs");
           for (const prisoner of recipients) {
             // THE CAGE IS RECORDED ON THE PRISONER, carrying the ladder
             // and the DC as they were AT CAST TIME. A caster who later
             // dies, or a pack entry edited mid-campaign, must not change
             // the cage somebody is already sitting in — the same reason
             // the emanation records its own save DC.
-            await prisoner.setFlag(SYSTEM_ID, PRISON_FLAG, {
+            if ((await setTargetFlag(prisoner, PRISON_FLAG, {
               spec, saveDC, castId, casterUuid: caster.uuid, spellName: spell.name
-            });
+            })) === false) continue;
             lines.push(line(`<strong>${prisoner.name}</strong> is caged. `
               + `Escape is a ${spec.save} save, DC ${saveDC || "—"} — ${prisonLadderLine(spec)}.`));
             lines.push(line(`<button type="button" data-action="attemptPrisonEscape" `
@@ -2472,11 +2477,22 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
               crystalStamp = { ...(crystalStamp ?? {}), consumable };
             }
           }
-          const made = await conjureItemOnto(target, spec, {
-            castId, expires: conjureExpires, stamp: crystalStamp
-          });
+          /*
+           * THROUGH THE GM WHEN THE HOLDER IS NOT OURS (3.718.0). Bless Water
+           * and Power Crystal hand their item to whoever was touched; a
+           * player touching an ally's flask was refused by Foundry, and the
+           * card blamed the compendium. A refusal now says it was one.
+           */
+          const conjureOpts = { castId, expires: conjureExpires, stamp: crystalStamp };
+          const { relayConjureItem } = await import("../combat/target-relay-workflow.mjs");
+          const conjured = await relayConjureItem(target, spec, conjureOpts,
+            () => conjureItemOnto(target, spec, conjureOpts));
+          const made = conjured.item;
           if (!made) {
-            lines.push(line(conjuredItemMissingLine(spec, spell.name)));
+            const { conjuredItemRefusedLine } = await import("./conjured-item.mjs");
+            lines.push(line(conjured.reason
+              ? conjuredItemRefusedLine(spec, spell.name, target.name, conjured.reason)
+              : conjuredItemMissingLine(spec, spell.name)));
             break;
           }
           /*
@@ -3803,9 +3819,20 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           // (Make an Impression) changes how somebody permanently feels.
           const { charmAttitude, charmAttitudeByStep, attitudeLine } =
             await import("../attitude-workflow.mjs");
-          const moved = floor
-            ? await charmAttitude(target, caster?.uuid ?? "", floor, seconds)
-            : await charmAttitudeByStep(target, caster?.uuid ?? "", steps, seconds);
+          // THROUGH THE GM WHEN THE TARGET IS NOT OURS (3.718.0). The
+          // attitude is a flag on the TARGET; a player's charm on the GM's
+          // creature threw "lacks permission to update Actor" and the whole
+          // Result card was lost. A refusal is said on its own card.
+          const { relayAttitude } = await import("../combat/target-relay-workflow.mjs");
+          const moved = await relayAttitude(target, {
+            mode: floor ? "charm" : "step", observerUuid: caster?.uuid ?? "", floor, steps, seconds
+          }, () => (floor
+            ? charmAttitude(target, caster?.uuid ?? "", floor, seconds)
+            : charmAttitudeByStep(target, caster?.uuid ?? "", steps, seconds)));
+          if (!moved) {
+            lines.push(line(`<em>${target.name}'s attitude could not be changed — see the card above.</em>`));
+            break;
+          }
           const said = attitudeLine(target.name, moved);
           lines.push(line(said
             ? `<em>${said}${durationText}.</em>`
@@ -5828,7 +5855,9 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           if (effect.hold) {
             const holdAt = Math.max(1, Math.trunc(Number(effect.value) || 1));
             for (const e of Array.from(target.effects ?? []).filter((x) => x.statuses?.has?.(effect.condition))) {
-              await e.setFlag(SYSTEM_ID, "conditionHold", holdAt).catch(() => {});
+              // THROUGH THE GM WHEN IT IS NOT OURS (3.718.0; Vision Of Havoc).
+              const { setEffectFlags } = await import("../combat/relayed-writes.mjs");
+              await setEffectFlags(e, { conditionHold: holdAt }).catch(() => {});
             }
           }
           /*
@@ -6313,7 +6342,9 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             break;
           }
           const gsName = effectName(spell.name, effect.note);
-          const [madeSpeed] = await target.createEmbeddedDocuments("Item", [{
+          // THROUGH THE GM WHEN THE TARGET IS NOT OURS (3.718.0; Fly, Earth Glide).
+          const { createTargetSpellItems } = await import("../combat/relayed-writes.mjs");
+          const [madeSpeed] = await createTargetSpellItems(target, [{
             name: gsName,
             type: "ability",
             img: spell.img || DEFAULT_SPELL_IMG,
@@ -7255,8 +7286,10 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             lines.push(line(alreadyImmuneLine(target.name, key, describeRemaining(already))));
             break;
           }
-          await target.setFlag?.(SYSTEM_ID, IMMUNITY_FLAG,
-            withImmunity(prunedImmunities(record, now), key, spec.seconds, now));
+          // THROUGH THE GM WHEN THE TARGET IS NOT OURS (3.718.0; False Arrogance).
+          const { setTargetFlag } = await import("../combat/relayed-writes.mjs");
+          if ((await setTargetFlag(target, IMMUNITY_FLAG,
+            withImmunity(prunedImmunities(record, now), key, spec.seconds, now))) === false) break;
           lines.push(line(tempImmunityLine(target.name, key, describeRemaining, spec.seconds)));
           if (castId && target.uuid) affected.add(target.uuid);
           break;
@@ -7448,7 +7481,9 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             spellItem: true,
             ...(castId ? { castId } : {})
           };
-          const [madeAbility] = await target.createEmbeddedDocuments("Item", [payload]);
+          // THROUGH THE GM WHEN THE TARGET IS NOT OURS (3.718.0).
+          const { createTargetSpellItems } = await import("../combat/relayed-writes.mjs");
+          const [madeAbility] = await createTargetSpellItems(target, [payload]);
           if (!madeAbility) {
             lines.push(line(`<em>${target.name} could not be given ${grantName} — nothing applied.</em>`));
             break;

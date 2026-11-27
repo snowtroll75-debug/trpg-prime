@@ -60,7 +60,9 @@ export async function recordEndSave(actor, descriptor, { on, castId = null } = {
     ? candidates.find((e) => e.getFlag?.(SYSTEM_ID, "castId") === castId) ?? null
     : candidates[0] ?? null;
   if (!effect?.setFlag) return null;
-  await effect.setFlag(SYSTEM_ID, END_SAVE_FLAG, descriptor);
+  // THROUGH THE GM WHEN THE EFFECT IS NOT OURS (3.718.0; Speed).
+  const { setEffectFlags } = await import("../combat/relayed-writes.mjs");
+  if (!(await setEffectFlags(effect, { [END_SAVE_FLAG]: descriptor }))) return null;
   return spec;
 }
 

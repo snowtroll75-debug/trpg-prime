@@ -121,7 +121,10 @@ export async function addPendingModifier(actor, entry) {
   // ONE ACTION'S CHECKS (3.666.3): "-2 to Subsist checks for 1 week" is
   // offered on Subsist and nowhere else. See `pendingFitsCheck`.
   if (Array.isArray(entry?.actions) && entry.actions.length) record.actions = entry.actions.map(String);
-  await actor.setFlag(SYSTEM_ID, FLAG, [...existing, record]);
+  // THROUGH THE GM WHEN THE CREATURE IS NOT OURS (3.718.0): Doubt cast by a
+  // player on the GM's creature threw "lacks permission to update Actor".
+  const { setTargetFlag } = await import("./combat/relayed-writes.mjs");
+  if ((await setTargetFlag(actor, FLAG, [...existing, record])) === false) return null;
   return record;
 }
 

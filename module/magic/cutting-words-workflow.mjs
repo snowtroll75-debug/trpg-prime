@@ -208,7 +208,9 @@ export async function recordCuttingWords(target, { degree = "", casterName = "",
   // larger here means the flag says what the pool would have said.
   const held = target.getFlag(SYSTEM_ID, CUTTING_WORDS_FLAG) ?? null;
   if (held && Number(held.penalty) <= record.penalty) return held;
-  await target.setFlag(SYSTEM_ID, CUTTING_WORDS_FLAG, record);
+  // THROUGH THE GM WHEN THE TARGET IS NOT OURS (3.718.0).
+  const { setTargetFlag } = await import("../combat/relayed-writes.mjs");
+  if ((await setTargetFlag(target, CUTTING_WORDS_FLAG, record)) === false) return null;
   return record;
 }
 

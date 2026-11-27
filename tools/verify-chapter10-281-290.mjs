@@ -698,7 +698,9 @@ for (const [name, why] of [
     // RE-ANCHORED AT 3.594.0: the call gained a `stamp` argument for the
     // Power Crystal's points. The clock is still opt-in by duration and
     // still passed the same way, which is what this check is about.
-    /case "conjureItem": \{[\s\S]*?conjureItemOnto\(target, spec, \{\s*castId, expires: conjureExpires/.test(applier),
+    // RE-ANCHORED AT 3.718.0: the options are named once and handed to the
+    // relay and the direct write alike (verify-core-sweep-3718 B8).
+    /case "conjureItem": \{[\s\S]*?const conjureOpts = \{ castId, expires: conjureExpires, stamp: crystalStamp \};[\s\S]{0,300}conjureItemOnto\(target, spec, conjureOpts\)/.test(applier),
     "without it, five permanent healing berries for two PP");
   ok("J4b opt-in by the duration the spell prints",
     /const conjureExpires = parsedDuration !== null && !parsedDuration\.permanent;/.test(applier),

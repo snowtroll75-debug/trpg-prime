@@ -540,6 +540,107 @@ export function relayOfferCard(anchor, data) {
   });
 }
 
+/**
+ * A charm's attitude on a creature this client may not write to (3.718.0) —
+ * see RELAY_ACTIONS.ATTITUDE. Answers what happened, `{from, to, moved}`, as
+ * the direct write does, or null when the GM's client refused or no GM
+ * answered; the caller says so on its card.
+ *
+ * @param {Actor} target
+ * @param {{mode:"charm"|"step", observerUuid:string, floor?:string, steps?:number, seconds:number|null}} request
+ * @param {Function} applyDirect what to do when this client owns it
+ */
+export async function relayAttitude(target, request, applyDirect) {
+  if (!needsRelay(target)) return applyDirect();
+  const reply = await ask(RELAY_ACTIONS.ATTITUDE, target, {
+    mode: request?.mode === "step" ? "step" : "charm",
+    observerUuid: String(request?.observerUuid ?? ""),
+    floor: String(request?.floor ?? ""),
+    steps: Math.trunc(Number(request?.steps) || 0),
+    seconds: request?.seconds === null || request?.seconds === undefined ? null : Number(request.seconds)
+  });
+  if (reply?.ok) return reply.result ?? null;
+  await announceRelayFailure(target, null, reply?.reason, "Attitude not changed");
+  return null;
+}
+
+/**
+ * A conjured item made on a creature this client may not write to (3.718.0)
+ * — see RELAY_ACTIONS.CONJURE_ITEM. Answers `{ok, item, reason}` so the
+ * caller can tell a refused write from an entry the compendium lacks.
+ */
+export async function relayConjureItem(target, spec, opts, applyDirect) {
+  if (!needsRelay(target)) {
+    const item = await applyDirect();
+    return { ok: Boolean(item), item: item ?? null };
+  }
+  const reply = await ask(RELAY_ACTIONS.CONJURE_ITEM, target, {
+    spec: { pack: spec?.pack, itemName: spec?.itemName, quantity: spec?.quantity, costGp: spec?.costGp },
+    castId: opts?.castId ?? null,
+    expires: opts?.expires === true,
+    stamp: opts?.stamp ?? null
+  });
+  if (reply?.ok) return { ok: true, item: reply.result ?? null };
+  return { ok: false, item: null, reason: reply?.reason ?? "the GM's client did not answer" };
+}
+
+/**
+ * A spell's record on a creature this client may not write to (3.718.0) —
+ * see RELAY_ACTIONS.SPELL_FLAG. True when it landed. A refusal is said on a
+ * card and never thrown: the spell's own card must still post.
+ */
+export async function relaySpellFlag(target, key, value) {
+  const reply = await ask(RELAY_ACTIONS.SPELL_FLAG, target, { key, value: value ?? null });
+  if (reply?.ok) return true;
+  await announceRelayFailure(target, null, reply?.reason, "Spell record not written");
+  return false;
+}
+
+/**
+ * A spell's granted abilities on a creature this client may not write to
+ * (3.718.0). Answers `[{id, name}]`, or [] when refused (said on a card).
+ */
+export async function relaySpellItems(target, items) {
+  const reply = await ask(RELAY_ACTIONS.SPELL_ITEMS, target, { items });
+  if (reply?.ok) return Array.isArray(reply.result) ? reply.result : [];
+  await announceRelayFailure(target, null, reply?.reason, "Spell's ability not granted");
+  return [];
+}
+
+/** A stamp on, or the removal of, a target's effect (3.718.0). True when it landed. */
+export async function relayEffectStamp(effect, { flags = null, remove = false } = {}) {
+  const target = effect?.parent;
+  const reply = await ask(RELAY_ACTIONS.EFFECT_STAMP, target, {
+    effectId: effect?.id ?? "", ...(remove ? { remove: true } : { flags: flags ?? {} })
+  });
+  if (reply?.ok) return true;
+  await announceRelayFailure(target, null, reply?.reason, remove ? "Effect not removed" : "Effect not stamped");
+  return false;
+}
+
+/** A wall spell's segments, made on the GM's client (3.718.0). The count made, or 0. */
+export async function relaySpellWalls(region, walls, castId) {
+  const reply = await ask(RELAY_ACTIONS.SPELL_WALLS, region, { walls, castId: castId ?? null });
+  return reply?.ok ? Number(reply.result) || 0 : 0;
+}
+
+/** A spell's forced movement of a creature this client may not move (3.718.0). */
+export async function relayForcedMove(source, target, feet) {
+  const reply = await ask(RELAY_ACTIONS.FORCED_MOVE, target, { sourceUuid: source?.uuid ?? "", feet });
+  if (reply?.ok && reply.result) return reply.result;
+  return { ok: false, text: `${target?.name ?? "The target"} could not be moved: ${reply?.reason ?? "the GM's client did not answer"}. Move it by hand.` };
+}
+
+/**
+ * Behaviours on a spell's Region, which a player may place but not furnish
+ * (3.718.0). Answers the made ids, or null when refused.
+ */
+export async function relayRegionBehaviours(region, behaviours, name = "") {
+  const reply = await ask(RELAY_ACTIONS.REGION_BEHAVIOURS, region, { behaviours, name });
+  if (reply?.ok) return Array.isArray(reply.result) ? reply.result : [];
+  return null;
+}
+
 /** A Quick Donning result, set on a creature this client may not write to (3.703.0). */
 export async function relayQuickDonning(target, record, applyDirect) {
   if (!needsRelay(target)) return applyDirect();
@@ -671,6 +772,60 @@ async function liveDeps() {
       const { applyPerilAttempt } = await import("../peril-workflow.mjs");
       return applyPerilAttempt(target, degree, { direct: true, ...how });
     },
+    // A CHARM'S ATTITUDE AND A CONJURED ITEM, ON THE GM'S CLIENT (3.718.0).
+    // `isAttitude` is checked here, where the ladder is importable.
+    charmAttitude: async (target, observerUuid, floor, seconds) => {
+      const { isAttitude } = await import("../attitude.mjs");
+      if (!isAttitude(floor)) return null;
+      const { charmAttitude } = await import("../attitude-workflow.mjs");
+      return charmAttitude(target, observerUuid, floor, seconds);
+    },
+    charmAttitudeByStep: async (target, observerUuid, steps, seconds) => {
+      if (!steps) return null;
+      const { charmAttitudeByStep } = await import("../attitude-workflow.mjs");
+      return charmAttitudeByStep(target, observerUuid, steps, seconds);
+    },
+    conjureItem: async (target, spec, opts) => {
+      const { normaliseConjuredItem } = await import("../magic/conjured-item.mjs");
+      const clean = normaliseConjuredItem({ kind: "conjureItem", ...spec });
+      if (!clean) return null;
+      const { conjureItemOnto } = await import("../magic/conjured-item-workflow.mjs");
+      return conjureItemOnto(target, clean, opts);
+    },
+    // A SPELL'S RECORD, ITS GRANTED ABILITY, ITS GROUND (3.718.0).
+    setSpellFlag: (target, key, value) => (value === null
+      ? target.unsetFlag("trg-prime", key)
+      : target.setFlag("trg-prime", key, value)),
+    createSpellItems: (target, items) => target.createEmbeddedDocuments("Item", items),
+    effectOf: (target, effectId) => target.effects?.get?.(effectId) ?? null,
+    isSpellEffect: (effect) => {
+      const f = effect?.flags?.["trg-prime"] ?? {};
+      return f.spellEffect === true || f.spellBuff === true;
+    },
+    deleteEffect: (effect) => effect.delete(),
+    stampEffect: (effect, flags) => effect.update(Object.fromEntries(
+      Object.entries(flags).map(([k, v]) => [`flags.trg-prime.${k}`, v]))),
+    // `direct` keeps the GM's own pass from asking itself.
+    forceMoveAway: async (source, target, feet) => {
+      const { forceMoveAway } = await import("./forced-movement-workflow.mjs");
+      return forceMoveAway(source, target, feet, { direct: true });
+    },
+    userPlacedRegion: (region, userId) => {
+      const user = game.users?.get(userId);
+      return Boolean(user && (region?.author?.id === userId || region?.testUserPermission?.(user, "OWNER")));
+    },
+    updateRegion: (region, data) => region.update(data),
+    // A WALL SPELL'S SEGMENTS, flagged to their Region as the caster's own
+    // client flags them, so the Region's deletion takes them away.
+    createSpellWalls: async (region, segments, castId) => {
+      const { WALL_FLAG } = await import("../magic/wall-spell.mjs");
+      const scene = region?.parent;
+      if (!scene) return [];
+      return scene.createEmbeddedDocuments("Wall", segments.map((s) => ({
+        ...s, flags: { "trg-prime": { [WALL_FLAG]: { regionId: region.id, castId } } }
+      })));
+    },
+    createRegionBehaviours: (region, behaviours) => region.createEmbeddedDocuments("RegionBehavior", behaviours),
     itemOf: (target, itemId) => target.items?.get(itemId) ?? null,
     // A COMPANION FOR A PLAYER (3.674.1): does the asker own the master, and the creation.
     userOwns: (target, userId) => {

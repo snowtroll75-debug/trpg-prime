@@ -57,7 +57,10 @@ async function setRainAndWind(region, on, label) {
     // THE BEHAVIOUR'S OWN FLAGS KEPT (3.683.0): the magical-terrain mark
     // (seam C16) rides beside the storm's own.
     .map((b) => ({ ...b, flags: { ...(b.flags ?? {}), [SYSTEM_ID]: { ...(b.flags?.[SYSTEM_ID] ?? {}), [STORM_TERRAIN_FLAG]: true } } }));
-  if (behaviours.length) await region.createEmbeddedDocuments("RegionBehavior", behaviours);
+  if (behaviours.length) {
+    const { createSpellRegionBehaviours } = await import("../combat/relayed-writes.mjs");
+    await createSpellRegionBehaviours(region, behaviours);
+  }
 }
 
 /**

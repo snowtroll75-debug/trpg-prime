@@ -162,7 +162,9 @@ ok("C5 there is a refusal line", /No escape attempt/.test(prisonRefusal("they ar
 const effects = strip(read("module", "magic", "spell-effects.mjs"));
 const cards = strip(read("module", "dice", "check-card-interactions.mjs"));
 ok("W1 the applier cages the target", effects.includes('case "prison": {')
-  && effects.includes("await prisoner.setFlag(SYSTEM_ID, PRISON_FLAG, {"));
+  // RE-ANCHORED AT 3.718.0: through setTargetFlag, so a player's prison on
+  // the GM's creature crosses the relay (verify-core-sweep-3718 C12).
+  && effects.includes("if ((await setTargetFlag(prisoner, PRISON_FLAG, {"));
 // THE LADDER AND DC ARE FROZEN AT CAST TIME, for the reason the
 // emanation records its own save DC: a pack entry edited mid-campaign
 // must not change a cage somebody is already sitting in.

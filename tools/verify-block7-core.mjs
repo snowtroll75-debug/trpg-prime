@@ -235,7 +235,8 @@ const pf = read("module", "picker-filters.mjs");
   const ti = await imp("temporary-immunity.mjs");
   ok("C10 temporary immunity: the record on the target, refused while running, the longer expiry winning",
     /temporaryImmunityRefusal: async \(target, key\) => \{/.test(api) && /if \(!t\.isTemporarilyImmune\(record, key, now\)\) return "";/.test(api)
-    && /await target\?\.setFlag\?\.\(SYSTEM_ID, t\.IMMUNITY_FLAG, t\.withImmunity\(t\.prunedImmunities\(record, now\), key, seconds, now\)\);/.test(api)
+    // RE-ANCHORED AT 3.718.0: through setTargetFlag (verify-core-sweep-3718 C14).
+    && /await setTargetFlag\(target, t\.IMMUNITY_FLAG, t\.withImmunity\(t\.prunedImmunities\(record, now\), key, seconds, now\)\)\) !== false;/.test(api)
     && /import \{ SYSTEM_ID, contentPack, contentPacksFor, isFederated \} from "\.\/content-packs\.mjs";/.test(api)
     && ti.IMMUNITY_FLAG === "temporaryImmunity");
   ok("C11 an affliction's save now, without the interval's damage", /rollAfflictionSave: async \(actor, affliction\) => \(await import\("\.\/combat\/affliction-workflow\.mjs"\)\)\.rollAfflictionStageSave\(actor, affliction, \{ withDamage: false \}\),/.test(api));

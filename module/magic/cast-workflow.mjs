@@ -5601,8 +5601,14 @@ async function castSpellResolved(actor, spell, { itemCheck = null, stored = null
           lines.push(line(`<em>${spell.name} declares terrain that charges nothing.</em>`));
           continue;
         }
-        await region.update({ name: terrainRegionName(spec, spell.name) });
-        await region.createEmbeddedDocuments("RegionBehavior", behaviours);
+        // THROUGH THE GM FOR A PLAYER (3.718.0): a player may place the
+        // Region but not give it behaviours — Entangle and False Mire threw
+        // "lacks permission to create RegionBehavior" and lost the card.
+        const { createSpellRegionBehaviours } = await import("../combat/relayed-writes.mjs");
+        if (!(await createSpellRegionBehaviours(region, behaviours, terrainRegionName(spec, spell.name)))) {
+          lines.push(line(`<em>${spell.name}: the GM's client did not make the ground difficult — mark it by hand.</em>`));
+          continue;
+        }
         lines.push(line(terrainPlacedLine(spec, describeArea(areaConfig))));
         const remainder = terrainRemainderLine(spec);
         if (remainder) lines.push(line(remainder));

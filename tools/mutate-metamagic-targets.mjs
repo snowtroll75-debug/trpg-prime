@@ -57,7 +57,7 @@ const MUTATIONS = [
   { name: "the stale note stays on owned copies", file: PR, from: `    to: [{"kind":"defence","target":"self","field":"immunity","value":"stunned"}],`, to: `    to: [{"kind":"defence","target":"self","field":"immunity","value":"stunned"},{"kind":"note","text":"x"}],`, breaks: "R4" },
   // R — the owned copies
   { name: "Geas's copies are left stale", file: PR, from: `    id: "geas-warps-3717", pack: "spells", name: "Geas",`, to: `    id: "geas-warps-3717x", pack: "spells", name: "Geas",`, breaks: "R1" },
-  { name: "the pack-copy pass is not re-gated", file: MG, from: `  const packCopies = (await runIf("3.717.1",`, to: `  const packCopies = (await runIf("3.716.0",`, breaks: "R3" },
+  { name: "the pack-copy pass is not re-gated", file: MG, from: `  const packCopies = (await runIf("3.718.0",`, to: `  const packCopies = (await runIf("3.716.0",`, breaks: "R3" },
   // W — the wiring
   { name: "the early gate refuses before Imposing Will is bought", file: CW, from: "&& !storingNow && !imposingWillDeferred) {", to: "&& !storingNow) {", breaks: "W1" },
   { name: "the late gate ignores the type", file: CW, from: "          imposes: mm.imposingType ? (a) => isOfKind(a.system, mm.imposingType) : null\n", to: "", breaks: "W2" },
