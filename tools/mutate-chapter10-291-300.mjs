@@ -291,7 +291,8 @@ const PACK_MUTATIONS = [
 
   /* the rails that existed */
   { spell: "Nightvision", name: "P: the ability granted is spelled a way the pack does not hold",
-    mutate: (sy) => { sy.effects.find((e) => e.kind === "grantAbility").ability = "Night Vision"; },
+    // CORRECTED AT 3.718.0: the grant reads a uuid, so the wrong spelling is a uuid.
+    mutate: (sy) => { sy.effects.find((e) => e.kind === "grantAbility").uuid = "Compendium.trg-prime.abilities.Item.NotNightvision00"; },
     breaks: "F1b" },
   { spell: "Natural Defence", name: "P THE CORRECTION UNDONE: the heldBonus row I added comes back",
     mutate: (sy) => {

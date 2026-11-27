@@ -99,8 +99,9 @@ const MUTATIONS = [
   { file: APPLIER, name: "S: a target already immune is stamped again, restarting its week",
     from: `          if (already > 0) {`, to: `          if (false) {`, breaks: "S4c" },
   { file: APPLIER, name: "S: the record is never pruned, so expired immunities accumulate for ever",
-    from: `            withImmunity(prunedImmunities(record, now), key, spec.seconds, now));`,
-    to: `            withImmunity(record, key, spec.seconds, now));`, breaks: "S4d" },
+    // RE-ANCHORED AT 3.718.0: written through setTargetFlag.
+    from: `            withImmunity(prunedImmunities(record, now), key, spec.seconds, now))) === false) break;`,
+    to: `            withImmunity(record, key, spec.seconds, now))) === false) break;`, breaks: "S4d" },
   { file: KINDS, name: "S: the kind leaves the handled vocabulary",
     from: `  "strikeRider", "suppress", "tempHP", "tempImmunity", "thorns", "trait",`,
     to: `  "strikeRider", "suppress", "tempHP", "thorns", "trait",`, breaks: "S4" }

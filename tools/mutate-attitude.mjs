@@ -155,8 +155,9 @@ const MUTATIONS = [
     to: "    if (Number(now) < Number(entry.until)) {",
     breaks: "M7b — Thrall's fumble is swept away on the next write" },
   { file: FX, name: "THE ONE I NEARLY SHIPPED: a spell's step is permanent",
-    from: "            : await charmAttitudeByStep(target, caster?.uuid ?? \"\", steps, seconds);",
-    to: "            : await shiftAttitudeToward(target, caster?.uuid ?? \"\", steps);",
+    // RE-ANCHORED AT 3.718.0: the direct write is now the relay's fallback.
+    from: "            : charmAttitudeByStep(target, caster?.uuid ?? \"\", steps, seconds)));",
+    to: "            : shiftAttitudeToward(target, caster?.uuid ?? \"\", steps)));",
     breaks: "P2 — a 1-minute Tame changes an animal's mind for good" },
   { file: FX, name: "the applier accepts an attitude the ladder does not know",
     from: "          if (floor && !isAttitude(floor)) {",

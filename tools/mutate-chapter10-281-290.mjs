@@ -174,10 +174,10 @@ const MUTATIONS = [
   { file: EFFECTS, name: "J THE PERMANENT BERRY: a conjured item goes back to having no clock",
     // RE-ANCHORED AT 3.594.0: the call gained a `stamp` argument for the
     // Power Crystal's points, and wrapped over three lines.
-    from: `          const made = await conjureItemOnto(target, spec, {
-            castId, expires: conjureExpires, stamp: crystalStamp
-          });`,
-    to: `          const made = await conjureItemOnto(target, spec);`, breaks: "J4" },
+    // RE-ANCHORED AT 3.718.0: the options are named once for the relay and
+    // the direct write alike.
+    from: `          const conjureOpts = { castId, expires: conjureExpires, stamp: crystalStamp };`,
+    to: `          const conjureOpts = {};`, breaks: "J4" },
   { file: EFFECTS, name: "J: every conjured item expires, and Bless Water's flask vanishes",
     from: `          const conjureExpires = parsedDuration !== null && !parsedDuration.permanent;`,
     to: `          const conjureExpires = true;`, breaks: "J4b" },

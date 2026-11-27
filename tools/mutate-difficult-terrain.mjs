@@ -242,8 +242,10 @@ const MUTATIONS = [
   {
     file: CAST,
     name: "W3 the Region keeps its plain name",
-    from: "        await region.update({ name: terrainRegionName(spec, spell.name) });",
-    to: "",
+    // RE-ANCHORED AT 3.718.0: the name now travels with the behaviours, so a
+    // player's Region is renamed on the GM's client too.
+    from: "        if (!(await createSpellRegionBehaviours(region, behaviours, terrainRegionName(spec, spell.name)))) {",
+    to: "        if (!(await createSpellRegionBehaviours(region, behaviours, \"\"))) {",
     breaks: "W4 — the clause would exist only on a card that scrolls away"
   },
   {
