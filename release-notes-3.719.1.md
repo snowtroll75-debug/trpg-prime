@@ -2,7 +2,8 @@
 
 28 November 2026. Branch `fix/creature-effective-level-zero`, on top of 3.719.0 (`fix/spell-module-sweep`).
 
-- **Install over 3.718.3 or 3.719.0.** It includes everything in 3.719.0. No migration: the world is not asked to migrate.
+- **Install over 3.718.3 or 3.719.0.** It includes everything in 3.719.0 as that branch stood at `262de13`, including the HTML descriptions work on item and actor sheets (R-0049). No migration: the world is not asked to migrate.
+- **One line again:** `fix/spell-module-sweep` and `fix/creature-effective-level-zero` now point at the same commit, so the next core release follows 3.719.1.
 - **Companion modules:** Fiends & Fables 0.47.1 uses the new marker. Eldritch Arts, Pillars of Faith and Inner Tempest need no update.
 
 ## New: Effective Level 0

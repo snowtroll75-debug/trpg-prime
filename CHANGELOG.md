@@ -9,13 +9,17 @@ Full notes in `release-notes-3.719.1.md`. Asked for by Graham after the Fiends &
 - **Effective Level 0:** the GM tab has an "Effective Level 0" tick box beside the Effective Level box. Ticked, with the box at 0, the creature is worth EL 0 in encounter building. Unticked, a 0 in the box still means "use the creature's level", so no existing actor changes and there is no migration.
 - **Fiends & Fables 0.47.1** sets the marker on its 21 EL 0 creatures.
 
-## 3.719.0 — 28 November 2026: what the companion-module spell sweep found
+## 3.719.0 — 28 November 2026: the companion-module spell sweep, and HTML descriptions everywhere
 
 Full notes in `release-notes-3.719.0.md`. All 230 Eldritch Arts, Pillars of Faith and Inner Tempest spells were cast from the player's seat. 3.718.3 passed live.
 
 - **Narration:** a module spell's HTML description is printed as text, without its stat block or warping options. This fixes Dark Whispers, Observe the Weave and Message Rune.
 - **Writ of Restraint, from a player's seat:** its "cannot use Reactions" stamp goes through the GM.
 - **Restoration on another player's character:** the once-a-day record goes through the GM, so the cast no longer throws and leaves no Result card. Pillars of Faith's Nine-Herb Restorative, Soul Rebinding and Share Burden use the same row.
+- **HTML descriptions:**
+  - **Item sheets:** a module feat's or item's HTML description (1,855 compendium items) is shown as formatted text with an edit toggle, instead of as markup in a text box. Core plain-text descriptions keep their text box.
+  - **Actor sheets:** the Pillars of Faith haunts' and the vehicles' HTML notes and biography are shown the same way.
+  - **Cards:** the cards that print an item's own words keep its formatting rather than escaping or splitting it.
 
 ## 3.718.3 — 28 November 2026: the migration now recognises copies that carry a newer default
 

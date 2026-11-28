@@ -1366,10 +1366,35 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
 - **Live verification:** owed once installed.
 - **Delivery:** 3.719.0, branch `fix/spell-module-sweep`.
 
-## R-0049 — An Effective Level of 0 could not be stored (3.719.1)
+## R-0049 — HTML descriptions shown as markup on item and actor sheets and item cards (3.719.0)
+
+- **Reported:** Graham, 28 November 2026, after R-0048: "the HTML error that you have picked up is also present on feats and other items, can you please fix them all."
+- **Source state:** branch `fix/spell-module-sweep` at `bebc325` (3.719.0 before this).
+- **Scope, measured in the Test world:**
+  - 1,855 compendium items have HTML descriptions: all of Eldritch Arts and Inner Tempest, most of Pillars of Faith, Fiends & Fables' three feats, and the core's origins, creature classes, creature attacks and creature abilities.
+  - Two actor packs carry HTML text fields: `pof-haunts` (biography, GM notes) and `trg-prime.vehicles` (notes).
+- **Root cause:** every core text field is plain text in a `<textarea>`.
+  - The item sheet's description and the actor sheet's notes and biography printed HTML as its source.
+  - Five card sites printed an item's description either escaped (oil) or inside a `<p>` (uses, magic items, two consumable paths).
+- **Fix:**
+  - New `description-html.mjs` decides whether a field is HTML and reads it.
+  - The sheets show an HTML field in Foundry's `<prose-mirror toggled>` editor; plain text keeps its textarea.
+  - The cards print through `cardDescription`.
+  - Spell narration (R-0048) is rebuilt on the same reader.
+- **Testing:**
+  - `verify-fixes-3719-0` D1–D21: 50 checks in all. `mutate-fixes-3719-0`: 18 mutations, all caught.
+  - Hot-checked in the Test world with the template and context applied in the browser only, nothing installed:
+    - An Eldritch Arts feat's sheet showed the formatted text, edited and saved (`<p><strong>SPELLWARDEN EDITED</strong></p>…`).
+    - Another field's change left the description untouched.
+    - A Pillars of Faith haunt's Biography showed as text.
+    - A use card with the feat's HTML rendered cleanly.
+- **Live verification:** owed once installed.
+- **Delivery:** 3.719.0, branch `fix/spell-module-sweep`.
+
+## R-0050 — An Effective Level of 0 could not be stored (3.719.1)
 
 - **Reported:** Graham, 28 November 2026, from the Fiends & Fables creature balance audit: "it seems to me that EL 0 needs to be created."
-- **Source state:** branch `fix/spell-module-sweep` at 3.719.0 (`2a491d0`).
+- **Source state:** branch `fix/spell-module-sweep` at 3.719.0 (`262de13`; first built on `2a491d0` and merged forward the same day, when it was numbered R-0049).
 - **Root cause:** `effectiveLevelOf` reads a 0 in `system.gm.challenge` as a blank box and returns the creature's level. A level-1 creature under 90% of the Development Point benchmark has EL `floor(1 × 0.9) = 0`, and 21 Fiends & Fables creatures are in that position. Each was budgeted as EL 1: 400 XP against a level-1 party where EL 0 is 300.
 - **Fix:**
   - A new field, `system.gm.challengeZero` (default false), marks a 0 that is meant. `effectiveLevelOf` returns 0 when it is true and the box holds 0.

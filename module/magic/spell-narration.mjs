@@ -37,6 +37,7 @@
  */
 
 import { HANDLED_EFFECT_KINDS } from "./effect-kinds.mjs";
+import { isHtmlDescription, htmlBlocks, blockText } from "../description-html.mjs";
 
 /**
  * Effect kinds that DO something. `note` is deliberately absent: a note
@@ -111,7 +112,7 @@ export function spellHasNoMechanics(spellSystem = {}) {
  */
 export function spellNarration(description) {
   const raw = String(description ?? "");
-  const text = (HTML_TAG.test(raw) ? htmlNarration(raw) : raw)
+  const text = (isHtmlDescription(raw) ? htmlNarration(raw) : raw)
     .split(/Warping Options:/i)[0]
     .trim();
   return text;
@@ -136,19 +137,17 @@ export function spellNarration(description) {
  * colon in these books, so the cut also stops at a paragraph that is
  * only that heading.
  */
-const HTML_TAG = /<\/?[a-z][^>]*>/i;
 const STAT_LINE = /^<strong>\s*(traditions?|cast|range|area|targets?|duration|defen[cs]e|saving throw|traits?)\s*:?\s*<\/strong>/i;
 const BANNER = /^<strong>[^a-z<]*<\/strong>$/;
-const ENTITIES = { "&lt;": "<", "&gt;": ">", "&quot;": "\"", "&#39;": "'", "&apos;": "'", "&nbsp;": " ", "&amp;": "&" };
 
 function htmlNarration(html) {
+  // THE BLOCKS AND THEIR TEXT ARE description-html.mjs's (3.719.0), the
+  // one place that reads an HTML description; only the stat-block rule is
+  // this file's own.
   const out = [];
-  for (const chunk of html.split(/<\/p>|<br\s*\/?>|<\/li>|<\/h[1-6]>|<\/div>/i)) {
-    const inner = chunk.replace(/^\s*(<(p|li|h[1-6]|div|ul|ol)\b[^>]*>\s*)+/i, "").trim();
-    if (!inner || STAT_LINE.test(inner) || BANNER.test(inner)) continue;
-    const plain = inner.replace(/<[^>]*>/g, "")
-      .replace(/&(lt|gt|quot|#39|apos|nbsp|amp);/g, (m) => ENTITIES[m])
-      .replace(/\s+/g, " ").trim();
+  for (const inner of htmlBlocks(html)) {
+    if (STAT_LINE.test(inner) || BANNER.test(inner)) continue;
+    const plain = blockText(inner);
     if (!plain) continue;
     if (/^warping options:?$/i.test(plain)) break;
     out.push(plain);

@@ -14,6 +14,7 @@ import {
 import { featSlotContext } from "./magic/feat-casting-workflow.mjs";
 import { featSlotPreparationLines } from "./magic/feat-casting.mjs";
 import { deletionValue } from "./deletion.mjs";
+import { cardDescription } from "./description-html.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -231,13 +232,13 @@ export function itemUsesRemaining(item) {
 export async function useItemCharge(actor, item) {
   const max = itemUsesMax(item);
   if (max === null) {
-    return postCard(actor, item.name, [line(item.system.description || "Used.")]);
+    return postCard(actor, item.name, [cardDescription(item.system.description || "Used.")]);
   }
 
   if (max === Infinity) {
     return postCard(actor, item.name, [
       line("Unlimited uses per day."),
-      ...(item.system.description ? [line(item.system.description)] : [])
+      ...(item.system.description ? [cardDescription(item.system.description)] : [])
     ]);
   }
 
@@ -250,7 +251,7 @@ export async function useItemCharge(actor, item) {
   await item.update({ "system.usesValue": remaining - 1 });
   return postCard(actor, item.name, [
     line(`${remaining - 1} of ${max} uses remaining today.`),
-    ...(item.system.description ? [line(item.system.description)] : [])
+    ...(item.system.description ? [cardDescription(item.system.description)] : [])
   ]);
 }
 

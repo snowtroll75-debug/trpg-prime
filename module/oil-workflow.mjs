@@ -27,6 +27,7 @@ import { materialOf } from "./item-quality.mjs";
 import { activationCost } from "./elixirs.mjs";
 import { consumeOneUse } from "./consumable-use.mjs";
 import { TRGCheck } from "./dice/check.mjs";
+import { cardDescription } from "./description-html.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -180,7 +181,7 @@ export async function useOil(actor, item) {
     const after = await spendDose(item);
     const lines = [line(`<strong>${esc(actor.name)}</strong> uses ${esc(item.name)}.`)];
     if (apLine) lines.push(apLine);
-    lines.push(line(esc(item.system?.description ?? "")));
+    lines.push(cardDescription(item.system?.description ?? "", { escape: esc }));
     lines.push(remainingLine(item, after));
     const save = oil.save;
     const Save = `${save[0].toUpperCase()}${save.slice(1)}`;

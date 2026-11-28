@@ -2162,6 +2162,27 @@
     min-height: 180px;
   }
 
+  /* An HTML description (3.719.0): the rich editor, as printed. */
+  .trg-prime .description-card prose-mirror {
+    display: block;
+    min-height: 180px;
+  }
+
+  .trg-prime .ornate-card > prose-mirror {
+    display: block;
+    min-height: 80px;
+  }
+
+  .trg-prime .description-card prose-mirror table,
+  .trg-prime .trg-card-description table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .trg-prime .trg-card-description p {
+    margin: 2px 0;
+  }
+
   .trg-prime .checkbox-field {
     align-items: center;
   }

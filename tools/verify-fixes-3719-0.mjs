@@ -16,10 +16,19 @@
  *       once-a-day record threw, and the cast posted no Result card.
  *
  * The narration half (HTML descriptions) is verify-spell-narration's B9–B18.
+ *
+ * AND THEN GRAHAM, the same night: "the HTML error that you have picked up
+ * is also present on feats and other items, can you please fix them all."
+ * Section D: every module item's description (1,855 of them are HTML,
+ * across Eldritch Arts, Inner Tempest, Pillars of Faith and some core
+ * packs) read as markup in the item sheet's textarea; the cards that print
+ * an item's own words escaped it or nested it in a <p>; and two actor
+ * packs (the Pillars of Faith haunts, the vehicles) carry HTML notes.
  */
 import fs from "node:fs";
 import path from "node:path";
 import { SYSTEM_ROOT } from "./lib/sources.mjs";
+import { isHtmlDescription, htmlBlocks, blockText, descriptionPlainText, cardDescription, richTextFields } from "../module/description-html.mjs";
 import { RELAY_ACTIONS, SPELL_RELAY_FLAGS, EFFECT_STAMP_FLAGS, handleRelayMessage, buildRelayRequest } from "../module/combat/target-relay.mjs";
 
 let checks = 0;
@@ -88,6 +97,62 @@ const relief = effects.slice(effects.indexOf('case "conditionRelief": {'), effec
 ok("B4 the relief row writes it through setTargetFlag",
   /await setTargetFlag\(target, RELIEF_FLAG,\s*markRelievedToday\(reliefRecord, reliefSpec\.oncePerDay\)\)/.test(relief));
 ok("B5 and no longer writes the target directly", !/await target\.setFlag\(SYSTEM_ID, RELIEF_FLAG/.test(effects));
+
+/* D. HTML descriptions on items, cards and actor sheets ---------------- */
+ok("D1 a <p> description is HTML", isHtmlDescription("<p><strong>SPELLWARDEN</strong></p>"));
+ok("D2 plain text with a < is not", !isHtmlDescription("Deals 1d6 if the roll is < 10 & the foe is prone."));
+ok("D3 nor is a core description", !isHtmlDescription("You gain a +1 bonus.\n\nWarping Options:\n+1 PP: more."));
+ok("D4 a self-closing <br/> counts", isHtmlDescription("One<br/>Two"));
+{
+  const blocks = htmlBlocks("<p><strong>A</strong></p>\n<p>B &amp; C</p><ul><li>one</li><li>two</li></ul><table><tr><td>x</td><td>y</td></tr></table>");
+  ok("D5 the blocks are its paragraphs, list items and rows", blocks.length === 5, JSON.stringify(blocks));
+  ok("D6 a block's text drops the tags and decodes the entities", blockText(blocks[1]) === "B & C", blockText(blocks[1]));
+  ok("D7 table cells do not run together", blockText(blocks[4]) === "x y", blockText(blocks[4]));
+}
+ok("D8 plain text comes back unchanged", descriptionPlainText("Line one.\nLine two < three.") === "Line one.\nLine two < three.");
+ok("D9 HTML comes back one paragraph a line", descriptionPlainText("<p>One</p><p>Two</p>") === "One\nTwo");
+{
+  const html = cardDescription("<p><strong>Bold</strong> text</p><p>More</p>");
+  ok("D10 a card keeps HTML as HTML, in a div and not inside a <p>",
+    /^<div class="trg-card-description"[^>]*><p><strong>Bold<\/strong> text<\/p><p>More<\/p><\/div>$/.test(html), html);
+  ok("D11 plain text is a card line, as before", cardDescription("Used.") === '<p style="margin:2px 0">Used.</p>');
+  const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  ok("D12 a caller that escaped plain text still does", cardDescription("a < b", { escape: esc }) === '<p style="margin:2px 0">a &lt; b</p>');
+  ok("D13 and its HTML is not escaped", !/&lt;/.test(cardDescription("<p>x</p>", { escape: esc })));
+}
+{
+  const rich = await richTextFields(null, { a: "<p>x</p>", b: "plain", c: "", d: undefined });
+  ok("D14 only the HTML fields are given to the editor", JSON.stringify(Object.keys(rich)) === JSON.stringify(["a"]), JSON.stringify(rich));
+}
+const itemSheet = read("module/sheets/item-sheet.mjs");
+const itemTpl = read("templates/item/item-sheet.hbs");
+ok("D15 the item sheet asks for its description's HTML",
+  /context\.rich = await richTextFields\(this\.item, \{ description: this\.item\.system\?\.description \}/.test(itemSheet));
+ok("D16 and shows HTML in the rich editor, with the textarea kept for plain text",
+  /\{\{#if rich\.description\}\}\s*<prose-mirror class="chronicle" name="system\.description" value="\{\{system\.description\}\}" toggled\{\{#unless editable\}\} disabled\{\{\/unless\}\}>\{\{\{rich\.description\}\}\}<\/prose-mirror>\s*\{\{else\}\}\s*<textarea\s+class="chronicle"\s+name="system\.description"/.test(itemTpl));
+const actorSheet = read("module/sheets/actor-sheet.mjs");
+const actorTpl = read("templates/actor/actor-sheet.hbs");
+const ACTOR_FIELDS = { notes: "system.details.notes", magicNotes: "system.magic.notes", biography: "system.details.biography",
+  appearance: "system.details.appearance", personality: "system.details.personality", treasure: "system.gm.treasure", gmNotes: "system.gm.notes" };
+for (const [key, name] of Object.entries(ACTOR_FIELDS)) {
+  const field = name.replace(/\.(?=[a-z]+$)/i, "?.");
+  ok(`D17 the actor sheet reads ${name} for the editor`, actorSheet.includes(`${key}: ${field}`), field);
+  const esc = name.replace(/\./g, "\\.");
+  ok(`D18 and its template switches ${name} on rich.${key}`,
+    new RegExp(`\\{\\{#if rich\\.${key}\\}\\}\\s*<prose-mirror[^>]*name="${esc}" value="\\{\\{${esc}\\}\\}" toggled[^>]*>\\{\\{\\{rich\\.${key}\\}\\}\\}<\\/prose-mirror>\\s*\\{\\{else\\}\\}\\s*<textarea[^>]*name="${esc}"`).test(actorTpl));
+}
+for (const [file, re, label] of [
+  ["module/uses-workflow.mjs", /\[cardDescription\(item\.system\.description \|\| "Used\."\)\]/, "a feat's use with no tracked uses"],
+  ["module/uses-workflow.mjs", /\.\.\.\(item\.system\.description \? \[cardDescription\(item\.system\.description\)\] : \[\]\)\n\s*\]\);\n\s*\}/, "an unlimited feat's use"],
+  ["module/magic-items-workflow.mjs", /cardDescription\(system\.description \|\| "No activation details/, "a magic item's activation"],
+  ["module/consumable-use-workflow.mjs", /cardDescription\(item\.system\?\.description \|\| "No effect is recorded on this item yet/, "a consumable read out"],
+  ["module/consumable-use-workflow.mjs", /cardDescription\(item\.system\?\.description \|\| "No effect is recorded on this item\."\)/, "a text-only consumable"],
+  ["module/oil-workflow.mjs", /cardDescription\(item\.system\?\.description \?\? "", \{ escape: esc \}\)/, "an oil's vapours"]
+]) ok(`D19 ${label} prints the item's words through cardDescription`, re.test(read(file)));
+ok("D20 no card prints a description through line() any more",
+  !/line\((esc\()?(item\.)?system\??\.description/.test(["module/uses-workflow.mjs", "module/magic-items-workflow.mjs", "module/consumable-use-workflow.mjs", "module/oil-workflow.mjs"].map(read).join("\n")));
+const narration = read("module/magic/spell-narration.mjs");
+ok("D21 the spell card's narration reads the same blocks", /from "\.\.\/description-html\.mjs"/.test(narration) && /for \(const inner of htmlBlocks\(html\)\)/.test(narration));
 
 /* C. The release -------------------------------------------------------- */
 const sys = JSON.parse(read("system.json"));

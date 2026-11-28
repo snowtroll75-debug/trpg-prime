@@ -4,6 +4,7 @@ import {
 import { breakItemValue } from "./items.mjs";
 import { chargedItemLevelOf } from "./charged-items.mjs";
 import { levelDC } from "./dice/resolution.mjs";
+import { cardDescription } from "./description-html.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -175,7 +176,7 @@ export async function activateItem(actor, item) {
   }
 
   await postCard(actor, `${item.name} — Activate Item`, [
-    line(system.description || "No activation details recorded on this item yet.")
+    cardDescription(system.description || "No activation details recorded on this item yet.")
   ]);
   return { activated: true };
 }

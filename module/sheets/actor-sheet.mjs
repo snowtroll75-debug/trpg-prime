@@ -1,4 +1,5 @@
 import { itemStashCapacity, stashCapacity } from "../stowage.mjs";
+import { richTextFields } from "../description-html.mjs";
 import { ALWAYS_READY_ACTOR_TYPES } from "../combat/natural-ready.mjs";
 import { coinValueInGP } from "../items.mjs";
 import { describeDefenceField } from "../defences.mjs";
@@ -550,6 +551,14 @@ export class TRGActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
     context.actor = actor;
     context.system = system;
+    // AN HTML FIELD IS SHOWN, NOT ITS SOURCE (3.719.0): the Pillars of Faith
+    // haunts' biography and secret notes, the vehicles' notes. Plain text
+    // keeps its textarea. See description-html.mjs.
+    context.rich = await richTextFields(actor, {
+      notes: system.details?.notes, magicNotes: system.magic?.notes,
+      biography: system.details?.biography, appearance: system.details?.appearance,
+      personality: system.details?.personality, treasure: system.gm?.treasure, gmNotes: system.gm?.notes
+    }, { secrets: game.user.isGM });
     context.systemVersion = game.system.version;
     context.editable = this.isEditable;
     context.isGM = game.user.isGM;

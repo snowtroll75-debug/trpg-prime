@@ -18,6 +18,7 @@ import { isFreeBookSpell, spellBookSpells } from "../magic/spellbook.mjs";
 import { openFreeSpellPick } from "../magic/spellbook-free-workflow.mjs";
 import { spellListFilterOptions, wireSpellListFilters } from "./list-filters.mjs";
 import { itemRequiredHands } from "../held-items.mjs";
+import { richTextFields } from "../description-html.mjs";
 
 const { ItemSheetV2 } = foundry.applications.sheets;
 const { HandlebarsApplicationMixin } = foundry.applications.api;
@@ -412,6 +413,14 @@ export class TRGItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     context.stagesForDisplay = (this.item.system.stages ?? []).map(
       (stage, index) => ({ ...stage, index, number: index + 1 })
     );
+
+    // AN HTML DESCRIPTION IS SHOWN, NOT ITS SOURCE (3.719.0). Every core
+    // description is plain text and keeps its textarea. A companion
+    // module's is HTML (all of Eldritch Arts and Inner Tempest), and in the
+    // textarea it read as markup; it gets Foundry's own rich-text editor,
+    // shown as the book prints it with an edit toggle, as the Party sheet's
+    // notes are. See description-html.mjs.
+    context.rich = await richTextFields(this.item, { description: this.item.system?.description }, { secrets: this.item.isOwner });
 
     return context;
   }
