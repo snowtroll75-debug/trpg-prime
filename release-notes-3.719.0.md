@@ -18,7 +18,7 @@ All 230 companion-module spells were cast from the player's seat (PC Tester), wi
 - **Second pass:** 29 touch-range spells were cast again with the foe moved adjacent. The first pass had refused them correctly, as out of range.
 - **Third pass:** the 42 spells aimed at an ally were cast again with that ally **not owned by the player**, as when healing another player's character. The test ally had been owned by the player, so the relay paths for a friendly target had never been exercised.
 - **Refusals that were correct:**
-  - The 11 Ritual spells refused a standard cast.
+  - The 10 Ritual spells refused a standard cast.
   - Mimic Spell is offered only as a reaction.
   - Ley Walker needs a ley line within 30 feet.
   - A spell needing a Material Component Pouch refused without one.
