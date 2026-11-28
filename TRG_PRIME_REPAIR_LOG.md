@@ -1438,8 +1438,27 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
 - **Testing:**
   - `verify-fixes-3720-0`: 48 checks. `mutate-fixes-3720-0`: 39 mutations, all caught.
   - All 412 per-rule verify files passed, run one by one, with `verify-no-undefined-names` and `verify-rules-have-callers`. `verify-block10-core` C3 was re-anchored on the shared table.
-  - The 32 mutate files that touch `geometry.mjs`, `movement-workflow.mjs` or `companion-workflow.mjs` passed; `mutate-ff30-block19` needed `asTokenResize` to keep its `RESIZING.add` line distinct from `resizeTokenInPlace`'s.
+  - The 31 mutate files that touch `geometry.mjs`, `movement-workflow.mjs` or `companion-workflow.mjs` passed; `mutate-ff30-block19` needed `asTokenResize` to keep its `RESIZING.add` line distinct from `resizeTokenInPlace`'s.
   - Hot-checked in the Test world with the new code loaded in the browser only: Small 0.8 at creation (linked, unlinked and prototype); Large 2; a `sizeStepChange` effect to Huge 3 and back; an unlinked token's own effect resizing only it; a Tiny token at a quarter square regrown onto its square; Diminutive 0.4; Colossal 5; a blank Size left alone.
   - **Not run:** `verify-checks-read-source`, `verify-checks-can-fail`, the other mutate files, and the companion modules' suites.
-- **Live verification:** owed once installed.
+- **Live verification:** passed, 28 November 2026 (`live-testing-report-3.720.0.md`): creation, the first-run correction, a real Size Alteration cast, resizes in combat with no AP charged, and a player's own change.
 - **Delivery:** 3.720.0, branch `fix/token-size-link`.
+
+## R-0052 — A tick box to keep a token at its own size (3.720.1)
+
+- **Asked for:** Graham, 28 November 2026: "Yes I would like the tick box please."
+- **Source state:** branch `fix/token-size-link` at 3.720.0 (`17727d7`).
+- **Why:** 3.720.0 puts any hand-set token size back to the creature's Size, so one creature could not be drawn at another size.
+- **Change:**
+  - A flag, `flags.trg-prime.keepTokenSize`, on a token or a prototype token (`keepsOwnSize` in `token-size.mjs`).
+  - `renderTokenConfig` and `renderPrototypeTokenConfig` add the box under the Size row; the sheet's own form saves it.
+  - The Size link skips a kept token, a kept prototype, and a new token carrying the flag from its prototype.
+  - `resizeTokenInPlace` skips a kept token, so forms and a companion's growth do too; `resizeCompanionTokens` skips a kept prototype.
+  - Unticking (`updateToken` with the flag) resizes the token at once.
+- **Testing:**
+  - `verify-fixes-3720-1`: 19 checks. `mutate-fixes-3720-1`: 23 mutations, all caught.
+  - All 413 per-rule verify files passed, with `verify-no-undefined-names` and `verify-rules-have-callers`; the 31 other mutate files that touch the changed sources passed.
+  - Hot-checked in the Test world with the markup added in the browser only: layout under the Size row, saving on a token and on a prototype, and a prototype's flag carried to a new token.
+  - **Not run:** `verify-checks-read-source`, `verify-checks-can-fail`, the other mutate files, and the companion modules' suites.
+- **Live verification:** owed once installed.
+- **Delivery:** 3.720.1, branch `fix/token-size-link`.

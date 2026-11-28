@@ -120,3 +120,30 @@ export function regrownPosition(token, side, grid) {
   const y = tokenOriginSquare(token.y, h, g) * g;
   return same(x, token.x) && same(y, token.y) ? null : { x, y };
 }
+
+/*
+ * A TOKEN KEPT AT ITS OWN SIZE (3.720.1). Graham, 28 November 2026, asked
+ * for a tick box: one creature drawn at a size its Size does not give — a
+ * Medium rider drawn across its mount, a Large statue on a small plinth.
+ * The flag sits on the token, or on the prototype token, where it is
+ * copied to every token dragged from it. A kept token is never resized by
+ * the system: not by the Size link, and not by a form or a companion's
+ * growth either.
+ */
+export const KEEP_TOKEN_SIZE_FLAG = "keepTokenSize";
+const FLAG_SCOPE = "trg-prime";
+
+/** Is this token, or prototype token, kept at the size it was given? Only a real true. */
+export function keepsOwnSize(tokenLike) {
+  return tokenLike?.flags?.[FLAG_SCOPE]?.[KEEP_TOKEN_SIZE_FLAG] === true;
+}
+
+/** The tick box, for the token sheet: a form group to follow the Size row. */
+export function keepSizeFieldHTML(checked) {
+  const name = `flags.${FLAG_SCOPE}.${KEEP_TOKEN_SIZE_FLAG}`;
+  return '<div class="form-group trg-keep-token-size">'
+    + "<label>Keep this size</label>"
+    + `<div class="form-fields"><input type="checkbox" name="${name}"${checked === true ? " checked" : ""}></div>`
+    + '<p class="hint">Ticked, this token is not resized when its creature\'s Size changes. Unticked, it follows the creature\'s Size.</p>'
+    + "</div>";
+}

@@ -54,7 +54,7 @@ A Small, Tiny or Diminutive creature still occupies its one square for reach, fl
 
 - `verify-fixes-3720-0`: 48 checks. `mutate-fixes-3720-0`: 39 mutations, all caught.
 - All 412 per-rule verify files passed, run one by one, with `verify-no-undefined-names` and `verify-rules-have-callers`. Two anchors were updated for the new table (`verify-block10-core` C3) and the version.
-- The 32 mutate files that touch `geometry.mjs`, `movement-workflow.mjs` or `companion-workflow.mjs` passed.
+- The 31 mutate files that touch `geometry.mjs`, `movement-workflow.mjs` or `companion-workflow.mjs` passed.
 - **Not run:** `verify-checks-read-source`, `verify-checks-can-fail`, the mutate files that touch none of those three sources, and the companion modules' own suites. The change adds no API a module uses and does not alter distances for tokens a square or more across.
 - **In the Test world, before installing** (Foundry 14.367, the new code loaded in the browser only, temporary actors and tokens, all deleted):
   - A Small NPC's prototype token became 0.8 × 0.8 × 0.8, and its new tokens, linked and unlinked, were created at 0.8.

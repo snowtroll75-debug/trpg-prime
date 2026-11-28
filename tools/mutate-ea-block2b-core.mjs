@@ -76,7 +76,7 @@ const MUTATIONS = [
   { name: "THE GAP: vital sacrifice's damage is reduced by DR and resistance", file: m("magic", "area-save-workflow.mjs"), from: "    const packet = ignoreDefences ? { taken: dealt, immune: false } : resolveAgainstDefences(target.system ?? {}, {", to: "    const packet = resolveAgainstDefences(target.system ?? {}, {", breaks: "H" },
   { name: "the bypass ignores the save", file: m("magic", "area-save-workflow.mjs"), from: "    const packet = ignoreDefences ? { taken: dealt, immune: false }", to: "    const packet = ignoreDefences ? { taken: base, immune: false }", breaks: "H" },
   // Z
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.720.0\"", to: "\"version\": \"3.678.0\"", breaks: "Z" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.720.1\"", to: "\"version\": \"3.678.0\"", breaks: "Z" }
 ];
 function run() { try { execFileSync(process.execPath, [path.join(SYSTEM_ROOT, "tools", "verify-ea-block2b-core.mjs")], { stdio: ["ignore", "pipe", "pipe"] }); return true; } catch { return false; } }
 const guard = guardFiles([...new Set(MUTATIONS.map((x) => x.file))]);

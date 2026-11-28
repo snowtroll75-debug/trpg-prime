@@ -364,7 +364,7 @@ async function chooseCreature(creatures, { title = "Animal Companion", intro = "
 export async function resizeCompanionTokens(companion) {
   // BY THE ONE TABLE (3.720.0): token-size.mjs, so this and the Size link
   // never disagree about a Small companion.
-  const { tokenSideForSize } = await import("./token-size.mjs");
+  const { keepsOwnSize, tokenSideForSize } = await import("./token-size.mjs");
   const side = tokenSideForSize(companion?.system?.identity?.size);
   if (!(side > 0)) return;
   const { resizeTokenInPlace } = await import("./combat/movement-workflow.mjs");
@@ -373,7 +373,7 @@ export async function resizeCompanionTokens(companion) {
   }
   // …and the next one dragged out.
   const proto = companion.prototypeToken;
-  if (proto && companion.isOwner && (Number(proto.width) !== side || Number(proto.height) !== side)) {
+  if (proto && !keepsOwnSize(proto) && companion.isOwner && (Number(proto.width) !== side || Number(proto.height) !== side)) {
     await companion.update({ "prototypeToken.width": side, "prototypeToken.height": side });
   }
 }

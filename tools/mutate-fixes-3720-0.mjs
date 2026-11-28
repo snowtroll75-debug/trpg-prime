@@ -57,7 +57,7 @@ const MUTATIONS = [
   { file: MAIN, name: "the hooks are not registered", from: "\n  registerTokenSizeHooks();\n", to: "\n", breaks: "G2" },
   { file: GE, name: "distance rounds a small token's edge", from: "    const col = tokenOriginSquare(token.document.x, token.document.width, grid);", to: "    const col = Math.round(token.document.x / grid);", breaks: "G3" },
   { file: CW, name: "a Small companion is given a full square", from: "  const side = tokenSideForSize(companion?.system?.identity?.size);", to: "  const side = Math.max(1, tokenSideForSize(companion?.system?.identity?.size));", breaks: "G4" },
-  { file: SJ, name: "the version is not raised", from: "\"version\": \"3.720.0\"", to: "\"version\": \"3.719.1\"", breaks: "Z" }
+  { file: SJ, name: "the version is not raised", from: "\"version\": \"3.720.1\"", to: "\"version\": \"3.719.1\"", breaks: "Z" }
 ];
 
 function run() {

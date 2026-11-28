@@ -18,7 +18,7 @@ const MUTATIONS = [
   { name: "a High Magic caster takes a spell with no tradition", file: CI, from: "    || (Boolean(highMagicCaster) && spellTraditions.length > 0);", to: "    || Boolean(highMagicCaster);" },
   { name: "the release never asks", file: CIW, from: "...castFromItemOptions({ spellPPCost: cost, spellTradition, highMagicCaster, ...context }),", to: "...castFromItemOptions({ spellPPCost: cost, spellTradition, ...context }),"},
   { name: "any High Magic cast counts (a Highmagic spell, a creature)", file: CIW, from: "traits: \"\" }).source === \"caster\";", to: "traits: \"\" }).highMagic;" },
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.720.0\"", to: "\"version\": \"3.688.0\"" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.720.1\"", to: "\"version\": \"3.688.0\"" }
 ];
 
 const verify = path.join(SYSTEM_ROOT, "tools", "verify-fixes-3688-1.mjs");

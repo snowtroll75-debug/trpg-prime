@@ -20,7 +20,9 @@
 import { isActingGM } from "./acting-gm.mjs";
 import { SYSTEM_ID } from "./content-packs.mjs";
 import { isPeril } from "./peril.mjs";
-import { regrownPosition, tokenFollowsSize, tokenSideForSize, tokenSizePatch } from "./token-size.mjs";
+import {
+  KEEP_TOKEN_SIZE_FLAG, keepSizeFieldHTML, keepsOwnSize, regrownPosition, tokenFollowsSize, tokenSideForSize, tokenSizePatch
+} from "./token-size.mjs";
 import { isVehicleActor } from "./vehicles.mjs";
 
 const SETTLE_MS = 120;
@@ -44,6 +46,8 @@ async function syncTokenSize(tokenDocument) {
   const actor = tokenDocument?.actor;
   const size = linkedSize(actor);
   if (!size || !tokenDocument?.update) return false;
+  // KEPT AT ITS OWN SIZE (3.720.1): the token's tick box.
+  if (keepsOwnSize(tokenDocument)) return false;
   const now = stored(tokenDocument);
   const patch = tokenSizePatch(now, size);
   if (!patch) return false;
@@ -63,7 +67,7 @@ async function syncTokenSize(tokenDocument) {
 async function syncPrototype(actor) {
   if (!actor || actor.isToken || actor.pack || !actor.update) return false;
   const size = linkedSize(actor);
-  if (!size) return false;
+  if (!size || keepsOwnSize(actor.prototypeToken)) return false;
   const proto = actor.prototypeToken?._source ?? actor.prototypeToken ?? {};
   const patch = tokenSizePatch(proto, size);
   if (!patch) return false;
@@ -109,7 +113,8 @@ export function registerTokenSizeHooks() {
   // source is set before the document exists, so there is nothing to write.
   Hooks.on("preCreateToken", (tokenDocument) => {
     try {
-      const size = linkedSize(tokenDocument?.actor);
+      // A token dragged from a kept prototype carries its flag (3.720.1).
+      const size = keepsOwnSize(tokenDocument) ? null : linkedSize(tokenDocument?.actor);
       const patch = size ? tokenSizePatch(tokenDocument._source ?? tokenDocument, size) : null;
       if (patch) tokenDocument.updateSource(patch);
     } catch (error) {
@@ -124,6 +129,29 @@ export function registerTokenSizeHooks() {
       Hooks.on(`${verb}${kind}`, (document) => queueTokenSizeSync(actorOf(document)));
     }
   }
+
+  // THE TICK BOX (3.720.1): on a token's sheet and on a prototype token's,
+  // under the Size row, for an actor whose tokens follow its Size. The
+  // sheet's own form saves it, as any `flags.` field.
+  const addKeepBox = (app, element) => {
+    try {
+      const token = app?.token ?? app?.document ?? null;
+      if (!token || linkedSize(app?.actor ?? token.actor) === null) return;
+      const root = element?.querySelector ? element : element?.[0];
+      const row = root?.querySelector?.('[name="width"]')?.closest(".form-group");
+      if (!row || root.querySelector(".trg-keep-token-size")) return;
+      row.insertAdjacentHTML("afterend", keepSizeFieldHTML(keepsOwnSize(token)));
+    } catch (error) {
+      console.warn(`${SYSTEM_ID} | token size link: the tick box`, error);
+    }
+  };
+  Hooks.on("renderTokenConfig", addKeepBox);
+  Hooks.on("renderPrototypeTokenConfig", addKeepBox);
+  // UNTICKED, a token takes its creature's Size again at once.
+  Hooks.on("updateToken", (tokenDocument, changed) => {
+    if (!isActingGM() || !foundry.utils.hasProperty(changed ?? {}, `flags.${SYSTEM_ID}.${KEEP_TOKEN_SIZE_FLAG}`)) return;
+    setTimeout(() => { syncTokenSize(tokenDocument).catch((error) => console.warn(`${SYSTEM_ID} | token size link: ${tokenDocument?.name ?? "token"}`, error)); }, SETTLE_MS);
+  });
 
   // WHAT WAS ALREADY THERE: the tokens of a scene as it is opened, and
   // every world actor's prototype once at start. Only a token or a

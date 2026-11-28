@@ -2,6 +2,13 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.720.1 — 28 November 2026: a token can be kept at its own size
+
+Full notes in `release-notes-3.720.1.md`. Asked for by Graham. 3.720.0 passed live (`live-testing-report-3.720.0.md`).
+
+- **"Keep this size":** a tick box under the Size row of a token's sheet and a prototype token's sheet. A ticked token is not resized by the Size link, a form, a frenzy or a companion's growth. Unticked, it takes its creature's Size again at once.
+- **A kept prototype** hands the tick to every token dragged from it.
+
 ## 3.720.0 — 28 November 2026: a token is the size its creature is
 
 Full notes in `release-notes-3.720.0.md`. Reported by Graham.

@@ -55,6 +55,7 @@ import {
 import { abilityGallop } from "../creature-ability-rules.mjs";
 import { nextActionLegLapses, nextActionLegRestores } from "./agile-display.mjs";
 import { isSwarm } from "../codex-trait-rules.mjs";
+import { keepsOwnSize } from "../token-size.mjs";
 
 const SYSTEM_ID = "trg-prime";
 const MOVED_FLAG = "movementPools";
@@ -816,6 +817,9 @@ const RESIZING = new Set();
  */
 export async function resizeTokenInPlace(tokenDocument, side) {
   if (!tokenDocument?.update || !(Number(side) > 0)) return;
+  // A TOKEN KEPT AT ITS OWN SIZE (3.720.1): its tick box holds against a
+  // form and a companion's growth as it does against the Size link.
+  if (keepsOwnSize(tokenDocument)) return;
   RESIZING.add(tokenDocument.id);
   try {
     await tokenDocument.update({ width: side, height: side }, {
