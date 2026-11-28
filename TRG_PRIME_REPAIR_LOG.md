@@ -1339,5 +1339,8 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
   - `mutate-pack-repairs` was re-anchored.
   - The full verify battery passed.
   - The 72 mutate files touching pack-repair, migration or the version anchors passed.
-- **Live verification:** pending Graham's install.
+- **Live verification:** passed on 28 November 2026, on 3.718.3 as installed.
+  - The world migrated to 3.718.3, and the pass posted no card, because nothing was stale and nothing was custom.
+  - The classifier, run over every world and token actor, found 322 repaired-item copies: 322 current, 0 stale, 0 custom.
+  - A player-seat smoke cast of False Health, with two purchases at Intelligence 3, gave 12 temporary HP (×4).
 - **Delivery:** 3.718.3, branch `fix/spell-core-sweep`.
