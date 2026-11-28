@@ -674,6 +674,7 @@
         },
         "gm": {
           "challenge": 0,
+          "challengeZero": false,
           "dp": 0,
           "role": "",
           "faction": "",

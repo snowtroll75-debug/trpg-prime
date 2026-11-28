@@ -63,7 +63,7 @@ equal("B9 both completion tests read the time value", (create.match(/completionO
 ok("B10 the project's value — what the materials cost — is never rewritten", !/project\.itemValue\s*=/.test(create));
 
 /* C */
-equal("C1 the system is 3.716.0", JSON.parse(src("system.json")).version, "3.719.0");
+equal("C1 the system is 3.716.0", JSON.parse(src("system.json")).version, "3.719.1");
 
 /* D — 3.713.1: a spell of several traditions is cast in its caster's (Graham's ruling, Eldritch Arts A11-16) */
 {

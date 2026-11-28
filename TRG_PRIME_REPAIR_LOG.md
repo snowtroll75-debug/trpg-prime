@@ -1366,3 +1366,22 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
 - **Live verification:** owed once installed.
 - **Delivery:** 3.719.0, branch `fix/spell-module-sweep`.
 
+## R-0049 — An Effective Level of 0 could not be stored (3.719.1)
+
+- **Reported:** Graham, 28 November 2026, from the Fiends & Fables creature balance audit: "it seems to me that EL 0 needs to be created."
+- **Source state:** branch `fix/spell-module-sweep` at 3.719.0 (`2a491d0`).
+- **Root cause:** `effectiveLevelOf` reads a 0 in `system.gm.challenge` as a blank box and returns the creature's level. A level-1 creature under 90% of the Development Point benchmark has EL `floor(1 × 0.9) = 0`, and 21 Fiends & Fables creatures are in that position. Each was budgeted as EL 1: 400 XP against a level-1 party where EL 0 is 300.
+- **Fix:**
+  - A new field, `system.gm.challengeZero` (default false), marks a 0 that is meant. `effectiveLevelOf` returns 0 when it is true and the box holds 0.
+  - A number above 0 in the box wins over the marker.
+  - The GM tab has an "Effective Level 0" tick box beside the Effective Level box.
+  - A 0 without the marker keeps its old meaning, so no stored actor reads differently and no migration is needed. The schema stays at 3.718.3.
+- **Not done:** the alternative of making a blank box distinct from a typed 0 would have needed every saved actor's 0 rewritten, with no way to tell a meant 0 from a default one.
+- **Testing:**
+  - `verify-fixes-3719-1`: 13 checks. `mutate-fixes-3719-1`: 9 mutations, all caught.
+  - `verify-block38-rewards`: 59 checks, unchanged.
+  - All 413 per-rule verify files passed, run one by one, with `verify-no-undefined-names`, `verify-rules-have-callers` and `verify-checks-can-fail`.
+  - Of the 63 mutate files that touch `rewards.mjs`, `template.json`, the actor sheet or the version anchors, 62 passed. `mutate-fixes-3685-3b` was stopped after 12 minutes (58 mutations at about a minute each); its only anchor affected here, the version string, was checked by hand.
+  - **Not run:** `verify-checks-read-source` and the mutate files that touch none of those sources. The sweep was not run end to end.
+- **Live verification:** owed once installed, with Fiends & Fables 0.47.1. The tick box's layout on the GM tab has not been seen in a browser.
+- **Delivery:** 3.719.1, branch `fix/creature-effective-level-zero`, on top of `fix/spell-module-sweep`.

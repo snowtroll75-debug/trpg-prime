@@ -108,11 +108,20 @@ export function averagePartyLevel(levels = []) {
  * A creature's Effective Level (R3): the GM tab's Effective Level box, or
  * the creature's own level while that is blank (0).
  *
+ * EFFECTIVE LEVEL 0 (3.719.1, Graham, 28 November 2026). A level-1 creature
+ * under 90% of the Development Point benchmark is worth `floor(1 × 0.9) = 0`,
+ * and the box could not say so: a 0 in it has always meant "blank, use the
+ * level", on every actor ever saved. So the 0 keeps that meaning and a
+ * separate marker, `gm.challengeZero`, says "this 0 is the Effective Level".
+ * Nothing stored changes its reading, and no migration is needed. A number
+ * above 0 in the box still wins over the marker.
+ *
  * @param {object} system an actor's system data
  */
 export function effectiveLevelOf(system) {
   const typed = whole(system?.gm?.challenge);
   if (typed > 0) return typed;
+  if (system?.gm?.challengeZero === true) return 0;
   return Math.max(0, whole(system?.identity?.level));
 }
 

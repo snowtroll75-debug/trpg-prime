@@ -43,8 +43,8 @@ const { ritualDCModifierTotal } = await import(new URL("../module/magic/casting.
 equal("B the rule's own sum is unchanged: +2 per caster of a different tradition", [0, 1, 3].map((n) => ritualDCModifierTotal({ differentTraditionSecondaryCasters: n })), [0, 2, 6]);
 
 const sys = JSON.parse(read("system.json"));
-equal("Z the version is 3.691.0", [sys.version, JSON.parse(read("package.json")).version], ["3.719.0", "3.719.0"]);
-equal("Z the download names it", sys.download, "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.719.0/trg-prime.zip");
+equal("Z the version is 3.691.0", [sys.version, JSON.parse(read("package.json")).version], ["3.719.1", "3.719.1"]);
+equal("Z the download names it", sys.download, "https://github.com/snowtroll75-debug/trpg-prime/releases/download/v3.719.1/trg-prime.zip");
 
 if (failures.length) { for (const f of failures) console.log(`  ✗ ${f}`); console.log(`verify-fixes-3688-4: ${failures.length} failure(s) of ${checks}`); process.exit(1); }
 console.log(`verify-fixes-3688-4: all ${checks} checks pass`);

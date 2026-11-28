@@ -3737,9 +3737,13 @@
           <article class="ornate-card">
             <h2>Encounter Data</h2>
             <div class="field-grid three-column">
-              <label data-tooltip="Effective Level (Chapter 12): what this creature is worth against the party's APL. Leave at 0 to use its level ({{system.identity.level}}).">
+              <label data-tooltip="Effective Level (Chapter 12): what this creature is worth against the party's APL. Leave at 0 to use its level ({{system.identity.level}}), or tick Effective Level 0 to rate it at 0.">
                 <span>Effective Level</span>
                 <input type="number" min="0" name="system.gm.challenge" value="{{system.gm.challenge}}" placeholder="{{system.identity.level}}">
+              </label>
+              <label class="checkbox-field" data-tooltip="With the Effective Level box at 0, tick this to rate the creature at Effective Level 0. Unticked, a 0 in the box means its level ({{system.identity.level}}). A number above 0 in the box always wins.">
+                <span>Effective Level 0</span>
+                <input type="checkbox" name="system.gm.challengeZero" {{checked system.gm.challengeZero}}>
               </label>
               <label>
                 <span>DP</span>

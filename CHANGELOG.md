@@ -2,6 +2,13 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.719.1 — 28 November 2026: an Effective Level of 0 can be stored
+
+Full notes in `release-notes-3.719.1.md`. Asked for by Graham after the Fiends & Fables balance audit.
+
+- **Effective Level 0:** the GM tab has an "Effective Level 0" tick box beside the Effective Level box. Ticked, with the box at 0, the creature is worth EL 0 in encounter building. Unticked, a 0 in the box still means "use the creature's level", so no existing actor changes and there is no migration.
+- **Fiends & Fables 0.47.1** sets the marker on its 21 EL 0 creatures.
+
 ## 3.719.0 — 28 November 2026: what the companion-module spell sweep found
 
 Full notes in `release-notes-3.719.0.md`. All 230 Eldritch Arts, Pillars of Faith and Inner Tempest spells were cast from the player's seat. 3.718.3 passed live.

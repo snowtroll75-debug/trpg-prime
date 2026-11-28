@@ -17,7 +17,7 @@ const MUTATIONS = [
   { name: "the fumble's check ignores the path", file: CIW, from: "check: { type: bySkill ? \"skill\" : \"spellcraft\", skill: bySkill ? option.skill : \"\" },", to: "check: { type: option.skill ? \"skill\" : \"spellcraft\", skill: option.skill ?? \"\" }," },
   { name: "an item's spell asked the library's question", file: CW, from: "  const castBlocked = (ritualNonCaster || releasedFromItem) ? \"\" : spellCastBlocked(spell);", to: "  const castBlocked = ritualNonCaster ? \"\" : spellCastBlocked(spell);" },
   { name: "every spell exempt", file: CW, from: "  const releasedFromItem = Boolean(spell.getFlag?.(SYSTEM_ID, \"itemCast\"));", to: "  const releasedFromItem = true;" },
-  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.719.0\"", to: "\"version\": \"3.688.1\"" }
+  { name: "the version is not raised", file: SJ, from: "\"version\": \"3.719.1\"", to: "\"version\": \"3.688.1\"" }
 ];
 
 const verify = path.join(SYSTEM_ROOT, "tools", "verify-fixes-3688-2.mjs");
