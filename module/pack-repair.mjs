@@ -55,10 +55,30 @@ function deepEquals(a, b) {
     if (a.length !== b.length) return false;
     return a.every((v, i) => deepEquals(v, b[i]));
   }
-  const ka = Object.keys(a);
-  const kb = Object.keys(b);
-  if (ka.length !== kb.length) return false;
-  return ka.every((k) => Object.prototype.hasOwnProperty.call(b, k) && deepEquals(a[k], b[k]));
+  // A KEY ONE SIDE LACKS IS EQUAL TO AN EMPTY DEFAULT ON THE OTHER (3.718.3).
+  // Found in the 3.718.2 live migration: "ZZ SW Wizard — Shock Bolt: damage …
+  // left alone", on a copy identical to the pack. The data model had since
+  // given `damage` a `persistentOn: ""` default, which the copy carries and
+  // the manifest's `from`/`to` (written before the field existed) do not — so
+  // the copy matched neither, a copy that WAS stale would never be repaired,
+  // and the report called the current pack somebody's house rule. An empty
+  // string, null, an empty list or an empty object is a schema's default, not
+  // anybody's edit; a 0 or a false is a value and still has to match.
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const k of keys) {
+    const inA = Object.prototype.hasOwnProperty.call(a, k);
+    const inB = Object.prototype.hasOwnProperty.call(b, k);
+    if (inA && inB) { if (!deepEquals(a[k], b[k])) return false; continue; }
+    if (!isEmptyDefault(inA ? a[k] : b[k])) return false;
+  }
+  return true;
+}
+
+function isEmptyDefault(value) {
+  if (value === undefined || value === null || value === "") return true;
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === "object") return Object.keys(value).length === 0;
+  return false;
 }
 
 /**

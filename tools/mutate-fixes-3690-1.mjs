@@ -21,9 +21,9 @@ const MUTATIONS = [
   { name: "C a held spell takes effect", file: RL, from: "const opening = held ? \"<strong>The spell is held.</strong>\"", to: "const opening = false ? \"<strong>The spell is held.</strong>\"" },
   { name: "C a failed hold called held", file: CW, from: "held: Boolean(holdingNow && outcome.cast) };", to: "held: Boolean(holdingNow) };" },
   { name: "C the cast never says held", file: CW, from: "held: Boolean(holdingNow && outcome.cast) };", to: "held: false };" },
-  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.718.2\"", to: "\"version\": \"3.690.0\"" },
-  { name: "Z the download names the last release", file: SJ, from: "releases/download/v3.718.2/trg-prime.zip", to: "releases/download/v3.690.0/trg-prime.zip" },
-  { name: "Z package.json is left behind", file: PJ, from: "\"version\": \"3.718.2\"", to: "\"version\": \"3.690.0\"" }
+  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.718.3\"", to: "\"version\": \"3.690.0\"" },
+  { name: "Z the download names the last release", file: SJ, from: "releases/download/v3.718.3/trg-prime.zip", to: "releases/download/v3.690.0/trg-prime.zip" },
+  { name: "Z package.json is left behind", file: PJ, from: "\"version\": \"3.718.3\"", to: "\"version\": \"3.690.0\"" }
 ];
 
 const verify = path.join(SYSTEM_ROOT, "tools", "verify-fixes-3690-1.mjs");

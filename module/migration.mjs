@@ -101,7 +101,9 @@ const WORLD_SCHEMA_SETTING = "worldSchemaVersion";
 // 3.718.0: and again for Nightvision's grant and Conjuration Shield's deferred save.
 // 3.718.1: and again for Size Alteration's equipment (Graham).
 // 3.718.2: and again for False Health's multiplier warp (Graham, Q2).
-export const TRG_SCHEMA_VERSION = "3.718.2";
+// 3.718.3: and again because the matcher changed — a copy carrying an empty
+// schema default the manifest predates now reads as stale or current.
+export const TRG_SCHEMA_VERSION = "3.718.3";
 
 /**
  * Register the hidden world setting used to determine whether a migration is
@@ -823,7 +825,10 @@ export async function migrateWorldData(fromVersion = "") {
   // RE-VERSIONED TO 3.718.0: Nightvision and Conjuration Shield (the player-seat sweep).
   // RE-VERSIONED TO 3.718.1: Size Alteration's equipment (Graham, 27 Nov 2026).
   // RE-VERSIONED TO 3.718.2: False Health's multiplier warp (Graham, Q2).
-  const packCopies = (await runIf("3.718.2", "stale owned copies of repaired pack items",
+  // RE-VERSIONED TO 3.718.3: no new entry — the MATCHER changed (pack-repair.mjs,
+  // empty schema defaults), so every world runs the pass once more and the
+  // copies it used to misread as house rules are repaired.
+  const packCopies = (await runIf("3.718.3", "stale owned copies of repaired pack items",
     () => migrateStalePackCopies([...actors, ...tokenActors], Array.from(game.items ?? []))))
     ?? { repaired: [], kept: [] };
   result.packCopies = packCopies;

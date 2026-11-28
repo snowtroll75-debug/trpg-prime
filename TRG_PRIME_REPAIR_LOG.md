@@ -1320,5 +1320,24 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
   - `verify-warp-repeats` was recounted (P2b 63, P2c 457).
   - The full verify battery passed.
   - Every mutate file touching the warp, effects, pack-repair, migration or version anchors passed (180 files).
-- **Live verification:** pending Graham's install.
+- **Live verification:** passed on 28 November 2026, on 3.718.2 as installed, from the player's seat:
+  - **False Health:** a count box with a maximum of 3. At Intelligence 3, no purchases, one and three gave 6, 9 and 15 temporary HP.
+  - **The migration report:** it no longer names the Nightvision ability or the Animal Staff spell.
 - **Delivery:** 3.718.2, branch `fix/spell-core-sweep`.
+
+## R-0047 — The pack-copy pass misreads copies that carry a schema default newer than the repair (3.718.3)
+
+- **Reported:** the 3.718.2 live migration card, 28 November 2026. It listed "ZZ SW Wizard — Shock Bolt: damage" and eight more as left alone, though each was identical to the compendium.
+- **Source state:** branch `fix/spell-core-sweep` at 3.718.2 (`b6a4c63`).
+- **Root cause:** Foundry's data model fills `damage.persistentOn: ""` into every copy. The 3.608-era manifest entries predate the field, and `deepEquals` required identical key sets. So a current copy read as custom, and a stale one was never repaired.
+- **Fix:**
+  - `deepEquals` treats a one-sided key holding an empty default as equal: an empty string, null, an empty list or an empty object, but not 0 or false.
+  - The pass and the schema were re-gated to 3.718.3 so every world reads its copies again.
+  - `verify-pack-repairs` F1b allows a pass gated to the matcher's revision, provided it is newer than the newest entry.
+- **Testing:**
+  - `verify-fixes-3718-3`: 12 checks. `mutate-fixes-3718-3`: 6 mutations, all caught.
+  - `mutate-pack-repairs` was re-anchored.
+  - The full verify battery passed.
+  - The 72 mutate files touching pack-repair, migration or the version anchors passed.
+- **Live verification:** pending Graham's install.
+- **Delivery:** 3.718.3, branch `fix/spell-core-sweep`.

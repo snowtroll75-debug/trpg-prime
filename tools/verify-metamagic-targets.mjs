@@ -183,7 +183,7 @@ const opt = (spellData, id, more) => opts(spellData, more).find((o) => o.id === 
   const ue = PACK_REPAIRS.find((r) => r.id === "unshakable-effects-3609");
   ok("R4 Unshakable's stale note is repaired on owned copies (3.717.1)", ue?.to?.length === 1 && ue?.alsoFrom?.[0]?.some((e) => e.kind === "note"));
   const mig = read("module", "migration.mjs");
-  ok("R3 the pack-copy pass and the schema are re-gated for them", /runIf\("3\.71[78]\.[0-2]", "stale owned copies of repaired pack items"/.test(mig) && /TRG_SCHEMA_VERSION = "3\.71[78]\.[0-2]"/.test(mig));
+  ok("R3 the pack-copy pass and the schema are re-gated for them", /runIf\("3\.71[78]\.[0-3]", "stale owned copies of repaired pack items"/.test(mig) && /TRG_SCHEMA_VERSION = "3\.71[78]\.[0-3]"/.test(mig));
 }
 
 /* ================================================================== */

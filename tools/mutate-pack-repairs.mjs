@@ -73,8 +73,9 @@ const MUTATIONS = [
   {
     file: RULE,
     name: "key order decides whether a copy counts as broken",
-    from: "  const ka = Object.keys(a);\n  const kb = Object.keys(b);\n  if (ka.length !== kb.length) return false;\n  return ka.every((k) => Object.prototype.hasOwnProperty.call(b, k) && deepEquals(a[k], b[k]));",
-    to: "  return JSON.stringify(a) === JSON.stringify(b);",
+    // RE-ANCHORED AT 3.718.3: the key walk now also tolerates empty defaults.
+    from: "  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);",
+    to: "  return JSON.stringify(a) === JSON.stringify(b);\n  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);",
     breaks: "D1 — a Foundry round-trip reorders keys and a stale copy reads as house-ruled"
   },
   {

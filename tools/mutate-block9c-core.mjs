@@ -103,9 +103,9 @@ const MUTATIONS = [
   { name: "RE-REVIEW: a held spell's lent option not spent", file: CW, from: "      if (lentCut.effectIds.length && lentRoundKey) {", to: "      if (false) {" },
   { name: "RE-REVIEW: a release writes back a stale list", file: SSW, from: "  const left = heldSpellsIn(host).filter((r) => r.id !== record.id);", to: "  const left = rest;" },
   // Z
-  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.718.2\"", to: "\"version\": \"3.689.0\"" },
-  { name: "Z the download names the last release", file: SJ, from: "releases/download/v3.718.2/trg-prime.zip", to: "releases/download/v3.689.0/trg-prime.zip" },
-  { name: "Z package.json is left behind", file: PJ, from: "\"version\": \"3.718.2\"", to: "\"version\": \"3.689.0\"" }
+  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.718.3\"", to: "\"version\": \"3.689.0\"" },
+  { name: "Z the download names the last release", file: SJ, from: "releases/download/v3.718.3/trg-prime.zip", to: "releases/download/v3.689.0/trg-prime.zip" },
+  { name: "Z package.json is left behind", file: PJ, from: "\"version\": \"3.718.3\"", to: "\"version\": \"3.689.0\"" }
 ];
 
 const verify = path.join(SYSTEM_ROOT, "tools", "verify-block9c-core.mjs");

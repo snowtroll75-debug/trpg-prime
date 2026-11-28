@@ -2,6 +2,12 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.718.3 — 28 November 2026: the migration now recognises copies that carry a newer default
+
+Full notes in `release-notes-3.718.3.md`. 3.718.2 passed live: False Health's three purchases give ×2 to ×5 (6, 9 and 15 temporary HP at Intelligence 3).
+
+- **The pack-copy matcher:** a key that only one side has counts as equal when it is an empty default. Shock Bolt's `persistentOn: ""` and the like no longer make a copy look house-ruled, or leave a stale one unrepaired. The pass runs again (schema 3.718.3).
+
 ## 3.718.2 — 27 November 2026: False Health's multiplier warp
 
 Full notes in `release-notes-3.718.2.md`. 3.718.1 passed live from the player's seat: Cure's surge, Size Alteration's weapons, and Darkvision on yourself.

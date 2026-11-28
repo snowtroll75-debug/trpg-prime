@@ -217,8 +217,17 @@ const newestEntry = PACK_REPAIRS.map((r) => r.since).sort((a, b) => {
   for (let i = 0; i < 3; i += 1) if ((pa[i] ?? 0) !== (pb[i] ?? 0)) return (pa[i] ?? 0) - (pb[i] ?? 0);
   return 0;
 }).at(-1);
+// 3.718.3: the pass may also be gated to the release that last changed the
+// MATCHER — pack-repair.mjs's empty-default tolerance — so worlds that ran it
+// under the stricter compare run it once more. Never behind the newest entry.
+const MATCHER_REVISED = "3.718.3";
+function foundry_isNewer(a, b) {
+  const pa = String(a).split(".").map(Number), pb = String(b).split(".").map(Number);
+  for (let i = 0; i < 3; i += 1) if ((pa[i] ?? 0) !== (pb[i] ?? 0)) return (pa[i] ?? 0) > (pb[i] ?? 0);
+  return false;
+}
 ok("F1b and not behind the newest entry in the manifest",
-  passVersion === newestEntry,
+  passVersion === newestEntry || (passVersion === MATCHER_REVISED && foundry_isNewer(MATCHER_REVISED, newestEntry)),
   `pass runs at ${passVersion}, newest entry is from ${newestEntry} — a world past ${passVersion} would never apply it`);
 ok("F2 it runs over token actors as well as directory ones",
   /migrateStalePackCopies\(\[\.\.\.actors, \.\.\.tokenActors\], Array\.from\(game\.items \?\? \[\]\)\)/.test(migration),
