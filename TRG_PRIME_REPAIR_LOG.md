@@ -1460,5 +1460,5 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
   - All 413 per-rule verify files passed, with `verify-no-undefined-names` and `verify-rules-have-callers`; the 31 other mutate files that touch the changed sources passed.
   - Hot-checked in the Test world with the markup added in the browser only: layout under the Size row, saving on a token and on a prototype, and a prototype's flag carried to a new token.
   - **Not run:** `verify-checks-read-source`, `verify-checks-can-fail`, the other mutate files, and the companion modules' suites.
-- **Live verification:** owed once installed.
+- **Live verification:** passed, 28 November 2026 (`live-testing-report-3.720.1.md`): the box on both sheets, a kept token held against a Size change, an effect, the scene reopening and a form's resize, a kept prototype handing the tick to a new token, and unticking.
 - **Delivery:** 3.720.1, branch `fix/token-size-link`.
