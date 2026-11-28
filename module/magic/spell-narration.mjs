@@ -110,10 +110,50 @@ export function spellHasNoMechanics(spellSystem = {}) {
  * @returns {string} "" when there is nothing worth printing.
  */
 export function spellNarration(description) {
-  const text = String(description ?? "")
+  const raw = String(description ?? "");
+  const text = (HTML_TAG.test(raw) ? htmlNarration(raw) : raw)
     .split(/Warping Options:/i)[0]
     .trim();
   return text;
+}
+
+/*
+ * A COMPANION MODULE'S DESCRIPTION IS HTML (3.719.0). Every core spell
+ * carries plain text, and this file was written for that; Eldritch Arts
+ * ships all 130 of its spells as `<p>` paragraphs headed by the printed
+ * stat block. Found by the module sweep: Dark Whispers, Observe the Weave
+ * and Message Rune — the three Eldritch Arts spells with nothing for the
+ * engine to apply — printed their whole description as escaped markup,
+ * `<p><strong>AUDITORY SHADOW UTILITY</strong></p>` and all, because the
+ * card escapes what this returns (rightly: it is text, not markup).
+ *
+ * So markup is turned back into the paragraphs it encodes, and the stat
+ * block the card's header and the Warp dialog already showed is left
+ * out: the trait banner (a paragraph that is only bold capitals) and the
+ * labelled lines below it. "Requirements" and "Trigger" are NOT on that
+ * list — they are clauses of the spell, the same reason the second
+ * paragraph is kept whole. The printed WARPING OPTIONS heading carries no
+ * colon in these books, so the cut also stops at a paragraph that is
+ * only that heading.
+ */
+const HTML_TAG = /<\/?[a-z][^>]*>/i;
+const STAT_LINE = /^<strong>\s*(traditions?|cast|range|area|targets?|duration|defen[cs]e|saving throw|traits?)\s*:?\s*<\/strong>/i;
+const BANNER = /^<strong>[^a-z<]*<\/strong>$/;
+const ENTITIES = { "&lt;": "<", "&gt;": ">", "&quot;": "\"", "&#39;": "'", "&apos;": "'", "&nbsp;": " ", "&amp;": "&" };
+
+function htmlNarration(html) {
+  const out = [];
+  for (const chunk of html.split(/<\/p>|<br\s*\/?>|<\/li>|<\/h[1-6]>|<\/div>/i)) {
+    const inner = chunk.replace(/^\s*(<(p|li|h[1-6]|div|ul|ol)\b[^>]*>\s*)+/i, "").trim();
+    if (!inner || STAT_LINE.test(inner) || BANNER.test(inner)) continue;
+    const plain = inner.replace(/<[^>]*>/g, "")
+      .replace(/&(lt|gt|quot|#39|apos|nbsp|amp);/g, (m) => ENTITIES[m])
+      .replace(/\s+/g, " ").trim();
+    if (!plain) continue;
+    if (/^warping options:?$/i.test(plain)) break;
+    out.push(plain);
+  }
+  return out.join("\n");
 }
 
 /**

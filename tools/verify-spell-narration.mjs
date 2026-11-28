@@ -101,6 +101,44 @@ equal("B8 a description that is only warps narrates nothing",
   narrationLines({ description: "Warping Options:\n+2 PP: more." }).length, 0);
 
 /* ================================================================== *
+ * B2. A companion module's HTML description (3.719.0)
+ * ================================================================== */
+
+// FOUND BY THE MODULE SWEEP: Dark Whispers, Observe the Weave and Message
+// Rune printed their whole description as escaped markup, because every
+// Eldritch Arts description is `<p>` paragraphs and this was written for
+// the core pack's plain text. Shaped exactly as Eldritch Arts ships them.
+const EA = "<p><strong>AUDITORY SHADOW UTILITY</strong></p>\n"
+  + "<p><strong>Tradition</strong> divinity, ethereal</p>\n"
+  + "<p><strong>Cast</strong> 2 AP (somatic, verbal)</p>\n"
+  + "<p><strong>Range</strong> 500 feet</p>\n"
+  + "<p><strong>Area</strong> 20-foot radius</p>\n"
+  + "<p><strong>Targets</strong> 1 creature</p>\n"
+  + "<p><strong>Duration</strong> 1 minute</p>\n"
+  + "<p><strong>Defence</strong> Will</p>\n"
+  + "<p><strong>Requirements</strong> you are touching water</p>\n"
+  + "<p>You whisper through <em>shadows</em> &amp; the target hears it.</p>\n"
+  + "<p>The whisper can be &quot;silenced&quot;.</p>\n"
+  + "<p>WARPING OPTIONS</p>\n"
+  + "<p><strong>+1 PP:</strong> another target.</p>";
+const eaLines = narrationLines({ description: EA });
+ok("B9 no markup reaches the card", eaLines.every((l) => !/[<>]/.test(l)), JSON.stringify(eaLines));
+ok("B10 the trait banner is left out", !eaLines.some((l) => /AUDITORY SHADOW UTILITY/.test(l)), JSON.stringify(eaLines));
+for (const label of ["Tradition", "Cast", "Range", "Area", "Targets", "Duration", "Defence"]) {
+  ok(`B11 the ${label} line is left out`, !eaLines.some((l) => l.startsWith(label)), JSON.stringify(eaLines));
+}
+ok("B12 a requirement is a clause of the spell and stays", eaLines.includes("Requirements you are touching water"), JSON.stringify(eaLines));
+equal("B13 the spell's own paragraphs survive, entities decoded",
+  eaLines.slice(1).join(" | "), "You whisper through shadows & the target hears it. | The whisper can be \"silenced\".");
+ok("B14 the colon-less WARPING OPTIONS heading ends it", !eaLines.some((l) => /PP:|another target|WARPING/i.test(l)), JSON.stringify(eaLines));
+equal("B15 one line per printed paragraph", eaLines.length, 3);
+equal("B16 plain text is untouched by the HTML path",
+  spellNarration("A < B and C > D, &amp; not an entity here."), "A < B and C > D, &amp; not an entity here.");
+equal("B17 a <br> splits a paragraph", narrationLines({ description: "<p>One<br>Two</p>" }).length, 2);
+equal("B18 a description of only a stat block narrates nothing",
+  narrationLines({ description: "<p><strong>LIGHT UTILITY</strong></p><p><strong>Range</strong> touch</p>" }).length, 0);
+
+/* ================================================================== *
  * C. Derived, never flagged
  * ================================================================== */
 

@@ -2738,7 +2738,10 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
             if (state?.blocked) lines.push(line(`<em>${state.note ?? `${target.name} cannot leave Dying.`}</em>`));
           } else await target.toggleStatusEffect?.(relief.condition, { active: false });
           if (reliefSpec.oncePerDay && target.setFlag) {
-            await target.setFlag(SYSTEM_ID, RELIEF_FLAG,
+            // THROUGH THE GM WHEN IT IS NOT OURS (3.719.0; Restoration on
+            // another player's character threw here and posted no card).
+            const { setTargetFlag } = await import("../combat/relayed-writes.mjs");
+            await setTargetFlag(target, RELIEF_FLAG,
               markRelievedToday(reliefRecord, reliefSpec.oncePerDay));
           }
           lines.push(line(reliefLine(target.name, relief.label, had, left) + (relief.rolled ? ` <em>(${relief.rolled})</em>` : "")));
@@ -5875,8 +5878,12 @@ export async function applySpellEffects(caster, spell, { targets = [], areaCaugh
           // NO REACTIONS WHILE IT LASTS (3.630.0) — the flag the reaction gate
           // already reads, stamped on the condition so it ends with it.
           if (effect.noReactions) {
+            // THROUGH THE GM WHEN IT IS NOT OURS (3.719.0; Writ of Restraint
+            // from a player's seat: "lacks permission to update ActiveEffect",
+            // swallowed, so the Judged Subject kept its Reactions).
+            const { setEffectFlags } = await import("../combat/relayed-writes.mjs");
             for (const e of Array.from(target.effects ?? []).filter((x) => !x.disabled && x.statuses?.has?.(effect.condition))) {
-              await e.setFlag(SYSTEM_ID, "fumbleNoReactions", true).catch(() => {});
+              await setEffectFlags(e, { fumbleNoReactions: true }).catch(() => {});
             }
           }
           if (effect.conditionSave) {

@@ -2,6 +2,14 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.719.0 — 28 November 2026: what the companion-module spell sweep found
+
+Full notes in `release-notes-3.719.0.md`. All 230 Eldritch Arts, Pillars of Faith and Inner Tempest spells were cast from the player's seat. 3.718.3 passed live.
+
+- **Narration:** a module spell's HTML description is printed as text, without its stat block or warping options. This fixes Dark Whispers, Observe the Weave and Message Rune.
+- **Writ of Restraint, from a player's seat:** its "cannot use Reactions" stamp goes through the GM.
+- **Restoration on another player's character:** the once-a-day record goes through the GM, so the cast no longer throws and leaves no Result card. Pillars of Faith's Nine-Herb Restorative, Soul Rebinding and Share Burden use the same row.
+
 ## 3.718.3 — 28 November 2026: the migration now recognises copies that carry a newer default
 
 Full notes in `release-notes-3.718.3.md`. 3.718.2 passed live: False Health's three purchases give ×2 to ×5 (6, 9 and 15 temporary HP at Intelligence 3).

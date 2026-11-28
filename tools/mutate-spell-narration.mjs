@@ -24,6 +24,55 @@ const EFFECTS = path.join(SYSTEM_ROOT, "module", "magic", "spell-effects.mjs");
 
 const MUTATIONS = [
   {
+    name: "3.719.0 THE SHIPPED STATE: an HTML description is passed through as markup",
+    file: RULE,
+    from: "  const text = (HTML_TAG.test(raw) ? htmlNarration(raw) : raw)",
+    to: "  const text = raw",
+    breaks: "B9 — Dark Whispers prints <p><strong>AUDITORY SHADOW UTILITY</strong></p> as text"
+  },
+  {
+    name: "3.719.0 the stat block is kept",
+    file: RULE,
+    from: "    if (!inner || STAT_LINE.test(inner) || BANNER.test(inner)) continue;",
+    to: "    if (!inner || BANNER.test(inner)) continue;",
+    breaks: "B11 — Range, Cast and Duration repeat under the result"
+  },
+  {
+    name: "3.719.0 the trait banner is kept",
+    file: RULE,
+    from: "    if (!inner || STAT_LINE.test(inner) || BANNER.test(inner)) continue;",
+    to: "    if (!inner || STAT_LINE.test(inner)) continue;",
+    breaks: "B10 — AUDITORY SHADOW UTILITY heads the narration"
+  },
+  {
+    name: "3.719.0 Requirements is taken for a stat line",
+    file: RULE,
+    from: "(traditions?|cast|range|area|targets?|duration|defen[cs]e|saving throw|traits?)",
+    to: "(traditions?|cast|range|area|targets?|duration|defen[cs]e|saving throw|traits?|requirements?)",
+    breaks: "B12 — a real clause of the spell disappears"
+  },
+  {
+    name: "3.719.0 the colon-less warping heading no longer stops it",
+    file: RULE,
+    from: "    if (/^warping options:?$/i.test(plain)) break;",
+    to: "    if (/^warping options:$/i.test(plain)) break;",
+    breaks: "B14 — the +1 PP options print under the result"
+  },
+  {
+    name: "3.719.0 entities are left encoded",
+    file: RULE,
+    from: '      .replace(/&(lt|gt|quot|#39|apos|nbsp|amp);/g, (m) => ENTITIES[m])\n',
+    to: "",
+    breaks: "B13 — &amp; is escaped a second time and reads as &amp;amp;"
+  },
+  {
+    name: "3.719.0 paragraphs run together",
+    file: RULE,
+    from: '  return out.join("\\n");',
+    to: '  return out.join(" ");',
+    breaks: "B15 — the second paragraph is buried in the first"
+  },
+  {
     name: "THE SHIPPED STATE: the cast stops printing the text at all",
     file: CAST,
     from: "    for (const paragraph of narrationLines(spellData)) {",

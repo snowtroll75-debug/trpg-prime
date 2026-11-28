@@ -77,8 +77,9 @@ const MUTATIONS = [
     from: '      if (!SPELL_RELAY_FLAGS.includes(key)) return { ok: false, reason: `not a spell\'s record: ${key}` };',
     to: "", breaks: "C3" },
   { file: RELAY, name: "the allow-list grows a flag",
-    from: '  "pendingModifiers", "temporaryImmunity", "imprisoned", "cuttingWords", "spellDrain", "flatLadderCurse"\n]);',
-    to: '  "pendingModifiers", "temporaryImmunity", "imprisoned", "cuttingWords", "spellDrain", "flatLadderCurse", "attitude"\n]);', breaks: "C0/C3" },
+    // RE-ANCHORED AT 3.719.0: the list ends with reliefUsedToday now.
+    from: '  "reliefUsedToday"\n]);',
+    to: '  "reliefUsedToday", "attitude"\n]);', breaks: "C0/C3" },
   { file: RELAY, name: "a scalar record passes",
     from: '      if (value !== null && typeof value !== "object") return { ok: false, reason: "not a record" };',
     to: "", breaks: "C4" },

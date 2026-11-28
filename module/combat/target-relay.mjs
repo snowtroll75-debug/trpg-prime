@@ -207,11 +207,19 @@ export const RELAY_ACTIONS = Object.freeze({
  * (3.718.0). Each is a record a spell keeps on the creature it affects.
  */
 export const SPELL_RELAY_FLAGS = Object.freeze([
-  "pendingModifiers", "temporaryImmunity", "imprisoned", "cuttingWords", "spellDrain", "flatLadderCurse"
+  "pendingModifiers", "temporaryImmunity", "imprisoned", "cuttingWords", "spellDrain", "flatLadderCurse",
+  // 3.719.0, the module sweep: Restoration (and Pillars of Faith's Nine-Herb
+  // Restorative, Soul Rebinding, Share Burden) on another player's character
+  // — the once-a-day record threw "lacks permission to update Actor" after
+  // the condition had come down, and no Result card posted.
+  "reliefUsedToday"
 ]);
 
 /** The flags an EFFECT_STAMP request may set on a target's effect (3.718.0). */
-export const EFFECT_STAMP_FLAGS = Object.freeze(["conditionHold", "conditionSave", "endSave", "escapeDC", "escapeFrom"]);
+export const EFFECT_STAMP_FLAGS = Object.freeze(["conditionHold", "conditionSave", "endSave", "escapeDC", "escapeFrom",
+  // 3.719.0, the module sweep: Writ of Restraint's "cannot use Reactions",
+  // stamped on the slowed it lays — "lacks permission to update ActiveEffect".
+  "fumbleNoReactions"]);
 
 /**
  * A SPELL_WALLS request's segments, rebuilt from named fields, or null when

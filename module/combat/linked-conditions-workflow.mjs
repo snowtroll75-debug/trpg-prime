@@ -141,9 +141,11 @@ export async function applyFollowOn(actor, followOn) {
   const carry = followOn?.carry && typeof followOn.carry === "object" ? followOn.carry : null;
   if (carry) {
     const keys = new Set(tags.map((t) => t?.key).filter(Boolean));
+    // THROUGH THE GM WHEN IT IS NOT OURS (3.719.0), as the first stamp is.
+    const { setEffectFlags } = await import("./relayed-writes.mjs");
     for (const effect of Array.from(actor.effects ?? []).filter((e) => !e.disabled && [...keys].some((k) => e.statuses?.has?.(k)))) {
       for (const [flag, value] of Object.entries(carry)) {
-        if (["conditionSave", "fumbleNoReactions"].includes(flag)) await effect.setFlag("trg-prime", flag, value).catch(() => {});
+        if (["conditionSave", "fumbleNoReactions"].includes(flag)) await setEffectFlags(effect, { [flag]: value }).catch(() => {});
       }
     }
   }

@@ -1344,3 +1344,25 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
   - The classifier, run over every world and token actor, found 322 repaired-item copies: 322 current, 0 stale, 0 custom.
   - A player-seat smoke cast of False Health, with two purchases at Intelligence 3, gave 12 temporary HP (×4).
 - **Delivery:** 3.718.3, branch `fix/spell-core-sweep`.
+
+## R-0048 — Companion-module spell sweep: HTML narration, Writ of Restraint's stamp, Restoration's record (3.719.0)
+
+- **Reported:** the module spell sweep, 28 November 2026, from the player's seat. All 230 Eldritch Arts 0.18.3, Pillars of Faith 0.13.3 and Inner Tempest 1.1.1 spells were cast. The beneficial ones were cast again on an ally the player does not own.
+- **Source state:** branch `fix/spell-core-sweep` at 3.718.3 (`0d717cf`).
+- **Defects and root causes:**
+  1. **HTML narration.** Dark Whispers, Observe the Weave and Message Rune printed escaped HTML. `spellNarration` assumed the core pack's plain-text descriptions, but every Eldritch Arts description is HTML.
+  2. **Writ of Restraint.** "lacks permission to update ActiveEffect": the `noReactions` stamp was written directly, and the error was swallowed. The 3.718.0 EFFECT_STAMP relay did not list `fumbleNoReactions`.
+  3. **Restoration.** "lacks permission to update Actor", and no Result card: the `conditionRelief` row wrote `reliefUsedToday` straight onto another player's character.
+- **Fix:**
+  - `htmlNarration` turns HTML back into paragraphs. It drops the banner and stat lines, decodes entities and stops at WARPING OPTIONS.
+  - `fumbleNoReactions` joins `EFFECT_STAMP_FLAGS`, and `reliefUsedToday` joins `SPELL_RELAY_FLAGS`.
+  - The three call sites (relief, noReactions and the follow-on carry) write through `setTargetFlag` / `setEffectFlags`.
+- **Testing:**
+  - `verify-fixes-3719-0`: 12 checks. `mutate-fixes-3719-0`: 5 mutations, all caught.
+  - `verify-spell-narration` B9–B18. `mutate-spell-narration`: 7 new mutations, all caught.
+  - The full verify battery passed, including `verify-checks-read-source`.
+  - All 154 related mutate files passed.
+  - The 54 companion-module verify scripts give identical results on 3.718.3 and 3.719.0.
+- **Live verification:** owed once installed.
+- **Delivery:** 3.719.0, branch `fix/spell-module-sweep`.
+

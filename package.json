@@ -26,5 +26,5 @@
     "verify:grapple": "node tools/verify-grapple-critical.mjs",
     "mutate:grapple": "node tools/mutate-grapple-critical.mjs"
   },
-  "version": "3.718.3"
+  "version": "3.719.0"
 }

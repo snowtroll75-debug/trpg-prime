@@ -159,8 +159,10 @@ ok("B9 a refusal is said as a refusal", /conjured\.reason\s*\?\s*conjuredItemRef
 }
 
 /* C. A spell's record on a target ------------------------------------ */
+// C0 and F0 GREW BY ONE EACH AT 3.719.0 (reliefUsedToday, fumbleNoReactions);
+// see verify-fixes-3719-0.
 ok("C0 the records a spell may write across the relay are exactly these",
-  JSON.stringify(SPELL_RELAY_FLAGS) === JSON.stringify(["pendingModifiers", "temporaryImmunity", "imprisoned", "cuttingWords", "spellDrain", "flatLadderCurse"]), JSON.stringify(SPELL_RELAY_FLAGS));
+  JSON.stringify(SPELL_RELAY_FLAGS) === JSON.stringify(["pendingModifiers", "temporaryImmunity", "imprisoned", "cuttingWords", "spellDrain", "flatLadderCurse", "reliefUsedToday"]), JSON.stringify(SPELL_RELAY_FLAGS));
 {
   const value = [{ id: "x", kind: "modifier", value: -2 }];
   const { rec, target } = await relay(RELAY_ACTIONS.SPELL_FLAG, { key: "pendingModifiers", value });
@@ -253,7 +255,7 @@ ok("E8 the helper asks whether the USER may create behaviours, not whether the r
   /BehaviorClass\?\.canUserCreate\?\.\(game\.user\) === true/.test(relayed));
 
 /* F. A stamp on a condition a spell laid -------------------------------- */
-ok("F0 the stamps are exactly these", JSON.stringify(EFFECT_STAMP_FLAGS) === JSON.stringify(["conditionHold", "conditionSave", "endSave", "escapeDC", "escapeFrom"]));
+ok("F0 the stamps are exactly these", JSON.stringify(EFFECT_STAMP_FLAGS) === JSON.stringify(["conditionHold", "conditionSave", "endSave", "escapeDC", "escapeFrom", "fumbleNoReactions"]));
 {
   const { rec, effect } = await relay(RELAY_ACTIONS.EFFECT_STAMP, { effectId: "e1", flags: { escapeDC: 24, escapeFrom: "Volcanic Inferno" } });
   ok("F1 a named stamp is set on the target's own effect", rec.calls[0]?.[0] === "stamp" && rec.calls[0]?.[1] === effect
