@@ -1,9 +1,9 @@
-# TRG Prime 3.719.0: what the companion-module spell sweep found
+# TRG Prime 3.719.0: the companion-module spell sweep, and HTML descriptions everywhere
 
 28 November 2026. Branch `fix/spell-module-sweep`, on top of 3.718.3.
 
 - **Install over 3.718.3.** No data change and no migration: the world is not asked to migrate.
-- **Companion modules:** Eldritch Arts 0.18.3, Pillars of Faith 0.13.3 and Inner Tempest 1.1.1 need no update. All three defects below were in the core.
+- **Companion modules:** Eldritch Arts 0.18.3, Pillars of Faith 0.13.3 and Inner Tempest 1.1.1 need no update. Every defect below was in the core.
 
 ## The sweep
 
@@ -34,6 +34,25 @@ All 230 companion-module spells were cast from the player's seat (PC Tester), wi
   - **Cut off:** everything from the colon-less WARPING OPTIONS heading onward.
 - **Scope:** the core's 692 spells are untouched, since none is HTML. Pillars of Faith and Inner Tempest have no spell that reaches this fallback.
 
+## Fixed: item and actor sheets showed HTML descriptions as raw markup
+
+You reported that the HTML seen on the three spell cards also shows on feats and other items.
+
+- **The item sheet:**
+  - **What you saw:** the Description box is a plain text box. A feat, spell, item, race or rune from a companion module opened as its source, for example `<p><strong>SPELLWARDEN</strong></p><p><strong>Prerequisites</strong> Level 10…`.
+  - **How many:** 1,855 compendium items carry HTML descriptions. That is all of Eldritch Arts and Inner Tempest, most of Pillars of Faith, Fiends & Fables' three feats, and the core's origins, creature classes, creature attacks and creature abilities.
+  - **Now:** an HTML description is shown as formatted text, with its bold labels, italics, lists and tables. The pencil at its top right opens Foundry's rich-text editor, which saves HTML back.
+  - **Plain-text descriptions:** every core spell, feat and item keeps the plain text box, exactly as before.
+- **The actor sheet:**
+  - **Fields with HTML:** the Pillars of Faith haunts' Biography and Secret Notes, and the core vehicles' Quick Notes.
+  - **Now:** they are shown and edited the same way.
+  - **Also covered:** Appearance, Personality, Magic Notes and Treasure & Rewards switch over the same way, should they ever hold HTML.
+- **The cards that print an item's own words:**
+  - **Which cards:** a feat or ability's use, a magic item's activation, a consumable read out, a text-only consumable, and an oil's vapours.
+  - **What went wrong:** the oil card escaped HTML into visible tags. The others put a block of paragraphs inside a single card line, which the browser splits apart.
+  - **Now:** HTML keeps its formatting in its own block. Plain text is printed exactly as before.
+- **One rule:** whether a description is HTML, and how to read one as text, is decided in one new file, `description-html.mjs`. The spell-card narration above now uses it too.
+
 ## Fixed: Writ of Restraint left the Judged Subject its Reactions (player's seat)
 
 - **Affected:** Pillars of Faith's Writ of Restraint.
@@ -60,14 +79,26 @@ All 230 companion-module spells were cast from the player's seat (PC Tester), wi
 
 ## Still owed
 
-- **Live test of the three fixes**, from the player's seat, once 3.719.0 is installed:
+- **Live test**, from the player's seat, once 3.719.0 is installed:
   - Dark Whispers, Observe the Weave and Message Rune.
+  - An Eldritch Arts feat's sheet: shown, then edited and saved.
+  - A Pillars of Faith haunt's Biography.
+  - A module feat's use card.
   - Writ of Restraint on the Foe.
   - Restoration on the unowned ally.
 
 ## For developers
 
-- **`magic/spell-narration.mjs`:** `spellNarration` turns an HTML description back into paragraphs (`htmlNarration`) before the warping cut. It drops the banner (`BANNER`) and the stat lines (`STAT_LINE`), and decodes the five common entities.
+- **`description-html.mjs` (new):**
+  - `isHtmlDescription`, `htmlBlocks`, `blockText` and `descriptionPlainText` read a description.
+  - `cardDescription` writes one onto a card.
+  - `richTextFields` enriches a document's HTML fields for a sheet's `<prose-mirror toggled>`, as the Party sheet's notes are.
+- **`magic/spell-narration.mjs`:** `spellNarration` turns an HTML description back into paragraphs (`htmlNarration`, built on `htmlBlocks` / `blockText`) before the warping cut. It drops the banner (`BANNER`) and the stat lines (`STAT_LINE`).
+- **Sheets:**
+  - `item-sheet.mjs` / `item-sheet.hbs`: `context.rich.description`.
+  - `actor-sheet.mjs` / `actor-sheet.hbs`: `context.rich` for seven text fields.
+  - CSS for the editor and for card tables.
+- **Cards:** `uses-workflow`, `magic-items-workflow`, `consumable-use-workflow` (two sites) and `oil-workflow` print through `cardDescription`.
 - **`combat/target-relay.mjs`:**
   - `SPELL_RELAY_FLAGS` gains `reliefUsedToday`.
   - `EFFECT_STAMP_FLAGS` gains `fumbleNoReactions`.
@@ -76,7 +107,7 @@ All 230 companion-module spells were cast from the player's seat (PC Tester), wi
   - The `noReactions` stamp writes through `setEffectFlags`.
 - **`combat/linked-conditions-workflow.mjs`:** the follow-on carry writes through `setEffectFlags`.
 - **Harness:**
-  - **New:** `verify-fixes-3719-0` (12 checks) and `mutate-fixes-3719-0` (5 mutations, all caught).
+  - **New:** `verify-fixes-3719-0` (50 checks) and `mutate-fixes-3719-0` (18 mutations, all caught).
   - **`verify-spell-narration`:** gains B9–B18, for 72 checks. `mutate-spell-narration` gains 7 mutations, for 20, all caught.
   - **`verify-core-sweep-3718`:** C0 and F0 take the two new keys. One `mutate-core-sweep-3718` anchor was re-anchored.
   - **Version re-pins:** across `tools/`.

@@ -48,6 +48,7 @@ import { usePoison } from "./poison-workflow.mjs";
 import { oilOf } from "./oils.mjs";
 import { consumableSpecialOf } from "./consumable-specials.mjs";
 import { useOil } from "./oil-workflow.mjs";
+import { cardDescription } from "./description-html.mjs";
 
 const SYSTEM_ID = "trg-prime";
 
@@ -644,7 +645,7 @@ export async function useConsumable(actor, item) {
   // The description path has nothing else to say, so it says the item's own
   // words — which is what the GM has to apply by hand.
   if (mode === "description" && (!rule.needsCheck || scroll.cast)) {
-    lines.push(line(item.system?.description || "No effect is recorded on this item yet — open it and give it a spell, or an effect."));
+    lines.push(cardDescription(item.system?.description || "No effect is recorded on this item yet — open it and give it a spell, or an effect."));
   }
   if (spend) {
     lines.push(after.destroy
@@ -830,7 +831,7 @@ async function useAlchemical(actor, item) {
   } else if (!scaled || (!scaled.pending && !scaled.wake && !scaled.resave)) {
     // TEXT ONLY (Black Amaranth, Bone Reed): the item's own words, which
     // is what the GM applies.
-    lines.push(line(item.system?.description || "No effect is recorded on this item."));
+    lines.push(cardDescription(item.system?.description || "No effect is recorded on this item."));
   }
 
   // 5. WHAT THE ENGINE DOES NOT DO.

@@ -718,11 +718,15 @@
 
     <article class="ornate-card description-card">
       <h2>Description</h2>
+      {{#if rich.description}}
+      <prose-mirror class="chronicle" name="system.description" value="{{system.description}}" toggled{{#unless editable}} disabled{{/unless}}>{{{rich.description}}}</prose-mirror>
+      {{else}}
       <textarea
         class="chronicle"
         name="system.description"
         placeholder="Rules, effects, and description…"
       >{{system.description}}</textarea>
+      {{/if}}
     </article>
   </main>
 

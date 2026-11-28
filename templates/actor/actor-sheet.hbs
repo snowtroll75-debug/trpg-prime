@@ -900,10 +900,14 @@
 
         <article class="ornate-card summary-notes">
           <h2><i class="fa-solid fa-feather"></i> Quick Notes</h2>
+          {{#if rich.notes}}
+          <prose-mirror name="system.details.notes" value="{{system.details.notes}}" toggled{{#unless editable}} disabled{{/unless}}>{{{rich.notes}}}</prose-mirror>
+          {{else}}
           <textarea
             name="system.details.notes"
             placeholder="Oaths, reminders, wounds, and discoveries…"
           >{{system.details.notes}}</textarea>
+          {{/if}}
         </article>
       </div>
     </section>
@@ -3418,11 +3422,15 @@
 
       <article class="ornate-card">
         <h2>Magic Notes</h2>
+        {{#if rich.magicNotes}}
+        <prose-mirror class="large-textarea" name="system.magic.notes" value="{{system.magic.notes}}" toggled{{#unless editable}} disabled{{/unless}}>{{{rich.magicNotes}}}</prose-mirror>
+        {{else}}
         <textarea
           class="large-textarea"
           name="system.magic.notes"
           placeholder="Prepared spells, rituals, tradition notes, and magical obligations…"
         >{{system.magic.notes}}</textarea>
+        {{/if}}
       </article>
     </section>
 
@@ -3684,25 +3692,37 @@
         </article>
         <article class="ornate-card">
           <h2>Biography</h2>
+          {{#if rich.biography}}
+          <prose-mirror class="chronicle" name="system.details.biography" value="{{system.details.biography}}" toggled{{#unless editable}} disabled{{/unless}}>{{{rich.biography}}}</prose-mirror>
+          {{else}}
           <textarea
             class="chronicle"
             name="system.details.biography"
             placeholder="Record the character's history…"
           >{{system.details.biography}}</textarea>
+          {{/if}}
         </article>
         <article class="ornate-card">
           <h2>Appearance</h2>
+          {{#if rich.appearance}}
+          <prose-mirror name="system.details.appearance" value="{{system.details.appearance}}" toggled{{#unless editable}} disabled{{/unless}}>{{{rich.appearance}}}</prose-mirror>
+          {{else}}
           <textarea
             name="system.details.appearance"
             placeholder="Build, dress, manner, and distinguishing features…"
           >{{system.details.appearance}}</textarea>
+          {{/if}}
         </article>
         <article class="ornate-card">
           <h2>Personality</h2>
+          {{#if rich.personality}}
+          <prose-mirror name="system.details.personality" value="{{system.details.personality}}" toggled{{#unless editable}} disabled{{/unless}}>{{{rich.personality}}}</prose-mirror>
+          {{else}}
           <textarea
             name="system.details.personality"
             placeholder="Temperament, habits, and voice…"
           >{{system.details.personality}}</textarea>
+          {{/if}}
         </article>
         <article class="ornate-card">
           <h2>Ideals</h2>
@@ -3836,18 +3856,26 @@
           {{/if}}
           <article class="ornate-card">
             <h2>Treasure & Rewards</h2>
+            {{#if rich.treasure}}
+            <prose-mirror name="system.gm.treasure" value="{{system.gm.treasure}}" toggled{{#unless editable}} disabled{{/unless}}>{{{rich.treasure}}}</prose-mirror>
+            {{else}}
             <textarea
               name="system.gm.treasure"
               placeholder="Treasure, clues, rewards, and recoverable equipment…"
             >{{system.gm.treasure}}</textarea>
+            {{/if}}
           </article>
           <article class="ornate-card gm-notes-card">
             <h2>Secret Notes</h2>
+            {{#if rich.gmNotes}}
+            <prose-mirror class="chronicle" name="system.gm.notes" value="{{system.gm.notes}}" toggled{{#unless editable}} disabled{{/unless}}>{{{rich.gmNotes}}}</prose-mirror>
+            {{else}}
             <textarea
               class="chronicle"
               name="system.gm.notes"
               placeholder="Secrets known only to the GM…"
             >{{system.gm.notes}}</textarea>
+            {{/if}}
           </article>
         </div>
       </section>
