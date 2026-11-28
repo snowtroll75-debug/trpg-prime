@@ -169,6 +169,7 @@ import { registerCreatureReactionHooks } from "../module/creature-reactions-work
 import { registerCodexHooks } from "../module/codex-hooks-workflow.mjs";
 import { registerSpawnHooks } from "../module/spawn-workflow.mjs";
 import { registerSwarmHooks } from "../module/swarm-workflow.mjs";
+import { registerTokenSizeHooks } from "../module/token-size-workflow.mjs";
 import { registerAuraTraitEffectHooks } from "../module/aura-trait-effect-workflow.mjs";
 import { registerExtraplanarHooks } from "../module/extraplanar-workflow.mjs";
 import { registerAllyAuraEffectHooks } from "../module/ally-aura-effects-workflow.mjs";
@@ -361,6 +362,8 @@ Hooks.once("init", () => {
   registerCodexHooks();
   registerSpawnHooks();
   registerSwarmHooks();
+  // A TOKEN IS THE SIZE ITS CREATURE IS (3.720.0, Graham).
+  registerTokenSizeHooks();
   registerAuraTraitEffectHooks();
   registerExtraplanarHooks();
   registerAllyAuraEffectHooks();

@@ -49,7 +49,7 @@ const MUTATIONS = [
   { name: "F an unmeasured familiar does not say the range is the table's", file: SA, from: "Spell Battery${Number.isFinite(feet) ? \"\" : \" (within 30 ft)\"}", to: "Spell Battery" },
   { name: "F an unmeasured familiar refused", file: SA, from: "    if (Number.isFinite(feet) && feet > SPELL_BATTERY_FEET) continue;", to: "    if (!Number.isFinite(feet) || feet > SPELL_BATTERY_FEET) continue;" },
   { name: "F the cast never asks the familiars", file: CW, from: "withWondrousAdders(withWondrousAdders(spellAdderSources(actor), wondrous), battery)", to: "withWondrousAdders(spellAdderSources(actor), wondrous)" },
-  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.719.1\"", to: "\"version\": \"3.696.3\"" }
+  { name: "Z the version is not raised", file: SJ, from: "\"version\": \"3.720.0\"", to: "\"version\": \"3.696.3\"" }
 ];
 
 const verify = path.join(SYSTEM_ROOT, "tools", "verify-audit-3697.mjs");

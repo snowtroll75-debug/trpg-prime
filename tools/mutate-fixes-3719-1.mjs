@@ -23,7 +23,7 @@ const MUTATIONS = [
   { file: TJ, name: "the marker is on by default", from: "          \"challengeZero\": false,", to: "          \"challengeZero\": true,", breaks: "B1" },
   { file: SH, name: "the tick box writes somewhere else", from: "<input type=\"checkbox\" name=\"system.gm.challengeZero\"", to: "<input type=\"checkbox\" name=\"system.gm.challengeNone\"", breaks: "B2" },
   { file: SH, name: "the tick box has no label", from: "<span>Effective Level 0</span>", to: "<span></span>", breaks: "B3" },
-  { file: SJ, name: "the version is not raised", from: "\"version\": \"3.719.1\"", to: "\"version\": \"3.719.0\"", breaks: "Z" }
+  { file: SJ, name: "the version is not raised", from: "\"version\": \"3.720.0\"", to: "\"version\": \"3.719.0\"", breaks: "Z" }
 ];
 
 function run() {

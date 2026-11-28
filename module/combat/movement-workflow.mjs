@@ -826,6 +826,24 @@ export async function resizeTokenInPlace(tokenDocument, side) {
   }
 }
 
+/**
+ * Run a token update that changes its size, so that it is not a move
+ * (3.720.0): the same mark `resizeTokenInPlace` sets, for a caller that
+ * writes more than width and height — the Size link writes depth too.
+ * @param {TokenDocument} tokenDocument
+ * @param {() => Promise<unknown>} write
+ */
+export async function asTokenResize(tokenDocument, write) {
+  const id = tokenDocument?.id;
+  if (!id || typeof write !== "function") return undefined;
+  RESIZING.add(id);
+  try {
+    return await write();
+  } finally {
+    RESIZING.delete(id);
+  }
+}
+
 /** Is this client a player while the game is paused? Foundry will refuse its move. */
 function movePausedForUser(gameLike) {
   return Boolean(gameLike?.paused) && !gameLike?.user?.isGM;

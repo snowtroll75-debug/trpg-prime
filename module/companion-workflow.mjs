@@ -359,14 +359,14 @@ async function chooseCreature(creatures, { title = "Animal Companion", intro = "
 /**
  * A COMPANION THAT GREW (3.674.0, C3): every token of it on the canvas to
  * its derived size's side (Large 2 squares, Huge 3, …), not as a move. Small
- * and smaller keep one square.
+ * and smaller are drawn under a square (3.720.0).
  */
 export async function resizeCompanionTokens(companion) {
-  const { SIZE_TABLE } = await import("./config.mjs");
-  const size = String(companion?.system?.identity?.size ?? "").toLowerCase();
-  const space = Number(SIZE_TABLE[size]?.space);
-  if (!(space > 0)) return;
-  const side = Math.max(1, Math.round(space / 5));
+  // BY THE ONE TABLE (3.720.0): token-size.mjs, so this and the Size link
+  // never disagree about a Small companion.
+  const { tokenSideForSize } = await import("./token-size.mjs");
+  const side = tokenSideForSize(companion?.system?.identity?.size);
+  if (!(side > 0)) return;
   const { resizeTokenInPlace } = await import("./combat/movement-workflow.mjs");
   for (const doc of companion.getActiveTokens?.(false, true) ?? []) {
     if (doc?.update && (Number(doc.width) !== side || Number(doc.height) !== side)) await resizeTokenInPlace(doc, side);

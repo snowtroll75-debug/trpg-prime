@@ -156,7 +156,7 @@ ok("D21 the spell card's narration reads the same blocks", /from "\.\.\/descript
 
 /* C. The release -------------------------------------------------------- */
 const sys = JSON.parse(read("system.json"));
-ok("C1 the system is 3.719.0 or later (now 3.719.1)", sys.version === "3.719.1", sys.version);
+ok("C1 the system is 3.719.0 or later (now 3.719.1)", sys.version === "3.720.0", sys.version);
 
 if (failures.length) {
   process.stderr.write(`verify-fixes-3719-0: FAILED ${failures.length} of ${checks}\n  ${failures.join("\n  ")}\n`);

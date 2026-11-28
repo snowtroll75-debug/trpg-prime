@@ -1,4 +1,5 @@
 import { SIZE_FOOTPRINT } from "./flanking.mjs";
+import { tokenOriginSquare } from "../token-size.mjs";
 
 /**
  * Canvas glue for the ranged-attack and flanking rules. Every function here
@@ -64,8 +65,10 @@ export function activeToken(actor) {
 export function tokenSquares(token) {
   try {
     const grid = canvas?.grid?.size ?? 100;
-    const col = Math.round(token.document.x / grid);
-    const row = Math.round(token.document.y / grid);
+    // THE SQUARE ITS CENTRE IS IN, for a token under a square across
+    // (3.720.0): see tokenOriginSquare.
+    const col = tokenOriginSquare(token.document.x, token.document.width, grid);
+    const row = tokenOriginSquare(token.document.y, token.document.height, grid);
     const bySize = SIZE_FOOTPRINT[token.actor?.system?.identity?.size] ?? 0;
     const byToken = Math.max(1, Math.round(token.document.width ?? 1));
     const span = Math.max(1, bySize, byToken);
@@ -87,8 +90,8 @@ export function tokenOrigin(token) {
   try {
     const grid = canvas?.grid?.size ?? 100;
     return {
-      col: Math.round(token.document.x / grid),
-      row: Math.round(token.document.y / grid),
+      col: tokenOriginSquare(token.document.x, token.document.width, grid),
+      row: tokenOriginSquare(token.document.y, token.document.height, grid),
       size: token.actor?.system?.identity?.size ?? "medium"
     };
   } catch {

@@ -2,6 +2,17 @@
 
 The full notes for every release are in `release-notes-<version>.md` beside this file; this changelog summarises from 3.697.0 onward.
 
+## 3.720.0 — 28 November 2026: a token is the size its creature is
+
+Full notes in `release-notes-3.720.0.md`. Reported by Graham.
+
+- **The Size link:** a creature's token takes its width, height and depth from its Size: Diminutive 0.4, Tiny 0.6, Small 0.8, Medium 1, Large 2, Huge 3, Gargantuan 4, Colossal 5.
+  - A new token is created at that size, and the prototype token follows.
+  - Any change of Size resizes the creature's tokens: the sheet, Size Alteration, a form, a frenzy or a companion's growth. The token returns when the effect ends.
+  - Parties, vehicles and perils are left alone.
+- **Distances:** the square a token under one square across stands in is read from its centre.
+- **First run:** tokens are corrected as the GM opens each scene, and prototype tokens when the GM's client starts.
+
 ## 3.719.1 — 28 November 2026: an Effective Level of 0 can be stored
 
 Full notes in `release-notes-3.719.1.md`. Asked for by Graham after the Fiends & Fables balance audit.

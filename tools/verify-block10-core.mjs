@@ -114,7 +114,7 @@ const aw = read("module", "combat", "attack-workflow.mjs");
     /featNames: featNamesOf\(this\),\n\s*\/\/[^\n]*\n\s*grownSize: system\.companion\?\.grownSize/.test(actorSrc) && /grownSize: companion\?\.grownSize,/.test(itemSrc));
   ok("C3 its tokens, and the next one dragged out, follow its size",
     /if \(actor\?\.type === "companion" && foundry\.utils\.hasProperty\(changed \?\? \{\}, "system\.companion\.grownSize"\)\)/.test(boot)
-    && /const side = Math\.max\(1, Math\.round\(space \/ 5\)\);/.test(cw) && /"prototypeToken\.width": side, "prototypeToken\.height": side/.test(cw));
+    && /const side = tokenSideForSize\(companion\?\.system\?\.identity\?\.size\);/.test(cw) && /"prototypeToken\.width": side, "prototypeToken\.height": side/.test(cw));
 }
 
 /* C4 — feats by kind */

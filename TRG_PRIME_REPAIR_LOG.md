@@ -1410,3 +1410,36 @@ Ruling: Graham, 22 November 2026. Branch `feature/party-sheet-v2-stage3`.
   - **Not run:** `verify-checks-read-source` and the mutate files that touch none of those sources. The sweep was not run end to end.
 - **Live verification:** owed once installed, with Fiends & Fables 0.47.1. The tick box's layout on the GM tab has not been seen in a browser.
 - **Delivery:** 3.719.1, branch `fix/creature-effective-level-zero`, on top of `fix/spell-module-sweep`.
+
+## R-0051 — A token's size was not linked to its creature's Size (3.720.0)
+
+- **Reported:** Graham, 28 November 2026: "there seems to be no link between the Size characteristic of the actor and its token size. This affects a number of things such as starting character size and changes if a temporary effect changes an actors size (such as size alteration)." He gave the table: Diminutive 0.4, Tiny 0.6, Small 0.8, Medium 1, Large 2, Huge 3, Gargantuan 4, Colossal 5, for the token's X, Y and Z size.
+- **Source state:** `main` at 3.719.1 (`8743d36`).
+- **Root cause:** nothing general wrote a token's dimensions. Three workflows did it for themselves (Change Shape, Luna Frenzy, a companion's growth), each from a whole-square table. A Size set on the sheet or by any other effect, Size Alteration included, changed `system.identity.size` and nothing read it for the token. No code wrote `depth` at all.
+- **Fix:**
+  - New `token-size.mjs` holds Graham's table and the pure rules.
+  - New `token-size-workflow.mjs` keeps tokens and prototype tokens at the prepared Size:
+    - `preCreateToken` sets a new token's source.
+    - A change to the actor, or to an effect or item on it, queues one deferred look per actor.
+    - `canvasReady` and `ready` correct what was already there.
+    - The acting GM writes. The write is marked as a resize (`asTokenResize` in `movement-workflow.mjs`) and written as a displacement, so it is not charged as a move.
+  - `geometry.mjs` reads the square of a token under one square across from its centre (`tokenOriginSquare`). Foundry snaps 0.4 and 0.6 tokens to quarter squares, and rounding the edge named the neighbouring square.
+  - `resizeCompanionTokens` uses the same table.
+- **Not done:**
+  - Change Shape and Luna Frenzy keep their own whole-square resize; the link corrects a form under Medium a moment later.
+  - Foundry's snapping is unchanged, so a 0.8 token sits at its square's top-left corner.
+  - No per-token opt-out.
+- **Checked in the Test world before building (Foundry 14.367, temporary actor and tokens, deleted):**
+  - A token update with `width`, `height` and `depth` and a `displace` waypoint carrying `depth` is accepted at 0.8, 0.6 and 2.
+  - An effect overriding `system.identity.size` changes the prepared Size and not the stored one.
+  - `updateSource` in `preCreateToken` gives a new token all three dimensions.
+  - `getDependentTokens()` also returns token documents that were never created (no id); the link skips them.
+  - Snapping on a square grid: a 0.8 token to the square's corner, 0.4 and 0.6 tokens to quarter squares.
+- **Testing:**
+  - `verify-fixes-3720-0`: 48 checks. `mutate-fixes-3720-0`: 39 mutations, all caught.
+  - All 412 per-rule verify files passed, run one by one, with `verify-no-undefined-names` and `verify-rules-have-callers`. `verify-block10-core` C3 was re-anchored on the shared table.
+  - The 32 mutate files that touch `geometry.mjs`, `movement-workflow.mjs` or `companion-workflow.mjs` passed; `mutate-ff30-block19` needed `asTokenResize` to keep its `RESIZING.add` line distinct from `resizeTokenInPlace`'s.
+  - Hot-checked in the Test world with the new code loaded in the browser only: Small 0.8 at creation (linked, unlinked and prototype); Large 2; a `sizeStepChange` effect to Huge 3 and back; an unlinked token's own effect resizing only it; a Tiny token at a quarter square regrown onto its square; Diminutive 0.4; Colossal 5; a blank Size left alone.
+  - **Not run:** `verify-checks-read-source`, `verify-checks-can-fail`, the other mutate files, and the companion modules' suites.
+- **Live verification:** owed once installed.
+- **Delivery:** 3.720.0, branch `fix/token-size-link`.
